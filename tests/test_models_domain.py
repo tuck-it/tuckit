@@ -1,7 +1,7 @@
 import pytest
 from django.db import IntegrityError
 
-from core.models import Area, Bite, Org, Slice, Tag, Workspace
+from tuckit.core.models import Area, Bite, Org, Slice, Tag, Workspace
 
 
 @pytest.fixture

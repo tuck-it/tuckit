@@ -1,7 +1,7 @@
 import pytest
 
-from core.models import Area, Org, Workspace
-from core.services.areas import create_area, get_or_create_inbox, list_areas
+from tuckit.core.models import Area, Org, Workspace
+from tuckit.core.services.areas import create_area, get_or_create_inbox, list_areas
 
 
 @pytest.fixture

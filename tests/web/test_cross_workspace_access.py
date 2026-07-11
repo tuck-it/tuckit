@@ -1,7 +1,7 @@
 import pytest
 
-from core.models import Org, OrgMember, Slice, User
-from core.services.orgs import create_workspace
+from tuckit.core.models import Org, OrgMember, Slice, User
+from tuckit.core.services.orgs import create_workspace
 
 
 @pytest.mark.django_db

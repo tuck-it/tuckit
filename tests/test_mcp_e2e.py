@@ -19,10 +19,10 @@ import json
 import pytest
 from starlette.testclient import TestClient
 
-from core.models import Org, Workspace
-from core.services.areas import create_area
-from core.services.slices import create_slice
-from core.services.tokens import generate_token
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice
+from tuckit.core.services.tokens import generate_token
 
 _HEADERS_BASE = {
     "Accept": "application/json, text/event-stream",

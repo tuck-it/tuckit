@@ -1,9 +1,9 @@
 import re
 
 import pytest
-from core.services.areas import create_area
-from core.services.slices import create_slice
-from core.services.bites import create_bite
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice
+from tuckit.core.services.bites import create_bite
 
 
 @pytest.mark.django_db
@@ -52,9 +52,9 @@ def test_spec_html_is_sanitized(client_local, workspace):
 
 @pytest.mark.django_db
 def test_slice_other_workspace_404(client_local):
-    from core.models import Org, Workspace
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
+    from tuckit.core.models import Org, Workspace
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     other = Workspace.objects.create(org=other_org, name="O", slug="o")
     s = create_slice(create_area(other, "A"), "secret")

@@ -1,8 +1,8 @@
 import pytest
 from django.test import override_settings
 
-from core.models import Org, OrgMember, User
-from core.services.invitations import create_invitation
+from tuckit.core.models import Org, OrgMember, User
+from tuckit.core.services.invitations import create_invitation
 
 
 @pytest.fixture

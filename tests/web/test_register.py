@@ -1,7 +1,7 @@
 import pytest
 from django.test import override_settings
 
-from core.models import Org, User
+from tuckit.core.models import Org, User
 
 
 @pytest.mark.django_db

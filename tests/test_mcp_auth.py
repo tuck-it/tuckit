@@ -1,8 +1,8 @@
 import pytest
 from starlette.testclient import TestClient
 
-from core.models import Org, Workspace
-from core.services.tokens import generate_token
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.tokens import generate_token
 
 
 @pytest.mark.django_db(transaction=True)

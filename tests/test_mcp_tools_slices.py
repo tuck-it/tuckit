@@ -2,7 +2,7 @@ import pytest
 
 from asgiref.sync import sync_to_async
 
-from core.mcp.server import (
+from tuckit.core.mcp.server import (
     create_slice,
     get_slice,
     list_slices,
@@ -10,10 +10,10 @@ from core.mcp.server import (
     set_slice_status,
     update_slice,
 )
-from core.models import Org, Workspace
-from core.services.areas import create_area
-from core.services.exceptions import InvalidValue, NotFound
-from core.services.tokens import generate_token
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.exceptions import InvalidValue, NotFound
+from tuckit.core.services.tokens import generate_token
 from tests.test_mcp_tools_state import make_ctx
 
 

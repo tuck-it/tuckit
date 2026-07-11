@@ -2,11 +2,11 @@ import pytest
 
 from asgiref.sync import sync_to_async
 
-from core.mcp.server import create_area, list_areas, list_tags
-from core.models import Org, Workspace
-from core.services.areas import create_area as svc_create_area
-from core.services.slices import create_slice
-from core.services.tokens import generate_token
+from tuckit.core.mcp.server import create_area, list_areas, list_tags
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area as svc_create_area
+from tuckit.core.services.slices import create_slice
+from tuckit.core.services.tokens import generate_token
 from tests.test_mcp_tools_state import make_ctx
 
 

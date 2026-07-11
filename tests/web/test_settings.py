@@ -2,8 +2,8 @@ import re
 
 import pytest
 
-from core.models import ApiToken, Org, Workspace
-from core.services.tokens import generate_token, hash_token
+from tuckit.core.models import ApiToken, Org, Workspace
+from tuckit.core.services.tokens import generate_token, hash_token
 
 
 @pytest.mark.django_db
@@ -66,7 +66,7 @@ def test_token_revoke_is_workspace_scoped(client_local, workspace):
 
 @pytest.mark.django_db
 def test_token_list_is_a_panel(client_local, workspace):
-    from core.services.tokens import generate_token
+    from tuckit.core.services.tokens import generate_token
 
     generate_token(workspace, "CI")
     body = client_local.get("/settings/").content.decode()

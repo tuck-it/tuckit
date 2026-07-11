@@ -1,7 +1,7 @@
 import pytest
-from core.services.areas import create_area
-from core.services.slices import create_slice
-from core.models import Org, Slice, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice
+from tuckit.core.models import Org, Slice, Workspace
 
 
 @pytest.mark.django_db
@@ -15,8 +15,8 @@ def test_board_view_renders_columns(client_local, workspace):
 
 @pytest.mark.django_db
 def test_board_column_head_has_dot_and_count(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
     a = create_area(workspace, "제품")
     create_slice(a, "카드 A", status="building")
     body = client_local.get(f"/areas/{a.slug}/?view=board").content.decode()

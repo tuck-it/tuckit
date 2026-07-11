@@ -1,7 +1,7 @@
 import pytest
 from django.test import override_settings
 
-from core.services.hooks import run_signup_hook
+from tuckit.core.services.hooks import run_signup_hook
 
 _calls = []
 

@@ -1,8 +1,8 @@
 import pytest
 
-from core.models import Area, Org, OrgMember, User, Workspace
-from core.services.accounts import register
-from core.services.exceptions import InvalidValue
+from tuckit.core.models import Area, Org, OrgMember, User, Workspace
+from tuckit.core.services.accounts import register
+from tuckit.core.services.exceptions import InvalidValue
 
 
 @pytest.mark.django_db

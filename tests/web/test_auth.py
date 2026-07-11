@@ -1,6 +1,6 @@
 import pytest
 
-from core.models import User
+from tuckit.core.models import User
 
 
 @pytest.mark.django_db

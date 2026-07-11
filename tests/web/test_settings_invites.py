@@ -1,8 +1,8 @@
 import pytest
 
-from core.models import Invitation, Org, OrgMember, User
-from core.services.invitations import create_invitation
-from core.services.orgs import create_workspace
+from tuckit.core.models import Invitation, Org, OrgMember, User
+from tuckit.core.services.invitations import create_invitation
+from tuckit.core.services.orgs import create_workspace
 
 
 @pytest.fixture

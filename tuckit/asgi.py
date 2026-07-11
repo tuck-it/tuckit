@@ -11,8 +11,8 @@ django_asgi_app = get_asgi_application()
 from starlette.applications import Starlette  # noqa: E402
 from starlette.routing import Mount  # noqa: E402
 
-from core.mcp.auth import BearerAuthMiddleware  # noqa: E402
-from core.mcp.server import mcp  # noqa: E402
+from tuckit.core.mcp.auth import BearerAuthMiddleware  # noqa: E402
+from tuckit.core.mcp.server import mcp  # noqa: E402
 
 mcp_app = BearerAuthMiddleware(mcp.streamable_http_app())
 

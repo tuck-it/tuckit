@@ -1,7 +1,7 @@
 import pytest
 
-from core.models import Area, Org, OrgMember, User, Workspace
-from core.services.orgs import (
+from tuckit.core.models import Area, Org, OrgMember, User, Workspace
+from tuckit.core.services.orgs import (
     accessible_workspaces, user_can_access_workspace, is_org_admin, seat_count, create_workspace,
 )
 

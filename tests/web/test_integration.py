@@ -3,8 +3,8 @@ import pytest
 
 @pytest.mark.django_db
 def test_all_pages_reachable(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
 
     a = create_area(workspace, "Backend")
     s = create_slice(a, "결제 도입", status="building")

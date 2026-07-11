@@ -2,11 +2,11 @@ import pytest
 from datetime import timedelta
 from django.utils import timezone
 
-from core.models import Org, Slice, Workspace
-from core.services.areas import create_area, get_or_create_inbox
-from core.services.bites import create_bite
-from core.services.slices import create_slice
-from core.services.state import (
+from tuckit.core.models import Org, Slice, Workspace
+from tuckit.core.services.areas import create_area, get_or_create_inbox
+from tuckit.core.services.bites import create_bite
+from tuckit.core.services.slices import create_slice
+from tuckit.core.services.state import (
     attention_items,
     home_state,
     STALE_DAYS,
@@ -130,7 +130,7 @@ def test_home_state_buckets_across_areas_someday_excluded():
 
 @pytest.mark.django_db
 def test_attention_items_include_reason_and_days():
-    from core.management.commands.bootstrap import ensure_bootstrap
+    from tuckit.core.management.commands.bootstrap import ensure_bootstrap
 
     ws, _ = ensure_bootstrap()
     inbox = get_or_create_inbox(ws)
@@ -147,7 +147,7 @@ def test_attention_items_include_reason_and_days():
 
 @pytest.mark.django_db
 def test_home_state_excludes_attention_from_building():
-    from core.management.commands.bootstrap import ensure_bootstrap
+    from tuckit.core.management.commands.bootstrap import ensure_bootstrap
 
     ws, _ = ensure_bootstrap()
     a = create_area(ws, "제품")

@@ -1,9 +1,9 @@
 import pytest
-from core.services.areas import create_area, get_or_create_inbox
-from core.services.slices import create_slice
-from core.models import Slice
-from core.models.org import Org
-from core.models.workspace import Workspace
+from tuckit.core.services.areas import create_area, get_or_create_inbox
+from tuckit.core.services.slices import create_slice
+from tuckit.core.models import Slice
+from tuckit.core.models.org import Org
+from tuckit.core.models.workspace import Workspace
 
 @pytest.mark.django_db
 def test_capture_lands_in_inbox_as_idea(client_local, workspace):
@@ -67,8 +67,8 @@ def test_triage_invalid_status_returns_400(client_local, workspace):
 
 @pytest.mark.django_db
 def test_inbox_row_has_no_manual_caret_and_area_placeholder(client_local, workspace):
-    from core.services.areas import get_or_create_inbox
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import get_or_create_inbox
+    from tuckit.core.services.slices import create_slice
     create_slice(get_or_create_inbox(workspace), "미분류 항목")
     body = client_local.get("/inbox/").content.decode()
     assert "</select>▾" not in body          # manual caret removed
@@ -76,8 +76,8 @@ def test_inbox_row_has_no_manual_caret_and_area_placeholder(client_local, worksp
 
 @pytest.mark.django_db
 def test_triage_status_only_keeps_area(client_local, workspace):
-    from core.services.areas import get_or_create_inbox
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import get_or_create_inbox
+    from tuckit.core.services.slices import create_slice
     s = create_slice(get_or_create_inbox(workspace), "상태만 변경")
     resp = client_local.post(f"/slices/{s.id}/triage", {"area_id": "", "status": "planned"})
     assert resp.status_code in (200, 204)

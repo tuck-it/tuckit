@@ -1,8 +1,8 @@
 import pytest
 from pathlib import Path
 
-from core.models import Org, Workspace
-from core.services.tokens import generate_token, hash_token, list_tokens, resolve_workspace, revoke_token
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.tokens import generate_token, hash_token, list_tokens, resolve_workspace, revoke_token
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def test_resolve_workspace_returns_owner_and_stamps_use(workspace):
     _, raw = generate_token(workspace, "cli")
     resolved = resolve_workspace(raw)
     assert resolved == workspace
-    from core.models import ApiToken
+    from tuckit.core.models import ApiToken
 
     assert ApiToken.objects.get(workspace=workspace).last_used_at is not None
 
@@ -55,7 +55,7 @@ def test_revoke_token_is_workspace_scoped(workspace):
 
 
 def test_new_neutral_and_warn_tokens_present():
-    css = (Path(__file__).resolve().parent.parent / "web/static/web/tokens.css").read_text()
+    css = (Path(__file__).resolve().parent.parent / "tuckit/web/static/web/tokens.css").read_text()
     # both tokens defined for light and dark
     assert css.count("--warn:") >= 2
     assert css.count("--active:") >= 2

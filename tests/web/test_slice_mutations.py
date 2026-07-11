@@ -1,8 +1,8 @@
 import pytest
-from core.services.areas import create_area
-from core.services.slices import create_slice
-from core.services.bites import create_bite
-from core.models import Slice, Bite
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice
+from tuckit.core.services.bites import create_bite
+from tuckit.core.models import Slice, Bite
 
 @pytest.mark.django_db
 def test_status_change_updates_and_returns_panel(client_local, workspace):
@@ -35,8 +35,8 @@ def test_spec_edit(client_local, workspace):
 
 @pytest.mark.django_db
 def test_status_control_is_segmented(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
     s = create_slice(create_area(workspace, "제품"), "X", status="building")
     body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="seg"' in body
@@ -44,9 +44,9 @@ def test_status_control_is_segmented(client_local, workspace):
 
 @pytest.mark.django_db
 def test_bite_body_updates_and_renders(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
-    from core.services.bites import create_bite
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.bites import create_bite
     s = create_slice(create_area(workspace, "제품"), "슬라이스")
     b = create_bite(s, "Slack 연동")
     resp = client_local.post(f"/bites/{b.id}/body", {"body": "## 설계\n실패 시 재시도"})
@@ -57,9 +57,9 @@ def test_bite_body_updates_and_renders(client_local, workspace):
 
 @pytest.mark.django_db
 def test_bite_body_is_sanitized(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
-    from core.services.bites import create_bite
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.bites import create_bite
     s = create_slice(create_area(workspace, "제품"), "슬라이스")
     b = create_bite(s, "위험", body="<script>alert(1)</script>정상")
     body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
@@ -68,8 +68,8 @@ def test_bite_body_is_sanitized(client_local, workspace):
 
 @pytest.mark.django_db
 def test_slice_tag_add_then_remove(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
     s = create_slice(create_area(workspace, "제품"), "태그 편집")
 
     resp = client_local.post(f"/slices/{s.id}/tags", {"add": "billing"})
@@ -83,16 +83,16 @@ def test_slice_tag_add_then_remove(client_local, workspace):
 
 @pytest.mark.django_db
 def test_slice_panel_active_shows_drop_control(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
     s = create_slice(create_area(workspace, "제품"), "진행 중인 것", status="building")
     body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert "드롭" in body
 
 @pytest.mark.django_db
 def test_slice_panel_dropped_shows_restore(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
     s = create_slice(create_area(workspace, "제품"), "버린 것", status="dropped")
     body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert "되살리기" in body
@@ -104,8 +104,8 @@ def test_slice_panel_dropped_shows_restore(client_local, workspace):
 
 @pytest.mark.django_db
 def test_slice_panel_has_meta_footer(client_local, workspace):
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
     s = create_slice(create_area(workspace, "제품"), "메타 확인")  # default source=human
     body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert "panel-meta" in body
@@ -116,10 +116,10 @@ def test_slice_panel_has_meta_footer(client_local, workspace):
 def test_bite_source_time_renders_korean(client_local, workspace):
     from datetime import timedelta
     from django.utils import timezone
-    from core.models import Bite
-    from core.services.areas import create_area
-    from core.services.slices import create_slice
-    from core.services.bites import create_bite
+    from tuckit.core.models import Bite
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.bites import create_bite
     s = create_slice(create_area(workspace, "제품"), "슬라이스")
     b = create_bite(s, "노트 bite", body="## 메모")
     Bite.objects.filter(pk=b.pk).update(updated_at=timezone.now() - timedelta(hours=2, minutes=30))

@@ -1,10 +1,10 @@
 import pytest
 
-from core.models import Org, Workspace
-from core.services.areas import create_area
-from core.services.bites import create_bite, set_bite_status
-from core.services.exceptions import InvalidValue
-from core.services.slices import create_slice, set_slice_status, update_slice
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.bites import create_bite, set_bite_status
+from tuckit.core.services.exceptions import InvalidValue
+from tuckit.core.services.slices import create_slice, set_slice_status, update_slice
 
 
 @pytest.fixture

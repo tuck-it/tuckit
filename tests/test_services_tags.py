@@ -1,7 +1,7 @@
 import pytest
 
-from core.models import Org, Workspace
-from core.services.tags import get_or_create_tags, list_tags
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.tags import get_or_create_tags, list_tags
 
 
 @pytest.fixture

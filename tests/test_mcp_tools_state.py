@@ -2,11 +2,11 @@ import types
 
 import pytest
 
-from core.mcp.server import get_project_state
-from core.models import Org, Workspace
-from core.services.areas import create_area
-from core.services.slices import create_slice
-from core.services.tokens import generate_token
+from tuckit.core.mcp.server import get_project_state
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice
+from tuckit.core.services.tokens import generate_token
 
 
 def make_ctx(raw_token: str):
@@ -30,7 +30,7 @@ async def test_get_project_state_tool_returns_state():
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_get_project_state_tool_rejects_bad_token():
-    from core.services.exceptions import NotFound
+    from tuckit.core.services.exceptions import NotFound
 
     await _make_ws()
     with pytest.raises(NotFound):

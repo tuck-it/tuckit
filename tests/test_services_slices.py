@@ -1,8 +1,8 @@
 import pytest
 
-from core.models import Org, Workspace
-from core.services.areas import create_area
-from core.services.slices import (
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import (
     create_slice,
     list_slices,
     reorder_slice,

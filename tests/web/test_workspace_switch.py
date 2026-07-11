@@ -1,7 +1,7 @@
 import pytest
 
-from core.models import Org, OrgMember, User
-from core.services.orgs import create_workspace
+from tuckit.core.models import Org, OrgMember, User
+from tuckit.core.services.orgs import create_workspace
 
 
 @pytest.fixture

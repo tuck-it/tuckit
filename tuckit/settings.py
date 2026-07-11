@@ -27,8 +27,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "core",
-    "web",
+    "tuckit.core",
+    "tuckit.web",
 ]
 
 MIDDLEWARE = [
@@ -60,9 +60,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "web.context_processors.sidebar_areas",
-                "web.context_processors.inbox_count",
-                "web.context_processors.switchable_workspaces",
+                "tuckit.web.context_processors.sidebar_areas",
+                "tuckit.web.context_processors.inbox_count",
+                "tuckit.web.context_processors.switchable_workspaces",
             ],
         },
     },

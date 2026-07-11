@@ -1,4 +1,4 @@
-from core.ranking import rank_between
+from tuckit.core.ranking import rank_between
 
 
 def test_first_key_when_empty():

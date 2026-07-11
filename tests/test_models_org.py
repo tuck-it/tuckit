@@ -1,7 +1,7 @@
 import pytest
 from django.db import IntegrityError
 
-from core.models import Org, OrgMember, Invitation, User, Workspace
+from tuckit.core.models import Org, OrgMember, Invitation, User, Workspace
 
 
 @pytest.mark.django_db

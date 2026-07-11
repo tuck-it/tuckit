@@ -1,7 +1,7 @@
 import pytest
 
-from core.management.commands.bootstrap import ensure_bootstrap
-from core.models import Area, OrgMember, User, Workspace
+from tuckit.core.management.commands.bootstrap import ensure_bootstrap
+from tuckit.core.models import Area, OrgMember, User, Workspace
 
 
 @pytest.mark.django_db
@@ -27,6 +27,6 @@ def test_bootstrap_is_idempotent():
 
 @pytest.mark.django_db
 def test_bootstrap_creates_inbox_area():
-    from core.services.areas import get_or_create_inbox
+    from tuckit.core.services.areas import get_or_create_inbox
     ws, _ = ensure_bootstrap()
     assert ws.areas.filter(is_inbox=True).count() == 1

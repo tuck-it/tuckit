@@ -1,11 +1,11 @@
 import pytest
 
-from core.models import Org, Workspace
-from core.services.areas import create_area
-from core.services.bites import create_bite
-from core.services.exceptions import NotFound
-from core.services.resolve import get_area, get_bite, get_slice
-from core.services.slices import create_slice
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.bites import create_bite
+from tuckit.core.services.exceptions import NotFound
+from tuckit.core.services.resolve import get_area, get_bite, get_slice
+from tuckit.core.services.slices import create_slice
 
 
 @pytest.fixture

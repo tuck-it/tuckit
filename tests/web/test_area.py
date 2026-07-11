@@ -1,6 +1,6 @@
 import pytest
-from core.services.areas import create_area
-from core.services.slices import create_slice
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice
 
 
 @pytest.mark.django_db
@@ -16,8 +16,8 @@ def test_area_view_groups_by_status(client_local, workspace):
 
 @pytest.mark.django_db
 def test_area_view_other_workspace_404(client_local):
-    from core.models import Org, Workspace
-    from core.services.areas import create_area
+    from tuckit.core.models import Org, Workspace
+    from tuckit.core.services.areas import create_area
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     other = Workspace.objects.create(org=other_org, name="O", slug="o")
     a = create_area(other, "Secret")

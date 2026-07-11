@@ -10,7 +10,10 @@ def asgi_app():
     avoiding the "can only be called once per instance" error.
     """
     # Remove cached modules to force a fresh import
-    modules_to_remove = [key for key in sys.modules if key.startswith("tuckit") or key.startswith("core.mcp")]
+    # Only reload the ASGI entrypoint and the MCP server package (which owns the
+    # session manager). Do NOT purge the Django app modules (tuckit.core /
+    # tuckit.web) — that would unregister the apps and break the app registry.
+    modules_to_remove = [key for key in sys.modules if key == "tuckit.asgi" or key.startswith("tuckit.core.mcp")]
     for mod in modules_to_remove:
         del sys.modules[mod]
 
@@ -19,6 +22,9 @@ def asgi_app():
     yield app
 
     # Clean up after the test
-    modules_to_remove = [key for key in sys.modules if key.startswith("tuckit") or key.startswith("core.mcp")]
+    # Only reload the ASGI entrypoint and the MCP server package (which owns the
+    # session manager). Do NOT purge the Django app modules (tuckit.core /
+    # tuckit.web) — that would unregister the apps and break the app registry.
+    modules_to_remove = [key for key in sys.modules if key == "tuckit.asgi" or key.startswith("tuckit.core.mcp")]
     for mod in modules_to_remove:
         del sys.modules[mod]

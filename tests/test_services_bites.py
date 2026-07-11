@@ -1,8 +1,8 @@
 import pytest
 
-from core.models import Org, Workspace
-from core.services.areas import create_area
-from core.services.bites import (
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.bites import (
     bite_progress,
     create_bite,
     list_bites,
@@ -10,7 +10,7 @@ from core.services.bites import (
     set_bite_status,
     update_bite,
 )
-from core.services.slices import create_slice
+from tuckit.core.services.slices import create_slice
 
 
 @pytest.fixture

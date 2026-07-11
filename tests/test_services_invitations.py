@@ -1,8 +1,8 @@
 import pytest
 
-from core.models import Invitation, Org, OrgMember, User
-from core.services.exceptions import InvalidValue, NotFound
-from core.services.invitations import (
+from tuckit.core.models import Invitation, Org, OrgMember, User
+from tuckit.core.services.exceptions import InvalidValue, NotFound
+from tuckit.core.services.invitations import (
     create_invitation, get_pending_invitation, accept_invitation, register_invited, cancel_invitation,
 )
 

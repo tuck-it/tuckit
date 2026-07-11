@@ -2,17 +2,17 @@ import pytest
 
 from asgiref.sync import sync_to_async
 
-from core.mcp.server import (
+from tuckit.core.mcp.server import (
     create_bite,
     list_bites,
     reorder_bite,
     set_bite_status,
     update_bite,
 )
-from core.models import Org, Workspace
-from core.services.areas import create_area
-from core.services.slices import create_slice
-from core.services.tokens import generate_token
+from tuckit.core.models import Org, Workspace
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice
+from tuckit.core.services.tokens import generate_token
 from tests.test_mcp_tools_state import make_ctx
 
 

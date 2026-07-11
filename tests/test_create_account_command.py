@@ -1,7 +1,7 @@
 import pytest
 from django.core.management import CommandError, call_command
 
-from core.models import Org, OrgMember, User
+from tuckit.core.models import Org, OrgMember, User
 
 
 @pytest.mark.django_db

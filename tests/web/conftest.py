@@ -1,7 +1,7 @@
 import pytest
 
-from core.management.commands.bootstrap import ensure_bootstrap
-from core.models import User
+from tuckit.core.management.commands.bootstrap import ensure_bootstrap
+from tuckit.core.models import User
 
 
 @pytest.fixture
