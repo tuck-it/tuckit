@@ -36,6 +36,17 @@ def test_switch_to_inaccessible_workspace_forbidden(client, two_workspaces):
 
 
 @pytest.mark.django_db
+def test_switch_with_malformed_id_forbidden(client, two_workspaces):
+    user, a, b = two_workspaces
+    client.force_login(user)
+    resp = client.post("/switch-workspace", {"workspace_id": "not-a-number"})
+    assert resp.status_code == 403
+    # empty value too
+    resp2 = client.post("/switch-workspace", {"workspace_id": ""})
+    assert resp2.status_code == 403
+
+
+@pytest.mark.django_db
 def test_create_workspace_in_org(client, two_workspaces):
     user, a, b = two_workspaces
     client.force_login(user)
