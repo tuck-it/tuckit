@@ -3,8 +3,10 @@
 A single source of truth for a product's state, roadmap, and deferred work —
 read and written equally by you (web dashboard) and your AI agent (MCP).
 
-**License:** PolyForm Noncommercial 1.0.0 (source-available, non-commercial).
-Commercial hosting rights reserved by the author.
+**License:** Business Source License 1.1 (source-available — not open source).
+You may self-host and make production use of tuck-it; you may not offer it to
+third parties as a hosted or managed service. Converts to Apache License 2.0 on
+2030-07-10. See [LICENSE](LICENSE) for the full terms.
 
 ## Run
 
