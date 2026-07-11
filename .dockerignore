@@ -34,3 +34,4 @@ LICENSE
 
 # OS cruft
 .DS_Store
+dist
