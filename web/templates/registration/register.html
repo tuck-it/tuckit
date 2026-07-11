@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>회원가입 — tuck-it</title></head>
+<body>
+  <h1>회원가입</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <label>이메일 <input type="email" name="email" value="{{ values.email }}" required></label>
+    <label>조직 이름 <input name="org_name" value="{{ values.org_name }}" required></label>
+    <label>조직 slug <input name="slug" value="{{ values.slug }}" required></label>
+    <label>비밀번호 <input type="password" name="password" required></label>
+    <button type="submit">가입</button>
+  </form>
+</body>
+</html>

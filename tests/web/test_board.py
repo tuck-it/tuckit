@@ -1,7 +1,7 @@
 import pytest
 from core.services.areas import create_area
 from core.services.slices import create_slice
-from core.models import Slice, Workspace
+from core.models import Org, Slice, Workspace
 
 
 @pytest.mark.django_db
@@ -53,7 +53,8 @@ def test_move_invalid_status_returns_400_and_unchanged(client_local, workspace):
 def test_move_foreign_neighbor_404s_without_change(client_local, workspace):
     a = create_area(workspace, "B")
     s = create_slice(a, "결제", status="planned")
-    other_ws = Workspace.objects.create(name="Other", slug="other")
+    other_org = Org.objects.create(name="Other Org", slug="other-org")
+    other_ws = Workspace.objects.create(org=other_org, name="Other", slug="other")
     other_area = create_area(other_ws, "Other Area")
     n = create_slice(other_area, "foreign", status="planned")
     resp = client_local.post(

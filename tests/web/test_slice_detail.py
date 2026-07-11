@@ -52,9 +52,10 @@ def test_spec_html_is_sanitized(client_local, workspace):
 
 @pytest.mark.django_db
 def test_slice_other_workspace_404(client_local):
-    from core.models import Workspace
+    from core.models import Org, Workspace
     from core.services.areas import create_area
     from core.services.slices import create_slice
-    other = Workspace.objects.create(name="O", slug="o")
+    other_org = Org.objects.create(name="Other Org", slug="other-org")
+    other = Workspace.objects.create(org=other_org, name="O", slug="o")
     s = create_slice(create_area(other, "A"), "secret")
     assert client_local.get(f"/slices/{s.id}/").status_code == 404

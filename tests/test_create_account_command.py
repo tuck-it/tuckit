@@ -1,12 +1,12 @@
 import pytest
 from django.core.management import CommandError, call_command
 
-from core.models import User, Workspace
+from core.models import Org, OrgMember, User
 
 
 @pytest.mark.django_db
 def test_command_creates_account_from_password_env(monkeypatch):
-    monkeypatch.setenv("SEED_PW", "secret123")
+    monkeypatch.setenv("SEED_PW", "tuckit-seed-pw-9x2")
     call_command(
         "create_account",
         email="a@b.com",
@@ -15,8 +15,9 @@ def test_command_creates_account_from_password_env(monkeypatch):
         password_env="SEED_PW",
     )
     user = User.objects.get(username="a@b.com")
-    assert user.check_password("secret123")
-    assert Workspace.objects.filter(slug="space").exists()
+    assert user.check_password("tuckit-seed-pw-9x2")
+    org = Org.objects.get(slug="space")
+    assert OrgMember.objects.filter(user=user, org=org, role="owner").exists()
 
 
 @pytest.mark.django_db

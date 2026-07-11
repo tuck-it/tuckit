@@ -1,13 +1,14 @@
 import pytest
 from pathlib import Path
 
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.tokens import generate_token, hash_token, list_tokens, resolve_workspace, revoke_token
 
 
 @pytest.fixture
 def workspace(db):
-    return Workspace.objects.create(name="P", slug="p")
+    org = Org.objects.create(name="Acme", slug="acme")
+    return Workspace.objects.create(org=org, name="P", slug="p")
 
 
 @pytest.mark.django_db
@@ -36,7 +37,8 @@ def test_resolve_workspace_returns_none_for_bad_token(workspace):
 
 @pytest.mark.django_db
 def test_list_and_revoke_tokens():
-    ws = Workspace.objects.create(name="W", slug="w")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="W", slug="w")
     t, _ = generate_token(ws, "a")
     assert list(list_tokens(ws)) == [t]
     revoke_token(ws, t.id)
@@ -45,7 +47,8 @@ def test_list_and_revoke_tokens():
 
 @pytest.mark.django_db
 def test_revoke_token_is_workspace_scoped(workspace):
-    other = Workspace.objects.create(name="Other", slug="other")
+    org = Org.objects.create(name="Other Org", slug="other-org")
+    other = Workspace.objects.create(org=org, name="Other", slug="other")
     token, _ = generate_token(other, "cli")
     revoke_token(workspace, token.id)
     assert list(list_tokens(other)) == [token]

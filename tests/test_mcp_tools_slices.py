@@ -10,7 +10,7 @@ from core.mcp.server import (
     set_slice_status,
     update_slice,
 )
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area
 from core.services.exceptions import InvalidValue, NotFound
 from core.services.tokens import generate_token
@@ -19,8 +19,9 @@ from tests.test_mcp_tools_state import make_ctx
 
 @sync_to_async
 def _seed():
-    ws = Workspace.objects.create(name="P", slug="p")
-    other = Workspace.objects.create(name="O", slug="o")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="P", slug="p")
+    other = Workspace.objects.create(org=org, name="O", slug="o")
     _, raw = generate_token(ws, "t")
     area = create_area(ws, "Backend")
     return ws, other, raw, area.id

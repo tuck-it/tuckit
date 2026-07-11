@@ -3,17 +3,17 @@ import os
 
 from django.core.management.base import BaseCommand, CommandError
 
-from core.services.accounts import create_account
+from core.services.accounts import register
 from core.services.exceptions import InvalidValue
 
 
 class Command(BaseCommand):
-    help = "Create a real user with a workspace and owner membership."
+    help = "Create a real user with an org (owner membership) and its first workspace."
 
     def add_arguments(self, parser):
         parser.add_argument("--email", required=True)
-        parser.add_argument("--workspace", required=True)
-        parser.add_argument("--slug", required=True)
+        parser.add_argument("--workspace", required=True, help="Org name (also used as the first workspace name).")
+        parser.add_argument("--slug", required=True, help="Org slug.")
         parser.add_argument("--username", default=None)
         parser.add_argument(
             "--password-env",
@@ -32,9 +32,9 @@ class Command(BaseCommand):
             password = getpass.getpass("Password: ")
 
         try:
-            user, workspace = create_account(
+            user, org, workspace = register(
                 email=options["email"],
-                workspace_name=options["workspace"],
+                org_name=options["workspace"],
                 slug=options["slug"],
                 password=password,
                 username=options["username"],
@@ -43,7 +43,5 @@ class Command(BaseCommand):
             raise CommandError(str(exc))
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Created user {user.username} + workspace {workspace.slug}"
-            )
+            self.style.SUCCESS(f"Created user {user.username} + org {org.slug}")
         )

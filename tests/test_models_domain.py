@@ -1,12 +1,13 @@
 import pytest
 from django.db import IntegrityError
 
-from core.models import Area, Bite, Slice, Tag, Workspace
+from core.models import Area, Bite, Org, Slice, Tag, Workspace
 
 
 @pytest.fixture
 def workspace(db):
-    return Workspace.objects.create(name="P", slug="p")
+    org = Org.objects.create(name="Acme", slug="acme")
+    return Workspace.objects.create(org=org, name="P", slug="p")
 
 
 @pytest.mark.django_db

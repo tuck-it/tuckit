@@ -1,4 +1,5 @@
 from core.services.areas import list_areas
+from core.services.orgs import accessible_workspaces
 from web.auth import get_current_workspace
 
 
@@ -23,3 +24,12 @@ def inbox_count(request):
     inbox = Area.objects.filter(workspace=ws, is_inbox=True).first()
     n = Slice.objects.filter(area=inbox).exclude(status="dropped").count() if inbox else 0
     return {"inbox_count": n}
+
+
+def switchable_workspaces(request):
+    """Expose the user's accessible workspaces (across all their orgs) to every
+    template so the sidebar switcher can list them, regardless of whether the
+    current view happens to pass workspace data itself."""
+    if not request.user.is_authenticated:
+        return {"switchable_workspaces": []}
+    return {"switchable_workspaces": list(accessible_workspaces(request.user))}

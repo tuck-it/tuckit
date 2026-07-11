@@ -2,7 +2,7 @@ import pytest
 from datetime import timedelta
 from django.utils import timezone
 
-from core.models import Slice, Workspace
+from core.models import Org, Slice, Workspace
 from core.services.areas import create_area, get_or_create_inbox
 from core.services.bites import create_bite
 from core.services.slices import create_slice
@@ -17,7 +17,8 @@ from core.services.state import (
 
 @pytest.fixture
 def workspace(db):
-    return Workspace.objects.create(name="MyProduct", slug="myproduct", description="A demo product")
+    org = Org.objects.create(name="Acme", slug="acme")
+    return Workspace.objects.create(org=org, name="MyProduct", slug="myproduct", description="A demo product")
 
 
 @pytest.mark.django_db
@@ -95,7 +96,8 @@ def test_counts_and_dropped_bite_excluded(workspace):
 
 @pytest.mark.django_db
 def test_attention_flags_stale_inbox_and_stalled_building():
-    ws = Workspace.objects.create(name="W", slug="w")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="W", slug="w")
     inbox = get_or_create_inbox(ws)
     backend = create_area(ws, "Backend")
     stale_in = create_slice(inbox, "old capture")
@@ -112,7 +114,8 @@ def test_attention_flags_stale_inbox_and_stalled_building():
 
 @pytest.mark.django_db
 def test_home_state_buckets_across_areas_someday_excluded():
-    ws = Workspace.objects.create(name="W", slug="w")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="W", slug="w")
     a1 = create_area(ws, "Backend"); a2 = create_area(ws, "Frontend")
     create_slice(a1, "pay", status="building")
     create_slice(a2, "ui", status="building")

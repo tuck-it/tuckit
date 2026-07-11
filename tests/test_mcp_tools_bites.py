@@ -9,7 +9,7 @@ from core.mcp.server import (
     set_bite_status,
     update_bite,
 )
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area
 from core.services.slices import create_slice
 from core.services.tokens import generate_token
@@ -18,7 +18,8 @@ from tests.test_mcp_tools_state import make_ctx
 
 @sync_to_async
 def _seed():
-    ws = Workspace.objects.create(name="P", slug="p")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="P", slug="p")
     _, raw = generate_token(ws, "t")
     area = create_area(ws, "Backend")
     s = create_slice(area, "Auth")

@@ -62,6 +62,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "web.context_processors.sidebar_areas",
                 "web.context_processors.inbox_count",
+                "web.context_processors.switchable_workspaces",
             ],
         },
     },
@@ -73,6 +74,20 @@ if _db["ENGINE"].endswith("sqlite3") and _db["NAME"] != ":memory:" and not os.pa
     _db["NAME"] = str(BASE_DIR / _db["NAME"])
 
 AUTH_USER_MODEL = "core.User"
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+# Self-service registration is OFF by default (self-host provisions via CLI).
+# Cloud flips this on. See docs/superpowers/specs/2026-07-11-auth-org-model-design.md.
+REGISTRATION_OPEN = env_bool("TUCKIT_REGISTRATION_OPEN", default=False)
+# Dotted path to a callable run right after signup, as hook(user=, org=).
+# Core ships None (no-op); cloud sets it to attach billing. Never in core.
+TUCKIT_SIGNUP_HOOK = env("TUCKIT_SIGNUP_HOOK", default=None) or None
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"

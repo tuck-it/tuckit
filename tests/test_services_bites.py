@@ -1,6 +1,6 @@
 import pytest
 
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area
 from core.services.bites import (
     bite_progress,
@@ -15,7 +15,8 @@ from core.services.slices import create_slice
 
 @pytest.fixture
 def slice_(db):
-    ws = Workspace.objects.create(name="P", slug="p")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="P", slug="p")
     area = create_area(ws, "Backend")
     return create_slice(area, "Auth")
 
@@ -58,7 +59,8 @@ def test_reorder_bite_to_front(slice_):
 
 @pytest.mark.django_db
 def test_bite_progress_counts_done_over_non_dropped():
-    ws = Workspace.objects.create(name="W", slug="w")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="W", slug="w")
     area = create_area(ws, "A")
     s = create_slice(area, "S")
     create_bite(s, "a", status="done")

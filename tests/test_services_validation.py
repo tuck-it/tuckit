@@ -1,6 +1,6 @@
 import pytest
 
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area
 from core.services.bites import create_bite, set_bite_status
 from core.services.exceptions import InvalidValue
@@ -9,7 +9,8 @@ from core.services.slices import create_slice, set_slice_status, update_slice
 
 @pytest.fixture
 def area(db):
-    ws = Workspace.objects.create(name="A", slug="a")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="A", slug="a")
     return create_area(ws, "Backend")
 
 

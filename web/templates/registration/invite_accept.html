@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>초대 — tuck-it</title></head>
+<body>
+{% if invalid %}
+  <h1>초대 링크가 유효하지 않습니다 (invalid)</h1>
+  <p>이미 사용되었거나 취소된 초대입니다.</p>
+{% else %}
+  <h1>{{ invitation.org.name }} 조직에 초대되었습니다</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {% if not user.is_authenticated %}
+      <p>이메일: {{ invitation.email }}</p>
+      <label>비밀번호 <input type="password" name="password" required></label>
+    {% endif %}
+    <button type="submit">합류하기</button>
+  </form>
+{% endif %}
+</body>
+</html>

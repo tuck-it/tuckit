@@ -1,0 +1,12 @@
+{% if switchable_workspaces %}
+<form method="post" action="{% url 'web:switch_workspace' %}" class="workspace-switcher">
+  {% csrf_token %}
+  <select name="workspace_id" onchange="this.form.submit()">
+    {% for ws in switchable_workspaces %}
+      <option value="{{ ws.id }}" {% if ws.id == workspace.id %}selected{% endif %}>
+        {{ ws.org.name }} · {{ ws.name }}
+      </option>
+    {% endfor %}
+  </select>
+</form>
+{% endif %}

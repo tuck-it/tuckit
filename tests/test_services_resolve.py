@@ -1,6 +1,6 @@
 import pytest
 
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area
 from core.services.bites import create_bite
 from core.services.exceptions import NotFound
@@ -10,8 +10,9 @@ from core.services.slices import create_slice
 
 @pytest.fixture
 def data(db):
-    ws = Workspace.objects.create(name="A", slug="a")
-    other = Workspace.objects.create(name="B", slug="b")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="A", slug="a")
+    other = Workspace.objects.create(org=org, name="B", slug="b")
     area = create_area(ws, "Backend")
     slice_ = create_slice(area, "Auth")
     bite = create_bite(slice_, "JWT")

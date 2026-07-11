@@ -2,6 +2,7 @@ import pytest
 from core.services.areas import create_area, get_or_create_inbox
 from core.services.slices import create_slice
 from core.models import Slice
+from core.models.org import Org
 from core.models.workspace import Workspace
 
 @pytest.mark.django_db
@@ -87,7 +88,8 @@ def test_triage_status_only_keeps_area(client_local, workspace):
 def test_triage_foreign_area_404s(client_local, workspace):
     inbox = get_or_create_inbox(workspace)
     s = create_slice(inbox, "다른 워크스페이스로")
-    other_ws = Workspace.objects.create(name="Other", slug="other")
+    other_org = Org.objects.create(name="Other Org", slug="other-org")
+    other_ws = Workspace.objects.create(org=other_org, name="Other", slug="other")
     foreign_area = create_area(other_ws, "Foreign")
     resp = client_local.post(
         f"/slices/{s.id}/triage", {"area_id": foreign_area.id, "status": "planned"}, HTTP_HX_REQUEST="true"

@@ -1,6 +1,6 @@
 import pytest
 
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area
 from core.services.slices import (
     create_slice,
@@ -14,7 +14,8 @@ from core.services.slices import (
 
 @pytest.fixture
 def area(db):
-    ws = Workspace.objects.create(name="P", slug="p")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="P", slug="p")
     return create_area(ws, "Backend")
 
 
@@ -89,7 +90,8 @@ def test_create_slice_before_inserts_between(area):
 
 @pytest.mark.django_db
 def test_slice_tags_never_leak_across_workspaces(area):
-    other_ws = Workspace.objects.create(name="Other", slug="other")
+    other_org = Org.objects.create(name="Other Org", slug="other-org")
+    other_ws = Workspace.objects.create(org=other_org, name="Other", slug="other")
     other_area = create_area(other_ws, "Backend")
     s1 = create_slice(area, "One", tags=["bug"])
     s2 = create_slice(other_area, "Two", tags=["bug"])
@@ -102,7 +104,8 @@ def test_slice_tags_never_leak_across_workspaces(area):
 
 @pytest.mark.django_db
 def test_set_slice_area_moves_and_reranks():
-    ws = Workspace.objects.create(name="W", slug="w")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="W", slug="w")
     inbox = create_area(ws, "Inbox")
     backend = create_area(ws, "Backend")
     s = create_slice(inbox, "captured thing")

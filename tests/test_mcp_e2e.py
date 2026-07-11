@@ -19,7 +19,7 @@ import json
 import pytest
 from starlette.testclient import TestClient
 
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area
 from core.services.slices import create_slice
 from core.services.tokens import generate_token
@@ -33,8 +33,9 @@ _HEADERS_BASE = {
 @pytest.mark.django_db(transaction=True)
 def test_mcp_streamable_http_round_trip_returns_real_state(asgi_app):
     # Seed a real workspace/area/slice and a real hashed API token.
+    org = Org.objects.create(name="Acme", slug="acme")
     workspace = Workspace.objects.create(
-        name="MyProduct", slug="myproduct", description="demo product"
+        org=org, name="MyProduct", slug="myproduct", description="demo product"
     )
     area = create_area(workspace, "Backend")
     create_slice(area, "Auth", status="shipped")

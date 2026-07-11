@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from core.models import ApiToken, Workspace
+from core.models import ApiToken, Org, Workspace
 from core.services.tokens import generate_token, hash_token
 
 
@@ -56,7 +56,8 @@ def test_token_revoke_removes_token(client_local, workspace):
 
 @pytest.mark.django_db
 def test_token_revoke_is_workspace_scoped(client_local, workspace):
-    other = Workspace.objects.create(name="Other", slug="other")
+    other_org = Org.objects.create(name="Other Org", slug="other-org")
+    other = Workspace.objects.create(org=other_org, name="Other", slug="other")
     token, _ = generate_token(other, "cli")
     resp = client_local.post(f"/settings/tokens/{token.id}/revoke", HTTP_HX_REQUEST="true")
     assert resp.status_code == 204

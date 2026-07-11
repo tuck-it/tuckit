@@ -1,19 +1,15 @@
 from django.core.management.base import BaseCommand
 
-from core.models import ApiToken, Area, Membership, User, Workspace
-from core.services.areas import create_area, get_or_create_inbox
+from core.models import ApiToken, Org, OrgMember, User, Workspace
+from core.services.orgs import create_workspace
 from core.services.tokens import generate_token
 
 
-def ensure_bootstrap(username: str = "local", workspace_slug: str = "default") -> tuple[Workspace, str | None]:
+def ensure_bootstrap(username: str = "local", org_slug: str = "default") -> tuple[Workspace, str | None]:
     user, _ = User.objects.get_or_create(username=username)
-    workspace, _ = Workspace.objects.get_or_create(
-        slug=workspace_slug, defaults={"name": "Default"}
-    )
-    Membership.objects.get_or_create(user=user, workspace=workspace, defaults={"role": "owner"})
-    get_or_create_inbox(workspace)
-    if not Area.objects.filter(workspace=workspace, is_inbox=False).exists():
-        create_area(workspace, "Default")
+    org, _ = Org.objects.get_or_create(slug=org_slug, defaults={"name": "Default"})
+    OrgMember.objects.get_or_create(user=user, org=org, defaults={"role": "owner"})
+    workspace = org.workspaces.first() or create_workspace(org, "Default", slug="default")
 
     raw = None
     if not ApiToken.objects.filter(workspace=workspace).exists():
@@ -22,7 +18,7 @@ def ensure_bootstrap(username: str = "local", workspace_slug: str = "default") -
 
 
 class Command(BaseCommand):
-    help = "Create the default local user, workspace, membership, area, and API token."
+    help = "Create the default local user, org, workspace, area, and API token."
 
     def handle(self, *args, **options):
         workspace, raw = ensure_bootstrap()

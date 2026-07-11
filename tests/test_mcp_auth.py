@@ -1,7 +1,7 @@
 import pytest
 from starlette.testclient import TestClient
 
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.tokens import generate_token
 
 
@@ -17,7 +17,8 @@ def test_mcp_requires_bearer_token(asgi_app):
 def test_authenticated_request_routes_through_mcp_rewrite(asgi_app):
     """Assert that a POST to bare /mcp WITH a bearer token reaches the gated MCP app."""
     # Create a workspace and generate a real token.
-    workspace = Workspace.objects.create(name="Test Workspace", slug="test-ws")
+    org = Org.objects.create(name="Acme", slug="acme")
+    workspace = Workspace.objects.create(org=org, name="Test Workspace", slug="test-ws")
     _, raw_token = generate_token(workspace, "test-token")
 
     with TestClient(asgi_app) as client:

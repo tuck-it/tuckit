@@ -3,7 +3,7 @@ import pytest
 from asgiref.sync import sync_to_async
 
 from core.mcp.server import create_area, list_areas, list_tags
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area as svc_create_area
 from core.services.slices import create_slice
 from core.services.tokens import generate_token
@@ -12,7 +12,8 @@ from tests.test_mcp_tools_state import make_ctx
 
 @sync_to_async
 def _seed():
-    ws = Workspace.objects.create(name="P", slug="p")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="P", slug="p")
     _, raw = generate_token(ws, "t")
     return ws, raw
 

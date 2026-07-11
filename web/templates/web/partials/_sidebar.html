@@ -1,6 +1,7 @@
 {% load web_extras %}
 <aside class="sidebar">
   <div class="brand">tuck-it</div>
+  {% include "web/partials/_workspace_switcher.html" %}
   <a class="nav{% if request.resolver_match.url_name == 'home' %} nav--active{% endif %}"
      href="{% url 'web:home' %}">{% icon "home" %}<span class="nav-label">홈</span></a>
   <a class="nav{% if request.resolver_match.url_name == 'inbox' %} nav--active{% endif %}"

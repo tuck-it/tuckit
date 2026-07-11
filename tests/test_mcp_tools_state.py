@@ -3,7 +3,7 @@ import types
 import pytest
 
 from core.mcp.server import get_project_state
-from core.models import Workspace
+from core.models import Org, Workspace
 from core.services.areas import create_area
 from core.services.slices import create_slice
 from core.services.tokens import generate_token
@@ -43,7 +43,8 @@ from asgiref.sync import sync_to_async  # noqa: E402
 
 @sync_to_async
 def _make_ws():
-    ws = Workspace.objects.create(name="MyProduct", slug="myproduct", description="demo")
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="MyProduct", slug="myproduct", description="demo")
     area = create_area(ws, "Backend")
     create_slice(area, "Auth", status="shipped")
     return ws
