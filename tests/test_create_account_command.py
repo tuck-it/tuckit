@@ -1,7 +1,7 @@
 import pytest
 from django.core.management import CommandError, call_command
 
-from core.models import User, Workspace
+from core.models import Org, OrgMember, User
 
 
 @pytest.mark.django_db
@@ -16,7 +16,8 @@ def test_command_creates_account_from_password_env(monkeypatch):
     )
     user = User.objects.get(username="a@b.com")
     assert user.check_password("secret123")
-    assert Workspace.objects.filter(slug="space").exists()
+    org = Org.objects.get(slug="space")
+    assert OrgMember.objects.filter(user=user, org=org, role="owner").exists()
 
 
 @pytest.mark.django_db

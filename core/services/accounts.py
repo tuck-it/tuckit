@@ -1,24 +1,26 @@
 from django.db import transaction
 
-from core.models import Membership, User, Workspace
-from core.services.areas import create_area, get_or_create_inbox
+from core.models import Org, OrgMember, User, Workspace
 from core.services.exceptions import InvalidValue
+from core.services.hooks import run_signup_hook
+from core.services.orgs import create_workspace
 
 
 @transaction.atomic
-def create_account(*, email, workspace_name, slug, password, username=None):
+def register(*, email, org_name, slug, password, username=None) -> tuple[User, Org, Workspace]:
     username = username or email
     if User.objects.filter(username=username).exists():
         raise InvalidValue(f"User already exists: {username}")
-    if Workspace.objects.filter(slug=slug).exists():
-        raise InvalidValue(f"Workspace slug already taken: {slug}")
+    if Org.objects.filter(slug=slug).exists():
+        raise InvalidValue(f"Org slug already taken: {slug}")
 
     user = User(username=username, email=email)
     user.set_password(password)
     user.save()
 
-    workspace = Workspace.objects.create(name=workspace_name, slug=slug)
-    Membership.objects.create(user=user, workspace=workspace, role="owner")
-    get_or_create_inbox(workspace)
-    create_area(workspace, "Default")
-    return user, workspace
+    org = Org.objects.create(name=org_name, slug=slug)
+    OrgMember.objects.create(user=user, org=org, role="owner")
+    workspace = create_workspace(org, org_name)
+
+    run_signup_hook(user=user, org=org)
+    return user, org, workspace
