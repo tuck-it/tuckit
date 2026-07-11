@@ -1,5 +1,7 @@
 import secrets
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -34,7 +36,9 @@ def accept_invitation(*, token, user) -> OrgMember:
         raise NotFound("초대가 유효하지 않거나 이미 사용되었습니다")
     if user.email.lower() != inv.email.lower():
         raise InvalidValue("초대된 이메일과 로그인 이메일이 다릅니다")
-    member, _ = OrgMember.objects.get_or_create(user=user, org=inv.org, defaults={"role": inv.role})
+    if OrgMember.objects.filter(user=user, org=inv.org).exists():
+        raise InvalidValue("이미 이 조직의 멤버입니다")
+    member = OrgMember.objects.create(user=user, org=inv.org, role=inv.role)
     inv.accepted_at = timezone.now()
     inv.save(update_fields=["accepted_at"])
     return member
@@ -45,7 +49,13 @@ def register_invited(*, invitation, password, username=None) -> tuple[User, OrgM
     username = username or invitation.email
     if User.objects.filter(username=username).exists():
         raise InvalidValue(f"User already exists: {username}")
+    if not password:
+        raise InvalidValue("비밀번호를 입력해 주세요")
     user = User(username=username, email=invitation.email)
+    try:
+        validate_password(password, user)
+    except ValidationError as exc:
+        raise InvalidValue(" ".join(exc.messages))
     user.set_password(password)
     user.save()
     member = accept_invitation(token=invitation.token, user=user)

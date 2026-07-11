@@ -1,5 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, HttpResponseForbidden
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from core.models import Invitation
 from core.services.exceptions import InvalidValue
@@ -38,6 +40,7 @@ def workspace_rename(request):
     return HttpResponse(ws.name)
 
 
+@require_POST
 def invite_create(request):
     ws = get_current_workspace(request)
     if ws is None or not is_org_admin(request.user, ws.org):
@@ -51,11 +54,12 @@ def invite_create(request):
         )
     except InvalidValue as exc:
         return HttpResponse(str(exc), status=400)
-    link = request.build_absolute_uri(f"/invite/{inv.token}/")
+    link = request.build_absolute_uri(reverse("web:invite_accept", args=[inv.token]))
     send_invitation_email(invitation=inv, link=link)  # optional; link below is the source of truth
     return render(request, "web/partials/_invite_row.html", {"inv": inv, "link": link})
 
 
+@require_POST
 def invite_cancel(request, invitation_id):
     ws = get_current_workspace(request)
     if ws is None or not is_org_admin(request.user, ws.org):

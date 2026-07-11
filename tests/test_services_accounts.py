@@ -43,6 +43,18 @@ def test_register_duplicate_username_raises():
 
 
 @pytest.mark.django_db
+def test_register_rejects_empty_password():
+    with pytest.raises(InvalidValue):
+        register(email="a@b.com", org_name="S", slug="s", password="")
+
+
+@pytest.mark.django_db
+def test_register_rejects_weak_password():
+    with pytest.raises(InvalidValue):
+        register(email="a@b.com", org_name="S", slug="s", password="abc")
+
+
+@pytest.mark.django_db
 def test_register_runs_signup_hook():
     from django.test import override_settings
 

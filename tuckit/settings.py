@@ -75,6 +75,13 @@ if _db["ENGINE"].endswith("sqlite3") and _db["NAME"] != ":memory:" and not os.pa
 
 AUTH_USER_MODEL = "core.User"
 
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
 # Self-service registration is OFF by default (self-host provisions via CLI).
 # Cloud flips this on. See docs/superpowers/specs/2026-07-11-auth-org-model-design.md.
 REGISTRATION_OPEN = env_bool("TUCKIT_REGISTRATION_OPEN", default=False)

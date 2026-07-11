@@ -66,6 +66,31 @@ def test_register_invited_creates_user_and_joins(org_owner):
 
 
 @pytest.mark.django_db
+def test_register_invited_rejects_empty_password(org_owner):
+    org, owner = org_owner
+    inv = create_invitation(org=org, email="new@x.com", role="admin", invited_by=owner)
+    with pytest.raises(InvalidValue):
+        register_invited(invitation=inv, password="")
+
+
+@pytest.mark.django_db
+def test_accept_invitation_rejects_existing_member(org_owner):
+    import secrets
+
+    org, owner = org_owner
+    # create_invitation itself blocks inviting an existing member, so build the
+    # Invitation directly to simulate a stale/re-sent invite for someone who has
+    # since joined.
+    inv = Invitation.objects.create(
+        org=org, email="o@a.com", role="member", token=secrets.token_urlsafe(32), invited_by=owner
+    )
+    with pytest.raises(InvalidValue):
+        accept_invitation(token=inv.token, user=owner)
+    inv.refresh_from_db()
+    assert inv.accepted_at is None
+
+
+@pytest.mark.django_db
 def test_create_invitation_rejects_existing_member(org_owner):
     org, owner = org_owner
     with pytest.raises(InvalidValue):

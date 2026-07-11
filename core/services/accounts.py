@@ -1,3 +1,5 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from core.models import Org, OrgMember, User, Workspace
@@ -14,7 +16,13 @@ def register(*, email, org_name, slug, password, username=None) -> tuple[User, O
     if Org.objects.filter(slug=slug).exists():
         raise InvalidValue(f"Org slug already taken: {slug}")
 
+    if not password:
+        raise InvalidValue("비밀번호를 입력해 주세요")
     user = User(username=username, email=email)
+    try:
+        validate_password(password, user)
+    except ValidationError as exc:
+        raise InvalidValue(" ".join(exc.messages))
     user.set_password(password)
     user.save()
 

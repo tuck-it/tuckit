@@ -1,6 +1,7 @@
 import pytest
 
 from core.models import Invitation, Org, OrgMember, User
+from core.services.invitations import create_invitation
 from core.services.orgs import create_workspace
 
 
@@ -50,3 +51,23 @@ def test_member_cannot_invite(client, db):
     session.save()
     resp = client.post("/settings/invites", {"email": "new@x.com", "role": "member"})
     assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_member_cannot_cancel_invite(client, db):
+    org = Org.objects.create(name="Acme", slug="acme")
+    owner = User.objects.create(username="o@a.com", email="o@a.com")
+    OrgMember.objects.create(user=owner, org=org, role="owner")
+    inv = create_invitation(org=org, email="new@x.com", role="member", invited_by=owner)
+
+    member = User.objects.create(username="m@a.com", email="m@a.com")
+    OrgMember.objects.create(user=member, org=org, role="member")
+    ws = create_workspace(org, "Board")
+    client.force_login(member)
+    session = client.session
+    session["active_workspace_id"] = ws.id
+    session.save()
+
+    resp = client.post(f"/settings/invites/{inv.id}/cancel")
+    assert resp.status_code == 403
+    assert Invitation.objects.filter(id=inv.id).exists()

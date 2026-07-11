@@ -23,12 +23,12 @@ def backfill(apps, schema_editor):
         ws.org = org
         ws.save(update_fields=["org"])
 
-    for m in Membership.objects.select_related("workspace").all():
+    for m in Membership.objects.select_related("workspace__org").all():
         org = m.workspace.org
         if org is None:
             continue
         OrgMember.objects.get_or_create(
-            user_id=m.user_id, org=org, defaults={"role": m.role, "created_at": m.created_at}
+            user_id=m.user_id, org=org, defaults={"role": m.role}
         )
 
 
