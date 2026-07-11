@@ -32,6 +32,27 @@
   </section>
 
   <section class="group">
+    <div class="group-label">멤버 초대</div>
+    <div class="empty muted">이메일과 역할을 지정해 조직에 멤버를 초대하세요.</div>
+    <div id="invite-list" class="panel">
+      {% for inv in invitations %}
+        {% include "web/partials/_invite_row.html" with inv=inv %}
+      {% empty %}
+        <div class="empty muted">대기 중인 초대가 없습니다</div>
+      {% endfor %}
+    </div>
+    <form class="token-add" hx-post="{% url 'web:invite_create' %}" hx-target="#invite-list" hx-swap="afterbegin"
+          hx-on::after-request="this.reset()">
+      <input type="email" name="email" placeholder="이메일" required>
+      <select name="role">
+        <option value="member">멤버</option>
+        <option value="admin">관리자</option>
+      </select>
+      <button type="submit">초대</button>
+    </form>
+  </section>
+
+  <section class="group">
     <div class="group-label">에이전트 연결</div>
     <div class="empty muted">아래 명령으로 Claude Code에 이 워크스페이스를 MCP 서버로 등록하세요.</div>
     <pre class="mcp-snippet"><code>claude mcp add --transport http tuck-it {{ mcp_url }} --header "Authorization: Bearer &lt;token&gt;"</code></pre>
