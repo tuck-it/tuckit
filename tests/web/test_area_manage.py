@@ -100,3 +100,10 @@ def test_rename_response_is_swappable_row(client_local, workspace):
     assert f'data-area-id="{a.id}"' in body          # returns a full row, not bare text
     assert "Fresh" in body
     assert f'/areas/{a.id}/delete' in body           # actions still wired after rename
+
+
+@pytest.mark.django_db
+def test_sidebar_loads_reorder_script(client_local, workspace):
+    create_area(workspace, "Any")
+    body = client_local.get("/triage/").content.decode()
+    assert "area_nav.js" in body
