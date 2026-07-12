@@ -1,6 +1,7 @@
 from django.db.models import QuerySet
 
 from tuckit.core.models import Bite, Slice
+from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.validation import validate_choice
 
@@ -21,9 +22,11 @@ def create_bite(
 ) -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
     rank = rank_for(Bite, {"slice": slice_}, before=before, after=after)
-    return Bite.objects.create(
+    b = Bite.objects.create(
         slice=slice_, title=title, body=body, status=status, rank=rank, source=source,
     )
+    record_activity(slice_.area.workspace, actor=source, verb="created", target=b)
+    return b
 
 
 def update_bite(
@@ -32,7 +35,9 @@ def update_bite(
     title: str | None = None,
     body: str | None = None,
     status: str | None = None,
+    actor: str = "human",
 ) -> Bite:
+    old_status = bite.status
     if title is not None:
         bite.title = title
     if body is not None:
@@ -41,13 +46,24 @@ def update_bite(
         validate_choice(status, Bite.STATUS_CHOICES, "status")
         bite.status = status
     bite.save()
+    if status is not None and status != old_status:
+        record_activity(
+            bite.slice.area.workspace, actor=actor, verb=status_verb(status),
+            target=bite, from_value=old_status, to_value=status,
+        )
     return bite
 
 
-def set_bite_status(bite: Bite, status: str) -> Bite:
+def set_bite_status(bite: Bite, status: str, *, actor: str = "human") -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
+    old_status = bite.status
     bite.status = status
     bite.save(update_fields=["status", "updated_at"])
+    if status != old_status:
+        record_activity(
+            bite.slice.area.workspace, actor=actor, verb=status_verb(status),
+            target=bite, from_value=old_status, to_value=status,
+        )
     return bite
 
 

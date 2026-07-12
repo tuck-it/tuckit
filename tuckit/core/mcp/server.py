@@ -169,7 +169,7 @@ async def update_slice(
 
     def _run():
         s = _resolve_slice(workspace, slice_id)
-        return slice_dict(_update_slice(s, title=title, spec=spec, status=status, tags=tags))
+        return slice_dict(_update_slice(s, title=title, spec=spec, status=status, tags=tags, actor="agent"))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -180,7 +180,7 @@ async def set_slice_status(ctx: Context, slice_id: int, status: str) -> dict:
     workspace = await require_workspace(ctx)
 
     def _run():
-        return slice_dict(_set_slice_status(_resolve_slice(workspace, slice_id), status))
+        return slice_dict(_set_slice_status(_resolve_slice(workspace, slice_id), status, actor="agent"))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -247,7 +247,7 @@ async def update_bite(
 
     def _run():
         b = _resolve_bite(workspace, bite_id)
-        return bite_dict(_update_bite(b, title=title, body=body, status=status))
+        return bite_dict(_update_bite(b, title=title, body=body, status=status, actor="agent"))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -258,7 +258,7 @@ async def set_bite_status(ctx: Context, bite_id: int, status: str) -> dict:
     workspace = await require_workspace(ctx)
 
     def _run():
-        return bite_dict(_set_bite_status(_resolve_bite(workspace, bite_id), status))
+        return bite_dict(_set_bite_status(_resolve_bite(workspace, bite_id), status, actor="agent"))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
