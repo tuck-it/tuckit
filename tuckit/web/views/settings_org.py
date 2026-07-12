@@ -1,5 +1,5 @@
 from django.http import Http404, HttpResponse, HttpResponseForbidden
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
 from tuckit.core.models import Invitation, OrgMember
@@ -13,6 +13,7 @@ from tuckit.core.services.orgs import (
     rename_org,
 )
 from tuckit.web.auth import get_current_workspace
+from tuckit.web.htmx import redirect_response
 
 
 def org_settings(request):
@@ -90,4 +91,4 @@ def org_delete(request):
         return HttpResponse("마지막 조직은 삭제할 수 없습니다", status=400)
     request.session.pop("active_workspace_id", None)
     org.delete()  # cascades to workspaces/areas/slices/bites via FK on_delete=CASCADE
-    return redirect("web:home")
+    return redirect_response(request, "web:home")

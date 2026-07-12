@@ -33,6 +33,16 @@ def test_admin_deletes_workspace(admin_two_ws):
 
 
 @pytest.mark.django_db
+def test_admin_deletes_workspace_htmx_redirects(admin_two_ws):
+    client, org, admin, ws1, ws2 = admin_two_ws
+    _login(client, admin, ws1)
+    resp = client.post("/settings/workspace/delete", HTTP_HX_REQUEST="true")
+    assert resp.status_code == 204
+    assert resp["HX-Redirect"] == "/"  # full browser navigation, not an in-place swap
+    assert not Workspace.objects.filter(id=ws1.id).exists()
+
+
+@pytest.mark.django_db
 def test_cannot_delete_last_workspace_via_view(admin_two_ws):
     client, org, admin, ws1, ws2 = admin_two_ws
     ws2.delete()  # leave org with a single workspace (ws1)

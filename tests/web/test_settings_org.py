@@ -121,6 +121,19 @@ def test_owner_deletes_org_when_has_another(org_ctx):
 
 
 @pytest.mark.django_db
+def test_owner_deletes_org_htmx_redirects(org_ctx):
+    client, org, owner, member, ws = org_ctx
+    other = OrgModel.objects.create(name="Personal", slug="personal")
+    OrgMember.objects.create(user=owner, org=other, role="owner")
+    create_workspace(other, "Home")
+    _login(client, owner, ws)
+    resp = client.post("/settings/org/delete", HTTP_HX_REQUEST="true")
+    assert resp.status_code == 204
+    assert resp["HX-Redirect"] == "/"  # full browser navigation, not an in-place swap
+    assert not OrgModel.objects.filter(id=org.id).exists()
+
+
+@pytest.mark.django_db
 def test_cannot_delete_last_org(org_ctx):
     client, org, owner, member, ws = org_ctx
     _login(client, owner, ws)

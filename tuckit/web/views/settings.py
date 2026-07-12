@@ -8,6 +8,7 @@ from tuckit.core.services.invitations import cancel_invitation, create_invitatio
 from tuckit.core.services.orgs import delete_workspace, is_org_admin
 from tuckit.core.services.tokens import list_tokens, generate_token, revoke_token
 from tuckit.web.auth import get_current_workspace
+from tuckit.web.htmx import redirect_response
 
 
 def settings(request):
@@ -56,7 +57,7 @@ def workspace_delete(request):
         return HttpResponse(str(exc), status=400)
     if request.session.get("active_workspace_id") == ws_id:
         request.session.pop("active_workspace_id", None)
-    return redirect("web:home")
+    return redirect_response(request, "web:home")
 
 
 @require_POST
