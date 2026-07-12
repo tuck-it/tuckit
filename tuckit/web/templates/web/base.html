@@ -1,4 +1,4 @@
-{% load static %}
+{% load static web_extras %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -31,10 +31,21 @@
   </script>
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-      x-data="{cap: false}"
+      x-data="{cap: false, menu: false}"
       x-on:keydown.window="if (!cap && $event.key === 'c' && !['INPUT','TEXTAREA'].includes($event.target.tagName)) { cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus()) }">
+  <header class="topbar-mobile">
+    <button class="topbar-btn" type="button" aria-label="Open navigation menu"
+            x-on:click="menu = true">{% icon "menu" %}</button>
+    <span class="topbar-brand">tuckit</span>
+    <button class="topbar-btn" type="button" aria-label="Quick capture"
+            x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">{% icon "plus" %}</button>
+  </header>
   <div class="app">
-    {% include "web/partials/_sidebar.html" %}
+    <div class="menu-scrim" x-show="menu" x-cloak x-on:click="menu = false"></div>
+    <div class="sidebar-wrap" :class="{'menu-open': menu}"
+         x-on:keydown.escape.window="menu = false">
+      {% include "web/partials/_sidebar.html" %}
+    </div>
     <main class="main">{% block main %}{% endblock %}</main>
   </div>
   <div id="panel"></div>
