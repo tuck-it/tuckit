@@ -78,5 +78,8 @@ def test_sidebar_lens_group_with_counts(client_local, workspace):
     for name in ("Attention", "In Progress", "Roadmap"):
         assert f">{name}<" in body
     assert 'href="/attention/"' in body and 'href="/in-progress/"' in body and 'href="/roadmap/"' in body
-    # building slice is both "in progress" (1) and, being 9d stale, "attention" (1)
-    assert body.count('class="nav-count"') >= 2   # at least attention + in-progress badges rendered
+    # building slice is both "in progress" (1) and, being 9d stale, "attention" (1).
+    # Pin BOTH lens badges specifically: attention + in-progress each render a
+    # nav-count showing "1". The Triage badge span is always present but empty
+    # (triage_count == 0 here), so it does NOT match this value-bearing substring.
+    assert body.count('class="nav-count">1<') == 2

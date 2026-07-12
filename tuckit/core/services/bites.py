@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import QuerySet
 
 from tuckit.core.models import Bite, Slice
@@ -22,10 +23,11 @@ def create_bite(
 ) -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
     rank = rank_for(Bite, {"slice": slice_}, before=before, after=after)
-    b = Bite.objects.create(
-        slice=slice_, title=title, body=body, status=status, rank=rank, source=source,
-    )
-    record_activity(slice_.area.workspace, actor=source, verb="created", target=b)
+    with transaction.atomic():
+        b = Bite.objects.create(
+            slice=slice_, title=title, body=body, status=status, rank=rank, source=source,
+        )
+        record_activity(slice_.area.workspace, actor=source, verb="created", target=b)
     return b
 
 
@@ -45,12 +47,13 @@ def update_bite(
     if status is not None:
         validate_choice(status, Bite.STATUS_CHOICES, "status")
         bite.status = status
-    bite.save()
-    if status is not None and status != old_status:
-        record_activity(
-            bite.slice.area.workspace, actor=actor, verb=status_verb(status),
-            target=bite, from_value=old_status, to_value=status,
-        )
+    with transaction.atomic():
+        bite.save()
+        if status is not None and status != old_status:
+            record_activity(
+                bite.slice.area.workspace, actor=actor, verb=status_verb(status),
+                target=bite, from_value=old_status, to_value=status,
+            )
     return bite
 
 
@@ -58,12 +61,13 @@ def set_bite_status(bite: Bite, status: str, *, actor: str = "human") -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
     old_status = bite.status
     bite.status = status
-    bite.save(update_fields=["status", "updated_at"])
-    if status != old_status:
-        record_activity(
-            bite.slice.area.workspace, actor=actor, verb=status_verb(status),
-            target=bite, from_value=old_status, to_value=status,
-        )
+    with transaction.atomic():
+        bite.save(update_fields=["status", "updated_at"])
+        if status != old_status:
+            record_activity(
+                bite.slice.area.workspace, actor=actor, verb=status_verb(status),
+                target=bite, from_value=old_status, to_value=status,
+            )
     return bite
 
 

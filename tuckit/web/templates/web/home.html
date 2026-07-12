@@ -7,22 +7,10 @@
     <span class="rm-seg rm-building">Building {{ roadmap.building|length }}</span>
     <span class="rm-seg rm-shipped">Shipped {{ roadmap.shipped|length }}</span>
   </a>
-  {% if state.attention %}
   <section class="group">
     <div class="group-label attention">주의 필요</div>
-    <div class="panel">
-      {% for it in state.attention %}
-        {% attention_label it as lbl %}
-        {% include "web/partials/_slice_row.html" with slice=it.slice reason=lbl %}
-      {% endfor %}
-    </div>
+    {% include "web/partials/_attention_panel.html" with items=state.attention %}
   </section>
-  {% else %}
-  <section class="group">
-    <div class="group-label attention">주의 필요</div>
-    <div class="all-clear">{% icon "check" "icon icon-clear" %}<span>놓친 것 없어요 — 다 챙겼습니다</span></div>
-  </section>
-  {% endif %}
   {% include "web/partials/_status_group.html" with label="진행 중" slices=state.building empty_text="아직 Slice가 없어요" %}
   {% include "web/partials/_status_group.html" with label="다음" slices=state.planned empty_text="아직 Slice가 없어요" %}
   <section class="group" x-data="{open:false}">

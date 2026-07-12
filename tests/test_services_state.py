@@ -181,6 +181,20 @@ def test_in_progress_state_has_building_slices_and_doing_bites():
 
 
 @pytest.mark.django_db
+def test_roadmap_and_in_progress_sort_by_area_name():
+    org = Org.objects.create(name="Acme", slug="acme")
+    ws = Workspace.objects.create(org=org, name="W", slug="w")
+    zeta = create_area(ws, "Zeta")
+    alpha = create_area(ws, "Alpha")
+    # Created Zeta-first, but both functions must return them Alpha-first (sort
+    # key is (area name, rank)). Guards against the sort key being dropped/reversed.
+    create_slice(zeta, "z build", status="building")
+    create_slice(alpha, "a build", status="building")
+    assert [s.title for s in roadmap_state(ws)["building"]] == ["a build", "z build"]
+    assert [s.title for s in in_progress_state(ws)["slices"]] == ["a build", "z build"]
+
+
+@pytest.mark.django_db
 def test_home_state_excludes_attention_from_building():
     from tuckit.core.management.commands.bootstrap import ensure_bootstrap
 

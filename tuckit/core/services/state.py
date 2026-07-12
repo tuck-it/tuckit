@@ -117,9 +117,9 @@ def attention_items(workspace: Workspace) -> list[dict]:
     items: list[dict] = []
     triage = Area.objects.filter(workspace=workspace, is_triage=True).first()
     if triage is not None:
-        for s in Slice.objects.filter(area=triage, updated_at__lt=cutoff).exclude(status="dropped"):
+        for s in Slice.objects.filter(area=triage, updated_at__lt=cutoff).exclude(status="dropped").prefetch_related("tags"):
             items.append({"slice": s, "reason": "triage_stale", "days": (now - s.updated_at).days})
-    for s in Slice.objects.filter(area__workspace=workspace, status="building", updated_at__lt=cutoff):
+    for s in Slice.objects.filter(area__workspace=workspace, status="building", updated_at__lt=cutoff).prefetch_related("tags"):
         items.append({"slice": s, "reason": "building_stalled", "days": (now - s.updated_at).days})
     items.sort(key=lambda it: it["slice"].updated_at)
     return items
