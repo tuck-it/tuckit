@@ -33,6 +33,7 @@ urlpatterns = [
     path("settings/tokens", settings_views.token_create, name="token_create"),
     path("settings/tokens/<int:token_id>/revoke", settings_views.token_revoke, name="token_revoke"),
     path("settings/rename", settings_views.workspace_rename, name="workspace_rename"),
+    path("settings/workspace/delete", settings_views.workspace_delete, name="workspace_delete"),
     path("settings/invites", settings_views.invite_create, name="invite_create"),
     path("settings/invites/<int:invitation_id>/cancel", settings_views.invite_cancel, name="invite_cancel"),
     path("settings/org", settings_org.org_settings, name="settings_org"),

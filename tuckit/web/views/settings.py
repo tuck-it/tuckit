@@ -3,10 +3,9 @@ from django.http import HttpResponse, HttpResponseForbidden
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from tuckit.core.models import Invitation
 from tuckit.core.services.exceptions import InvalidValue, LimitReached
 from tuckit.core.services.invitations import cancel_invitation, create_invitation, send_invitation_email
-from tuckit.core.services.orgs import is_org_admin
+from tuckit.core.services.orgs import delete_workspace, is_org_admin
 from tuckit.core.services.tokens import list_tokens, generate_token, revoke_token
 from tuckit.web.auth import get_current_workspace
 
@@ -43,6 +42,21 @@ def workspace_rename(request):
     ws.name = request.POST["name"]
     ws.save(update_fields=["name", "updated_at"])
     return HttpResponse(ws.name)
+
+
+@require_POST
+def workspace_delete(request):
+    ws = get_current_workspace(request)
+    if ws is None or not is_org_admin(request.user, ws.org):
+        return HttpResponseForbidden("권한이 없습니다")
+    ws_id = ws.id
+    try:
+        delete_workspace(ws)
+    except InvalidValue as exc:
+        return HttpResponse(str(exc), status=400)
+    if request.session.get("active_workspace_id") == ws_id:
+        request.session.pop("active_workspace_id", None)
+    return redirect("web:home")
 
 
 @require_POST

@@ -40,4 +40,13 @@
     <div class="empty muted">아래 명령으로 Claude Code에 이 워크스페이스를 MCP 서버로 등록하세요.</div>
     <pre class="mcp-snippet"><code>claude mcp add --transport http tuck-it {{ mcp_url }} --header "Authorization: Bearer &lt;token&gt;"</code></pre>
   </section>
+
+  {% if can_admin %}
+  <section class="group">
+    <div class="group-label danger">위험 구역</div>
+    <form hx-post="{% url 'web:workspace_delete' %}" hx-confirm="이 워크스페이스와 모든 Area·항목이 삭제됩니다. 계속할까요?">
+      <button type="submit" class="btn danger">워크스페이스 삭제</button>
+    </form>
+  </section>
+  {% endif %}
 {% endblock %}
