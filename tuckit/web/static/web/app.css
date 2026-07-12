@@ -106,6 +106,10 @@ body {
   background: var(--dot-building);
 }
 
+.status-dot--doing {
+  background: var(--dot-building);
+}
+
 .status-dot--shipped {
   background: var(--dot-shipped);
 }
