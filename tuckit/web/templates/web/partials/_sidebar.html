@@ -2,25 +2,35 @@
 <aside class="sidebar">
   <div class="brand">tuck-it</div>
   {% include "web/partials/_workspace_switcher.html" %}
-  <a class="nav{% if request.resolver_match.url_name == 'home' %} nav--active{% endif %}"
-     href="{% url 'web:home' %}">{% icon "home" %}<span class="nav-label">홈</span></a>
-  <a class="nav{% if request.resolver_match.url_name == 'triage' %} nav--active{% endif %}"
-     href="{% url 'web:triage' %}">{% icon "inbox" %}<span class="nav-label">Triage</span>
-     {% include "web/partials/_triage_count.html" %}</a>
-  <button class="nav capture-trigger" type="button"
-          x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
-    {% icon "plus" %}<span class="nav-label">캡처</span></button>
+
+  <nav class="nav-group">
+    <a class="nav{% if request.resolver_match.url_name == 'home' %} nav--active{% endif %}"
+       href="{% url 'web:home' %}">{% icon "home" %}<span class="nav-label">Home</span></a>
+    <a class="nav{% if request.resolver_match.url_name == 'triage' %} nav--active{% endif %}"
+       href="{% url 'web:triage' %}">{% icon "triage" %}<span class="nav-label">Triage</span>
+       {% include "web/partials/_triage_count.html" %}</a>
+  </nav>
+
+  <div class="nav-sep"></div>
+
   <div class="section">Areas</div>
   {% include "web/partials/_area_nav.html" %}
   <form class="area-add" hx-post="{% url 'web:area_create' %}" hx-swap="none"
         hx-on::after-request="this.reset()">
     <input name="name" class="area-add-input" placeholder="＋ Area">
   </form>
+
+  <div class="nav-spacer"></div>
+
   <a class="nav muted{% if request.resolver_match.url_name == 'settings_workspace' or request.resolver_match.url_name == 'settings_org' %} nav--active{% endif %}"
-     href="{% url 'web:settings_workspace' %}">{% icon "settings" %}<span class="nav-label">설정</span></a>
+     href="{% url 'web:settings_workspace' %}">{% icon "settings" %}<span class="nav-label">Settings</span></a>
   <button class="nav theme-toggle" type="button"
           x-data="{theme: document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')}"
           x-on:click="theme = theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = theme; localStorage.setItem('theme', theme)">
-    <span x-text="theme === 'dark' ? '라이트 모드' : '다크 모드'">다크 모드</span>
+    <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
   </button>
+
+  <button class="capture-btn" type="button"
+          x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
+    {% icon "plus" %}<span class="nav-label">Capture</span><kbd class="nav-kbd">C</kbd></button>
 </aside>
