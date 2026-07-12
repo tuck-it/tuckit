@@ -88,4 +88,5 @@ def test_home_shows_recent_activity(client_local, workspace):
     body = client_local.get("/").content.decode()
     assert "Recent activity" in body
     assert "웹훅 재시도" in body
-    assert "planned" in body and "building" in body   # the transition
+    # the transition span is rendered only by the activity card (unique to it)
+    assert "planned → building" in body
