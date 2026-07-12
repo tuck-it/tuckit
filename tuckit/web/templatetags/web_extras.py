@@ -16,6 +16,9 @@ def bite_progress_tag(slice):
 _ICON_PATHS = {
     "home": '<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>',
     "triage": '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.5 2 12v7h20v-7l-3.5-6.5H5.5Z"/>',
+    "attention": '<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><path d="M12 17h.01"/>',
+    "in-progress": '<path d="M3 12h4l2 6 4-14 2 8h6"/>',
+    "roadmap": '<path d="M4 6h4v13H4zM10 3h4v16h-4zM16 9h4v10h-4z"/>',
     "area": '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
     "plus": '<path d="M12 5v14M5 12h14"/>',
     "settings": '<path d="M4 7h11M19 7h1M4 12h1M9 12h11M4 17h7M15 17h5"/><circle cx="17" cy="7" r="2"/><circle cx="7" cy="12" r="2"/><circle cx="13" cy="17" r="2"/>',

@@ -35,10 +35,10 @@ def test_sidebar_grouped_with_english_labels_and_capture(client_local, workspace
     assert 'class="capture-btn"' in body       # Capture promoted to its own button
     assert ">Home<" in body and ">Triage<" in body and ">Settings<" in body
     assert 'href="/triage/"' in body
-    # Phase-1 boundary: state-lens items belong to Phase 2, must not appear yet.
-    assert ">Attention<" not in body
-    assert ">In Progress<" not in body
-    assert ">Roadmap<" not in body
+    # Phase 2: state-lens items now appear in the sidebar nav-group.
+    assert ">Attention<" in body
+    assert ">In Progress<" in body
+    assert ">Roadmap<" in body
     assert 'class="nav-sep"' in body        # visual group separator present
 
 
@@ -62,3 +62,21 @@ def test_lens_count_context_processors(client_local, workspace):
     resp = client_local.get("/")
     assert resp.context["attention_count"] == 1              # the stalled building slice
     assert resp.context["in_progress_count"] == 2             # building slice + doing bite (triage excluded)
+
+
+@pytest.mark.django_db
+def test_sidebar_lens_group_with_counts(client_local, workspace):
+    from datetime import timedelta
+    from django.utils import timezone
+    from tuckit.core.models import Slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    a = create_area(workspace, "Backend")
+    s = create_slice(a, "정체", status="building")
+    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
+    body = client_local.get("/").content.decode()
+    for name in ("Attention", "In Progress", "Roadmap"):
+        assert f">{name}<" in body
+    assert 'href="/attention/"' in body and 'href="/in-progress/"' in body and 'href="/roadmap/"' in body
+    # building slice is both "in progress" (1) and, being 9d stale, "attention" (1)
+    assert body.count('class="nav-count"') >= 2   # at least attention + in-progress badges rendered
