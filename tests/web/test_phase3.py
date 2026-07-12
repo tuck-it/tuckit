@@ -22,3 +22,19 @@ def test_triage_row_shows_provenance_and_english_controls(client_local, workspac
     assert "Assign area" in body
     assert ">Status" in body
     assert "— Area 지정 —" not in body
+
+
+@pytest.mark.django_db
+def test_slice_panel_order_and_close_aria(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.bites import create_bite
+    a = create_area(workspace, "Backend")
+    s = create_slice(a, "panel order", status="building", tags=["billing"])
+    create_bite(s, "step one")
+    body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert 'aria-label="Close panel"' in body
+    assert "Open full" in body
+    assert "Backend" in body                         # Area context near title
+    # blueprint order: bites appear before tags; tags before the destructive drop
+    assert body.index('id="bites-') < body.index("billing") < body.index("Drop")

@@ -3,7 +3,7 @@
   <div class="bite-line">
     <button class="checkbox {% if bite.status == 'done' %}checkbox--on{% endif %}" type="button"
             hx-post="{% url 'web:bite_toggle' bite.id %}" hx-target="closest .bite" hx-swap="outerHTML"
-            aria-label="완료 토글">{% if bite.status == 'done' %}{% icon "check" "icon icon-check" %}{% endif %}</button>
+            aria-label="Toggle done">{% if bite.status == 'done' %}{% icon "check" "icon icon-check" %}{% endif %}</button>
     <span class="bite-title" x-on:click="open=!open">{{ bite.title }}</span>
     {% if bite.body %}{% icon "note" "icon bite-note" %}{% endif %}
     <span class="bite-status muted">{{ bite.status }}</span>
@@ -12,15 +12,15 @@
   </div>
   <div class="bite-body" x-show="open" x-cloak>
     <div class="bite-body-src muted">
-      {% if bite.source == 'agent' %}에이전트가 작성{% else %}사람이 작성{% endif %} · 수정 {{ bite.updated_at|timesince }} 전
+      {% if bite.source == 'agent' %}Written by agent{% else %}Written by you{% endif %} · updated {{ bite.updated_at|timesince }} ago
     </div>
     <div class="bite-body-md" x-show="!edit" x-on:click="edit=true">
-      {% if bite.body %}{% render_bite_body bite %}{% else %}<span class="muted">노트 없음 — 클릭해 추가</span>{% endif %}
+      {% if bite.body %}{% render_bite_body bite %}{% else %}<span class="muted">No note — click to add</span>{% endif %}
     </div>
     <form x-show="edit" x-cloak hx-post="{% url 'web:bite_body' bite.id %}"
           hx-target="closest .bite" hx-swap="outerHTML">
       <textarea name="body" class="spec-edit" rows="4">{{ bite.body }}</textarea>
-      <button class="ghost" type="submit">저장</button>
+      <button class="ghost" type="submit">Save</button>
     </form>
   </div>
 </div>

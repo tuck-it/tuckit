@@ -87,7 +87,7 @@ def test_slice_panel_active_shows_drop_control(client_local, workspace):
     from tuckit.core.services.slices import create_slice
     s = create_slice(create_area(workspace, "제품"), "진행 중인 것", status="building")
     body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    assert "드롭" in body
+    assert "Drop" in body
 
 @pytest.mark.django_db
 def test_slice_panel_dropped_shows_restore(client_local, workspace):
@@ -95,7 +95,7 @@ def test_slice_panel_dropped_shows_restore(client_local, workspace):
     from tuckit.core.services.slices import create_slice
     s = create_slice(create_area(workspace, "제품"), "버린 것", status="dropped")
     body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    assert "되살리기" in body
+    assert "Restore" in body
     # restoring puts it back into the flow
     resp = client_local.post(f"/slices/{s.id}/status", {"status": "idea"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
@@ -109,8 +109,8 @@ def test_slice_panel_has_meta_footer(client_local, workspace):
     s = create_slice(create_area(workspace, "제품"), "메타 확인")  # default source=human
     body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert "panel-meta" in body
-    assert "사람 생성" in body
-    assert "생성" in body and "수정" in body
+    assert "Created by you" in body
+    assert "Created" in body and "Updated" in body
 
 @pytest.mark.django_db
 def test_bite_source_time_renders_korean(client_local, workspace):
