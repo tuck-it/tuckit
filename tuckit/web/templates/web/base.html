@@ -34,7 +34,7 @@
       x-data="{cap: false, menu: false}"
       x-on:keydown.window="if (!cap && $event.key === 'c' && !['INPUT','TEXTAREA'].includes($event.target.tagName)) { cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus()) }">
   <header class="topbar-mobile">
-    <button class="topbar-btn" type="button" aria-label="Open navigation menu"
+    <button class="topbar-btn" type="button" aria-label="Open navigation menu" :aria-expanded="menu" aria-controls="app-sidebar"
             x-on:click="menu = true">{% icon "menu" %}</button>
     <span class="topbar-brand">tuckit</span>
     <button class="topbar-btn" type="button" aria-label="Quick capture"
@@ -42,7 +42,7 @@
   </header>
   <div class="app">
     <div class="menu-scrim" x-show="menu" x-cloak x-on:click="menu = false"></div>
-    <div class="sidebar-wrap" :class="{'menu-open': menu}"
+    <div class="sidebar-wrap" id="app-sidebar" :class="{'menu-open': menu}"
          x-on:keydown.escape.window="menu = false">
       {% include "web/partials/_sidebar.html" %}
     </div>

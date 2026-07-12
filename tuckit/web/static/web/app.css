@@ -30,7 +30,7 @@ body { padding: 0; }
   font-size: 11px;
   font-variant: small-caps;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--ink-faint);
   padding: 12px 8px 4px;
 }
 
@@ -64,7 +64,7 @@ body { padding: 0; }
 
 
 .nav.muted {
-  color: var(--muted);
+  color: var(--ink-faint);
 }
 
 /* Status dot — small round indicator, never a banner/band. */
@@ -826,7 +826,7 @@ body { padding: 0; }
 
 /* --- Sidebar grouping (nav redesign, Phase 1) --- */
 .nav-group { display: flex; flex-direction: column; gap: 4px; }
-.nav-sep { height: 1px; background: var(--border); margin: 10px 4px; }
+.nav-sep { height: 1px; background: var(--line); margin: 10px 4px; }
 .nav-spacer { flex: 1 1 auto; }
 
 .capture-btn {
@@ -851,8 +851,8 @@ body { padding: 0; }
 
 .nav-kbd {
   font-size: 11px;
-  color: var(--muted);
-  border: 1px solid var(--border);
+  color: var(--ink-faint);
+  border: 1px solid var(--line);
   border-radius: 4px;
   padding: 0 5px;
   font-variant-numeric: tabular-nums;
