@@ -33,3 +33,16 @@ def test_font_and_texture_assets_present():
     assert (fonts / "ibm-plex-mono-latin-500-normal.woff2").exists()
     tex = STATIC / "textures" / "notebook-paper.webp"
     assert tex.exists() and tex.stat().st_size > 0
+
+
+def test_base_css_declares_fonts_texture_and_primitives():
+    css = (STATIC / "base.css").read_text(encoding="utf-8")
+    assert "@font-face" in css
+    assert "Onest Variable" in css
+    assert "IBM Plex Mono" in css
+    assert "font-display: swap" in css
+    assert "url(\"fonts/onest-latin-wght-normal.woff2\")" in css
+    assert "body::before" in css                         # texture overlay
+    assert "url(\"textures/notebook-paper.webp\")" in css
+    assert ":focus-visible" in css
+    assert ".button-primary" in css
