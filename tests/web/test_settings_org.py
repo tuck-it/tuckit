@@ -102,3 +102,37 @@ def test_cannot_remove_member_of_other_org(org_ctx):
     resp = client.post(f"/settings/org/members/{om_other.id}/remove")
     assert resp.status_code == 404
     assert OrgMember.objects.filter(id=om_other.id).exists()
+
+
+from tuckit.core.models import Org as OrgModel  # alias to avoid fixture shadow
+
+
+@pytest.mark.django_db
+def test_owner_deletes_org_when_has_another(org_ctx):
+    client, org, owner, member, ws = org_ctx
+    # owner also belongs to a second org, so deleting the first is allowed
+    other = OrgModel.objects.create(name="Personal", slug="personal")
+    OrgMember.objects.create(user=owner, org=other, role="owner")
+    create_workspace(other, "Home")
+    _login(client, owner, ws)
+    resp = client.post("/settings/org/delete")
+    assert resp.status_code == 302
+    assert not OrgModel.objects.filter(id=org.id).exists()
+
+
+@pytest.mark.django_db
+def test_cannot_delete_last_org(org_ctx):
+    client, org, owner, member, ws = org_ctx
+    _login(client, owner, ws)
+    resp = client.post("/settings/org/delete")
+    assert resp.status_code == 400
+    assert OrgModel.objects.filter(id=org.id).exists()
+
+
+@pytest.mark.django_db
+def test_member_cannot_delete_org(org_ctx):
+    client, org, owner, member, ws = org_ctx
+    _login(client, member, ws)
+    resp = client.post("/settings/org/delete")
+    assert resp.status_code == 403
+    assert OrgModel.objects.filter(id=org.id).exists()

@@ -1,5 +1,5 @@
 from django.http import Http404, HttpResponse, HttpResponseForbidden
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from tuckit.core.models import OrgMember
@@ -31,12 +31,6 @@ def org_settings(request):
     })
 
 
-# The org page (above) links/posts to these four endpoints, but their real
-# behavior is scoped to later tasks (member role/remove, org delete) in the
-# management-surfaces plan. Routing them to a stub here keeps `{% url %}`
-# resolvable in settings_org.html / _member_row.html so this task's GET page
-# renders; the bodies are placeholders for those tasks to replace, not final
-# behavior.
 @require_POST
 def org_rename(request):
     ws = get_current_workspace(request)
@@ -86,4 +80,13 @@ def member_remove(request, member_id):
 
 @require_POST
 def org_delete(request):
-    return HttpResponse(status=501)
+    ws = get_current_workspace(request)
+    if ws is None or not is_org_owner(request.user, ws.org):
+        return HttpResponseForbidden("권한이 없습니다")
+    org = ws.org
+    has_other = OrgMember.objects.filter(user=request.user).exclude(org=org).exists()
+    if not has_other:
+        return HttpResponse("마지막 조직은 삭제할 수 없습니다", status=400)
+    request.session.pop("active_workspace_id", None)
+    org.delete()  # cascades to workspaces/areas/slices/bites via FK on_delete=CASCADE
+    return redirect("web:home")
