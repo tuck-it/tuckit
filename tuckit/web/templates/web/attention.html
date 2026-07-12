@@ -1,0 +1,19 @@
+{% extends "web/base.html" %}
+{% load web_extras %}
+{% block main %}
+  <div class="topbar"><h1 class="area-title">Attention</h1></div>
+  {% if items %}
+  <section class="group">
+    <div class="panel">
+      {% for it in items %}
+        {% attention_label it as lbl %}
+        {% include "web/partials/_slice_row.html" with slice=it.slice reason=lbl %}
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <section class="group">
+    <div class="all-clear">{% icon "check" "icon icon-clear" %}<span>놓친 것 없어요 — 다 챙겼습니다</span></div>
+  </section>
+  {% endif %}
+{% endblock %}

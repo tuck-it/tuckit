@@ -1,0 +1,23 @@
+{% extends "web/base.html" %}
+{% load web_extras %}
+{% block main %}
+  <div class="topbar"><h1 class="area-title">In Progress</h1></div>
+  {% include "web/partials/_status_group.html" with label="Building" slices=state.slices empty_text="진행 중인 Slice가 없어요" %}
+  <section class="group">
+    <div class="group-label">Doing</div>
+    {% if state.bites %}
+      <div class="panel">
+        {% for bite in state.bites %}
+          <a class="slice-row" href="{% url 'web:slice' bite.slice.id %}"
+             hx-get="{% url 'web:slice' bite.slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
+            {% include "web/partials/_status_dot.html" with status=bite.status %}
+            <span class="row-title">{{ bite.title }}</span>
+            <span class="row-meta">{{ bite.slice.title }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty muted">진행 중인 Bite가 없어요</div>
+    {% endif %}
+  </section>
+{% endblock %}

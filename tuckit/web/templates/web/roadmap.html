@@ -1,0 +1,15 @@
+{% extends "web/base.html" %}
+{% load web_extras %}
+{% block main %}
+  <div class="topbar"><h1 class="area-title">Roadmap</h1></div>
+  <div class="roadmap-dist">
+    <span class="rm-seg">Idea {{ state.idea|length }}</span>
+    <span class="rm-seg">Planned {{ state.planned|length }}</span>
+    <span class="rm-seg rm-building">Building {{ state.building|length }}</span>
+    <span class="rm-seg rm-shipped">Shipped {{ state.shipped|length }}</span>
+  </div>
+  {% include "web/partials/_status_group.html" with label="Building" slices=state.building empty_text="—" %}
+  {% include "web/partials/_status_group.html" with label="Planned" slices=state.planned empty_text="—" %}
+  {% include "web/partials/_status_group.html" with label="Idea" slices=state.idea empty_text="—" %}
+  {% include "web/partials/_status_group.html" with label="Shipped" slices=state.shipped empty_text="—" %}
+{% endblock %}
