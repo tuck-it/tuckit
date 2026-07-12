@@ -50,10 +50,15 @@ def test_lens_count_context_processors(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.areas import get_or_create_triage
     a = create_area(workspace, "Backend")
     s = create_slice(a, "정체", status="building")           # building -> in_progress
     create_bite(s, "doing bite", status="doing")             # doing bite -> in_progress
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))  # -> attention
+    # A doing bite in a Triage-area slice must NOT be counted (badge must match
+    # the /in-progress/ page, which excludes triage). Guards the badge/page drift.
+    triage_slice = create_slice(get_or_create_triage(workspace), "captured", status="building")
+    create_bite(triage_slice, "triage doing bite", status="doing")
     resp = client_local.get("/")
     assert resp.context["attention_count"] == 1              # the stalled building slice
-    assert resp.context["in_progress_count"] == 2             # building slice + doing bite
+    assert resp.context["in_progress_count"] == 2             # building slice + doing bite (triage excluded)

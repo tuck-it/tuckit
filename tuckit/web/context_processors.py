@@ -49,7 +49,9 @@ def in_progress_count(request):
         Slice.objects.filter(
             area__workspace=ws, area__is_triage=False, status="building"
         ).count()
-        + Bite.objects.filter(slice__area__workspace=ws, status="doing").count()
+        + Bite.objects.filter(
+            slice__area__workspace=ws, slice__area__is_triage=False, status="doing"
+        ).count()
     )
     return {"in_progress_count": n}
 
