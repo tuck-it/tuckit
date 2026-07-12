@@ -24,3 +24,12 @@ def test_product_extension_defines_aliases_and_dots():
     # product-only status dots still present (both themes)
     assert "--dot-building" in css
     assert "--overlay" in css
+
+
+def test_font_and_texture_assets_present():
+    fonts = STATIC / "fonts"
+    assert (fonts / "onest-latin-wght-normal.woff2").exists()
+    assert (fonts / "ibm-plex-mono-latin-400-normal.woff2").exists()
+    assert (fonts / "ibm-plex-mono-latin-500-normal.woff2").exists()
+    tex = STATIC / "textures" / "notebook-paper.webp"
+    assert tex.exists() and tex.stat().st_size > 0
