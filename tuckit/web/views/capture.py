@@ -1,5 +1,8 @@
+from urllib.parse import urlparse
+
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
+from django.urls import reverse
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.areas import get_or_create_triage, create_area, list_areas, rename_area, delete_area, reorder_area
@@ -67,7 +70,13 @@ def area_rename(request, area_id):
         rename_area(area, request.POST.get("name", ""))
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
-    return render(request, "web/partials/_area_row.html", {"a": area})
+    # If the user is renaming the area they're currently viewing, keep its
+    # sidebar highlight: the swapped-in row is rendered under url_name
+    # 'area_rename', so resolver_match can't infer active — derive it from the
+    # browser's current URL (htmx sends it as HX-Current-URL).
+    current_path = urlparse(request.headers.get("HX-Current-URL", "")).path
+    active = current_path == reverse("web:area", args=[area.slug])
+    return render(request, "web/partials/_area_row.html", {"a": area, "active": active})
 
 
 def area_delete(request, area_id):

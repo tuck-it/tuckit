@@ -2,7 +2,6 @@ import pytest
 
 from tuckit.core.models import Area, Org, Workspace
 from tuckit.core.services.areas import create_area, get_or_create_triage, list_areas
-from tuckit.core.services.slices import create_slice
 
 
 @pytest.mark.django_db
@@ -107,3 +106,28 @@ def test_sidebar_loads_reorder_script(client_local, workspace):
     create_area(workspace, "Any")
     body = client_local.get("/triage/").content.decode()
     assert "area_nav.js" in body
+
+
+@pytest.mark.django_db
+def test_rename_current_area_keeps_active_highlight(client_local, workspace):
+    # Renaming the area you are currently viewing must not drop its sidebar
+    # highlight. htmx sends HX-Current-URL; the view uses it to re-mark active.
+    a = create_area(workspace, "Cur")
+    body = client_local.post(
+        f"/areas/{a.id}/rename", {"name": "Cur2"},
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_CURRENT_URL=f"http://testserver/areas/{a.slug}/",
+    ).content.decode()
+    assert "nav--active" in body
+
+
+@pytest.mark.django_db
+def test_rename_other_area_is_not_active(client_local, workspace):
+    # Renaming an area while viewing a different page leaves it un-highlighted.
+    a = create_area(workspace, "Other")
+    body = client_local.post(
+        f"/areas/{a.id}/rename", {"name": "Other2"},
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_CURRENT_URL="http://testserver/triage/",
+    ).content.decode()
+    assert "nav--active" not in body
