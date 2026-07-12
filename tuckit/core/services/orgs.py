@@ -118,3 +118,28 @@ def delete_workspace(workspace: Workspace) -> None:
     if Workspace.objects.filter(org=workspace.org).count() <= 1:
         raise InvalidValue("조직의 마지막 워크스페이스는 삭제할 수 없습니다")
     workspace.delete()
+
+
+def list_user_orgs(user) -> list[dict]:
+    rows = []
+    memberships = (
+        OrgMember.objects.filter(user=user).select_related("org").order_by("org__name")
+    )
+    for m in memberships:
+        rows.append({
+            "org": m.org,
+            "role": m.role,
+            "workspace_count": Workspace.objects.filter(org=m.org).count(),
+        })
+    return rows
+
+
+def leave_org(user, *, org) -> None:
+    membership = OrgMember.objects.filter(user=user, org=org).first()
+    if membership is None:
+        raise InvalidValue("이 조직의 멤버가 아닙니다")
+    if membership.role == "owner" and _owner_count(org) <= 1:
+        raise InvalidValue("단독 소유자는 나갈 수 없습니다 — 먼저 소유권을 넘기거나 조직을 삭제하세요")
+    if OrgMember.objects.filter(user=user).count() <= 1:
+        raise InvalidValue("마지막 조직은 나갈 수 없습니다")
+    membership.delete()
