@@ -26,6 +26,29 @@
     </div>
   </section>
 
+  {% if can_admin %}
+  <section class="group">
+    <div class="group-label">멤버 초대</div>
+    <div class="empty muted">이메일과 역할을 지정해 조직에 멤버를 초대하세요.</div>
+    <div id="invite-list" class="panel">
+      {% for inv in invitations %}
+        {% include "web/partials/_invite_row.html" with inv=inv %}
+      {% empty %}
+        <div class="empty muted">대기 중인 초대가 없습니다</div>
+      {% endfor %}
+    </div>
+    <form class="token-add" hx-post="{% url 'web:invite_create' %}" hx-target="#invite-list" hx-swap="afterbegin"
+          hx-on::after-request="this.reset()">
+      <input type="email" name="email" placeholder="이메일" required>
+      <select name="role">
+        <option value="member">멤버</option>
+        <option value="admin">관리자</option>
+      </select>
+      <button type="submit">초대</button>
+    </form>
+  </section>
+  {% endif %}
+
   <section class="group">
     <div class="group-label">이 조직의 워크스페이스</div>
     <div class="panel">

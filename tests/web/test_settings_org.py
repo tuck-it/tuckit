@@ -1,6 +1,6 @@
 import pytest
 
-from tuckit.core.models import Org, OrgMember, User
+from tuckit.core.models import Invitation, Org, OrgMember, User
 from tuckit.core.services.orgs import create_workspace
 
 
@@ -136,3 +136,14 @@ def test_member_cannot_delete_org(org_ctx):
     resp = client.post("/settings/org/delete")
     assert resp.status_code == 403
     assert OrgModel.objects.filter(id=org.id).exists()
+
+
+@pytest.mark.django_db
+def test_org_page_shows_invite_form_and_pending(org_ctx):
+    client, org, owner, member, ws = org_ctx
+    Invitation.objects.create(org=org, email="pending@x.com", role="member", token="tok-abc")
+    _login(client, owner, ws)
+    body = client.get("/settings/org").content.decode()
+    assert "web:invite_create" not in body            # url resolved, not literal
+    assert 'hx-post="/settings/invites"' in body       # invite form present on org page
+    assert "pending@x.com" in body                     # pending invite listed

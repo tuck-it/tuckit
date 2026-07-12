@@ -2,7 +2,7 @@ from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from tuckit.core.models import OrgMember
+from tuckit.core.models import Invitation, OrgMember
 from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.orgs import (
     change_member_role,
@@ -25,6 +25,7 @@ def org_settings(request):
         "org": org,
         "members": members,
         "workspaces": workspaces,
+        "invitations": list(Invitation.objects.filter(org=org, accepted_at__isnull=True)) if org else [],
         "can_admin": bool(org and is_org_admin(request.user, org)),
         "can_owner": bool(org and is_org_owner(request.user, org)),
         "role_choices": OrgMember.ROLE_CHOICES,
