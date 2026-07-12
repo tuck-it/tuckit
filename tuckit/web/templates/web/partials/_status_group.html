@@ -1,5 +1,5 @@
 <section class="group">
-  <div class="group-label">{{ label }}</div>
+  <div class="group-label"><span>{{ label }}</span><span class="group-count">{{ slices|length }}</span></div>
   {% if slices %}
     <div class="panel">
       {% for slice in slices %}{% include "web/partials/_slice_row.html" %}{% endfor %}

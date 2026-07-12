@@ -14,7 +14,7 @@ def test_attention_page_lists_stale_items(client_local, workspace):
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
     body = client_local.get("/attention/").content.decode()
     assert "정체된 작업" in body
-    assert "9일째 진척 없음" in body
+    assert "9d idle" in body
 
 
 @pytest.mark.django_db

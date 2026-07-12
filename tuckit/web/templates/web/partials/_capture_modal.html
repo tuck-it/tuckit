@@ -3,7 +3,7 @@
      x-on:click.self="cap=false">
   <form class="capture-modal" hx-post="{% url 'web:capture' %}" hx-swap="none"
         hx-on::after-request="this.reset(); this.querySelector('.capture-input').focus()">
-    <input name="title" class="capture-input" placeholder="빠르게 기록… (Enter로 계속 기록, Esc로 닫기)" x-ref="captureInput"
+    <input name="title" class="capture-input" placeholder="Quick capture…  (Enter to keep capturing, Esc to close)" x-ref="captureInput"
            x-on:keydown.escape="cap=false" autofocus>
   </form>
 </div>
