@@ -19,13 +19,13 @@ def test_current_workspace_resolves(client_local, workspace):
 
 
 @pytest.mark.django_db
-def test_sidebar_shows_icons_and_inbox_count(client_local, workspace):
+def test_sidebar_shows_icons_and_triage_count(client_local, workspace):
     from tuckit.core.services.areas import get_or_create_triage
     from tuckit.core.services.slices import create_slice
     create_slice(get_or_create_triage(workspace), "미분류 1")
     body = client_local.get("/").content.decode()
     assert "<svg" in body                 # line icons present
-    assert 'class="nav-count"' in body    # inbox count element rendered
+    assert 'class="nav-count"' in body    # triage count element rendered
 
 
 @pytest.mark.django_db
@@ -35,3 +35,8 @@ def test_sidebar_grouped_with_english_labels_and_capture(client_local, workspace
     assert 'class="capture-btn"' in body       # Capture promoted to its own button
     assert ">Home<" in body and ">Triage<" in body and ">Settings<" in body
     assert 'href="/triage/"' in body
+    # Phase-1 boundary: state-lens items belong to Phase 2, must not appear yet.
+    assert ">Attention<" not in body
+    assert ">In Progress<" not in body
+    assert ">Roadmap<" not in body
+    assert 'class="nav-sep"' in body        # visual group separator present

@@ -225,16 +225,6 @@ body {
   line-height: 1.5;
 }
 
-/* Capture trigger — styled like any other nav row, no button chrome. */
-.capture-trigger {
-  background: none;
-  border: none;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-  width: 100%;
-}
-
 /* Inline "+ Area" add form in the sidebar. */
 .area-add {
   padding: 4px 8px;
@@ -449,7 +439,7 @@ body {
   line-height: 1.4;
 }
 
-/* Group of rows (attention / status group / inbox list / settings section) —
+/* Group of rows (attention / status group / triage list / settings section) —
    consistent vertical rhythm, no card/band chrome around the section itself. */
 .group {
   display: flex;

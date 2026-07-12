@@ -15,7 +15,7 @@ def sidebar_areas(request):
 
 def triage_count(request):
     """Expose the workspace's active (non-dropped) triage Slice count to every
-    template so the sidebar can show a muted count badge next to 인박스."""
+    template so the sidebar can show a muted count badge next to Triage."""
     from tuckit.core.models import Area, Slice
 
     ws = get_current_workspace(request)
