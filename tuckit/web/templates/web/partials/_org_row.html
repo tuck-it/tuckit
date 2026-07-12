@@ -1,0 +1,21 @@
+<div class="org-row" data-org-id="{{ row.org.id }}">
+  <div class="org-row-main">
+    <span class="org-row-name">{{ row.org.name }}</span>
+    <span class="role-badge role-badge--{{ row.role }}">{{ row.role }}</span>
+    <span class="org-row-meta">워크스페이스 {{ row.workspace_count }}</span>
+    {% if row.is_current %}<span class="org-row-meta">· 현재</span>{% endif %}
+  </div>
+  <div class="org-row-actions">
+    {% if not row.is_current %}
+      <form hx-post="{% url 'web:account_org_open' row.org.id %}" hx-swap="none">
+        <button type="submit" class="btn">열기</button>
+      </form>
+    {% endif %}
+    {% if row.can_leave %}
+      <form hx-post="{% url 'web:account_org_leave' row.org.id %}"
+            hx-confirm="{{ row.org.name }} 조직에서 나갈까요?">
+        <button type="submit" class="btn danger">나가기</button>
+      </form>
+    {% endif %}
+  </div>
+</div>

@@ -2,7 +2,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_not_required
 from django.urls import path
 
-from tuckit.web.views import pages, slices, mutations, board, capture, health, workspaces, accounts, settings_org
+from tuckit.web.views import pages, slices, mutations, board, capture, health, workspaces, accounts, settings_org, settings_account
 from tuckit.web.views import settings as settings_views
 
 app_name = "web"
@@ -42,6 +42,10 @@ urlpatterns = [
     path("settings/workspace/delete", settings_views.workspace_delete, name="workspace_delete"),
     path("settings/invites", settings_views.invite_create, name="invite_create"),
     path("settings/invites/<int:invitation_id>/cancel", settings_views.invite_cancel, name="invite_cancel"),
+    path("settings/account", settings_account.account_settings, name="settings_account"),
+    path("settings/account/orgs", settings_account.org_create, name="account_org_create"),
+    path("settings/account/orgs/<int:org_id>/leave", settings_account.org_leave, name="account_org_leave"),
+    path("settings/account/orgs/<int:org_id>/open", settings_account.switch_org, name="account_org_open"),
     path("settings/org", settings_org.org_settings, name="settings_org"),
     path("settings/org/rename", settings_org.org_rename, name="org_rename"),
     path("settings/org/members/<int:member_id>/role", settings_org.member_role, name="org_member_role"),

@@ -963,4 +963,67 @@ body {
 }
 .roadmap-strip:hover .rm-seg { border-color: var(--accent); }
 .rm-building { color: var(--text); }
+
+/* --- Account settings: org list rows + inline "+ 새 조직" add form --- */
+.org-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.org-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.org-row-name {
+  color: var(--text);
+}
+.org-row-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.org-row-actions {
+  display: flex;
+  gap: 8px;
+}
+.role-badge {
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.role-badge--owner {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.role-badge--admin {
+  color: var(--text);
+}
+.role-badge--member {
+  color: var(--muted);
+}
+
+/* Inline "+ 새 조직" add form — mirrors .area-add / .area-add-input. */
+.org-add {
+  padding: 4px 8px;
+}
+.org-add-input {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  padding: 2px 0;
+}
+.org-add-input:focus {
+  color: var(--text);
+  outline: none;
+}
 .rm-shipped { color: var(--muted); }
