@@ -61,3 +61,15 @@ def test_base_html_links_stylesheets_in_order_and_lang_en(client_local):
     assert -1 not in (i_brand, i_product, i_base, i_app)
     assert i_brand < i_product < i_base < i_app          # cascade order
     assert '/static/web/tokens.css"' not in body         # old single file gone
+
+
+def test_brand_tokens_match_landing_when_sibling_present():
+    landing = REPO_ROOT.parent / "tuckit-landing" / "app" / "tokens.brand.css"
+    if not landing.exists():
+        import pytest as _pytest
+        _pytest.skip("tuckit-landing sibling not present; drift check is dev-only")
+    product = STATIC / "tokens.brand.css"
+    assert product.read_bytes() == landing.read_bytes(), (
+        "tokens.brand.css drifted between repos. "
+        "Run: node tuckit-landing/scripts/sync-tokens.mjs"
+    )
