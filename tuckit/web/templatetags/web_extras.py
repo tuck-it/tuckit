@@ -27,6 +27,7 @@ _ICON_PATHS = {
     "note": '<path d="M4 5h16M4 10h16M4 15h10"/>',
     "chevron": '<path d="m9 6 6 6-6 6"/>',
     "check": '<path d="m5 12 4 4 9-10"/>',
+    "activity": '<path d="M3 12h4l3 8 4-16 3 8h4"/>',
 }
 
 

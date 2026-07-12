@@ -42,3 +42,21 @@ def test_roadmap_page_shows_distribution_and_slices(client_local, workspace):
     assert "로드맵 항목" in body
     assert "Planned" in body
     assert "캡처" not in body   # triage slices excluded from roadmap
+
+
+@pytest.mark.django_db
+def test_activity_page_lists_events(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice, set_slice_status
+    a = create_area(workspace, "Backend")
+    s = create_slice(a, "로그인 리다이렉트", status="building")
+    set_slice_status(s, "shipped")
+    body = client_local.get("/activity/").content.decode()
+    assert "로그인 리다이렉트" in body
+    assert 'href="/activity/"' in body   # sidebar link present on the page shell
+
+
+@pytest.mark.django_db
+def test_sidebar_has_activity_lens(client_local, workspace):
+    body = client_local.get("/").content.decode()
+    assert ">Activity<" in body and 'href="/activity/"' in body

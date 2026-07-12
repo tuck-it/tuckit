@@ -1,0 +1,13 @@
+{% extends "web/base.html" %}
+{% block main %}
+  <div class="topbar"><h1 class="area-title">Activity</h1></div>
+  <section class="group">
+    {% if events %}
+      <div class="panel">
+        {% for event in events %}{% include "web/partials/_activity_row.html" %}{% endfor %}
+      </div>
+    {% else %}
+      <div class="empty muted">아직 활동이 없어요</div>
+    {% endif %}
+  </section>
+{% endblock %}

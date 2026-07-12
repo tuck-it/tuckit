@@ -20,6 +20,7 @@ urlpatterns = [
     path("attention/", pages.attention, name="attention"),
     path("in-progress/", pages.in_progress, name="in_progress"),
     path("roadmap/", pages.roadmap, name="roadmap"),
+    path("activity/", pages.activity, name="activity"),
     path("areas/new", capture.area_create, name="area_create"),
     path("areas/<slug:slug>/", slices.area_view, name="area"),
     path("areas/<int:area_id>/rename", capture.area_rename, name="area_rename"),

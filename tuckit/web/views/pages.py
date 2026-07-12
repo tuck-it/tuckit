@@ -39,3 +39,10 @@ def roadmap(request):
     return render(request, "web/roadmap.html", {
         "state": roadmap_state(ws) if ws else {},
     })
+
+
+def activity(request):
+    ws = get_current_workspace(request)
+    return render(request, "web/activity.html", {
+        "events": recent_activity(ws, limit=100) if ws else [],
+    })
