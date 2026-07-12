@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from tuckit.core.models import Org, OrgMember, Workspace
 from tuckit.core.services.areas import create_area, get_or_create_triage
 from tuckit.core.services.exceptions import InvalidValue
@@ -58,6 +60,7 @@ def _unique_org_slug(name: str) -> str:
     return candidate
 
 
+@transaction.atomic
 def create_org(user, *, name: str, slug: str | None = None) -> tuple[Org, Workspace]:
     from tuckit.core.services.hooks import run_signup_hook  # local: avoid import cycle
 
