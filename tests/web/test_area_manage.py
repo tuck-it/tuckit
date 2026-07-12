@@ -78,3 +78,25 @@ def test_reorder_foreign_neighbor_404s(client_local, workspace):
         f"/areas/{a.id}/reorder", {"before_id": foreign.id}, HTTP_HX_REQUEST="true"
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_sidebar_row_has_rename_and_delete_affordances(client_local, workspace):
+    a = create_area(workspace, "Visible")
+    # any authenticated page renders the sidebar
+    body = client_local.get("/triage/").content.decode()
+    assert f'data-area-id="{a.id}"' in body          # draggable row present
+    assert f'/areas/{a.id}/rename' in body           # inline rename form target
+    assert f'/areas/{a.id}/delete' in body           # delete button target
+    assert "Visible" in body
+
+
+@pytest.mark.django_db
+def test_rename_response_is_swappable_row(client_local, workspace):
+    a = create_area(workspace, "Old")
+    body = client_local.post(
+        f"/areas/{a.id}/rename", {"name": "Fresh"}, HTTP_HX_REQUEST="true"
+    ).content.decode()
+    assert f'data-area-id="{a.id}"' in body          # returns a full row, not bare text
+    assert "Fresh" in body
+    assert f'/areas/{a.id}/delete' in body           # actions still wired after rename

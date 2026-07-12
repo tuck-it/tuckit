@@ -1,7 +1,7 @@
-{% load web_extras %}
+{% load web_extras static %}
 <div id="area-nav"{% if oob %} hx-swap-oob="true"{% endif %}>
   {% for a in areas %}
-    <a class="nav{% if request.resolver_match.url_name == 'area' and request.resolver_match.kwargs.slug == a.slug %} nav--active{% endif %}"
-       href="{% url 'web:area' a.slug %}">{% icon "area" %}<span class="nav-label">{{ a.name }}</span></a>
+    {% include "web/partials/_area_row.html" %}
   {% endfor %}
 </div>
+<script src="{% static 'web/area_nav.js' %}"></script>

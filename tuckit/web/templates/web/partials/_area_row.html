@@ -1,2 +1,25 @@
 {% load web_extras %}
-<div class="area-item" data-area-id="{{ a.id }}">{{ a.name }}</div>
+<div class="area-item" data-area-id="{{ a.id }}" x-data="{editing: false}">
+  <a class="nav area-link{% if request.resolver_match.url_name == 'area' and request.resolver_match.kwargs.slug == a.slug %} nav--active{% endif %}"
+     href="{% url 'web:area' a.slug %}"
+     x-show="!editing"
+     x-on:dblclick.prevent="editing = true; $nextTick(() => $refs.renameInput.focus())">
+    {% icon "area" %}<span class="nav-label">{{ a.name }}</span>
+  </a>
+  <div class="area-actions" x-show="!editing">
+    <button type="button" class="area-act" title="이름 변경"
+            x-on:click="editing = true; $nextTick(() => $refs.renameInput.focus())">✎</button>
+    <button type="button" class="area-act area-act--danger" title="삭제"
+            hx-post="{% url 'web:area_delete' a.id %}"
+            hx-target="closest .area-item" hx-swap="outerHTML"
+            hx-confirm="이 Area와 그 안의 모든 항목이 함께 삭제됩니다. 계속할까요?">✕</button>
+  </div>
+  <form class="area-rename" x-show="editing" x-cloak
+        hx-post="{% url 'web:area_rename' a.id %}"
+        hx-target="closest .area-item" hx-swap="outerHTML"
+        hx-on::after-request="if(event.detail.successful) editing = false">
+    <input name="name" value="{{ a.name }}" x-ref="renameInput" class="area-rename-input"
+           maxlength="200" autocomplete="off"
+           x-on:keydown.escape="editing = false">
+  </form>
+</div>
