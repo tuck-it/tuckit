@@ -1,11 +1,13 @@
 {% load static %}
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}tuck-it{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'web/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'web/tokens.brand.css' %}">
+  <link rel="stylesheet" href="{% static 'web/tokens.product.css' %}">
+  <link rel="stylesheet" href="{% static 'web/base.css' %}">
   <link rel="stylesheet" href="{% static 'web/app.css' %}">
   <script>
     /* Apply any saved theme before first paint so there's no flash of the

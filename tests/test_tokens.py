@@ -55,7 +55,10 @@ def test_revoke_token_is_workspace_scoped(workspace):
 
 
 def test_new_neutral_and_warn_tokens_present():
-    css = (Path(__file__).resolve().parent.parent / "tuckit/web/static/web/tokens.css").read_text()
-    # both tokens defined for light and dark
-    assert css.count("--warn:") >= 2
-    assert css.count("--active:") >= 2
+    static = Path(__file__).resolve().parent.parent / "tuckit/web/static/web"
+    brand = (static / "tokens.brand.css").read_text()
+    product = (static / "tokens.product.css").read_text()
+    # --warn defined for both light and dark in the brand tokens
+    assert brand.count("--warn:") >= 2
+    # --active is aliased in the product tokens and resolves per-theme via --paper-deep
+    assert "--active: var(--paper-deep)" in product

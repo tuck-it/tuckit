@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]  # .../tuckit
 STATIC = REPO_ROOT / "tuckit" / "web" / "static" / "web"
 
@@ -46,3 +48,16 @@ def test_base_css_declares_fonts_texture_and_primitives():
     assert "url(\"textures/notebook-paper.webp\")" in css
     assert ":focus-visible" in css
     assert ".button-primary" in css
+
+
+@pytest.mark.django_db
+def test_base_html_links_stylesheets_in_order_and_lang_en(client_local):
+    body = client_local.get("/").content.decode()
+    assert '<html lang="en"' in body
+    i_brand = body.find("tokens.brand.css")
+    i_product = body.find("tokens.product.css")
+    i_base = body.find("web/base.css")
+    i_app = body.find("web/app.css")
+    assert -1 not in (i_brand, i_product, i_base, i_app)
+    assert i_brand < i_product < i_base < i_app          # cascade order
+    assert '/static/web/tokens.css"' not in body         # old single file gone

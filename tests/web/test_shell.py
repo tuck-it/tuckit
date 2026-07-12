@@ -7,7 +7,7 @@ def test_home_returns_200_and_shell(client_local):
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "tuck-it" in body            # brand in sidebar
-    assert "/static/web/tokens.css" in body or "tokens.css" in body
+    assert "tokens.brand.css" in body and "tokens.product.css" in body
 
 
 @pytest.mark.django_db
