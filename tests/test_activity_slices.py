@@ -83,3 +83,15 @@ def test_update_slice_records_only_on_status_change():
     assert ActivityEvent.objects.count() == 0
     update_slice(s, status="planned")           # status -> one event
     assert ActivityEvent.objects.get().verb == "status_changed"
+
+
+@pytest.mark.django_db
+def test_set_slice_area_same_area_records_nothing():
+    # Concurrent re-triage / stale-row resubmit: assigning the slice's current
+    # area must not log a spurious moved/triaged event (from == to).
+    ws = _ws("w8")
+    a = create_area(ws, "Backend")
+    s = create_slice(a, "그대로")
+    ActivityEvent.objects.all().delete()
+    set_slice_area(s, a)
+    assert ActivityEvent.objects.count() == 0

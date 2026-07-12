@@ -108,8 +108,9 @@ def set_slice_area(
     slice_.area = area
     slice_.rank = rank_for(Slice, {"area": area}, before=before, after=after)
     slice_.save(update_fields=["area", "rank", "updated_at"])
-    record_activity(
-        area.workspace, actor=actor, verb="triaged" if old_area.is_triage else "moved",
-        target=slice_, from_value=old_area.name, to_value=area.name,
-    )
+    if area.id != old_area.id:  # no spurious event when the area didn't change (e.g. concurrent re-triage)
+        record_activity(
+            area.workspace, actor=actor, verb="triaged" if old_area.is_triage else "moved",
+            target=slice_, from_value=old_area.name, to_value=area.name,
+        )
     return slice_
