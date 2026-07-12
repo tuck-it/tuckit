@@ -46,6 +46,10 @@ def test_capture_returns_toast_count_and_row(client_local, workspace):
     # toast
     assert 'id="toast"' in body
     assert "Captured" in body
+    # Both the toast and the count must be OOB-swapped (form is hx-swap="none",
+    # so anything without hx-swap-oob is silently dropped). Exactly two elements
+    # carry hx-swap-oob="true": #toast and #triage-count.
+    assert body.count('hx-swap-oob="true"') >= 2
     # live row prepended into the triage list (lands only if that page is open)
     assert "afterbegin:#triage-list" in body
     assert "빠른 기록" in body
