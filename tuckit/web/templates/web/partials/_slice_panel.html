@@ -41,6 +41,14 @@
     <span>Created by {% if slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
     <span>Created {{ slice.created_at|timesince }} ago · Updated {{ slice.updated_at|timesince }} ago</span>
   </div>
+  {% if activity %}
+  <div class="slice-activity">
+    <div class="group-label">Activity</div>
+    <div class="panel">
+      {% for event in activity %}{% include "web/partials/_activity_row.html" %}{% endfor %}
+    </div>
+  </div>
+  {% endif %}
   <div class="status-row status-destructive">
     {% if slice.status == 'dropped' %}
       <span class="dropped-tag">dropped</span>
