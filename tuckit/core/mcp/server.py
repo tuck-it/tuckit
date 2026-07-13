@@ -1,3 +1,5 @@
+import os
+
 from asgiref.sync import sync_to_async
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -36,17 +38,30 @@ from tuckit.core.services.tags import list_tags as _list_tags
 # inconvenience. We set the allowlist explicitly so it's visible and includes the
 # hosts we actually expect: local dev (with and without the default :8000 port)
 # plus Starlette's TestClient host used by our own test suite.
+#
+# Any deployment behind a reverse proxy / real hostname (e.g. the hosted app, or a
+# self-hosted install) must add its public Host to the allowlist, otherwise every
+# authenticated /mcp request 421s "Invalid Host header". Rather than hardcode a
+# deployment-specific hostname here (this is the neutral public core), we read a
+# comma-separated TUCKIT_MCP_ALLOWED_HOSTS env var and append it. Each host also
+# gets an https:// origin entry (browser clients send Origin; server MCP clients
+# usually don't, and absent Origin is already allowed). Empty/unset => local only.
+_extra_hosts = [h.strip() for h in os.environ.get("TUCKIT_MCP_ALLOWED_HOSTS", "").split(",") if h.strip()]
+_extra_origins = [f"https://{h}" for h in _extra_hosts]
+
 _transport_security = TransportSecuritySettings(
     enable_dns_rebinding_protection=True,
     allowed_hosts=[
         "localhost", "localhost:8000",
         "127.0.0.1", "127.0.0.1:8000",
         "testserver",  # Starlette TestClient, used by tests/test_mcp_e2e.py and test_mcp_auth.py
+        *_extra_hosts,
     ],
     allowed_origins=[
         "http://localhost", "http://localhost:8000",
         "http://127.0.0.1", "http://127.0.0.1:8000",
         "http://testserver",
+        *_extra_origins,
     ],
 )
 
