@@ -1,5 +1,5 @@
 {% load static %}
-<div class="board">
+<div class="board" id="board">
   {% for status, slices in groups %}
     {% if status != "dropped" %}
       <div class="board-col" data-status="{{ status }}">

@@ -5,6 +5,14 @@ from tuckit.core.models import Org, Slice, Workspace
 
 
 @pytest.mark.django_db
+def test_board_has_swap_target_id(client_local, workspace):
+    a = create_area(workspace, "B")
+    create_slice(a, "one", status="building")
+    body = client_local.get(f"/areas/{a.slug}/?view=board").content.decode()
+    assert 'id="board"' in body
+    assert 'class="board"' in body
+
+@pytest.mark.django_db
 def test_board_view_renders_columns(client_local, workspace):
     a = create_area(workspace, "B")
     create_slice(a, "결제", status="building")

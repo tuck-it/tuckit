@@ -170,7 +170,7 @@ body { padding: 0; }
   font-weight: 600;
 }
 
-/* Board — columns laid out side by side, each a flat bordered container. */
+/* Board — columns side by side, each a flat bordered container. */
 .board {
   display: flex;
   gap: 16px;
@@ -181,9 +181,9 @@ body { padding: 0; }
 .board-col {
   flex: 1 1 0;
   min-width: 0;
-  background: var(--sidebar);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 8px;
 }
 
@@ -194,19 +194,53 @@ body { padding: 0; }
   min-height: 24px;
 }
 
-/* Slice card — flat bordered surface, no shadow/gradient/color band. */
+.board-col-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 4px 8px;
+}
+.board-col-label {
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 0.07em;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.board-col-count { color: var(--ink-faint); font-size: 12px; }
+
+/* Slice card — compact flat surface; hover is a border change, not elevation. */
 .slice-card {
-  color: var(--text);
+  color: var(--ink);
   text-decoration: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
   padding: 8px 10px;
   cursor: grab;
 }
+.slice-card:hover { border-color: var(--line-strong); }
+.card-title { line-height: 1.5; }
+.card-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+.card-bites { color: var(--ink-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 
-.card-title {
-  line-height: 1.5;
+/* Mobile: horizontal scroll-snap so four columns are not squeezed. */
+@media (max-width: 767px) {
+  .board {
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+  .board-col {
+    flex: 0 0 auto;
+    min-width: min(78vw, 260px);
+    scroll-snap-align: start;
+  }
 }
 
 /* Inline "+ Area" add form in the sidebar. */
@@ -562,29 +596,6 @@ body { padding: 0; }
 /* Ghost add (＋Area) — quiet until focus. */
 .area-add-input:focus { border: none; }
 
-.board-col-head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 4px 8px;
-}
-.board-col-label {
-  font-size: 11px;
-  font-variant: small-caps;
-  letter-spacing: 0.07em;
-  color: var(--muted);
-  font-weight: 600;
-}
-.board-col-count { color: var(--muted); font-size: 12px; }
-
-.slice-card:hover { border-color: var(--muted); }
-.card-meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-top: 5px;
-}
-.card-bites { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 .slice-tags {
   display: flex;
