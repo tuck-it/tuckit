@@ -35,6 +35,8 @@ settings_patterns = [
     path("settings/<slug:org_slug>/members/<int:member_id>/remove", settings_org.member_remove, name="org_member_remove"),
     path("settings/<slug:org_slug>/delete", settings_org.org_delete, name="org_delete"),
     path("settings/<slug:org_slug>/workspaces/new", workspaces.workspace_create, name="workspace_create"),
+    path("settings/<slug:org_slug>/invites", settings_views.invite_create, name="invite_create"),
+    path("settings/<slug:org_slug>/invites/<int:invitation_id>/cancel", settings_views.invite_cancel, name="invite_cancel"),
     # workspace level
     path("settings/<slug:org_slug>/<slug:ws_slug>/", settings_views.settings, name="settings"),
     path("settings/<slug:org_slug>/<slug:ws_slug>/workspace", settings_views.workspace_settings, name="settings_workspace"),
@@ -42,8 +44,6 @@ settings_patterns = [
     path("settings/<slug:org_slug>/<slug:ws_slug>/delete", settings_views.workspace_delete, name="workspace_delete"),
     path("settings/<slug:org_slug>/<slug:ws_slug>/tokens", settings_views.token_create, name="token_create"),
     path("settings/<slug:org_slug>/<slug:ws_slug>/tokens/<int:token_id>/revoke", settings_views.token_revoke, name="token_revoke"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/invites", settings_views.invite_create, name="invite_create"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/invites/<int:invitation_id>/cancel", settings_views.invite_cancel, name="invite_cancel"),
 ]
 
 # --- bare root ---

@@ -63,12 +63,12 @@ def workspace_delete(request):
 
 @require_POST
 def invite_create(request):
-    ws = get_current_workspace(request)
-    if ws is None or not is_org_admin(request.user, ws.org):
+    org = request.org
+    if org is None or not is_org_admin(request.user, org):
         return HttpResponseForbidden("권한이 없습니다")
     try:
         inv = create_invitation(
-            org=ws.org,
+            org=org,
             email=request.POST.get("email", ""),
             role=request.POST.get("role", "member"),
             invited_by=request.user,
@@ -79,13 +79,13 @@ def invite_create(request):
         return HttpResponse(str(exc), status=400)
     link = request.build_absolute_uri(reverse("web:invite_accept", args=[inv.token]))
     send_invitation_email(invitation=inv, link=link)  # optional; link below is the source of truth
-    return render(request, "web/partials/_invite_row.html", {"inv": inv, "link": link})
+    return render(request, "web/partials/_invite_row.html", {"inv": inv, "link": link, "org": org})
 
 
 @require_POST
 def invite_cancel(request, invitation_id):
-    ws = get_current_workspace(request)
-    if ws is None or not is_org_admin(request.user, ws.org):
+    org = request.org
+    if org is None or not is_org_admin(request.user, org):
         return HttpResponseForbidden("권한이 없습니다")
-    cancel_invitation(org=ws.org, invitation_id=invitation_id)
+    cancel_invitation(org=org, invitation_id=invitation_id)
     return HttpResponse(status=204)

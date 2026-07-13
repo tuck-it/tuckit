@@ -37,7 +37,7 @@
         <div class="empty muted">No pending invitations</div>
       {% endfor %}
     </div>
-    <form class="token-add" hx-post="{% url 'web:invite_create' current_workspace.org.slug current_workspace.slug %}" hx-target="#invite-list" hx-swap="afterbegin"
+    <form class="token-add" hx-post="{% url 'web:invite_create' org.slug %}" hx-target="#invite-list" hx-swap="afterbegin"
           hx-on::after-request="this.reset()">
       <input type="email" name="email" placeholder="Email" required>
       <select name="role">
