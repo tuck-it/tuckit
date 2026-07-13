@@ -58,6 +58,26 @@ def workspace_rename(request):
 
 
 @require_POST
+def shipped_board_prefs(request):
+    ws = get_current_workspace(request)
+    if ws is None or not is_org_admin(request.user, ws.org):
+        return HttpResponseForbidden("권한이 없습니다")
+    mode = request.POST.get("mode")
+    if mode not in ("count", "days"):
+        return HttpResponse("invalid mode", status=400)
+    try:
+        limit = int(request.POST.get("limit", ""))
+    except (TypeError, ValueError):
+        return HttpResponse("invalid limit", status=400)
+    if not (1 <= limit <= 365):
+        return HttpResponse("limit out of range", status=400)
+    ws.shipped_board_mode = mode
+    ws.shipped_board_limit = limit
+    ws.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
+    return HttpResponse(status=204)
+
+
+@require_POST
 def workspace_delete(request):
     ws = get_current_workspace(request)
     if ws is None or not is_org_admin(request.user, ws.org):

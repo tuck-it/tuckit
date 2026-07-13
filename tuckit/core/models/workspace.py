@@ -6,6 +6,8 @@ from tuckit.core.models.org import Org
 
 _SLUG_VALIDATOR = RegexValidator(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$", "invalid slug")
 
+SHIPPED_BOARD_MODE_CHOICES = [("count", "Count"), ("days", "Days")]
+
 
 class Workspace(models.Model):
     org = models.ForeignKey(Org, on_delete=models.CASCADE, related_name="workspaces")
@@ -13,6 +15,10 @@ class Workspace(models.Model):
     slug = models.SlugField(max_length=100, validators=[_SLUG_VALIDATOR])
     description = models.TextField(blank=True, default="")
     onboarding_dismissed = models.BooleanField(default=False)
+    shipped_board_mode = models.CharField(
+        max_length=5, choices=SHIPPED_BOARD_MODE_CHOICES, default="count"
+    )
+    shipped_board_limit = models.PositiveSmallIntegerField(default=8)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

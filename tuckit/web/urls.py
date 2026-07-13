@@ -41,6 +41,7 @@ settings_patterns = [
     path("settings/<slug:org_slug>/<slug:ws_slug>/", settings_views.settings, name="settings"),
     path("settings/<slug:org_slug>/<slug:ws_slug>/workspace", settings_views.workspace_settings, name="settings_workspace"),
     path("settings/<slug:org_slug>/<slug:ws_slug>/rename", settings_views.workspace_rename, name="workspace_rename"),
+    path("settings/<slug:org_slug>/<slug:ws_slug>/shipped-board", settings_views.shipped_board_prefs, name="shipped_board_prefs"),
     path("settings/<slug:org_slug>/<slug:ws_slug>/delete", settings_views.workspace_delete, name="workspace_delete"),
     path("settings/<slug:org_slug>/<slug:ws_slug>/tokens", settings_views.token_create, name="token_create"),
     path("settings/<slug:org_slug>/<slug:ws_slug>/tokens/<int:token_id>/revoke", settings_views.token_revoke, name="token_revoke"),

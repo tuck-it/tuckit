@@ -78,3 +78,27 @@ def test_token_list_is_a_panel(client_local, workspace):
     sp = f"/settings/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{sp}/workspace").content.decode()
     assert 'class="panel"' in body
+
+
+@pytest.mark.django_db
+def test_shipped_board_prefs_updates(client_local, workspace):
+    p = f"/settings/{workspace.org.slug}/{workspace.slug}/shipped-board"
+    resp = client_local.post(p, {"mode": "days", "limit": "30"})
+    assert resp.status_code == 204
+    ws = Workspace.objects.get(pk=workspace.pk)
+    assert ws.shipped_board_mode == "days"
+    assert ws.shipped_board_limit == 30
+
+
+@pytest.mark.django_db
+def test_shipped_board_prefs_rejects_bad_mode(client_local, workspace):
+    p = f"/settings/{workspace.org.slug}/{workspace.slug}/shipped-board"
+    resp = client_local.post(p, {"mode": "weeks", "limit": "5"})
+    assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+def test_shipped_board_prefs_rejects_out_of_range(client_local, workspace):
+    p = f"/settings/{workspace.org.slug}/{workspace.slug}/shipped-board"
+    resp = client_local.post(p, {"mode": "count", "limit": "0"})
+    assert resp.status_code == 400

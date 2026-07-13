@@ -127,3 +127,19 @@ def test_slice_row_has_status_dot_and_arrow(client_local, workspace):
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert 'class="status-dot' in body     # status indicator kept
     assert 'class="row-arrow"' in body     # quiet trailing affordance
+
+
+@pytest.mark.django_db
+def test_home_recently_shipped_caps_and_links(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    workspace.shipped_board_mode = "count"
+    workspace.shipped_board_limit = 1
+    workspace.save(update_fields=["shipped_board_mode", "shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "shipped one", status="shipped")
+    create_slice(a, "shipped two", status="shipped")
+    body = client_local.get(f"{p}/").content.decode()
+    assert "Recently shipped 2" in body           # count shows the true total
+    assert "status=shipped" in body               # unified view-all link

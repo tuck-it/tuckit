@@ -41,6 +41,19 @@
     <pre class="mcp-snippet"><code>claude mcp add --transport http tuck-it {{ mcp_url }} --header "Authorization: Bearer &lt;token&gt;"</code></pre>
   </section>
 
+  <section class="group">
+    <div class="group-label">Shipped shown on board</div>
+    <div class="hint">How many completed slices the Board tab keeps visible before "View all shipped".</div>
+    <form class="shipped-board-prefs" hx-post="{% url 'web:shipped_board_prefs' current_workspace.org.slug current_workspace.slug %}" hx-swap="none">
+      <select name="mode">
+        <option value="count"{% if workspace.shipped_board_mode == 'count' %} selected{% endif %}>Most recent (count)</option>
+        <option value="days"{% if workspace.shipped_board_mode == 'days' %} selected{% endif %}>Last N days</option>
+      </select>
+      <input name="limit" type="number" min="1" max="365" value="{{ workspace.shipped_board_limit }}">
+      <button type="submit" class="btn">Save</button>
+    </form>
+  </section>
+
   {% if can_admin %}
   <section class="group">
     <div class="group-label danger">Danger zone</div>

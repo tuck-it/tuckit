@@ -8,8 +8,10 @@ from tuckit.core.services.bites import create_bite
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.state import (
     attention_items,
+    cap_shipped,
     home_state,
     in_progress_state,
+    roadmap_board_view,
     roadmap_state,
     STALE_DAYS,
     get_project_state,
@@ -206,3 +208,57 @@ def test_home_state_excludes_attention_from_building():
     state = home_state(ws)
     assert any(it["slice"].id == s.id for it in state["attention"])
     assert all(b.id != s.id for b in state["building"]), "stalled building must not double-appear"
+
+
+@pytest.mark.django_db
+def test_cap_shipped_count_mode(workspace):
+    workspace.shipped_board_mode = "count"
+    workspace.shipped_board_limit = 2
+    a = create_area(workspace, "A")
+    for i in range(5):
+        create_slice(a, f"s{i}", status="shipped")
+    shipped = roadmap_state(workspace)["shipped"]
+    visible, total = cap_shipped(workspace, shipped)
+    assert total == 5
+    assert len(visible) == 2
+
+
+@pytest.mark.django_db
+def test_cap_shipped_days_mode_excludes_old(workspace):
+    workspace.shipped_board_mode = "days"
+    workspace.shipped_board_limit = 30
+    a = create_area(workspace, "A")
+    recent = create_slice(a, "recent", status="shipped")
+    old = create_slice(a, "old", status="shipped")
+    old.completed_at = timezone.now() - timedelta(days=90)
+    old.save(update_fields=["completed_at"])
+    shipped = roadmap_state(workspace)["shipped"]
+    visible, total = cap_shipped(workspace, shipped)
+    assert total == 2
+    titles = {s.title for s in visible}
+    assert "recent" in titles and "old" not in titles
+
+
+@pytest.mark.django_db
+def test_shipped_sorted_newest_first(workspace):
+    a = create_area(workspace, "A")
+    first = create_slice(a, "first", status="shipped")
+    second = create_slice(a, "second", status="shipped")
+    first.completed_at = timezone.now() - timedelta(days=5)
+    first.save(update_fields=["completed_at"])
+    shipped = roadmap_state(workspace)["shipped"]
+    assert [s.title for s in shipped][:2] == ["second", "first"]
+
+
+@pytest.mark.django_db
+def test_roadmap_board_view_reports_overflow(workspace):
+    workspace.shipped_board_mode = "count"
+    workspace.shipped_board_limit = 1
+    a = create_area(workspace, "A")
+    create_slice(a, "s1", status="shipped")
+    create_slice(a, "s2", status="shipped")
+    view = roadmap_board_view(workspace)
+    assert view["shipped_total"] == 2
+    assert view["shipped_hidden"] == 1
+    shipped_group = dict(view["groups"])["shipped"]
+    assert len(shipped_group) == 1

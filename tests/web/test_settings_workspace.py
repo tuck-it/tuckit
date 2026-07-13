@@ -144,6 +144,21 @@ def test_member_cannot_revoke_token(admin_two_ws):
 
 
 @pytest.mark.django_db
+def test_member_cannot_configure_shipped_board(admin_two_ws):
+    client, org, admin, ws1, ws2 = admin_two_ws
+    member = User.objects.create(email="m-ship@a.com")
+    OrgMember.objects.create(user=member, org=org, role="member")
+    _login(client, member, ws1)
+    resp = client.post(
+        f"/settings/{org.slug}/{ws1.slug}/shipped-board", {"mode": "days", "limit": "30"}
+    )
+    assert resp.status_code == 403
+    ws1.refresh_from_db()
+    assert ws1.shipped_board_mode == "count"
+    assert ws1.shipped_board_limit == 8
+
+
+@pytest.mark.django_db
 def test_admin_can_create_token(admin_two_ws):
     from tuckit.core.services.tokens import list_tokens
     client, org, admin, ws1, ws2 = admin_two_ws

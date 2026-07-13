@@ -1,4 +1,8 @@
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
+
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.models import Org, Slice, Workspace
@@ -114,6 +118,103 @@ def test_move_without_hx_returns_204(client_local, workspace):
     assert Slice.objects.get(pk=s.id).status == "building"
 
 
+@pytest.mark.django_db
+def test_roadmap_tab_defaults_to_cross_area_board(client_local, workspace):
+    """The Board tab (web:roadmap) now defaults to a workspace-wide kanban that
+    labels each card with its parent area."""
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    design = create_area(workspace, "Design")
+    core = create_area(workspace, "Core")
+    create_slice(design, "polish empty states", status="building")
+    create_slice(core, "slice move api", status="planned")
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert 'id="board"' in body                     # kanban, not the flat list
+    assert 'data-status="building"' in body
+    assert 'data-status="planned"' in body
+    assert 'class="card-area"' in body              # parent area surfaced
+    assert "Design" in body and "Core" in body      # both areas' cards mixed in
+
+
+@pytest.mark.django_db
+def test_roadmap_tab_list_view_still_available(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "list-view slice", status="building")
+    body = client_local.get(f"{p}/roadmap/?view=list").content.decode()
+    assert "roadmap-dist" in body                   # the distribution strip
+    assert 'id="board"' not in body                 # not the kanban
+    assert "list-view slice" in body
+
+
+@pytest.mark.django_db
+def test_workspace_scope_move_rerenders_all_areas(client_local, workspace):
+    """A move from the Board tab (?scope=workspace) re-renders every area's
+    cards, not just the moved slice's area."""
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    design = create_area(workspace, "Design")
+    core = create_area(workspace, "Core")
+    moved = create_slice(design, "moved slice", status="planned")
+    create_slice(core, "other-area slice", status="idea")
+    resp = client_local.post(
+        f"{p}/slices/{moved.id}/move?scope=workspace",
+        {"status": "building"}, HTTP_HX_REQUEST="true",
+    )
+    body = resp.content.decode()
+    assert resp.status_code == 200
+    assert Slice.objects.get(pk=moved.id).status == "building"
+    assert "other-area slice" in body               # foreign area still present
+    assert 'class="card-area"' in body
+
+
+@pytest.mark.django_db
+def test_board_caps_shipped_and_links_to_all(client_local, workspace):
+    workspace.shipped_board_mode = "count"
+    workspace.shipped_board_limit = 1
+    workspace.save(update_fields=["shipped_board_mode", "shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "shipped one", status="shipped")
+    create_slice(a, "shipped two", status="shipped")
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "View all shipped (2)" in body
+    assert 'href="?view=list&status=shipped"' in body
+
+
+@pytest.mark.django_db
+def test_status_filter_shows_all_shipped_flat(client_local, workspace):
+    workspace.shipped_board_limit = 1
+    workspace.save(update_fields=["shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "shipped one", status="shipped")
+    create_slice(a, "shipped two", status="shipped")
+    body = client_local.get(f"{p}/roadmap/?view=list&status=shipped").content.decode()
+    assert "shipped one" in body and "shipped two" in body   # uncapped
+    assert 'id="board"' not in body                          # not the kanban
+    assert 'class="card-area"' in body or 'class="row-area"' in body
+
+
+@pytest.mark.django_db
+def test_status_filter_is_generic(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Core")
+    create_slice(a, "building thing", status="building")
+    body = client_local.get(f"{p}/roadmap/?status=building").content.decode()
+    assert "building thing" in body
+    assert 'id="board"' not in body
+
+
+@pytest.mark.django_db
+def test_board_no_footer_when_within_limit(client_local, workspace):
+    workspace.shipped_board_limit = 8
+    workspace.save(update_fields=["shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "only one", status="shipped")
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "View all shipped" not in body
+
+
 def test_board_js_declares_drag_states():
     from pathlib import Path
     js = (Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "board.js").read_text()
@@ -127,3 +228,39 @@ def test_app_css_declares_droppable_state():
     css = (Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "app.css").read_text()
     assert ".board-col--droppable" in css
     assert ".slice-card--ghost" in css
+
+
+@pytest.mark.django_db
+def test_workspace_move_rerender_keeps_shipped_footer(client_local, workspace):
+    workspace.shipped_board_mode = "count"
+    workspace.shipped_board_limit = 1
+    workspace.save(update_fields=["shipped_board_mode", "shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "shipped one", status="shipped")
+    create_slice(a, "shipped two", status="shipped")
+    mover = create_slice(a, "mover", status="planned")
+    resp = client_local.post(
+        f"{p}/slices/{mover.id}/move?scope=workspace",
+        {"status": "building"}, HTTP_HX_REQUEST="true",
+    )
+    body = resp.content.decode()
+    assert "View all shipped (2)" in body
+
+
+@pytest.mark.django_db
+def test_board_days_mode_shipped_outside_window_still_counts_as_slice(client_local, workspace):
+    """In days mode, a shipped slice completed outside the window is capped out
+    of the visible column, but it still counts as "a slice exists" — the board
+    must not show the empty-board hint alongside the shipped overflow footer."""
+    workspace.shipped_board_mode = "days"
+    workspace.shipped_board_limit = 7
+    workspace.save(update_fields=["shipped_board_mode", "shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    s = create_slice(a, "old shipped one", status="shipped")
+    s.completed_at = timezone.now() - timedelta(days=90)
+    s.save(update_fields=["completed_at"])
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "Nothing here yet — add a slice" not in body
+    assert "View all shipped (1)" in body

@@ -3,6 +3,7 @@
    hx-get="{% wurl 'web:slice' slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
   {% include "web/partials/_status_dot.html" with status=slice.status %}
   <span class="row-title">{{ slice.title }}</span>
+  {% if show_area %}<span class="row-area">{{ slice.area.name }}</span>{% endif %}
   {% include "web/partials/_tag_text.html" %}
   {% if reason %}<span class="row-reason">{{ reason }}</span>
   {% else %}<span class="row-meta">{% bite_progress slice %}</span>{% endif %}

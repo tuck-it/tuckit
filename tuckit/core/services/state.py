@@ -141,11 +141,45 @@ def roadmap_state(workspace: Workspace) -> dict:
             key=lambda s: (s.area.name, s.rank),
         )
 
+    shipped = sorted(
+        [s for s in slices if s.status == "shipped"],
+        key=lambda s: (s.completed_at or s.updated_at),
+        reverse=True,
+    )
     return {
         "idea": bucket("idea"),
         "planned": bucket("planned"),
         "building": bucket("building"),
-        "shipped": bucket("shipped"),
+        "shipped": shipped,
+    }
+
+
+ROADMAP_BOARD_ORDER = ["idea", "planned", "building", "shipped"]
+ROADMAP_STATUS_KEYS = {"idea", "planned", "building", "shipped"}
+
+
+def cap_shipped(workspace: Workspace, shipped: list) -> tuple[list, int]:
+    """Trim a recency-sorted shipped list to the workspace's board window.
+    Returns (visible, total). Pure — operates on an already-fetched list."""
+    total = len(shipped)
+    if workspace.shipped_board_mode == "days":
+        cutoff = timezone.now() - timedelta(days=workspace.shipped_board_limit)
+        visible = [s for s in shipped if s.completed_at and s.completed_at >= cutoff]
+    else:  # count
+        visible = shipped[: workspace.shipped_board_limit]
+    return visible, total
+
+
+def roadmap_board_view(workspace: Workspace) -> dict:
+    """Capped kanban groups + shipped overflow meta for the workspace Board tab."""
+    state = roadmap_state(workspace)
+    visible, total = cap_shipped(workspace, state["shipped"])
+    capped = {**state, "shipped": visible}
+    return {
+        "state": capped,
+        "groups": [(status, capped[status]) for status in ROADMAP_BOARD_ORDER],
+        "shipped_total": total,
+        "shipped_hidden": total - len(visible),
     }
 
 

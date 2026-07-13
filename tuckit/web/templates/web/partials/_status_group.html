@@ -7,4 +7,7 @@
   {% else %}
     <div class="empty muted">{{ empty_text|default:"" }}</div>
   {% endif %}
+  {% if more_hidden %}
+    <a class="group-more" href="{{ more_url }}">View all {{ more_label }} ({{ more_count }}) →</a>
+  {% endif %}
 </section>

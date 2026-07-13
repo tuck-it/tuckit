@@ -172,7 +172,7 @@ body { padding: 0; }
   margin: 0 0 8px;
   color: var(--ink-faint);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
@@ -181,16 +181,47 @@ body { padding: 0; }
 
 /* Tag — muted text, never a filled chip; hash dimmed one step further. */
 .tag {
-  color: var(--muted);
+  color: var(--ink-soft);
   background: none;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .tag-hash { opacity: 0.55; }
 
 .row-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row-meta, .empty { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; }
+.row-meta { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; }
+.empty { color: var(--ink-faint); font-family: var(--mono); font-size: 13px; padding: 8px 2px; }
 .row-meta { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Area badge — which area a slice belongs to, on the cross-area Board tab. */
+.row-area {
+  flex: 0 0 auto;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+.card-area {
+  display: inline-block;
+  max-width: 100%;
+  margin-bottom: 6px;
+  padding: 1px 7px;
+  color: var(--ink-soft);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
 .row-arrow { display: inline-flex; color: var(--line-strong); }
 .row-arrow .icon { width: 15px; height: 15px; }
 
@@ -242,7 +273,7 @@ body { padding: 0; }
   padding: 0 4px 8px;
 }
 .board-col-label {
-  font-size: 11px;
+  font-size: 12px;
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -269,6 +300,19 @@ body { padding: 0; }
   margin-top: 5px;
 }
 .card-bites { color: var(--ink-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* "View all" affordance under a capped shipped column / group. */
+.board-col-more, .group-more {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 4px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-decoration: none;
+}
+.board-col-more { padding-left: 8px; }
+.board-col-more:hover, .group-more:hover { color: var(--ink); }
 
 /* Non-drag status control — quiet until the card is hovered/focused. */
 .card-move {
