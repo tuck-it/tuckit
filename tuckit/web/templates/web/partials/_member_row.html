@@ -1,9 +1,9 @@
 <div class="field member-row" id="member-{{ m.id }}">
   <div class="row-l">
     <span class="avatar">{{ m.user.email|slice:":1"|upper }}</span>
-    <div><div class="nm">{{ m.user.email }}</div>{% if m.user == request.user %}<div class="sub">나</div>{% endif %}</div>
+    <div><div class="nm">{{ m.user.email }}</div>{% if m.user == request.user %}<div class="sub">You</div>{% endif %}</div>
   </div>
-  <div class="row-l" style="gap:8px">
+  <div class="row-l">
     {% if can_owner and m.user != request.user %}
       <select hx-post="{% url 'web:org_member_role' m.id %}" hx-swap="none" name="role">
         {% for value, label in role_choices %}
@@ -15,7 +15,7 @@
     {% endif %}
     {% if can_admin and m.role != 'owner' and m.user != request.user %}
       <button class="btn" hx-post="{% url 'web:org_member_remove' m.id %}"
-              hx-target="#member-{{ m.id }}" hx-swap="outerHTML" hx-confirm="이 멤버를 제거할까요?">제거</button>
+              hx-target="#member-{{ m.id }}" hx-swap="outerHTML" hx-confirm="Remove this member?">Remove</button>
     {% endif %}
   </div>
 </div>

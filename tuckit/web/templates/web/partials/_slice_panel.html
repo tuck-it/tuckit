@@ -38,7 +38,7 @@
   </form>
   {% include "web/partials/_slice_tags.html" %}
   <div class="panel-meta">
-    <span class="badge">Created by {% if slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
+    <span>Created by {% if slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
     <span>Created {{ slice.created_at|timesince }} ago · Updated {{ slice.updated_at|timesince }} ago</span>
   </div>
   <div class="status-row status-destructive">

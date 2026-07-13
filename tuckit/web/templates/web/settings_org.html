@@ -1,11 +1,11 @@
 {% extends "web/base.html" %}
 {% block main %}
   {% include "web/partials/_settings_scopenav.html" with active='org' %}
-  <div class="topbar"><h1 class="area-title">조직 설정</h1></div>
-  <div class="empty muted">멤버와 플랜은 조직 단위로 관리됩니다.</div>
+  <header class="page-head"><div class="page-head-l"><h1 class="page-title">Organization settings</h1></div></header>
+  <div class="hint">Members and plans are managed at the organization level.</div>
 
   <section class="group">
-    <div class="group-label">조직 이름</div>
+    <div class="group-label">Organization name</div>
     <div class="settings-name" x-data="{editing:false, name:'{{ org.name|escapejs }}'}">
       <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %} x-text="name"></span>
       {% if can_admin %}
@@ -20,7 +20,7 @@
   {% block org_plan %}{% endblock %}{# neutral slot — cloud fills plan/billing here #}
 
   <section class="group">
-    <div class="group-label">멤버 · 역할</div>
+    <div class="group-label">Members · roles</div>
     <div id="members-list" class="panel">
       {% for m in members %}{% include "web/partials/_member_row.html" %}{% endfor %}
     </div>
@@ -28,29 +28,29 @@
 
   {% if can_admin %}
   <section class="group">
-    <div class="group-label">멤버 초대</div>
-    <div class="empty muted">이메일과 역할을 지정해 조직에 멤버를 초대하세요.</div>
+    <div class="group-label">Invite members</div>
+    <div class="hint">Invite someone to the organization by email and role.</div>
     <div id="invite-list" class="panel">
       {% for inv in invitations %}
         {% include "web/partials/_invite_row.html" with inv=inv %}
       {% empty %}
-        <div class="empty muted">대기 중인 초대가 없습니다</div>
+        <div class="empty muted">No pending invitations</div>
       {% endfor %}
     </div>
     <form class="token-add" hx-post="{% url 'web:invite_create' %}" hx-target="#invite-list" hx-swap="afterbegin"
           hx-on::after-request="this.reset()">
-      <input type="email" name="email" placeholder="이메일" required>
+      <input type="email" name="email" placeholder="Email" required>
       <select name="role">
-        <option value="member">멤버</option>
-        <option value="admin">관리자</option>
+        <option value="member">Member</option>
+        <option value="admin">Admin</option>
       </select>
-      <button type="submit">초대</button>
+      <button type="submit" class="button button-small">Invite</button>
     </form>
   </section>
   {% endif %}
 
   <section class="group">
-    <div class="group-label">이 조직의 워크스페이스</div>
+    <div class="group-label">Workspaces in this organization</div>
     <div class="panel">
       {% for ws in workspaces %}
         <div class="field"><span class="nm">{{ ws.name }}</span></div>
@@ -60,9 +60,9 @@
 
   {% if can_owner %}
   <section class="group">
-    <div class="group-label danger">위험 구역</div>
-    <form hx-post="{% url 'web:org_delete' %}" hx-confirm="조직과 모든 워크스페이스가 삭제됩니다. 계속할까요?">
-      <button type="submit" class="btn danger">조직 삭제</button>
+    <div class="group-label danger">Danger zone</div>
+    <form hx-post="{% url 'web:org_delete' %}" hx-confirm="The organization and all its workspaces will be deleted. Continue?">
+      <button type="submit" class="btn danger">Delete organization</button>
     </form>
   </section>
   {% endif %}

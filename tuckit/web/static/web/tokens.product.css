@@ -14,6 +14,10 @@
   --dot-someday: #8a7f97;
   --overlay: rgba(35, 40, 42, 0.38);
 
+  /* One monospace stack for the whole product (self-hosted IBM Plex Mono,
+     system fallbacks). Use var(--mono) everywhere — never inline the stack. */
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
   /* alias bridge */
   --bg: var(--paper);
   --surface: var(--paper-raised);

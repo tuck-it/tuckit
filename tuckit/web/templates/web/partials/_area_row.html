@@ -7,12 +7,12 @@
     {% icon "area" %}<span class="nav-label">{{ a.name }}</span>
   </a>
   <div class="area-actions" x-show="!editing">
-    <button type="button" class="area-act" title="이름 변경"
+    <button type="button" class="area-act" title="Rename"
             x-on:click="editing = true; $nextTick(() => { $refs.renameInput.focus(); $refs.renameInput.select() })">✎</button>
-    <button type="button" class="area-act area-act--danger" title="삭제"
+    <button type="button" class="area-act area-act--danger" title="Delete"
             hx-post="{% url 'web:area_delete' a.id %}"
             hx-target="closest .area-item" hx-swap="outerHTML"
-            hx-confirm="이 Area와 그 안의 모든 항목이 함께 삭제됩니다. 계속할까요?">✕</button>
+            hx-confirm="This area and all items in it will be deleted. Continue?">✕</button>
   </div>
   <form class="area-rename" x-show="editing" x-cloak
         hx-post="{% url 'web:area_rename' a.id %}"

@@ -4,12 +4,12 @@
   {% for t in slice.tags.all %}
     <span class="tag"><span class="tag-hash">#</span>{{ t.name }}<button class="tag-x" type="button"
       hx-post="{% url 'web:slice_tags' slice.id %}" hx-vals='{"remove": "{{ t.name }}"}'
-      hx-target="#slice-tags-{{ slice.id }}" hx-swap="outerHTML" aria-label="태그 제거">×</button></span>
+      hx-target="#slice-tags-{{ slice.id }}" hx-swap="outerHTML" aria-label="Remove tag">×</button></span>
   {% endfor %}
   <button class="addtag" type="button" x-show="!adding"
-          x-on:click="adding=true; $nextTick(()=>$refs.tagin.focus())">＋ 태그</button>
+          x-on:click="adding=true; $nextTick(()=>$refs.tagin.focus())">＋ Tag</button>
   <form x-show="adding" x-cloak hx-post="{% url 'web:slice_tags' slice.id %}"
         hx-target="#slice-tags-{{ slice.id }}" hx-swap="outerHTML">
-    <input name="add" class="tag-input" x-ref="tagin" placeholder="태그 이름…" autocomplete="off">
+    <input name="add" class="tag-input" x-ref="tagin" placeholder="Tag name…" autocomplete="off">
   </form>
 </div>

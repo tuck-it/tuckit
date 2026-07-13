@@ -8,12 +8,12 @@
       {% icon "plus" %}<span>Capture</span></button>
   </header>
 
-  {% if show_get_started %}{% include "web/partials/_get_started.html" %}{% endif %}
-
   <section class="group">
     {% include "web/partials/_group_label.html" with label="Needs you" count=state.attention|length attention=True %}
     {% include "web/partials/_attention_panel.html" with items=state.attention %}
   </section>
+
+  {% if show_get_started %}{% include "web/partials/_get_started.html" %}{% endif %}
   {% include "web/partials/_status_group.html" with label="Now" slices=state.building empty_text="No slices here yet." %}
   {% include "web/partials/_status_group.html" with label="Next" slices=state.planned empty_text="No slices here yet." %}
 

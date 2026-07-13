@@ -1,5 +1,5 @@
 <div class="scopenav">
-  <a class="scope {% if active == 'account' %}on{% endif %}" href="{% url 'web:settings_account' %}">계정</a>
-  <a class="scope {% if active == 'org' %}on{% endif %}" href="{% url 'web:settings_org' %}">조직{% if org %} · {{ org.name }}{% endif %}</a>
-  <a class="scope {% if active == 'workspace' %}on{% endif %}" href="{% url 'web:settings_workspace' %}">워크스페이스{% if workspace %} · {{ workspace.name }}{% endif %}</a>
+  <a class="scope {% if active == 'account' %}on{% endif %}" href="{% url 'web:settings_account' %}">Account</a>
+  <a class="scope {% if active == 'org' %}on{% endif %}" href="{% url 'web:settings_org' %}">Organization{% if org %} · {{ org.name }}{% endif %}</a>
+  <a class="scope {% if active == 'workspace' %}on{% endif %}" href="{% url 'web:settings_workspace' %}">Workspace{% if workspace %} · {{ workspace.name }}{% endif %}</a>
 </div>

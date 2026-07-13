@@ -1,21 +1,21 @@
 {% extends "web/base.html" %}
 {% block main %}
   {% include "web/partials/_settings_scopenav.html" with active='account' %}
-  <div class="topbar"><h1 class="area-title">계정 설정</h1></div>
+  <header class="page-head"><div class="page-head-l"><h1 class="page-title">Account settings</h1></div></header>
 
   <section class="group">
-    <div class="group-label">계정</div>
-    <div class="empty muted">{{ request.user.email }}</div>
+    <div class="group-label">Account</div>
+    <div class="settings-value">{{ request.user.email }}</div>
   </section>
 
   <section class="group">
-    <div class="group-label">내 조직</div>
+    <div class="group-label">Your organizations</div>
     {% for row in orgs %}
       {% include "web/partials/_org_row.html" %}
     {% endfor %}
     <form class="org-add" hx-post="{% url 'web:account_org_create' %}" hx-swap="none"
           hx-on::after-request="this.reset()">
-      <input name="name" class="org-add-input" placeholder="＋ 새 조직" maxlength="200" autocomplete="off">
+      <input name="name" class="org-add-input" placeholder="＋ New organization" maxlength="200" autocomplete="off">
     </form>
   </section>
 {% endblock %}

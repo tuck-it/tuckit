@@ -1,7 +1,7 @@
 {% extends "web/base.html" %}
 {% load web_extras %}
 {% block main %}
-  <div class="topbar"><h1 class="area-title">In Progress</h1></div>
+  <header class="page-head"><div class="page-head-l"><h1 class="page-title">In Progress</h1></div></header>
   {% include "web/partials/_status_group.html" with label="Building" slices=state.slices empty_text="Nothing in progress. Slices you move to building show up here." %}
   <section class="group">
     <div class="group-label">Doing</div>
