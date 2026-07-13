@@ -26,6 +26,53 @@ body { padding: 0; }
 
 .brand { font-weight: 670; letter-spacing: -0.045em; font-size: 19px; color: var(--ink); padding: 4px 8px 16px; }
 
+/* --- Workspace switcher popover --- */
+.ws-switch-wrap { position: relative; padding: 0 4px 8px; }
+.ws-switch {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  background: none; border: none; font: inherit; cursor: pointer;
+  color: var(--ink); text-align: left;
+  padding: 6px 8px; border-radius: var(--radius-small);
+}
+.ws-switch:hover { background: var(--paper-raised); }
+.ws-mono {
+  flex: 0 0 auto; width: 26px; height: 26px;
+  display: grid; place-items: center;
+  background: var(--blue-soft); color: var(--blue);
+  border-radius: var(--radius-small);
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+}
+.ws-labels { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.ws-org { font-size: 11px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-name { font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-chev { width: 14px; height: 14px; stroke: var(--ink-faint); transform: rotate(90deg); transition: transform 0.15s ease; }
+.ws-switch[aria-expanded="true"] .ws-chev { transform: rotate(-90deg); }
+
+.ws-menu {
+  position: absolute; top: 100%; left: 4px; right: 4px; z-index: 30;
+  margin-top: 2px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 28px var(--shadow);
+}
+.ws-menu-org {
+  font-size: 11px; font-family: var(--mono); text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--ink-faint); padding: 8px 8px 4px;
+}
+.ws-menu-form { margin: 0; }
+.ws-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: none; font: inherit; cursor: pointer;
+  color: var(--ink); text-align: left; text-decoration: none;
+  padding: 7px 8px; border-radius: var(--radius-small);
+}
+.ws-menu-item:hover { background: var(--paper-raised); }
+.ws-menu-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-menu-item--active { font-weight: 600; }
+.ws-check { width: 15px; height: 15px; stroke: var(--blue); flex: 0 0 auto; }
+.ws-menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
+.ws-menu-settings { color: var(--ink-faint); }
+.ws-menu-settings .icon { stroke: var(--ink-faint); }
+
 .section {
   font-size: 11px;
   font-family: var(--mono);

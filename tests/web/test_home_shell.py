@@ -39,3 +39,13 @@ def test_switchable_workspaces_sorted_by_org_then_name(client_local, workspace):
     ws = list(resp.context["switchable_workspaces"])
     keys = [(w.org.name, w.name) for w in ws]
     assert keys == sorted(keys)
+
+
+@pytest.mark.django_db
+def test_switcher_is_custom_popover_not_native_select(client_local, workspace):
+    body = client_local.get("/").content.decode()
+    assert 'class="ws-switch"' in body            # custom trigger button
+    assert 'class="ws-menu"' in body              # popover panel
+    assert '<select name="workspace_id"' not in body   # native 2001 dropdown gone
+    assert 'name="workspace_id"' in body          # switch form contract intact
+    assert 'action="/switch-workspace"' in body   # posts to existing endpoint
