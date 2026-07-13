@@ -19,6 +19,7 @@ def home(request):
     return render(request, "web/home.html", {
         "workspace": ws,
         "state": home_state(ws) if ws else {},
+        "in_progress": in_progress_state(ws) if ws else {"slices": [], "bites": []},
         "roadmap": roadmap_state(ws) if ws else {},
         "recent_activity": recent_activity(ws) if ws else [],
         "onboarding": ob,
@@ -49,9 +50,10 @@ def roadmap(request):
 
 def activity(request):
     ws = get_current_workspace(request)
-    return render(request, "web/activity.html", {
-        "events": recent_activity(ws, limit=100) if ws else [],
-    })
+    events = recent_activity(ws, limit=100) if ws else []
+    is_panel = request.GET.get("panel") == "1" and request.headers.get("HX-Request")
+    template = "web/partials/_activity_panel.html" if is_panel else "web/activity.html"
+    return render(request, template, {"events": events})
 
 
 @require_POST

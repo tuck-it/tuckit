@@ -62,16 +62,31 @@ def test_switcher_is_custom_popover_not_native_select(client_local, workspace):
 
 
 @pytest.mark.django_db
-def test_nav_order_queues_before_states_activity_last(client_local, workspace):
+def test_nav_is_home_inbox_board_only(client_local, workspace):
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/").content.decode()
-    i_att = body.find(">Attention<")
-    i_tri = body.find(">Triage<")
-    i_prog = body.find(">In Progress<")
-    i_road = body.find(">Roadmap<")
-    i_act = body.find(">Activity<")
-    assert -1 not in (i_att, i_tri, i_prog, i_road, i_act)
-    assert i_att < i_tri < i_prog < i_road < i_act
+    i_home = body.find(">Home<")
+    i_inbox = body.find(">Inbox<")
+    i_board = body.find(">Board<")
+    assert -1 not in (i_home, i_inbox, i_board)
+    assert i_home < i_inbox < i_board
+    # object tabs removed from the nav group
+    assert ">Attention<" not in body
+    assert ">In Progress<" not in body
+    # Activity is no longer a nav label; it's the utility bell
+    nav_group = body.split('class="nav-group"')[1].split("</nav>")[0]
+    assert ">Activity<" not in nav_group
+    # old names gone as labels
+    assert ">Triage<" not in body
+    assert ">Roadmap<" not in body
+
+
+@pytest.mark.django_db
+def test_activity_bell_in_utility_row(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/").content.decode()
+    assert '/activity/?panel=1' in body            # bell opens the slide-over
+    assert 'aria-label="Activity"' in body
 
 
 @pytest.mark.django_db

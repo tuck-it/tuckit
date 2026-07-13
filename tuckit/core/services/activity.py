@@ -26,3 +26,19 @@ def record_activity(workspace, *, actor, verb, target, from_value="", to_value="
 def status_verb(to_status: str) -> str:
     """The verb to record for a status change — terminal states get their own."""
     return {"shipped": "shipped", "dropped": "dropped"}.get(to_status, "status_changed")
+
+
+def slice_activity(slice_):
+    """Read-only, chronological activity for one slice — its own events plus its
+    bites' events, oldest-first — so the detail reads like a comment thread."""
+    from django.db.models import Q
+
+    from tuckit.core.models import ActivityEvent
+
+    bite_ids = list(slice_.bites.values_list("id", flat=True))
+    return list(
+        ActivityEvent.objects.filter(workspace=slice_.area.workspace)
+        .filter(Q(target_type="slice", target_id=slice_.id)
+                | Q(target_type="bite", target_id__in=bite_ids))
+        .order_by("created_at")
+    )

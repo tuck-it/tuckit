@@ -63,3 +63,34 @@ def test_slice_other_workspace_404(client_local, workspace):
     other = Workspace.objects.create(org=other_org, name="O", slug="o")
     s = create_slice(create_area(other, "A"), "secret")
     assert client_local.get(f"{p}/slices/{s.id}/").status_code == 404
+
+
+@pytest.mark.django_db
+def test_slice_panel_shows_its_activity_thread(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice, set_slice_status
+    from tuckit.core.services.bites import create_bite
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Backend")
+    s = create_slice(a, "스레드 슬라이스", status="idea")   # logs created (slice)
+    set_slice_status(s, "building")                          # logs status_changed (slice)
+    create_bite(s, "첫 바이트")                              # logs created (bite)
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert 'class="slice-activity"' in body                  # thread section present
+    assert body.count('class="activity-row"') >= 3           # slice + status + bite events
+    assert "첫 바이트" in body                               # bite event joined into the slice thread
+
+
+@pytest.mark.django_db
+def test_slice_activity_helper_is_chronological_and_scoped(workspace):
+    from tuckit.core.services.activity import slice_activity
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice, set_slice_status
+    a = create_area(workspace, "Backend")
+    s = create_slice(a, "A", status="idea")
+    set_slice_status(s, "building")
+    other = create_slice(a, "B", status="idea")              # unrelated slice's events excluded
+    events = slice_activity(s)
+    times = [e.created_at for e in events]
+    assert times == sorted(times) and len(events) >= 2        # oldest-first
+    assert all(not (e.target_type == "slice" and e.target_id == other.id) for e in events)

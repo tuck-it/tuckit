@@ -37,12 +37,10 @@ def test_sidebar_grouped_with_english_labels_and_capture(client_local, workspace
     body = client_local.get(f"{p}/").content.decode()
     assert 'class="nav-group"' in body        # grouped, not a flat list
     assert 'class="capture-btn"' in body       # Capture promoted to its own button
-    assert ">Home<" in body and ">Triage<" in body and ">Settings<" in body
-    assert f'href="{p}/triage/"' in body
-    # Phase 2: state-lens items now appear in the sidebar nav-group.
-    assert ">Attention<" in body
-    assert ">In Progress<" in body
-    assert ">Roadmap<" in body
+    assert ">Home<" in body and ">Inbox<" in body and ">Settings<" in body
+    assert f'href="{p}/triage/"' in body            # Inbox anchor keeps the route
+    assert ">Board<" in body                         # was Roadmap
+    assert ">Attention<" not in body and ">In Progress<" not in body
     assert 'class="nav-sep"' in body        # visual group separator present
 
 
@@ -70,23 +68,13 @@ def test_lens_count_context_processors(client_local, workspace):
 
 
 @pytest.mark.django_db
-def test_sidebar_lens_group_with_counts(client_local, workspace):
-    from datetime import timedelta
-    from django.utils import timezone
-    from tuckit.core.models import Slice
-    from tuckit.core.services.areas import create_area
+def test_sidebar_inbox_count_and_no_lens_tabs(client_local, workspace):
+    from tuckit.core.services.areas import get_or_create_triage
     from tuckit.core.services.slices import create_slice
-    a = create_area(workspace, "Backend")
-    s = create_slice(a, "정체", status="building")
-    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
+    create_slice(get_or_create_triage(workspace), "미분류", status="idea")
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/").content.decode()
-    for name in ("Attention", "In Progress", "Roadmap"):
-        assert f">{name}<" in body
-    assert f'href="{p}/attention/"' in body and f'href="{p}/in-progress/"' in body and f'href="{p}/roadmap/"' in body
-    # building slice is both "in progress" (1) and, being 9d stale, "attention" (1).
-    # Pin BOTH lens badges specifically: attention + in-progress each render a
-    # bare nav-count showing "1". The Triage badge span carries id="triage-count"
-    # between the class and the '>', so it can never match this substring
-    # regardless of its count — leaving exactly the two lens badges.
-    assert body.count('class="nav-count">1<') == 2
+    assert ">Inbox<" in body
+    assert 'id="triage-count"' in body                       # inbox count badge kept
+    assert f'href="{p}/attention/"' not in body               # lens tabs gone from nav
+    assert f'href="{p}/in-progress/"' not in body

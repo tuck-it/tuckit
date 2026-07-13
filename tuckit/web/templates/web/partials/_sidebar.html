@@ -6,19 +6,11 @@
   <nav class="nav-group">
     <a class="nav{% if request.resolver_match.url_name == 'home' %} nav--active{% endif %}"
        href="{% wurl 'web:home' %}">{% icon "home" %}<span class="nav-label">Home</span></a>
-    <a class="nav{% if request.resolver_match.url_name == 'attention' %} nav--active{% endif %}"
-       href="{% wurl 'web:attention' %}">{% icon "attention" %}<span class="nav-label">Attention</span>
-       {% if attention_count %}<span class="nav-count">{{ attention_count }}</span>{% endif %}</a>
     <a class="nav{% if request.resolver_match.url_name == 'triage' %} nav--active{% endif %}"
-       href="{% wurl 'web:triage' %}">{% icon "triage" %}<span class="nav-label">Triage</span>
+       href="{% wurl 'web:triage' %}">{% icon "triage" %}<span class="nav-label">Inbox</span>
        {% include "web/partials/_triage_count.html" %}</a>
-    <a class="nav{% if request.resolver_match.url_name == 'in_progress' %} nav--active{% endif %}"
-       href="{% wurl 'web:in_progress' %}">{% icon "in-progress" %}<span class="nav-label">In Progress</span>
-       {% if in_progress_count %}<span class="nav-count">{{ in_progress_count }}</span>{% endif %}</a>
     <a class="nav{% if request.resolver_match.url_name == 'roadmap' %} nav--active{% endif %}"
-       href="{% wurl 'web:roadmap' %}">{% icon "roadmap" %}<span class="nav-label">Roadmap</span></a>
-    <a class="nav{% if request.resolver_match.url_name == 'activity' %} nav--active{% endif %}"
-       href="{% wurl 'web:activity' %}">{% icon "activity" %}<span class="nav-label">Activity</span></a>
+       href="{% wurl 'web:roadmap' %}">{% icon "roadmap" %}<span class="nav-label">Board</span></a>
   </nav>
 
   <div class="nav-sep"></div>
@@ -35,6 +27,9 @@
   <div class="util-row">
     <a class="util-btn util-settings{% if request.resolver_match.url_name == 'settings_workspace' or request.resolver_match.url_name == 'settings_org' %} util-btn--active{% endif %}"
        href="{% url 'web:settings_workspace' current_workspace.org.slug current_workspace.slug %}">{% icon "settings" %}<span class="util-label">Settings</span></a>
+    <button class="util-btn util-activity" type="button"
+            aria-label="Activity" title="Activity"
+            hx-get="{% wurl 'web:activity' %}?panel=1" hx-target="#panel">{% icon "activity" %}</button>
     <button class="util-btn util-theme" type="button"
             x-data="{theme: document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')}"
             x-on:click="theme = theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = theme; localStorage.setItem('theme', theme)"

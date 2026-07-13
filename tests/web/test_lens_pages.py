@@ -58,11 +58,43 @@ def test_activity_page_lists_events(client_local, workspace):
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/activity/").content.decode()
     assert "로그인 리다이렉트" in body
-    assert f'href="{p}/activity/"' in body   # sidebar link present on the page shell
+    assert '/activity/?panel=1' in body   # Activity reachable via the utility bell
 
 
 @pytest.mark.django_db
-def test_sidebar_has_activity_lens(client_local, workspace):
+def test_sidebar_activity_is_bell_not_nav(client_local, workspace):
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/").content.decode()
-    assert ">Activity<" in body and f'href="{p}/activity/"' in body
+    assert 'aria-label="Activity"' in body and '/activity/?panel=1' in body
+    nav_group = body.split('class="nav-group"')[1].split("</nav>")[0]
+    assert ">Activity<" not in nav_group
+
+
+@pytest.mark.django_db
+def test_activity_panel_branch_returns_slideover(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice, set_slice_status
+    a = create_area(workspace, "Backend")
+    s = create_slice(a, "패널 이벤트", status="building")
+    set_slice_status(s, "shipped")
+    # panel branch: HX request with ?panel=1 returns just the slide-over inner
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/activity/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert 'class="panel-inner"' in body
+    assert 'aria-label="Close panel"' in body
+    assert "패널 이벤트" in body
+    assert "<aside class=\"sidebar\"" not in body   # not the full page shell
+
+
+@pytest.mark.django_db
+def test_activity_full_page_still_works(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/activity/").content.decode()
+    assert 'class="page-title"' in body            # full page, not panel
+
+
+@pytest.mark.django_db
+def test_board_page_heading(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert '<h1 class="page-title">Board</h1>' in body

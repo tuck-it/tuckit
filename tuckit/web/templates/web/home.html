@@ -14,26 +14,37 @@
   </section>
 
   {% if show_get_started %}{% include "web/partials/_get_started.html" %}{% endif %}
-  {% include "web/partials/_status_group.html" with label="Now" slices=state.building empty_text="No slices here yet." %}
-  {% include "web/partials/_status_group.html" with label="Next" slices=state.planned empty_text="No slices here yet." %}
+
+  {% include "web/partials/_status_group.html" with label="Now" slices=state.building empty_text="Nothing in progress. Move a slice to building and it shows up here." %}
+
+  <section class="group">
+    <div class="group-label">Doing</div>
+    {% if in_progress.bites %}
+      <div class="panel">
+        {% for bite in in_progress.bites %}
+          <a class="slice-row" href="{% wurl 'web:slice' bite.slice.id %}"
+             hx-get="{% wurl 'web:slice' bite.slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
+            {% include "web/partials/_status_dot.html" with status=bite.status %}
+            <span class="row-title">{{ bite.title }}</span>
+            <span class="row-meta">{{ bite.slice.title }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty muted">No bites in progress yet.</div>
+    {% endif %}
+  </section>
 
   <section class="group" x-data="{open:false}">
     <button class="tail-toggle group-label muted" type="button" x-on:click="open=!open" :class="{'tail-open': open}">
       {% icon "chevron" "icon icon-chev" %}
-      someday {{ state.someday|length }} · ideas {{ state.ideas|length }} · shipped {{ state.shipped|length }}
+      Recently shipped {{ state.shipped|length }}
     </button>
     <div class="tail-body" x-show="open" x-cloak>
-      {% if state.someday %}
-        <div class="group-label">someday</div>
-        <div class="panel">{% for slice in state.someday %}{% include "web/partials/_slice_row.html" %}{% endfor %}</div>
-      {% endif %}
-      {% if state.ideas %}
-        <div class="group-label">ideas</div>
-        <div class="panel">{% for slice in state.ideas %}{% include "web/partials/_slice_row.html" %}{% endfor %}</div>
-      {% endif %}
       {% if state.shipped %}
-        <div class="group-label">Recently shipped</div>
         <div class="panel">{% for slice in state.shipped %}{% include "web/partials/_slice_row.html" %}{% endfor %}</div>
+      {% else %}
+        <div class="empty muted">Nothing shipped yet.</div>
       {% endif %}
     </div>
   </section>

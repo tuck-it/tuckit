@@ -1,0 +1,18 @@
+{% load web_extras %}
+<div class="panel-inner">
+  <div class="panel-head">
+    <div class="panel-head-main">
+      <span class="panel-title" id="panel-title">Activity</span>
+    </div>
+    <a class="ghost" href="{% wurl 'web:activity' %}">Open full</a>
+    <button class="ghost" type="button" aria-label="Close panel"
+            hx-on:click="closePanel(document.getElementById('panel'))">✕</button>
+  </div>
+  {% if events %}
+    <div class="panel">
+      {% for event in events %}{% include "web/partials/_activity_row.html" %}{% endfor %}
+    </div>
+  {% else %}
+    <div class="empty muted">No activity yet</div>
+  {% endif %}
+</div>

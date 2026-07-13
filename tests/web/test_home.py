@@ -49,6 +49,21 @@ def test_home_attention_shows_reason_label(client_local, workspace):
 
 
 @pytest.mark.django_db
+def test_home_stale_building_slice_not_duplicated_in_now(client_local, workspace):
+    from datetime import timedelta
+    from django.utils import timezone
+    from tuckit.core.models import Slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    a = create_area(workspace, "제품")
+    s = create_slice(a, "정체된 빌딩 슬라이스", status="building")
+    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert "9d idle" in body                       # confirms it landed in Needs you/Attention
+    assert body.count("정체된 빌딩 슬라이스") == 1   # must not also repeat in the Now group
+
+
+@pytest.mark.django_db
 def test_home_all_clear_when_no_attention(client_local, workspace):
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert "Nothing needs your attention right now." in body       # confident done signal
@@ -76,17 +91,32 @@ def test_home_omits_roadmap_strip_and_recent_activity(client_local, workspace):
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert 'class="roadmap-strip"' not in body        # moved off Home
     assert "Recent activity" not in body              # moved off Home
-    assert f'href="/{workspace.org.slug}/{workspace.slug}/roadmap/"' in body                 # still reachable via sidebar
-    assert f'href="/{workspace.org.slug}/{workspace.slug}/activity/"' in body
+    assert f'href="/{workspace.org.slug}/{workspace.slug}/roadmap/"' in body                 # Board still reachable via sidebar
+    assert '/activity/?panel=1' in body               # Activity via the utility bell
 
 
 @pytest.mark.django_db
 def test_home_has_heading_and_capture(client_local, workspace):
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert 'class="page-head"' in body
-    assert "Needs you" in body and "Now" in body and "Next" in body
+    assert "Needs you" in body and "Now" in body and "Doing" in body
+    assert "Next" not in body                       # planned pipeline moved to Board
     # a capture action is present in the page header (reuses the capture modal)
     assert 'class="button button-small"' in body   # page-head Capture button
+
+
+@pytest.mark.django_db
+def test_home_shows_doing_bites_and_no_planned(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.bites import create_bite
+    a = create_area(workspace, "Backend")
+    s = create_slice(a, "빌딩 슬라이스", status="building")
+    create_bite(s, "지금 하는 것", status="doing")
+    create_slice(a, "다음 계획", status="planned")
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert "지금 하는 것" in body                    # doing bite on Home
+    assert "다음 계획" not in body                   # planned NOT on Home (it's on Board)
 
 
 @pytest.mark.django_db
