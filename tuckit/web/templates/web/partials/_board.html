@@ -11,6 +11,9 @@
         <div class="board-col-cards">
           {% for slice in slices %}{% include "web/partials/_slice_card.html" %}{% endfor %}
         </div>
+        {% if board_scope and status == "shipped" and shipped_hidden %}
+          <a class="board-col-more" href="?view=list&status=shipped">View all shipped ({{ shipped_total }}) →</a>
+        {% endif %}
       </div>
     {% endif %}
   {% endfor %}

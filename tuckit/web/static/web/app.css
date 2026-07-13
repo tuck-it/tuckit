@@ -301,6 +301,19 @@ body { padding: 0; }
 }
 .card-bites { color: var(--ink-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 
+/* "View all" affordance under a capped shipped column / group. */
+.board-col-more, .group-more {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 4px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-decoration: none;
+}
+.board-col-more { padding-left: 8px; }
+.board-col-more:hover, .group-more:hover { color: var(--ink); }
+
 /* Non-drag status control — quiet until the card is hovered/focused. */
 .card-move {
   margin-top: 6px;

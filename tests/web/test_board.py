@@ -162,6 +162,55 @@ def test_workspace_scope_move_rerenders_all_areas(client_local, workspace):
     assert 'class="card-area"' in body
 
 
+@pytest.mark.django_db
+def test_board_caps_shipped_and_links_to_all(client_local, workspace):
+    workspace.shipped_board_mode = "count"
+    workspace.shipped_board_limit = 1
+    workspace.save(update_fields=["shipped_board_mode", "shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "shipped one", status="shipped")
+    create_slice(a, "shipped two", status="shipped")
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "View all shipped (2)" in body
+    assert 'href="?view=list&status=shipped"' in body
+
+
+@pytest.mark.django_db
+def test_status_filter_shows_all_shipped_flat(client_local, workspace):
+    workspace.shipped_board_limit = 1
+    workspace.save(update_fields=["shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "shipped one", status="shipped")
+    create_slice(a, "shipped two", status="shipped")
+    body = client_local.get(f"{p}/roadmap/?view=list&status=shipped").content.decode()
+    assert "shipped one" in body and "shipped two" in body   # uncapped
+    assert 'id="board"' not in body                          # not the kanban
+    assert 'class="card-area"' in body or 'class="row-area"' in body
+
+
+@pytest.mark.django_db
+def test_status_filter_is_generic(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Core")
+    create_slice(a, "building thing", status="building")
+    body = client_local.get(f"{p}/roadmap/?status=building").content.decode()
+    assert "building thing" in body
+    assert 'id="board"' not in body
+
+
+@pytest.mark.django_db
+def test_board_no_footer_when_within_limit(client_local, workspace):
+    workspace.shipped_board_limit = 8
+    workspace.save(update_fields=["shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    create_slice(a, "only one", status="shipped")
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "View all shipped" not in body
+
+
 def test_board_js_declares_drag_states():
     from pathlib import Path
     js = (Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "board.js").read_text()

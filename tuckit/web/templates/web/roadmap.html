@@ -1,30 +1,44 @@
 {% extends "web/base.html" %}
 {% load web_extras %}
 {% block main %}
-  <header class="page-head">
-    <div class="page-head-l"><h1 class="page-title">Board</h1></div>
-    <div class="view-toggle">
-      <a class="view-toggle-link{% if view == 'board' %} view-toggle-link--active{% endif %}"
-         href="?view=board">Board</a>
-      <a class="view-toggle-link{% if view == 'list' %} view-toggle-link--active{% endif %}"
-         href="?view=list">List</a>
-    </div>
-  </header>
-  {% if view == "list" %}
-    <div class="roadmap-dist">
-      <span class="rm-seg">Idea {{ state.idea|length }}</span>
-      <span class="rm-seg">Planned {{ state.planned|length }}</span>
-      <span class="rm-seg rm-building">Building {{ state.building|length }}</span>
-      <span class="rm-seg rm-shipped">Shipped {{ state.shipped|length }}</span>
-    </div>
-    {% include "web/partials/_status_group.html" with label="Building" slices=state.building empty_text="Nothing here yet" %}
-    {% include "web/partials/_status_group.html" with label="Planned" slices=state.planned empty_text="Nothing here yet" %}
-    {% include "web/partials/_status_group.html" with label="Idea" slices=state.idea empty_text="Nothing here yet" %}
-    {% include "web/partials/_status_group.html" with label="Shipped" slices=state.shipped empty_text="Nothing here yet" %}
+  {% if filter_status %}
+    <header class="page-head">
+      <div class="page-head-l"><h1 class="page-title">{{ filter_status|capfirst }}</h1></div>
+      <div class="view-toggle">
+        <a class="view-toggle-link" href="{% wurl 'web:roadmap' %}">← Board</a>
+      </div>
+    </header>
+    {% if filter_slices %}
+      <div class="panel">{% for slice in filter_slices %}{% include "web/partials/_slice_row.html" %}{% endfor %}</div>
+    {% else %}
+      <div class="empty muted">Nothing here yet.</div>
+    {% endif %}
   {% else %}
-    {% include "web/partials/_board.html" %}
-    {% if not has_any_slice %}
-      <div class="empty muted">Nothing here yet — add a slice in any area and it shows up on the board.</div>
+    <header class="page-head">
+      <div class="page-head-l"><h1 class="page-title">Board</h1></div>
+      <div class="view-toggle">
+        <a class="view-toggle-link{% if view == 'board' %} view-toggle-link--active{% endif %}"
+           href="?view=board">Board</a>
+        <a class="view-toggle-link{% if view == 'list' %} view-toggle-link--active{% endif %}"
+           href="?view=list">List</a>
+      </div>
+    </header>
+    {% if view == "list" %}
+      <div class="roadmap-dist">
+        <span class="rm-seg">Idea {{ state.idea|length }}</span>
+        <span class="rm-seg">Planned {{ state.planned|length }}</span>
+        <span class="rm-seg rm-building">Building {{ state.building|length }}</span>
+        <span class="rm-seg rm-shipped">Shipped {{ shipped_total }}</span>
+      </div>
+      {% include "web/partials/_status_group.html" with label="Building" slices=state.building empty_text="Nothing here yet" %}
+      {% include "web/partials/_status_group.html" with label="Planned" slices=state.planned empty_text="Nothing here yet" %}
+      {% include "web/partials/_status_group.html" with label="Idea" slices=state.idea empty_text="Nothing here yet" %}
+      {% include "web/partials/_status_group.html" with label="Shipped" slices=state.shipped empty_text="Nothing here yet" more_url="?view=list&status=shipped" more_count=shipped_total more_label="shipped" more_hidden=shipped_hidden %}
+    {% else %}
+      {% include "web/partials/_board.html" %}
+      {% if not has_any_slice %}
+        <div class="empty muted">Nothing here yet — add a slice in any area and it shows up on the board.</div>
+      {% endif %}
     {% endif %}
   {% endif %}
 {% endblock %}
