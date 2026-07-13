@@ -1,6 +1,15 @@
 import sys
 import pytest
 
+from tuckit.core.models import Org
+from tuckit.core.services.orgs import create_workspace
+
+
+@pytest.fixture
+def workspace(db):
+    org = Org.objects.create(name="Test Org", slug="test-org")
+    return create_workspace(org, "Test Workspace", slug="test-workspace")
+
 
 @pytest.fixture
 def asgi_app():
