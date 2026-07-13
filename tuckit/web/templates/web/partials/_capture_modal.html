@@ -1,7 +1,8 @@
+{% load web_extras %}
 <div class="capture-overlay" x-show="cap" x-cloak
      x-on:keydown.escape.window="cap=false"
      x-on:click.self="cap=false">
-  <form class="capture-modal" hx-post="{% url 'web:capture' %}" hx-swap="none"
+  <form class="capture-modal" hx-post="{% wurl 'web:capture' %}" hx-swap="none"
         hx-on::after-request="this.reset(); this.querySelector('.capture-input').focus()">
     <input name="title" class="capture-input" placeholder="Quick capture…  (Enter to keep capturing, Esc to close)" x-ref="captureInput"
            x-on:keydown.escape="cap=false" autofocus>

@@ -8,7 +8,7 @@
     <div class="settings-name" x-data="{editing: false, name: '{{ workspace.name|escapejs }}'}">
       <span class="settings-name-display" x-show="!editing" x-on:click="editing = true" x-text="name"></span>
       <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
-             hx-post="{% url 'web:workspace_rename' %}" hx-trigger="blur, keydown[key=='Enter']"
+             hx-post="{% url 'web:workspace_rename' current_workspace.org.slug current_workspace.slug %}" hx-trigger="blur, keydown[key=='Enter']"
              hx-vals="js:{name: name}" hx-swap="none"
              x-on:keydown.enter="editing = false" x-on:blur="editing = false">
     </div>
@@ -24,7 +24,7 @@
         <div class="empty muted">No tokens yet</div>
       {% endfor %}
     </div>
-    <form class="token-add" hx-post="{% url 'web:token_create' %}" hx-target="#tokens-list" hx-swap="afterbegin"
+    <form class="token-add" hx-post="{% url 'web:token_create' current_workspace.org.slug current_workspace.slug %}" hx-target="#tokens-list" hx-swap="afterbegin"
           hx-on::after-request="this.reset()">
       <input name="name" placeholder="＋ Token name (e.g. Claude Code)">
     </form>
@@ -32,7 +32,7 @@
 
   <section class="group">
     <div class="group-label">Members</div>
-    <div class="hint">Members and invitations are managed per organization. <a href="{% url 'web:settings_org' %}">Manage in organization settings →</a></div>
+    <div class="hint">Members and invitations are managed per organization. <a href="{% url 'web:settings_org' current_workspace.org.slug %}">Manage in organization settings →</a></div>
   </section>
 
   <section class="group">
@@ -44,7 +44,7 @@
   {% if can_admin %}
   <section class="group">
     <div class="group-label danger">Danger zone</div>
-    <form hx-post="{% url 'web:workspace_delete' %}" hx-confirm="This workspace and all its areas and items will be deleted. Continue?">
+    <form hx-post="{% url 'web:workspace_delete' current_workspace.org.slug current_workspace.slug %}" hx-confirm="This workspace and all its areas and items will be deleted. Continue?">
       <button type="submit" class="btn danger">Delete workspace</button>
     </form>
   </section>

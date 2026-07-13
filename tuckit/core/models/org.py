@@ -1,10 +1,13 @@
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db import models
+
+_SLUG_VALIDATOR = RegexValidator(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$", "invalid slug")
 
 
 class Org(models.Model):
     name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True, validators=[_SLUG_VALIDATOR])
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

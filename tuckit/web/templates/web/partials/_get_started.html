@@ -1,8 +1,9 @@
+{% load web_extras %}
 <section class="get-started" aria-label="Get started">
   <div class="gs-head">
     <div><h2 class="gs-title">Get started</h2>
       <p class="gs-sub">{{ onboarding.completed }} of 3 done — you're almost set.</p></div>
-    <form method="post" action="{% url 'web:onboarding_dismiss' %}">{% csrf_token %}
+    <form method="post" action="{% wurl 'web:onboarding_dismiss' %}">{% csrf_token %}
       <button class="gs-dismiss" type="submit">Dismiss</button></form>
   </div>
   <ul class="gs-list">
@@ -14,6 +15,6 @@
       <span class="gs-go">press <kbd>C</kbd></span></li>
     <li class="{% if onboarding.triaged %}done{% endif %}">
       <span class="gs-box">✓</span><span class="gs-lbl">Triage it into an area</span>
-      <a class="gs-go" href="{% url 'web:triage' %}">Open Triage →</a></li>
+      <a class="gs-go" href="{% wurl 'web:triage' %}">Open Triage →</a></li>
   </ul>
 </section>

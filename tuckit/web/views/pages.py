@@ -58,7 +58,7 @@ def activity(request):
 def dismiss_onboarding(request):
     ws = get_current_workspace(request)
     if ws is None:
-        return redirect("web:home")
+        return redirect("web:root")
     ws.onboarding_dismissed = True
     ws.save(update_fields=["onboarding_dismissed"])
-    return redirect("web:home")
+    return redirect("web:home", org_slug=ws.org.slug, ws_slug=ws.slug)

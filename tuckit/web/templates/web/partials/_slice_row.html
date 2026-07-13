@@ -1,6 +1,6 @@
 {% load web_extras %}
-<a class="slice-row" href="{% url 'web:slice' slice.id %}"
-   hx-get="{% url 'web:slice' slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
+<a class="slice-row" href="{% wurl 'web:slice' slice.id %}"
+   hx-get="{% wurl 'web:slice' slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
   {% include "web/partials/_status_dot.html" with status=slice.status %}
   <span class="row-title">{{ slice.title }}</span>
   {% include "web/partials/_tag_text.html" %}

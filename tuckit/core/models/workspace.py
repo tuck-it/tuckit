@@ -1,12 +1,16 @@
+from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models.functions import Lower
 
 from tuckit.core.models.org import Org
+
+_SLUG_VALIDATOR = RegexValidator(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$", "invalid slug")
 
 
 class Workspace(models.Model):
     org = models.ForeignKey(Org, on_delete=models.CASCADE, related_name="workspaces")
     name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=100)
+    slug = models.SlugField(max_length=100, validators=[_SLUG_VALIDATOR])
     description = models.TextField(blank=True, default="")
     onboarding_dismissed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -14,6 +18,11 @@ class Workspace(models.Model):
 
     class Meta:
         unique_together = [("org", "slug")]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"), "org", name="uniq_ws_name_per_org"
+            ),
+        ]
 
     def __str__(self):
         return self.name

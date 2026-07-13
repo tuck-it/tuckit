@@ -3,6 +3,7 @@ from django.db import transaction
 from tuckit.core.models import Org, OrgMember, Workspace
 from tuckit.core.services.areas import create_area, get_or_create_triage
 from tuckit.core.services.exceptions import InvalidValue
+from tuckit.core.services.slugs import RESERVED_ORG_SLUGS, RESERVED_WORKSPACE_SLUGS, validate_slug
 
 
 def accessible_workspaces(user):
@@ -29,18 +30,27 @@ def seat_count(org) -> int:
 def _unique_ws_slug(org: Org, name: str) -> str:
     from django.utils.text import slugify
 
-    base = slugify(name)[:100] or "workspace"
+    base = slugify(name)[:32].strip("-") or "workspace"
+    if len(base) < 2:
+        base = (base + "workspace")[:32]
+    if base in RESERVED_WORKSPACE_SLUGS:
+        base = f"{base}-ws"
     candidate = base
     i = 2
     while Workspace.objects.filter(org=org, slug=candidate).exists():
         suffix = f"-{i}"
-        candidate = base[: 100 - len(suffix)] + suffix
+        candidate = base[: 32 - len(suffix)].rstrip("-") + suffix
         i += 1
     return candidate
 
 
 def create_workspace(org: Org, name: str, slug: str | None = None) -> Workspace:
-    slug = slug or _unique_ws_slug(org, name)
+    name = " ".join((name or "").split())
+    if not name:
+        raise InvalidValue("워크스페이스 이름을 입력하세요")
+    if Workspace.objects.filter(org=org, name__iexact=name).exists():
+        raise InvalidValue(f"이미 같은 이름의 워크스페이스가 있습니다: {name}")
+    slug = validate_slug(slug, kind="workspace") if slug else _unique_ws_slug(org, name)
     ws = Workspace.objects.create(org=org, name=name, slug=slug)
     get_or_create_triage(ws)
     create_area(ws, "Default")
@@ -50,12 +60,16 @@ def create_workspace(org: Org, name: str, slug: str | None = None) -> Workspace:
 def _unique_org_slug(name: str) -> str:
     from django.utils.text import slugify
 
-    base = slugify(name)[:100] or "org"
+    base = slugify(name)[:32].strip("-") or "org"
+    if len(base) < 2:
+        base = (base + "org")[:32]
+    if base in RESERVED_ORG_SLUGS:
+        base = f"{base}-org"
     candidate = base
     i = 2
     while Org.objects.filter(slug=candidate).exists():
         suffix = f"-{i}"
-        candidate = base[: 100 - len(suffix)] + suffix
+        candidate = base[: 32 - len(suffix)].rstrip("-") + suffix
         i += 1
     return candidate
 
@@ -67,9 +81,9 @@ def create_org(user, *, name: str, slug: str | None = None) -> tuple[Org, Worksp
     name = (name or "").strip()
     if not name:
         raise InvalidValue("조직 이름을 입력하세요")
-    slug = slug or _unique_org_slug(name)
+    slug = validate_slug(slug, kind="org") if slug else _unique_org_slug(name)
     if Org.objects.filter(slug=slug).exists():
-        raise InvalidValue(f"Org slug already taken: {slug}")
+        raise InvalidValue(f"이미 사용 중인 조직 슬러그입니다: {slug}")
     org = Org.objects.create(name=name, slug=slug)
     OrgMember.objects.create(user=user, org=org, role="owner")
     workspace = create_workspace(org, name)
@@ -91,6 +105,17 @@ def rename_org(org: Org, name: str) -> Org:
     org.name = name
     org.save(update_fields=["name"])
     return org
+
+
+def rename_workspace(ws: Workspace, name: str) -> Workspace:
+    name = " ".join((name or "").split())
+    if not name:
+        raise InvalidValue("워크스페이스 이름을 입력하세요")
+    if Workspace.objects.filter(org=ws.org, name__iexact=name).exclude(pk=ws.pk).exists():
+        raise InvalidValue(f"이미 같은 이름의 워크스페이스가 있습니다: {name}")
+    ws.name = name
+    ws.save(update_fields=["name", "updated_at"])
+    return ws
 
 
 def list_org_members(org: Org):

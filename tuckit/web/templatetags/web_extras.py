@@ -1,10 +1,21 @@
 from django import template
+from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from tuckit.core.services import bites as bites_svc
 from tuckit.web.panel import render_markdown_html
 
 register = template.Library()
+
+
+@register.simple_tag(name="wurl", takes_context=True)
+def wurl_tag(context, name, *args, **kwargs):
+    """Reverse a workspace-scoped route for the current org/workspace. Fills the
+    <org_slug>/<ws_slug> prefix from `current_workspace` so app templates don't repeat it."""
+    ws = context.get("current_workspace")
+    if ws is None:
+        return "#"
+    return reverse(name, args=[ws.org.slug, ws.slug, *args], kwargs=kwargs)
 
 
 @register.simple_tag(name="bite_progress")

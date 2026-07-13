@@ -14,7 +14,7 @@
     {% if token.last_used_at %}Last used {{ token.last_used_at|date:"Y-m-d H:i" }}{% else %}Never used{% endif %}
   </div>
   <button class="ghost" type="button"
-          hx-post="{% url 'web:token_revoke' token.id %}"
+          hx-post="{% url 'web:token_revoke' current_workspace.org.slug current_workspace.slug token.id %}"
           hx-target="closest .token-row" hx-swap="outerHTML"
           hx-confirm="Revoke this token? Agents using it will no longer be able to connect.">Revoke</button>
 </div>

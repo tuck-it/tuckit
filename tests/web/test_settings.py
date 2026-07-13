@@ -8,7 +8,8 @@ from tuckit.core.services.tokens import generate_token, hash_token
 
 @pytest.mark.django_db
 def test_token_create_shows_raw_once(client_local, workspace):
-    resp = client_local.post("/settings/tokens", {"name": "Claude Code"}, HTTP_HX_REQUEST="true")
+    sp = f"/settings/{workspace.org.slug}/{workspace.slug}"
+    resp = client_local.post(f"{sp}/tokens", {"name": "Claude Code"}, HTTP_HX_REQUEST="true")
     body = resp.content.decode()
     assert resp.status_code == 200
     assert len(body) > 0  # raw token surfaced in the returned partial
@@ -16,7 +17,8 @@ def test_token_create_shows_raw_once(client_local, workspace):
 
 @pytest.mark.django_db
 def test_token_create_stores_only_hash_not_raw(client_local, workspace):
-    resp = client_local.post("/settings/tokens", {"name": "Claude Code"}, HTTP_HX_REQUEST="true")
+    sp = f"/settings/{workspace.org.slug}/{workspace.slug}"
+    resp = client_local.post(f"{sp}/tokens", {"name": "Claude Code"}, HTTP_HX_REQUEST="true")
     body = resp.content.decode()
     token = ApiToken.objects.get(workspace=workspace, name="Claude Code")
     # the raw token appears in the one-time partial...
@@ -31,7 +33,8 @@ def test_token_create_stores_only_hash_not_raw(client_local, workspace):
 @pytest.mark.django_db
 def test_settings_page_lists_masked_tokens(client_local, workspace):
     token, raw = generate_token(workspace, "Existing")
-    resp = client_local.get("/settings/workspace")
+    sp = f"/settings/{workspace.org.slug}/{workspace.slug}"
+    resp = client_local.get(f"{sp}/workspace")
     body = resp.content.decode()
     assert resp.status_code == 200
     assert "Existing" in body
@@ -41,7 +44,8 @@ def test_settings_page_lists_masked_tokens(client_local, workspace):
 
 @pytest.mark.django_db
 def test_workspace_rename(client_local, workspace):
-    client_local.post("/settings/rename", {"name": "My Product"}, HTTP_HX_REQUEST="true")
+    sp = f"/settings/{workspace.org.slug}/{workspace.slug}"
+    client_local.post(f"{sp}/rename", {"name": "My Product"}, HTTP_HX_REQUEST="true")
     workspace.refresh_from_db()
     assert workspace.name == "My Product"
 
@@ -49,7 +53,8 @@ def test_workspace_rename(client_local, workspace):
 @pytest.mark.django_db
 def test_token_revoke_removes_token(client_local, workspace):
     token, _ = generate_token(workspace, "to-remove")
-    resp = client_local.post(f"/settings/tokens/{token.id}/revoke", HTTP_HX_REQUEST="true")
+    sp = f"/settings/{workspace.org.slug}/{workspace.slug}"
+    resp = client_local.post(f"{sp}/tokens/{token.id}/revoke", HTTP_HX_REQUEST="true")
     assert resp.status_code == 204
     assert not ApiToken.objects.filter(id=token.id).exists()
 
@@ -59,7 +64,8 @@ def test_token_revoke_is_workspace_scoped(client_local, workspace):
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     other = Workspace.objects.create(org=other_org, name="Other", slug="other")
     token, _ = generate_token(other, "cli")
-    resp = client_local.post(f"/settings/tokens/{token.id}/revoke", HTTP_HX_REQUEST="true")
+    sp = f"/settings/{workspace.org.slug}/{workspace.slug}"
+    resp = client_local.post(f"{sp}/tokens/{token.id}/revoke", HTTP_HX_REQUEST="true")
     assert resp.status_code == 204
     assert ApiToken.objects.filter(id=token.id).exists()  # untouched: belongs to another workspace
 
@@ -69,5 +75,6 @@ def test_token_list_is_a_panel(client_local, workspace):
     from tuckit.core.services.tokens import generate_token
 
     generate_token(workspace, "CI")
-    body = client_local.get("/settings/workspace").content.decode()
+    sp = f"/settings/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{sp}/workspace").content.decode()
     assert 'class="panel"' in body

@@ -1,4 +1,5 @@
-<form class="triage-row" hx-post="{% url 'web:slice_triage' slice.id %}"
+{% load web_extras %}
+<form class="triage-row" hx-post="{% wurl 'web:slice_triage' slice.id %}"
       hx-trigger="change" hx-target="closest .triage-row" hx-swap="outerHTML">
   {% include "web/partials/_status_dot.html" with status=slice.status %}
   <span class="row-title">{{ slice.title }}</span>

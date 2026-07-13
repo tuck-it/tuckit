@@ -96,20 +96,11 @@ def test_leave_org_not_a_member_404s(acct_ctx):
 
 
 @pytest.mark.django_db
-def test_switch_org_sets_active_workspace(acct_ctx):
+def test_account_page_open_links_target_other_orgs(acct_ctx):
+    # The old POST "switch org" flow is now an <a href> to that org's first
+    # workspace. The current org shows no Open link; the other shows a prefixed one.
     client, user, org_a, ws_a, org_b, ws_b = acct_ctx
     _login(client, user, ws_a)
-    resp = client.post(f"/settings/account/orgs/{org_b.id}/open")
-    assert resp.status_code in (204, 302)
-    assert client.session.get("active_workspace_id") == ws_b.id
-
-
-@pytest.mark.django_db
-def test_switch_org_not_a_member_404s(acct_ctx):
-    client, user, org_a, ws_a, org_b, ws_b = acct_ctx
-    stranger_owner = User.objects.create(email="s@s.com")
-    foreign, foreign_ws = create_org(stranger_owner, name="Foreign")
-    _login(client, user, ws_a)
-    resp = client.post(f"/settings/account/orgs/{foreign.id}/open")
-    assert resp.status_code == 404
-    assert client.session.get("active_workspace_id") == ws_a.id  # unchanged
+    body = client.get("/settings/account").content.decode()
+    assert f'href="/{org_b.slug}/{ws_b.slug}/"' in body
+    assert "web:account_org_open" not in body  # no leftover POST-switch tag

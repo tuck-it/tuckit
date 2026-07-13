@@ -23,7 +23,7 @@ def owner_client(client, db):
 @pytest.mark.django_db
 def test_owner_creates_invite_and_sees_link(owner_client):
     client, org = owner_client
-    resp = client.post("/settings/invites", {"email": "new@x.com", "role": "member"})
+    resp = client.post(f"/settings/{org.slug}/invites", {"email": "new@x.com", "role": "member"})
     assert resp.status_code == 200
     inv = Invitation.objects.get(org=org, email="new@x.com")
     assert inv.token.encode() in resp.content  # link shown
@@ -32,9 +32,9 @@ def test_owner_creates_invite_and_sees_link(owner_client):
 @pytest.mark.django_db
 def test_cancel_invite(owner_client):
     client, org = owner_client
-    resp = client.post("/settings/invites", {"email": "new@x.com", "role": "member"})
+    resp = client.post(f"/settings/{org.slug}/invites", {"email": "new@x.com", "role": "member"})
     inv = Invitation.objects.get(org=org, email="new@x.com")
-    resp = client.post(f"/settings/invites/{inv.id}/cancel")
+    resp = client.post(f"/settings/{org.slug}/invites/{inv.id}/cancel")
     assert resp.status_code == 204
     assert not Invitation.objects.filter(id=inv.id).exists()
 
@@ -49,7 +49,7 @@ def test_member_cannot_invite(client, db):
     session = client.session
     session["active_workspace_id"] = ws.id
     session.save()
-    resp = client.post("/settings/invites", {"email": "new@x.com", "role": "member"})
+    resp = client.post(f"/settings/{org.slug}/invites", {"email": "new@x.com", "role": "member"})
     assert resp.status_code == 403
 
 
@@ -68,6 +68,6 @@ def test_member_cannot_cancel_invite(client, db):
     session["active_workspace_id"] = ws.id
     session.save()
 
-    resp = client.post(f"/settings/invites/{inv.id}/cancel")
+    resp = client.post(f"/settings/{org.slug}/invites/{inv.id}/cancel")
     assert resp.status_code == 403
     assert Invitation.objects.filter(id=inv.id).exists()

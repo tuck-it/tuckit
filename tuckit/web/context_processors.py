@@ -70,8 +70,19 @@ def switchable_workspaces(request):
 
 
 def current_workspace(request):
-    """Expose the active workspace to every template so the sidebar switcher's
-    trigger can always show the current org · workspace identity, regardless of
-    whether the current view happens to pass `workspace` itself."""
-    ws = get_current_workspace(request)
+    """Workspace used for sidebar chrome. Prefers the request's tenant workspace; on
+    non-tenant pages (settings/account) falls back to the session/first workspace so the
+    sidebar switcher and nav still resolve. Access control is NOT done here — it lives in
+    TenantMiddleware."""
+    ws = getattr(request, "workspace", None)
+    if ws is None and request.user.is_authenticated:
+        from tuckit.core.models import OrgMember, Workspace
+        from tuckit.core.services.orgs import accessible_workspaces
+        ws_id = request.session.get("active_workspace_id")
+        if ws_id:
+            ws = Workspace.objects.filter(pk=ws_id).select_related("org").first()
+            if ws and not OrgMember.objects.filter(user=request.user, org=ws.org).exists():
+                ws = None
+        if ws is None:
+            ws = accessible_workspaces(request.user).select_related("org").first()
     return {"current_workspace": ws} if ws else {}

@@ -39,12 +39,13 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.auth.middleware.LoginRequiredMiddleware",
+    "tuckit.web.middleware.TenantMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 LOGIN_URL = "web:login"
-LOGIN_REDIRECT_URL = "web:home"
+LOGIN_REDIRECT_URL = "web:root"
 LOGOUT_REDIRECT_URL = "web:login"
 
 ROOT_URLCONF = "tuckit.urls"

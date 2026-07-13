@@ -75,7 +75,7 @@ def area_rename(request, area_id):
     # 'area_rename', so resolver_match can't infer active — derive it from the
     # browser's current URL (htmx sends it as HX-Current-URL).
     current_path = urlparse(request.headers.get("HX-Current-URL", "")).path
-    active = current_path == reverse("web:area", args=[area.slug])
+    active = current_path == reverse("web:area", args=[ws.org.slug, ws.slug, area.slug])
     return render(request, "web/partials/_area_row.html", {"a": area, "active": active})
 
 

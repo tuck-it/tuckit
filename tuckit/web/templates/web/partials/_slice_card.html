@@ -1,13 +1,13 @@
 {% load web_extras %}
 <div class="slice-card" data-slice-id="{{ slice.id }}"
-     hx-get="{% url 'web:slice' slice.id %}?panel=1" hx-target="#panel" hx-push-url="{% url 'web:slice' slice.id %}">
+     hx-get="{% wurl 'web:slice' slice.id %}?panel=1" hx-target="#panel" hx-push-url="{% wurl 'web:slice' slice.id %}">
   <div class="card-title">{{ slice.title }}</div>
   <div class="card-meta">
     {% include "web/partials/_tag_text.html" %}
     <span class="card-bites">{% bite_progress slice %}</span>
   </div>
   <select class="card-move" name="status" aria-label="Move to status"
-          hx-post="{% url 'web:slice_move' slice.id %}" hx-trigger="change"
+          hx-post="{% wurl 'web:slice_move' slice.id %}" hx-trigger="change"
           hx-target="#board" hx-swap="outerHTML" hx-push-url="false"
           onclick="event.stopPropagation()">
     <option value="idea"{% if slice.status == "idea" %} selected{% endif %}>Idea</option>

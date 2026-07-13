@@ -10,7 +10,7 @@
       <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %} x-text="name"></span>
       {% if can_admin %}
       <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
-             hx-post="{% url 'web:org_rename' %}" hx-trigger="blur, keydown[key=='Enter']"
+             hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur, keydown[key=='Enter']"
              hx-vals="js:{name: name}" hx-swap="none"
              x-on:keydown.enter="editing=false" x-on:blur="editing=false">
       {% endif %}
@@ -37,7 +37,7 @@
         <div class="empty muted">No pending invitations</div>
       {% endfor %}
     </div>
-    <form class="token-add" hx-post="{% url 'web:invite_create' %}" hx-target="#invite-list" hx-swap="afterbegin"
+    <form class="token-add" hx-post="{% url 'web:invite_create' org.slug %}" hx-target="#invite-list" hx-swap="afterbegin"
           hx-on::after-request="this.reset()">
       <input type="email" name="email" placeholder="Email" required>
       <select name="role">
@@ -61,7 +61,7 @@
   {% if can_owner %}
   <section class="group">
     <div class="group-label danger">Danger zone</div>
-    <form hx-post="{% url 'web:org_delete' %}" hx-confirm="The organization and all its workspaces will be deleted. Continue?">
+    <form hx-post="{% url 'web:org_delete' org.slug %}" hx-confirm="The organization and all its workspaces will be deleted. Continue?">
       <button type="submit" class="btn danger">Delete organization</button>
     </form>
   </section>

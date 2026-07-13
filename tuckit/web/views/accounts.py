@@ -38,13 +38,13 @@ def invite_accept(request, token):
                 accept_invitation(token=token, user=request.user)
             except (InvalidValue, NotFound) as exc:
                 return render(request, "registration/invite_accept.html", {"invitation": invitation, "error": str(exc)})
-            return redirect("web:home")
+            return redirect("web:root")
         # anonymous: create the invited user (email locked) and join
         try:
             user, _member = register_invited(invitation=invitation, password=request.POST.get("password", ""))
         except (InvalidValue, NotFound) as exc:
             return render(request, "registration/invite_accept.html", {"invitation": invitation, "error": str(exc)})
         login(request, user)
-        return redirect("web:home")
+        return redirect("web:root")
 
     return render(request, "registration/invite_accept.html", {"invitation": invitation})

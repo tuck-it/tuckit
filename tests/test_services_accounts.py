@@ -22,7 +22,7 @@ def test_register_creates_user_org_workspace():
 @pytest.mark.django_db
 def test_register_does_not_set_username():
     user, _, _ = register(
-        email="a@b.com", org_name="S", slug="s", password="pw123456"
+        email="a@b.com", org_name="S", slug="s0", password="pw123456"
     )
     assert user.username is None
 
@@ -44,13 +44,13 @@ def test_register_duplicate_email_raises():
 @pytest.mark.django_db
 def test_register_rejects_empty_password():
     with pytest.raises(InvalidValue):
-        register(email="a@b.com", org_name="S", slug="s", password="")
+        register(email="a@b.com", org_name="S", slug="s0", password="")
 
 
 @pytest.mark.django_db
 def test_register_rejects_weak_password():
     with pytest.raises(InvalidValue):
-        register(email="a@b.com", org_name="S", slug="s", password="abc")
+        register(email="a@b.com", org_name="S", slug="s0", password="abc")
 
 
 @pytest.mark.django_db
@@ -65,5 +65,5 @@ def test_register_runs_signup_hook():
     import tests.test_services_accounts as mod
     mod._hook = _hook
     with override_settings(TUCKIT_SIGNUP_HOOK="tests.test_services_accounts._hook"):
-        register(email="h@b.com", org_name="H", slug="h", password="pw123456")
-    assert seen["ok"] == ("h@b.com", "h")
+        register(email="h@b.com", org_name="H", slug="h0", password="pw123456")
+    assert seen["ok"] == ("h@b.com", "h0")

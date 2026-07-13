@@ -1,4 +1,4 @@
-{% load static %}
+{% load static web_extras %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -18,7 +18,7 @@
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <div class="w-topbar">
     <div class="w-brand">tuck<span>it</span></div>
-    <a class="w-skip" href="{% url 'web:home' %}">Skip setup</a>
+    <a class="w-skip" href="{% wurl 'web:home' %}">Skip setup</a>
   </div>
   <main class="w-stage" id="w-stage" x-data="{step:0}" x-cloak>
     <div class="w-dots"><i :class="{on:step===0}"></i><i :class="{on:step===1}"></i></div>
@@ -52,7 +52,7 @@
         <span class="w-radar"></span>
         <span class="lt"><b>Listening for your agent…</b> ask it to capture or create something.</span>
       </div>
-      <div class="w-nav"><button type="button" class="button w-ghost" @click="step=0">← Back</button><div class="grow"></div><a class="w-skip" href="{% url 'web:home' %}">Skip for now</a></div>
+      <div class="w-nav"><button type="button" class="button w-ghost" @click="step=0">← Back</button><div class="grow"></div><a class="w-skip" href="{% wurl 'web:home' %}">Skip for now</a></div>
     </section>
   </main>
   <script>

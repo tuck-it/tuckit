@@ -18,9 +18,42 @@
           <input id="reg-org" name="org_name" value="{{ values.org_name }}" autocomplete="organization" required>
         </div>
         <div class="auth-field">
-          <label for="reg-slug">Organization slug</label>
-          <input id="reg-slug" name="slug" value="{{ values.slug }}" required>
+          <label for="reg-slug">Organization URL</label>
+          <div class="slug-preview">app.tuckit.dev/<span id="slug-echo">{{ values.slug|default:"your-org" }}</span></div>
+          <input id="reg-slug" name="slug" value="{{ values.slug }}" pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?" maxlength="32" required>
+          <small id="slug-status" class="field-hint"></small>
         </div>
+        <script>
+        (function () {
+          var name = document.getElementById('reg-org');
+          var slug = document.getElementById('reg-slug');
+          var echo = document.getElementById('slug-echo');
+          var status = document.getElementById('slug-status');
+          var edited = slug.value.length > 0;
+          function slugify(s) {
+            return s.toLowerCase().trim()
+              .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
+          }
+          function refreshEcho() { echo.textContent = slug.value || 'your-org'; }
+          name.addEventListener('input', function () {
+            if (!edited) { slug.value = slugify(name.value); refreshEcho(); check(); }
+          });
+          slug.addEventListener('input', function () { edited = true; refreshEcho(); check(); });
+          var t;
+          function check() {
+            clearTimeout(t);
+            t = setTimeout(function () {
+              if (!slug.value) { status.textContent = ''; return; }
+              fetch('/settings/check-slug?kind=org&slug=' + encodeURIComponent(slug.value))
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                  status.textContent = d.available ? '사용 가능' : (d.error || '사용 불가');
+                  status.className = 'field-hint ' + (d.available ? 'ok' : 'err');
+                });
+            }, 250);
+          }
+        })();
+        </script>
         <div class="auth-field">
           <label for="reg-password">Password</label>
           <input id="reg-password" type="password" name="password" autocomplete="new-password" required>

@@ -25,7 +25,7 @@ def test_login_grants_access(client, workspace):
     user.set_password("pw123456")
     user.save()
     assert client.login(username="local@tuckit.local", password="pw123456")
-    resp = client.get("/")
+    resp = client.get("/", follow=True)
     assert resp.status_code == 200
 
 
@@ -46,7 +46,7 @@ def test_login_form_authenticates_by_email(client):
 
     ok = client.post("/login/", {"username": "e2e@x.com", "password": "pw12345678"})
     assert ok.status_code == 302
-    assert client.get("/").status_code == 200
+    assert client.get("/", follow=True).status_code == 200
 
     client.logout()
     bad = client.post("/login/", {"username": "e2e@x.com", "password": "nope"})

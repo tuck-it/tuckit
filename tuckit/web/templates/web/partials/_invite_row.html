@@ -2,7 +2,7 @@
   <span>{{ inv.email }} · {{ inv.get_role_display }}</span>
   {% if link %}<input readonly value="{{ link }}" onclick="this.select()">{% endif %}
   <button class="ghost" type="button"
-          hx-post="{% url 'web:invite_cancel' inv.id %}"
+          hx-post="{% url 'web:invite_cancel' org.slug inv.id %}"
           hx-target="closest .invite-row" hx-swap="outerHTML"
           hx-confirm="Cancel this invitation?">Cancel</button>
 </div>

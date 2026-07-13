@@ -8,8 +8,8 @@
     {% if state.bites %}
       <div class="panel">
         {% for bite in state.bites %}
-          <a class="slice-row" href="{% url 'web:slice' bite.slice.id %}"
-             hx-get="{% url 'web:slice' bite.slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
+          <a class="slice-row" href="{% wurl 'web:slice' bite.slice.id %}"
+             hx-get="{% wurl 'web:slice' bite.slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
             {% include "web/partials/_status_dot.html" with status=bite.status %}
             <span class="row-title">{{ bite.title }}</span>
             <span class="row-meta">{{ bite.slice.title }}</span>

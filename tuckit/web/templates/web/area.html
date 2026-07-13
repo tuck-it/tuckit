@@ -1,4 +1,5 @@
 {% extends "web/base.html" %}
+{% load web_extras %}
 {% block main %}
   <header class="page-head">
     <div class="page-head-l"><h1 class="page-title">{{ area.name }}</h1></div>
@@ -18,7 +19,7 @@
       <button class="slice-add-toggle" type="button" x-show="!add"
               x-on:click="add = true; $nextTick(() => $refs.addInput.focus())">+ Add slice</button>
       <form x-show="add" x-cloak
-            hx-post="{% url 'web:area_slice_create' area.slug %}"
+            hx-post="{% wurl 'web:area_slice_create' area.slug %}"
             hx-target="#area-list" hx-swap="outerHTML"
             hx-on::after-request="this.reset(); $refs.addInput.focus()">
         <input name="title" class="slice-add-input" x-ref="addInput"
