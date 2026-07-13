@@ -22,3 +22,23 @@ def test_area_view_other_workspace_404(client_local):
     other = Workspace.objects.create(org=other_org, name="O", slug="o")
     a = create_area(other, "Secret")
     assert client_local.get(f"/areas/{a.slug}/").status_code == 404
+
+
+@pytest.mark.django_db
+def test_area_header_uses_page_head_and_description(client_local, workspace):
+    a = create_area(workspace, "Backend")
+    a.description = "Payments and auth."
+    a.save()
+    body = client_local.get(f"/areas/{a.slug}/").content.decode()
+    assert 'class="page-head"' in body
+    assert 'class="page-title"' in body
+    assert 'class="area-desc"' in body
+    assert "Payments and auth." in body
+
+
+@pytest.mark.django_db
+def test_area_header_omits_description_when_blank(client_local, workspace):
+    a = create_area(workspace, "Backend")  # description defaults to ""
+    body = client_local.get(f"/areas/{a.slug}/").content.decode()
+    assert 'class="page-head"' in body
+    assert 'class="area-desc"' not in body

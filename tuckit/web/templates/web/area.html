@@ -1,14 +1,15 @@
 {% extends "web/base.html" %}
 {% block main %}
-  <div class="topbar">
-    <h1 class="area-title">{{ area.name }}</h1>
+  <header class="page-head">
+    <div class="page-head-l"><h1 class="page-title">{{ area.name }}</h1></div>
     <div class="view-toggle">
       <a class="view-toggle-link{% if view == 'list' %} view-toggle-link--active{% endif %}"
          href="?view=list">List</a>
       <a class="view-toggle-link{% if view == 'board' %} view-toggle-link--active{% endif %}"
          href="?view=board">Board</a>
     </div>
-  </div>
+  </header>
+  {% if area.description %}<p class="area-desc">{{ area.description }}</p>{% endif %}
   {% if view == "board" %}
     {% include "web/partials/_board.html" %}
     {% if not has_any_slice %}
