@@ -9,6 +9,7 @@ from tuckit.core.services.state import (
     ROADMAP_STATUS_KEYS,
     in_progress_state,
     recent_activity,
+    cap_shipped,
 )
 from tuckit.core.services.onboarding import onboarding_state
 from tuckit.web.auth import get_current_workspace
@@ -18,14 +19,22 @@ def home(request):
     ws = get_current_workspace(request)
     ob = onboarding_state(ws) if ws else None
     show_get_started = bool(ws and not ws.onboarding_dismissed and ob and not ob.done)
+    state = home_state(ws) if ws else {}
+    shipped_total = shipped_hidden = 0
+    if ws:
+        visible, shipped_total = cap_shipped(ws, state.get("shipped", []))
+        shipped_hidden = shipped_total - len(visible)
+        state = {**state, "shipped": visible}
     return render(request, "web/home.html", {
         "workspace": ws,
-        "state": home_state(ws) if ws else {},
+        "state": state,
         "in_progress": in_progress_state(ws) if ws else {"slices": [], "bites": []},
         "roadmap": roadmap_state(ws) if ws else {},
         "recent_activity": recent_activity(ws) if ws else [],
         "onboarding": ob,
         "show_get_started": show_get_started,
+        "shipped_total": shipped_total,
+        "shipped_hidden": shipped_hidden,
     })
 
 
