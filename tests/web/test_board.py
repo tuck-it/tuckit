@@ -1,4 +1,8 @@
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
+
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.models import Org, Slice, Workspace
@@ -242,3 +246,21 @@ def test_workspace_move_rerender_keeps_shipped_footer(client_local, workspace):
     )
     body = resp.content.decode()
     assert "View all shipped (2)" in body
+
+
+@pytest.mark.django_db
+def test_board_days_mode_shipped_outside_window_still_counts_as_slice(client_local, workspace):
+    """In days mode, a shipped slice completed outside the window is capped out
+    of the visible column, but it still counts as "a slice exists" — the board
+    must not show the empty-board hint alongside the shipped overflow footer."""
+    workspace.shipped_board_mode = "days"
+    workspace.shipped_board_limit = 7
+    workspace.save(update_fields=["shipped_board_mode", "shipped_board_limit"])
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    s = create_slice(a, "old shipped one", status="shipped")
+    s.completed_at = timezone.now() - timedelta(days=90)
+    s.save(update_fields=["completed_at"])
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "Nothing here yet — add a slice" not in body
+    assert "View all shipped (1)" in body

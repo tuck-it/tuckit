@@ -72,7 +72,7 @@ def roadmap(request):
         "state": board["state"],
         "groups": board["groups"],
         "view": view,
-        "has_any_slice": any(board["state"].values()),
+        "has_any_slice": any(v for k, v in board["state"].items() if k != "shipped") or board["shipped_total"] > 0,
         # Board tab spans every area, so surface each slice's area on its card/row.
         "show_area": True,
         "board_scope": "workspace",

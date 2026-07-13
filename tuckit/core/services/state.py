@@ -166,7 +166,7 @@ def cap_shipped(workspace: Workspace, shipped: list) -> tuple[list, int]:
         cutoff = timezone.now() - timedelta(days=workspace.shipped_board_limit)
         visible = [s for s in shipped if s.completed_at and s.completed_at >= cutoff]
     else:  # count
-        visible = list(shipped[: workspace.shipped_board_limit])
+        visible = shipped[: workspace.shipped_board_limit]
     return visible, total
 
 
