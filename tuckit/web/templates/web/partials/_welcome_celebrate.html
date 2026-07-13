@@ -1,0 +1,9 @@
+<div class="w-dots"><i></i><i></i></div>
+<section class="w-celebrate">
+  <div class="w-seal"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+  <p class="w-eyebrow" style="color:var(--good)">Connected</p>
+  <h1>Your agent just joined the workspace.</h1>
+  <div class="w-won"><span class="w-who agent">🤖</span><span class="w-line"><span class="actor">agent</span><span class="verb">{{ event.verb }}</span><span class="t">"{{ event.target_label }}"</span></span></div>
+  <p class="w-lede" style="margin:20px auto 0">From now on you'll see everything it does here — and tuckit will flag anything that needs you.</p>
+  <div class="w-nav" style="justify-content:center"><a class="button button-primary" href="{% url 'web:home' %}">Go to your workspace →</a></div>
+</section>

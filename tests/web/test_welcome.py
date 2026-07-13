@@ -1,7 +1,7 @@
 import pytest
 from django.test import override_settings
 
-from tuckit.core.models import ApiToken, User
+from tuckit.core.models import ApiToken, User, ActivityEvent, Slice, Area
 
 
 @pytest.mark.django_db
@@ -34,3 +34,33 @@ def test_signup_redirects_to_welcome(client):
     })
     assert resp.status_code == 302
     assert resp["Location"].endswith("/welcome/")
+
+
+@pytest.mark.django_db
+def test_agent_check_waits_then_celebrates(client_local, workspace):
+    # no agent activity yet → 204
+    r = client_local.get("/welcome/agent-activity?since=0")
+    assert r.status_code == 204
+    # an agent write appears
+    ev = ActivityEvent.objects.create(
+        workspace=workspace, actor="agent", verb="created",
+        target_type="slice", target_id=1, target_label="Draft onboarding checklist",
+    )
+    r = client_local.get("/welcome/agent-activity?since=0")
+    assert r.status_code == 200
+    assert "Draft onboarding checklist" in r.content.decode()
+
+
+@pytest.mark.django_db
+def test_agent_check_ignores_human_and_old_events(client_local, workspace):
+    old = ActivityEvent.objects.create(
+        workspace=workspace, actor="agent", verb="created",
+        target_type="slice", target_id=1, target_label="old",
+    )
+    # a later human event must NOT celebrate
+    ActivityEvent.objects.create(
+        workspace=workspace, actor="human", verb="created",
+        target_type="slice", target_id=2, target_label="mine",
+    )
+    r = client_local.get(f"/welcome/agent-activity?since={old.id}")
+    assert r.status_code == 204

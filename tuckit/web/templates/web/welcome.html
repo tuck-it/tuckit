@@ -45,7 +45,10 @@
       <h1>Point your agent at this workspace.</h1>
       <p class="w-lede">Your agent reads and writes tuckit over <b>MCP</b>. Add the endpoint and key below to your agent, then ask it to add something.</p>
       <div id="w-key">{% include "web/partials/_welcome_key.html" %}</div>
-      <div class="w-listen">
+      <div class="w-listen"
+           hx-get="{% url 'web:welcome_agent_check' %}?since={{ baseline }}"
+           hx-trigger="load delay:3s, every 3s"
+           hx-target="#w-stage" hx-swap="innerHTML">
         <span class="w-radar"></span>
         <span class="lt"><b>Listening for your agent…</b> ask it to capture or create something.</span>
       </div>

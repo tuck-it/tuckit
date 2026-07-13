@@ -16,6 +16,7 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("welcome/", welcome_views.welcome, name="welcome"),
     path("welcome/key", welcome_views.welcome_generate_key, name="welcome_generate_key"),
+    path("welcome/agent-activity", welcome_views.welcome_agent_check, name="welcome_agent_check"),
     path("", pages.home, name="home"),
     path("capture", capture.capture, name="capture"),
     path("triage/", capture.triage_list, name="triage"),
