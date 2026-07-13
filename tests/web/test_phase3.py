@@ -5,8 +5,9 @@ import pytest
 def test_triage_heading_has_count_and_capture(client_local, workspace):
     from tuckit.core.services.areas import get_or_create_triage
     from tuckit.core.services.slices import create_slice
+    p = f"/{workspace.org.slug}/{workspace.slug}"
     create_slice(get_or_create_triage(workspace), "loose end")
-    body = client_local.get("/triage/").content.decode()
+    body = client_local.get(f"{p}/triage/").content.decode()
     assert 'class="page-head"' in body
     assert 'class="page-count"' in body
     assert "cap = true" in body                     # capture action in heading
@@ -16,8 +17,9 @@ def test_triage_heading_has_count_and_capture(client_local, workspace):
 def test_triage_row_shows_provenance_and_english_controls(client_local, workspace):
     from tuckit.core.services.areas import get_or_create_triage
     from tuckit.core.services.slices import create_slice
+    p = f"/{workspace.org.slug}/{workspace.slug}"
     create_slice(get_or_create_triage(workspace), "loose end")
-    body = client_local.get("/triage/").content.decode()
+    body = client_local.get(f"{p}/triage/").content.decode()
     assert 'class="triage-controls"' in body        # controls grouped for reveal
     assert "Assign area" in body
     assert ">Status" in body
@@ -32,7 +34,8 @@ def test_slice_panel_order_and_close_aria(client_local, workspace):
     a = create_area(workspace, "Backend")
     s = create_slice(a, "panel order", status="building", tags=["billing"])
     create_bite(s, "step one")
-    body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'aria-label="Close panel"' in body
     assert "Open full" in body
     assert "Backend" in body                         # Area context near title
@@ -44,14 +47,16 @@ def test_slice_panel_order_and_close_aria(client_local, workspace):
 def test_slice_panel_renders_segmented_status(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
+    p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "Backend"), "seg", status="building")
-    body = client_local.get(f"/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="seg"' in body and 'seg-item--on' in body
 
 
 @pytest.mark.django_db
 def test_slide_over_container_is_labelled_dialog(client_local, workspace):
-    body = client_local.get("/").content.decode()
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/").content.decode()
     assert 'id="panel"' in body
     assert 'role="dialog"' in body
     assert 'aria-modal="true"' in body
