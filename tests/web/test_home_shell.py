@@ -49,3 +49,15 @@ def test_switcher_is_custom_popover_not_native_select(client_local, workspace):
     assert '<select name="workspace_id"' not in body   # native 2001 dropdown gone
     assert 'name="workspace_id"' in body          # switch form contract intact
     assert 'action="/switch-workspace"' in body   # posts to existing endpoint
+
+
+@pytest.mark.django_db
+def test_nav_order_queues_before_states_activity_last(client_local, workspace):
+    body = client_local.get("/").content.decode()
+    i_att = body.find(">Attention<")
+    i_tri = body.find(">Triage<")
+    i_prog = body.find(">In Progress<")
+    i_road = body.find(">Roadmap<")
+    i_act = body.find(">Activity<")
+    assert -1 not in (i_att, i_tri, i_prog, i_road, i_act)
+    assert i_att < i_tri < i_prog < i_road < i_act

@@ -9,6 +9,9 @@
     <a class="nav{% if request.resolver_match.url_name == 'attention' %} nav--active{% endif %}"
        href="{% url 'web:attention' %}">{% icon "attention" %}<span class="nav-label">Attention</span>
        {% if attention_count %}<span class="nav-count">{{ attention_count }}</span>{% endif %}</a>
+    <a class="nav{% if request.resolver_match.url_name == 'triage' %} nav--active{% endif %}"
+       href="{% url 'web:triage' %}">{% icon "triage" %}<span class="nav-label">Triage</span>
+       {% include "web/partials/_triage_count.html" %}</a>
     <a class="nav{% if request.resolver_match.url_name == 'in_progress' %} nav--active{% endif %}"
        href="{% url 'web:in_progress' %}">{% icon "in-progress" %}<span class="nav-label">In Progress</span>
        {% if in_progress_count %}<span class="nav-count">{{ in_progress_count }}</span>{% endif %}</a>
@@ -16,9 +19,6 @@
        href="{% url 'web:roadmap' %}">{% icon "roadmap" %}<span class="nav-label">Roadmap</span></a>
     <a class="nav{% if request.resolver_match.url_name == 'activity' %} nav--active{% endif %}"
        href="{% url 'web:activity' %}">{% icon "activity" %}<span class="nav-label">Activity</span></a>
-    <a class="nav{% if request.resolver_match.url_name == 'triage' %} nav--active{% endif %}"
-       href="{% url 'web:triage' %}">{% icon "triage" %}<span class="nav-label">Triage</span>
-       {% include "web/partials/_triage_count.html" %}</a>
   </nav>
 
   <div class="nav-sep"></div>
