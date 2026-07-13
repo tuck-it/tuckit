@@ -23,3 +23,25 @@ def check_slug(request):
     if taken:
         return JsonResponse({"available": False, "error": "이미 사용 중입니다"})
     return JsonResponse({"available": True, "error": None})
+
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+
+from tuckit.core.models import OrgMember
+from tuckit.core.services.orgs import accessible_workspaces
+
+
+@login_required
+def root_redirect(request):
+    ws_id = request.session.get("active_workspace_id")
+    ws = None
+    if ws_id:
+        ws = Workspace.objects.filter(pk=ws_id).select_related("org").first()
+        if ws and not OrgMember.objects.filter(user=request.user, org=ws.org).exists():
+            ws = None
+    if ws is None:
+        ws = accessible_workspaces(request.user).select_related("org").first()
+    if ws is None:
+        return redirect("web:welcome")
+    return redirect("web:home", org_slug=ws.org.slug, ws_slug=ws.slug)
