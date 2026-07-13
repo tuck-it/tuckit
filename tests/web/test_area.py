@@ -70,3 +70,39 @@ def test_area_list_empty_copy_is_english(client_local, workspace):
     body = client_local.get(f"/areas/{a.slug}/").content.decode()
     assert "No slices yet." in body
     assert "아직 Slice가 없어요" not in body
+
+
+@pytest.mark.django_db
+def test_add_slice_creates_idea_slice_in_area(client_local, workspace):
+    from tuckit.core.models import Slice
+    a = create_area(workspace, "Backend")
+    resp = client_local.post(f"/areas/{a.slug}/slices", {"title": "new idea"},
+                             HTTP_HX_REQUEST="true")
+    assert resp.status_code == 200
+    s = Slice.objects.get(area=a, title="new idea")
+    assert s.status == "idea"
+    body = resp.content.decode()
+    assert 'id="area-list"' in body
+    assert "new idea" in body
+
+
+@pytest.mark.django_db
+def test_add_slice_ignores_blank_title(client_local, workspace):
+    from tuckit.core.models import Slice
+    a = create_area(workspace, "Backend")
+    resp = client_local.post(f"/areas/{a.slug}/slices", {"title": "   "},
+                             HTTP_HX_REQUEST="true")
+    assert resp.status_code == 200
+    assert Slice.objects.filter(area=a).count() == 0
+    assert 'id="area-list"' in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_add_slice_other_workspace_404(client_local):
+    from tuckit.core.models import Org, Workspace
+    other_org = Org.objects.create(name="Other Org", slug="other-org")
+    other = Workspace.objects.create(org=other_org, name="O", slug="o")
+    a = create_area(other, "Secret")
+    resp = client_local.post(f"/areas/{a.slug}/slices", {"title": "x"},
+                             HTTP_HX_REQUEST="true")
+    assert resp.status_code == 404

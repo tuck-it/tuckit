@@ -14,6 +14,18 @@
     {% include "web/partials/_board.html" %}
     {% if not has_any_slice %}<div class="empty muted">No slices yet.</div>{% endif %}
   {% else %}
+    <div class="slice-add" x-data="{ add: false }">
+      <button class="slice-add-toggle" type="button" x-show="!add"
+              x-on:click="add = true; $nextTick(() => $refs.addInput.focus())">+ Add slice</button>
+      <form x-show="add" x-cloak
+            hx-post="{% url 'web:area_slice_create' area.slug %}"
+            hx-target="#area-list" hx-swap="outerHTML"
+            hx-on::after-request="this.reset(); $refs.addInput.focus()">
+        <input name="title" class="slice-add-input" x-ref="addInput"
+               placeholder="Add a slice…" autocomplete="off"
+               x-on:keydown.escape="add = false">
+      </form>
+    </div>
     {% include "web/partials/_area_list.html" %}
   {% endif %}
 {% endblock %}

@@ -228,6 +228,21 @@ body { padding: 0; }
   outline: none;
 }
 
+/* Inline "+ Add slice" on the Area list. */
+.slice-add { margin: 0 0 18px; }
+.slice-add-toggle {
+  background: none; border: none; color: var(--ink-faint);
+  font: inherit; cursor: pointer; padding: 4px 0;
+}
+.slice-add-toggle:hover { color: var(--ink-soft); }
+.slice-add-input {
+  width: 100%; max-width: 420px;
+  background: var(--paper-raised); border: 1px solid var(--line);
+  border-radius: var(--radius-small); color: var(--ink);
+  font: inherit; padding: 8px 10px;
+}
+.slice-add-input:focus { border-color: var(--blue); outline: none; }
+
 /* Triage row — bare flex row inside .panel (which supplies surface + dividers);
    the Area/Status selects are quiet until the row is hovered/focused. */
 .triage-row {

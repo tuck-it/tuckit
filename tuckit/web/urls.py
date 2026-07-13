@@ -23,6 +23,7 @@ urlpatterns = [
     path("activity/", pages.activity, name="activity"),
     path("areas/new", capture.area_create, name="area_create"),
     path("areas/<slug:slug>/", slices.area_view, name="area"),
+    path("areas/<slug:slug>/slices", capture.area_slice_create, name="area_slice_create"),
     path("areas/<int:area_id>/rename", capture.area_rename, name="area_rename"),
     path("areas/<int:area_id>/delete", capture.area_delete, name="area_delete"),
     path("areas/<int:area_id>/reorder", capture.area_reorder, name="area_reorder"),
