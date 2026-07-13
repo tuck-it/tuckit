@@ -18,6 +18,7 @@ urlpatterns = [
     path("welcome/key", welcome_views.welcome_generate_key, name="welcome_generate_key"),
     path("welcome/agent-activity", welcome_views.welcome_agent_check, name="welcome_agent_check"),
     path("", pages.home, name="home"),
+    path("onboarding/dismiss", pages.dismiss_onboarding, name="onboarding_dismiss"),
     path("capture", capture.capture, name="capture"),
     path("triage/", capture.triage_list, name="triage"),
     path("attention/", pages.attention, name="attention"),

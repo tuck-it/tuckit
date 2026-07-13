@@ -958,6 +958,25 @@ body { padding: 0; }
 .activity-target { color: var(--text); }
 .activity-time { flex: 0 0 auto; font-size: 12px; }
 
+/* First-run "Get started" checklist card (Home). */
+.get-started{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  margin-bottom:24px;overflow:hidden}
+.gs-head{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 18px 12px}
+.gs-title{margin:0;font-size:16px;font-weight:640;letter-spacing:-.01em}
+.gs-sub{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.gs-dismiss{background:none;border:0;color:var(--muted);font:inherit;font-size:12.5px;cursor:pointer}
+.gs-dismiss:hover{color:var(--text)}
+.gs-list{margin:0;padding:0;list-style:none}
+.gs-list li{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--line);font-size:14.5px}
+.gs-box{width:19px;height:19px;border-radius:var(--radius-small);border:1.6px solid var(--line-strong);
+  flex:none;display:grid;place-items:center;font-size:11px;color:transparent}
+.gs-list li.done .gs-box{background:var(--good);border-color:var(--good);color:var(--paper-raised)}
+.gs-lbl{flex:1}
+.gs-list li.done .gs-lbl{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.gs-go{font-family:var(--mono,ui-monospace);font-size:12px;color:var(--accent);text-decoration:none}
+.gs-list li.done .gs-go{visibility:hidden}
+.gs-go kbd{font-family:inherit;border:1px solid var(--line);border-radius:4px;padding:0 5px}
+
 /* --- Mobile shell (<768px): top bar + off-canvas menu --- */
 .topbar-mobile { display: none; }
 .sidebar-wrap { display: contents; }

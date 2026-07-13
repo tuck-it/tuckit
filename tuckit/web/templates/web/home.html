@@ -8,6 +8,8 @@
       {% icon "plus" %}<span>Capture</span></button>
   </header>
 
+  {% if show_get_started %}{% include "web/partials/_get_started.html" %}{% endif %}
+
   <section class="group">
     {% include "web/partials/_group_label.html" with label="Needs you" count=state.attention|length attention=True %}
     {% include "web/partials/_attention_panel.html" with items=state.attention %}
