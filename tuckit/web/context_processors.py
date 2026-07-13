@@ -62,4 +62,16 @@ def switchable_workspaces(request):
     current view happens to pass workspace data itself."""
     if not request.user.is_authenticated:
         return {"switchable_workspaces": []}
-    return {"switchable_workspaces": list(accessible_workspaces(request.user))}
+    workspaces = sorted(
+        accessible_workspaces(request.user),
+        key=lambda w: (w.org.name, w.name),
+    )
+    return {"switchable_workspaces": workspaces}
+
+
+def current_workspace(request):
+    """Expose the active workspace to every template so the sidebar switcher's
+    trigger can always show the current org · workspace identity, regardless of
+    whether the current view happens to pass `workspace` itself."""
+    ws = get_current_workspace(request)
+    return {"current_workspace": ws} if ws else {}
