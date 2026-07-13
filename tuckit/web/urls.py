@@ -24,7 +24,7 @@ auth_patterns = [
 
 # --- settings hub (cross-cutting; explicit slugs) ---
 settings_patterns = [
-    path("settings/check-slug", routing.check_slug, name="check_slug"),
+    path("settings/check-slug", login_not_required(routing.check_slug), name="check_slug"),
     path("settings/account", settings_account.account_settings, name="settings_account"),
     path("settings/account/orgs", settings_account.org_create, name="account_org_create"),
     path("settings/account/orgs/<int:org_id>/leave", settings_account.org_leave, name="account_org_leave"),
