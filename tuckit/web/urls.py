@@ -2,7 +2,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_not_required
 from django.urls import path
 
-from tuckit.web.views import pages, slices, mutations, board, capture, health, workspaces, accounts, settings_org, settings_account, welcome as welcome_views
+from tuckit.web.views import pages, slices, mutations, board, capture, health, workspaces, accounts, settings_org, settings_account, welcome as welcome_views, routing
 from tuckit.web.views import settings as settings_views
 
 app_name = "web"
@@ -40,6 +40,7 @@ urlpatterns = [
     path("slices/<int:slice_id>/triage", capture.triage, name="slice_triage"),
     path("bites/<int:bite_id>/toggle", mutations.bite_toggle, name="bite_toggle"),
     path("bites/<int:bite_id>/body", mutations.bite_body, name="bite_body"),
+    path("settings/check-slug", routing.check_slug, name="check_slug"),
     path("settings/", settings_views.settings, name="settings"),
     path("settings/workspace", settings_views.workspace_settings, name="settings_workspace"),
     path("settings/tokens", settings_views.token_create, name="token_create"),
