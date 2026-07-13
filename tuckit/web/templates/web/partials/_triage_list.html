@@ -1,4 +1,4 @@
 <div class="panel" id="triage-list"{% if oob %} hx-swap-oob="true"{% endif %}>
   {% for slice in slices %}{% include "web/partials/_triage_row.html" %}{% endfor %}
-  {% if not slices %}<div class="empty muted" id="triage-empty">Nothing to triage right now.</div>{% endif %}
+  {% if not slices %}<div class="empty muted" id="triage-empty">Nothing to triage. Capture an idea (press C) — or let your agent add one.</div>{% endif %}
 </div>
