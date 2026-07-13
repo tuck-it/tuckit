@@ -4,9 +4,10 @@ from tuckit.core.models import Area, Org, OrgMember, User, Workspace
 from tuckit.core.services.orgs import (
     accessible_workspaces, user_can_access_workspace, is_org_admin, seat_count, create_workspace,
     is_org_owner, rename_org, list_org_members, change_member_role, remove_member, delete_workspace,
-    create_org, list_user_orgs, leave_org, _unique_org_slug,
+    create_org, list_user_orgs, leave_org, _unique_org_slug, _unique_ws_slug,
 )
 from tuckit.core.services.exceptions import InvalidValue
+from tuckit.core.services.slugs import validate_slug
 
 
 @pytest.fixture
@@ -279,6 +280,39 @@ def test_create_org_rejects_reserved_slug():
 def test_auto_org_slug_avoids_reserved():
     # name "Admin" slugifies to reserved "admin" -> must be escaped
     assert _unique_org_slug("Admin") != "admin"
+
+
+@pytest.mark.django_db
+def test_auto_org_slug_meets_min_length():
+    # slugify("A") == "a" (1 char) -> below the 2-char floor unless padded
+    slug = _unique_org_slug("A")
+    validate_slug(slug, kind="org")  # must not raise
+    assert len(slug) >= 2
+
+
+@pytest.mark.django_db
+def test_auto_ws_slug_meets_min_length(org_with_owner):
+    org, _ = org_with_owner
+    slug = _unique_ws_slug(org, "A")
+    validate_slug(slug, kind="workspace")  # must not raise
+    assert len(slug) >= 2
+
+
+@pytest.mark.django_db
+def test_auto_org_slug_no_trailing_hyphen_after_truncation():
+    # slugify(name) is 37 chars with a hyphen at index 31 -> naive [:32] truncation
+    # would cut right after that hyphen, leaving a trailing "-" that fails validate_slug.
+    name = "a" * 31 + "-bcdef"
+    slug = _unique_org_slug(name)
+    validate_slug(slug, kind="org")  # must not raise
+
+
+@pytest.mark.django_db
+def test_auto_ws_slug_no_trailing_hyphen_after_truncation(org_with_owner):
+    org, _ = org_with_owner
+    name = "a" * 31 + "-bcdef"
+    slug = _unique_ws_slug(org, name)
+    validate_slug(slug, kind="workspace")  # must not raise
 
 
 @pytest.mark.django_db

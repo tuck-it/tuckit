@@ -30,14 +30,16 @@ def seat_count(org) -> int:
 def _unique_ws_slug(org: Org, name: str) -> str:
     from django.utils.text import slugify
 
-    base = slugify(name)[:32] or "workspace"
+    base = slugify(name)[:32].strip("-") or "workspace"
+    if len(base) < 2:
+        base = (base + "workspace")[:32]
     if base in RESERVED_WORKSPACE_SLUGS:
         base = f"{base}-ws"
     candidate = base
     i = 2
     while Workspace.objects.filter(org=org, slug=candidate).exists():
         suffix = f"-{i}"
-        candidate = base[: 32 - len(suffix)] + suffix
+        candidate = base[: 32 - len(suffix)].rstrip("-") + suffix
         i += 1
     return candidate
 
@@ -58,14 +60,16 @@ def create_workspace(org: Org, name: str, slug: str | None = None) -> Workspace:
 def _unique_org_slug(name: str) -> str:
     from django.utils.text import slugify
 
-    base = slugify(name)[:32] or "org"
+    base = slugify(name)[:32].strip("-") or "org"
+    if len(base) < 2:
+        base = (base + "org")[:32]
     if base in RESERVED_ORG_SLUGS:
         base = f"{base}-org"
     candidate = base
     i = 2
     while Org.objects.filter(slug=candidate).exists():
         suffix = f"-{i}"
-        candidate = base[: 32 - len(suffix)] + suffix
+        candidate = base[: 32 - len(suffix)].rstrip("-") + suffix
         i += 1
     return candidate
 
