@@ -49,6 +49,21 @@ def test_home_attention_shows_reason_label(client_local, workspace):
 
 
 @pytest.mark.django_db
+def test_home_stale_building_slice_not_duplicated_in_now(client_local, workspace):
+    from datetime import timedelta
+    from django.utils import timezone
+    from tuckit.core.models import Slice
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    a = create_area(workspace, "제품")
+    s = create_slice(a, "정체된 빌딩 슬라이스", status="building")
+    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert "9d idle" in body                       # confirms it landed in Needs you/Attention
+    assert body.count("정체된 빌딩 슬라이스") == 1   # must not also repeat in the Now group
+
+
+@pytest.mark.django_db
 def test_home_all_clear_when_no_attention(client_local, workspace):
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert "Nothing needs your attention right now." in body       # confident done signal

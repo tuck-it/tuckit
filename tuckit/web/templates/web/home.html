@@ -15,7 +15,7 @@
 
   {% if show_get_started %}{% include "web/partials/_get_started.html" %}{% endif %}
 
-  {% include "web/partials/_status_group.html" with label="Now" slices=in_progress.slices empty_text="Nothing in progress. Move a slice to building and it shows up here." %}
+  {% include "web/partials/_status_group.html" with label="Now" slices=state.building empty_text="Nothing in progress. Move a slice to building and it shows up here." %}
 
   <section class="group">
     <div class="group-label">Doing</div>
