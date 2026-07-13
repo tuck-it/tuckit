@@ -17,7 +17,9 @@ def check_slug(request):
         taken = Org.objects.filter(slug=slug).exists()
     else:
         org = Org.objects.filter(slug=normalize_slug(request.GET.get("org", ""))).first()
-        taken = bool(org and Workspace.objects.filter(org=org, slug=slug).exists())
+        if not org:
+            return JsonResponse({"available": False, "error": "조직을 찾을 수 없습니다"})
+        taken = Workspace.objects.filter(org=org, slug=slug).exists()
     if taken:
         return JsonResponse({"available": False, "error": "이미 사용 중입니다"})
     return JsonResponse({"available": True, "error": None})

@@ -43,3 +43,29 @@ def test_workspace_slug_scoped_to_org(user_ctx):
     resp = client.get("/settings/check-slug",
                       {"kind": "workspace", "slug": "design", "org": "acme"})
     assert resp.json()["available"] is False  # 'design' exists in acme
+
+
+@pytest.mark.django_db
+def test_workspace_slug_available(user_ctx):
+    client, org, ws = user_ctx
+    resp = client.get("/settings/check-slug",
+                      {"kind": "workspace", "slug": "fresh", "org": "acme"})
+    assert resp.json() == {"available": True, "error": None}
+
+
+@pytest.mark.django_db
+def test_unknown_kind(user_ctx):
+    client, org, ws = user_ctx
+    resp = client.get("/settings/check-slug",
+                      {"kind": "bogus", "slug": "whatever"})
+    body = resp.json()
+    assert body["available"] is False and body["error"]
+
+
+@pytest.mark.django_db
+def test_workspace_missing_org(user_ctx):
+    client, org, ws = user_ctx
+    resp = client.get("/settings/check-slug",
+                      {"kind": "workspace", "slug": "fresh"})
+    body = resp.json()
+    assert body["available"] is False and body["error"]
