@@ -42,3 +42,31 @@ def test_area_header_omits_description_when_blank(client_local, workspace):
     body = client_local.get(f"/areas/{a.slug}/").content.decode()
     assert 'class="page-head"' in body
     assert 'class="area-desc"' not in body
+
+
+@pytest.mark.django_db
+def test_area_list_collapses_shipped_and_dropped(client_local, workspace):
+    a = create_area(workspace, "Backend")
+    create_slice(a, "building one", status="building")
+    create_slice(a, "shipped one", status="shipped")
+    create_slice(a, "dropped one", status="dropped")
+    body = client_local.get(f"/areas/{a.slug}/").content.decode()
+    assert 'id="area-list"' in body
+    # shipped + dropped are inside <details>; building is not
+    shipped_pos = body.index("shipped one")
+    dropped_pos = body.index("dropped one")
+    building_pos = body.index("building one")
+    details_open = [m for m in range(len(body)) if body.startswith("<details", m)]
+    # both shipped and dropped titles follow a <details> that opens before them
+    assert any(d < shipped_pos for d in details_open)
+    assert any(d < dropped_pos for d in details_open)
+    # the building group is a plain <section class="group">, not wrapped in <details>
+    assert '<section class="group">' in body
+
+
+@pytest.mark.django_db
+def test_area_list_empty_copy_is_english(client_local, workspace):
+    a = create_area(workspace, "Empty")
+    body = client_local.get(f"/areas/{a.slug}/").content.decode()
+    assert "No slices yet." in body
+    assert "아직 Slice가 없어요" not in body

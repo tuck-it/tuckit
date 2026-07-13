@@ -12,15 +12,8 @@
   {% if area.description %}<p class="area-desc">{{ area.description }}</p>{% endif %}
   {% if view == "board" %}
     {% include "web/partials/_board.html" %}
-    {% if not has_any_slice %}
-      <div class="empty muted">아직 Slice가 없어요</div>
-    {% endif %}
+    {% if not has_any_slice %}<div class="empty muted">No slices yet.</div>{% endif %}
   {% else %}
-    {% for status, slices in groups %}
-      {% if slices %}{% include "web/partials/_status_group.html" with label=status slices=slices %}{% endif %}
-    {% endfor %}
-    {% if not has_any_slice %}
-      <div class="empty muted">아직 Slice가 없어요</div>
-    {% endif %}
+    {% include "web/partials/_area_list.html" %}
   {% endif %}
 {% endblock %}

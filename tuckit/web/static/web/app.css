@@ -407,6 +407,12 @@ body { padding: 0; }
 /* Section wrapper rhythm. */
 .group { display: flex; flex-direction: column; gap: 8px; margin: 0 0 26px; }
 
+/* Collapsed state groups (shipped / dropped) use a native <details>. */
+.group-fold { margin: 0 0 26px; }
+.group-fold-summary { cursor: pointer; list-style: none; margin-bottom: 0; }
+.group-fold-summary::-webkit-details-marker { display: none; }
+.group-fold[open] .group-fold-summary { margin-bottom: 8px; }
+
 /* Segmented status control — bordered group; active segment neutral-filled
    (var(--paper-deep)) + a status dot. Not a filled color chip. */
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-small); overflow: hidden; }
