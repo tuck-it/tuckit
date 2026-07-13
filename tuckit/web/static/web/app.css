@@ -600,6 +600,10 @@ body { padding: 0; }
   align-items: center;
   gap: 6px;
   padding: 0;
+  /* Also carries .group-label (space-between) — override so the chevron + text
+     stay together and left-align under NOW/NEXT instead of splitting to the edges. */
+  justify-content: flex-start;
+  align-self: flex-start;
 }
 
 .icon-chev { width: 14px; height: 14px; transition: transform 0.15s; }
@@ -668,6 +672,9 @@ body { padding: 0; }
   gap: 8px;
   padding: 14px 2px;
   color: var(--ink-faint);
+  /* A quiet note, not a headline — sits below the 16px content tier and above
+     the 11px header tier, so it stops out-shouting the NOW/NEXT labels. */
+  font-size: 13px;
 }
 .icon-clear { width: 16px; height: 16px; stroke: var(--good); }
 
