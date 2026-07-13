@@ -14,7 +14,7 @@ RESERVED_ORG_SLUGS = {
 }
 
 RESERVED_WORKSPACE_SLUGS = {
-    "settings", "new", "rename", "delete", "members", "workspaces",
+    "settings", "new", "rename", "delete", "members", "workspaces", "invites",
 }
 
 _RESERVED = {"org": RESERVED_ORG_SLUGS, "workspace": RESERVED_WORKSPACE_SLUGS}

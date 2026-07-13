@@ -5,7 +5,7 @@ from django.views.decorators.http import require_POST
 
 from tuckit.core.services.exceptions import InvalidValue, LimitReached
 from tuckit.core.services.invitations import cancel_invitation, create_invitation, send_invitation_email
-from tuckit.core.services.orgs import delete_workspace, is_org_admin
+from tuckit.core.services.orgs import delete_workspace, is_org_admin, rename_workspace
 from tuckit.core.services.tokens import list_tokens, generate_token, revoke_token
 from tuckit.web.auth import get_current_workspace
 from tuckit.web.htmx import redirect_response
@@ -41,8 +41,10 @@ def token_revoke(request, token_id):
 
 def workspace_rename(request):
     ws = get_current_workspace(request)
-    ws.name = request.POST["name"]
-    ws.save(update_fields=["name", "updated_at"])
+    try:
+        ws = rename_workspace(ws, request.POST.get("name", ""))
+    except InvalidValue as exc:
+        return HttpResponse(str(exc), status=400)
     return HttpResponse(ws.name)
 
 

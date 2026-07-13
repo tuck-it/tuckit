@@ -52,3 +52,11 @@ def test_workspace_reserved_rejected():
 def test_workspace_allows_words_reserved_only_for_org():
     # 'login' is an org reserved word but fine as a workspace slug
     assert validate_slug("login", kind="workspace") == "login"
+
+
+def test_invites_reserved_for_workspace_but_fine_for_org():
+    # /settings/<org>/invites is an org-level route; a workspace slug "invites"
+    # would collide with it at the same path depth.
+    with pytest.raises(InvalidValue):
+        validate_slug("invites", kind="workspace")
+    assert validate_slug("invites", kind="org") == "invites"

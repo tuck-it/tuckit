@@ -107,6 +107,17 @@ def rename_org(org: Org, name: str) -> Org:
     return org
 
 
+def rename_workspace(ws: Workspace, name: str) -> Workspace:
+    name = " ".join((name or "").split())
+    if not name:
+        raise InvalidValue("워크스페이스 이름을 입력하세요")
+    if Workspace.objects.filter(org=ws.org, name__iexact=name).exclude(pk=ws.pk).exists():
+        raise InvalidValue(f"이미 같은 이름의 워크스페이스가 있습니다: {name}")
+    ws.name = name
+    ws.save(update_fields=["name", "updated_at"])
+    return ws
+
+
 def list_org_members(org: Org):
     return OrgMember.objects.filter(org=org).select_related("user").order_by("created_at")
 
