@@ -19,6 +19,7 @@ def home(request):
     return render(request, "web/home.html", {
         "workspace": ws,
         "state": home_state(ws) if ws else {},
+        "in_progress": in_progress_state(ws) if ws else {"slices": [], "bites": []},
         "roadmap": roadmap_state(ws) if ws else {},
         "recent_activity": recent_activity(ws) if ws else [],
         "onboarding": ob,

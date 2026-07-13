@@ -84,9 +84,24 @@ def test_home_omits_roadmap_strip_and_recent_activity(client_local, workspace):
 def test_home_has_heading_and_capture(client_local, workspace):
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert 'class="page-head"' in body
-    assert "Needs you" in body and "Now" in body and "Next" in body
+    assert "Needs you" in body and "Now" in body and "Doing" in body
+    assert "Next" not in body                       # planned pipeline moved to Board
     # a capture action is present in the page header (reuses the capture modal)
     assert 'class="button button-small"' in body   # page-head Capture button
+
+
+@pytest.mark.django_db
+def test_home_shows_doing_bites_and_no_planned(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.bites import create_bite
+    a = create_area(workspace, "Backend")
+    s = create_slice(a, "빌딩 슬라이스", status="building")
+    create_bite(s, "지금 하는 것", status="doing")
+    create_slice(a, "다음 계획", status="planned")
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert "지금 하는 것" in body                    # doing bite on Home
+    assert "다음 계획" not in body                   # planned NOT on Home (it's on Board)
 
 
 @pytest.mark.django_db
