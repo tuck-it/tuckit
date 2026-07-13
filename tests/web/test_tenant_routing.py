@@ -17,19 +17,38 @@ def two_orgs(client, db):
     return client, u, org_a, ws_a, org_b, ws_b
 
 
-# NOTE: The full page-render 200 assertion (test_member_can_open_own_workspace)
-# and prefixed-link ({% wurl %}) template assertions are intentionally deferred
-# to the template-conversion task. Right now app templates still call
-# {% url 'web:home' %} (no args) and reference routes that changed, so a real
-# GET of /acme/<ws>/ would 500. This dispatch verifies the routing backend
-# (URL resolution/reversing + middleware access control) render-free.
-
-
 @pytest.mark.django_db
 def test_home_url_resolves_and_reverses(two_orgs):
     _client, _u, _org_a, ws_a, *_ = two_orgs
     assert reverse("web:home", args=["acme", ws_a.slug]) == f"/acme/{ws_a.slug}/"
     assert resolve(f"/acme/{ws_a.slug}/").view_name == "web:home"
+
+
+@pytest.mark.django_db
+def test_member_can_open_own_workspace(two_orgs):
+    client, u, org_a, ws_a, *_ = two_orgs
+    resp = client.get(f"/acme/{ws_a.slug}/")
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_app_page_links_are_prefixed(two_orgs):
+    client, u, org_a, ws_a, *_ = two_orgs
+    body = client.get(f"/acme/{ws_a.slug}/").content.decode()
+    # sidebar/home links must carry the /acme/<ws>/ prefix
+    assert f"/acme/{ws_a.slug}/triage/" in body
+    assert f"/acme/{ws_a.slug}/" in body
+
+
+@pytest.mark.django_db
+def test_switcher_renders_workspace_links(two_orgs):
+    client, u, org_a, ws_a, *_ = two_orgs
+    # give the user a second workspace to switch to
+    from tuckit.core.services.orgs import create_workspace
+    ws2 = create_workspace(org_a, "Marketing")
+    body = client.get(f"/acme/{ws_a.slug}/").content.decode()
+    assert f'href="/acme/{ws2.slug}/"' in body
+    assert "web:switch_workspace" not in body  # no leftover tag
 
 
 @pytest.mark.django_db

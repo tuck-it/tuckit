@@ -17,18 +17,16 @@
     {% for group in org_groups %}
       <div class="ws-menu-org">{{ group.grouper.name }}</div>
       {% for ws in group.list %}
-        <form method="post" action="{% url 'web:switch_workspace' %}" class="ws-menu-form">
-          {% csrf_token %}
-          <input type="hidden" name="workspace_id" value="{{ ws.id }}">
-          <button type="submit" class="ws-menu-item{% if ws.id == current_workspace.id %} ws-menu-item--active{% endif %}" role="menuitem">
-            <span class="ws-menu-name">{{ ws.name }}</span>
-            {% if ws.id == current_workspace.id %}{% icon "check" "icon ws-check" %}{% endif %}
-          </button>
-        </form>
+        <a href="{% url 'web:home' ws.org.slug ws.slug %}"
+           class="ws-menu-item{% if ws.id == current_workspace.id %} ws-menu-item--active{% endif %}" role="menuitem">
+          <span class="ws-menu-name">{{ ws.name }}</span>
+          {% if ws.id == current_workspace.id %}{% icon "check" "icon ws-check" %}{% endif %}
+        </a>
       {% endfor %}
     {% endfor %}
     <div class="ws-menu-sep"></div>
-    <a class="ws-menu-item ws-menu-settings" href="{% url 'web:settings_workspace' %}" role="menuitem">
+    <a class="ws-menu-item ws-menu-settings"
+       href="{% url 'web:settings_workspace' current_workspace.org.slug current_workspace.slug %}" role="menuitem">
       {% icon "settings" %}<span>Workspace settings</span>
     </a>
   </div>
