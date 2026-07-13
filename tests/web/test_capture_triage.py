@@ -119,3 +119,14 @@ def test_triage_foreign_area_404s(client_local, workspace):
     assert resp.status_code == 404
     s.refresh_from_db()
     assert s.area_id == inbox.id and s.status == "idea"
+
+@pytest.mark.django_db
+def test_inbox_heading_and_agent_source_badge(client_local, workspace):
+    from tuckit.core.services.areas import get_or_create_triage
+    from tuckit.core.services.slices import create_slice
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    tri = get_or_create_triage(workspace)
+    create_slice(tri, "에이전트가 만든 것", status="idea", source="agent")
+    body = client_local.get(f"{p}/triage/").content.decode()
+    assert '<h1 class="page-title">Inbox</h1>' in body       # renamed heading
+    assert 'class="source-badge is-agent"' in body           # agent item flagged

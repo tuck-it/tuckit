@@ -1017,6 +1017,13 @@ body { padding: 0; }
   min-width: 40px;
 }
 .activity-actor.is-agent { color: var(--accent); }
+.source-badge {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--ink-faint);
+  border: 1px solid var(--line); border-radius: var(--radius-small);
+  padding: 1px 6px; flex: 0 0 auto;
+}
+.source-badge.is-agent { color: var(--accent); border-color: var(--accent); }
 .activity-body { flex: 1 1 auto; min-width: 0; }
 .activity-target { color: var(--text); }
 .activity-time { flex: 0 0 auto; font-size: 12px; }
