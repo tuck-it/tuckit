@@ -1011,8 +1011,6 @@ body { padding: 0; }
 }
 .tag-input:focus { outline: none; border-color: var(--accent); }
 
-/* Status row — wraps the segmented status control. */
-.status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0; }
 .dropped-tag { color: var(--ink-faint); font-size: 12px; }
 
 .slice-activity { margin-top: 6px; }

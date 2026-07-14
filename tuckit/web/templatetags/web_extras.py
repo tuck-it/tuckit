@@ -32,6 +32,15 @@ def slice_push_url(context, slice_id):
     return urlunsplit(("", "", parts.path, urlencode(query), ""))
 
 
+@register.filter
+def ascii_int(value):
+    """The value as a str iff it is a plain ASCII decimal integer, else "".
+    Guards {% wurl 'web:slice' %} against input that passes str.isdigit but not the
+    <int:...> route (e.g. unicode digits '²'/'٤') which would raise NoReverseMatch."""
+    s = str(value)
+    return s if (s.isascii() and s.isdigit()) else ""
+
+
 @register.simple_tag(name="bite_progress")
 def bite_progress_tag(slice):
     done, total = bites_svc.bite_progress(slice)

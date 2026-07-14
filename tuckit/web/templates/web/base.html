@@ -60,7 +60,7 @@
     <main class="main">{% block main %}{% endblock %}</main>
   </div>
   <div id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title"
-       {% if request.GET.slice.isdigit %}hx-get="{% wurl 'web:slice' request.GET.slice %}?panel=1" hx-trigger="load" hx-target="#panel"{% endif %}
+       {% with sid=request.GET.slice|ascii_int %}{% if sid %}hx-get="{% wurl 'web:slice' sid %}?panel=1" hx-trigger="load" hx-target="#panel"{% endif %}{% endwith %}
        x-on:keydown.escape="$el.innerHTML.trim() && closePanel($el)"
        x-on:keydown.tab="trapPanel($event, $el)"></div>
   <div id="toast" class="toast" x-cloak></div>
@@ -91,14 +91,16 @@
       localStorage.setItem("sidebar-collapsed", on ? "1" : "0");
     }
     /* Slide-over focus management. #panel persists; htmx swaps its innerHTML.
-       Capture the opener before the swap, move focus in after it, restore on close. */
+       Capture the opener before the swap, move focus in after it, restore on close.
+       Also strips a `slice` query param from the URL on close (replaceState, not
+       pushState, so the back button doesn't reopen a just-closed panel). */
     function closePanel(el) {
       el.innerHTML = "";
       if (window.__panelOpener) { window.__panelOpener.focus(); window.__panelOpener = null; }
       var u = new URL(window.location.href);
       if (u.searchParams.has("slice")) {
         u.searchParams.delete("slice");
-        history.pushState({}, "", u.pathname + (u.search ? u.search : "") + u.hash);
+        history.replaceState({}, "", u.pathname + u.search + u.hash);
       }
     }
     /* Grow a textarea to fit its content — used by the seamless description editor

@@ -45,3 +45,19 @@ def test_page_with_nonnumeric_slice_param_does_not_crash_or_autoload(client_loca
     resp = client_local.get(f"{p}/?slice=abc")     # malformed id must not reverse() -> 500
     assert resp.status_code == 200
     assert 'hx-trigger="load"' not in resp.content.decode()
+
+
+def test_ascii_int_filter_rejects_unicode_and_nonnumeric():
+    from tuckit.web.templatetags.web_extras import ascii_int
+    assert ascii_int("12") == "12"
+    assert ascii_int("²") == ""       # unicode superscript: str.isdigit True but not ASCII
+    assert ascii_int("abc") == ""
+    assert ascii_int("") == ""
+
+
+@pytest.mark.django_db
+def test_page_with_unicode_digit_slice_param_does_not_crash_or_autoload(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    resp = client_local.get(f"{p}/", {"slice": "²"})   # passes str.isdigit but not the <int> route
+    assert resp.status_code == 200
+    assert 'hx-trigger="load"' not in resp.content.decode()

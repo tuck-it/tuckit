@@ -17,7 +17,7 @@
   <div class="props">
     <div class="prop-row">
       <span class="prop-key">Status</span>
-      <div class="prop-val status-select" x-data="{open:false}" x-on:keydown.escape="open=false">
+      <div class="prop-val status-select" x-data="{open:false}" x-on:keydown.escape="if (open) { open = false; $event.stopPropagation() }">
         <button type="button" class="status-pill" aria-haspopup="menu" x-on:click="open=!open" :aria-expanded="open">
           <span class="status-dot status-dot--{{ slice.status }}"></span>{{ slice.status }}{% icon "chevron" "icon" %}
         </button>
