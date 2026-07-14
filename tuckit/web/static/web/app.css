@@ -1469,3 +1469,14 @@ body { padding: 0; }
 .action-spacer { flex: 1; }
 .action-drop { color: var(--warn); border-color: transparent; }
 .action-drop:hover { border-color: var(--warn); }
+
+/* Timeline node — only visible inside a .timeline (slice panel Activity).
+   The global activity feed renders the same partial but has no .timeline
+   wrapper, so the node stays hidden there. */
+.tl-node { display: none; }
+.timeline { position: relative; }
+.timeline .activity-row { padding: 8px 0; }
+.timeline .tl-node { display: flex; justify-content: center; position: relative; flex: 0 0 auto; width: 12px; align-self: stretch; }
+.timeline .tl-node::before { content: ""; position: absolute; left: 50%; top: 14px; bottom: -8px; width: 1px; background: var(--line); transform: translateX(-50%); }
+.timeline .activity-row:last-child .tl-node::before { display: none; }
+.timeline .tl-node i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); margin-top: 6px; }

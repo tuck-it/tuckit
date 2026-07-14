@@ -1,4 +1,5 @@
 <div class="activity-row">
+  <span class="tl-node"><i></i></span>
   <span class="activity-actor{% if event.actor == 'agent' %} is-agent{% endif %}">{% if event.actor == 'agent' %}agent{% else %}you{% endif %}</span>
   <span class="activity-body">{{ event.get_verb_display }} <span class="activity-target">{{ event.target_label }}</span>{% if event.to_value %} <span class="muted">{{ event.from_value }} → {{ event.to_value }}</span>{% endif %}</span>
   <span class="activity-time muted">{{ event.created_at|timesince }}</span>

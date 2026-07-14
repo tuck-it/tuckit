@@ -175,6 +175,31 @@ def test_action_bar_has_copy_and_drop(client_local, workspace):
 
 
 @pytest.mark.django_db
+def test_context_tags_have_no_area_chip(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    s = create_slice(a, "태그")
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert 'class="section-label">Context' in body
+    assert "meta-area" not in body        # area chip removed from the tags row
+    assert "Add tag" in body
+
+
+@pytest.mark.django_db
+def test_activity_timeline_has_nodes(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice, set_slice_status
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    s = create_slice(create_area(workspace, "Design"), "타임라인", status="idea")
+    set_slice_status(s, "building")
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert 'class="timeline"' in body
+    assert 'class="tl-node"' in body      # a node marker per activity row
+
+
+@pytest.mark.django_db
 def test_slice_activity_helper_is_chronological_and_scoped(workspace):
     from tuckit.core.services.activity import slice_activity
     from tuckit.core.services.areas import create_area
