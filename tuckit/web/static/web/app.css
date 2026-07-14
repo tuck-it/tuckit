@@ -109,6 +109,17 @@ body { padding: 0; }
   padding: 12px 8px 4px;
 }
 
+.section.area-section { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.section.area-section > span { flex: 1 1 auto; }
+.area-add-btn {
+  flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px;
+  background: none; border: none; cursor: pointer; color: var(--ink-faint);
+  border-radius: var(--radius-small); padding: 0;
+}
+.area-add-btn:hover { background: var(--paper-raised); color: var(--ink); }
+.area-add-btn .icon { width: 14px; height: 14px; stroke: var(--ink-faint); }
+.section.area-section .area-add { flex: 1 1 100%; margin-top: 4px; }
+
 .nav {
   display: flex;
   align-items: center;
@@ -1268,25 +1279,27 @@ body { padding: 0; }
 }
 .area-item .area-link { flex: 1 1 auto; min-width: 0; }
 .area-item .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.area-actions {
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-.area-item:hover .area-actions { opacity: 1; }
+.area-menu { position: relative; opacity: 0; transition: opacity 0.12s ease; }
+.area-item:hover .area-menu { opacity: 1; }
 .area-act {
-  border: none;
-  background: none;
-  color: var(--ink-faint);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: var(--radius-small);
-  font-size: 13px;
-  line-height: 1;
+  border: none; background: none; color: var(--ink-faint); cursor: pointer;
+  padding: 2px 6px; border-radius: var(--radius-small); line-height: 1;
 }
 .area-act:hover { background: var(--paper-raised); color: var(--ink); }
-.area-act--danger:hover { color: var(--warn); }
+.area-act .icon { width: 15px; height: 15px; stroke: var(--ink-faint); }
+.area-menu-pop {
+  position: absolute; top: 100%; right: 0; z-index: 25; margin-top: 2px; padding: 4px;
+  min-width: 130px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 28px var(--shadow);
+}
+.area-menu-item {
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  font: inherit; color: var(--ink); cursor: pointer;
+  padding: 7px 9px; border-radius: var(--radius-small);
+}
+.area-menu-item:hover { background: var(--paper-raised); }
+.area-menu-item--danger { color: var(--warn); }
+.area-menu:focus-within { opacity: 1; }
 .area-rename { flex: 1 1 auto; padding: 2px 0; }
 .area-rename-input {
   width: 100%;
@@ -1446,7 +1459,8 @@ html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
   html.sidebar-collapsed .ws-chev,
   html.sidebar-collapsed .search-pill .nav-label,
   html.sidebar-collapsed .side-top-act:not(.side-collapse),
-  html.sidebar-collapsed .area-actions { display: none; }
+  html.sidebar-collapsed .area-menu,
+  html.sidebar-collapsed .area-add-btn { display: none; }
   html.sidebar-collapsed .side-top { flex-direction: column; gap: 6px; }
   html.sidebar-collapsed .nav,
   html.sidebar-collapsed .capture-btn,

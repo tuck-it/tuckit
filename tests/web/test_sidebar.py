@@ -56,3 +56,15 @@ def test_collapsed_rail_css_present():
     css = APP_CSS.read_text(encoding="utf-8")
     assert "html.sidebar-collapsed .sidebar" in css
     assert "@media (min-width: 768px)" in css       # desktop-scoped so mobile drawer is unaffected
+
+
+@pytest.mark.django_db
+def test_areas_header_add_and_row_menu(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    create_area(workspace, "Backend")
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert 'class="section area-section"' in body      # header row
+    assert 'class="area-add-btn"' in body               # + button in header
+    assert 'class="area-menu"' in body                  # per-row ⋮ popover
+    assert 'class="area-menu-item"' in body             # Rename item in popover
+    assert 'class="area-menu-item area-menu-item--danger"' in body  # Delete item wired to area_delete
