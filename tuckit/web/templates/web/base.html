@@ -95,6 +95,11 @@
     function closePanel(el) {
       el.innerHTML = "";
       if (window.__panelOpener) { window.__panelOpener.focus(); window.__panelOpener = null; }
+      var u = new URL(window.location.href);
+      if (u.searchParams.has("slice")) {
+        u.searchParams.delete("slice");
+        history.pushState({}, "", u.pathname + (u.search ? u.search : "") + u.hash);
+      }
     }
     /* Grow a textarea to fit its content — used by the seamless description editor
        so entering edit mode never jumps to a fixed-height box. */
