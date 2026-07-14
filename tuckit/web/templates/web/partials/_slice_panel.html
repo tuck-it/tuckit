@@ -43,12 +43,18 @@
     </div>
   </div>
 
-  <div class="spec-box">
-    <div class="spec" x-show="!editSpec" x-on:click="editSpec=true">{% if slice.spec %}{{ spec_html|safe }}{% else %}<span class="muted">설명을 추가하려면 클릭…</span>{% endif %}</div>
+  <div class="desc-block">
+    <div class="section-label">Description</div>
+    <div class="spec" x-show="!editSpec"
+         x-on:click="editSpec=true; $nextTick(()=>{ $refs.specEdit.focus(); autosize($refs.specEdit); })">{% if slice.spec %}{{ spec_html|safe }}{% else %}<span class="muted">설명을 추가하려면 클릭…</span>{% endif %}</div>
     <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}{{ panel_qs }}"
           hx-target="closest .panel-inner" hx-swap="outerHTML">
-      <textarea name="spec" class="spec-edit" rows="6">{{ slice.spec }}</textarea>
-      <button class="ghost" type="submit">Save</button>
+      <textarea name="spec" class="spec-edit" x-ref="specEdit" rows="2"
+                x-on:input="autosize($event.target)"
+                x-on:keydown.escape.stop="editSpec=false"
+                x-on:keydown.meta.enter.prevent="$el.form.requestSubmit()"
+                x-on:keydown.ctrl.enter.prevent="$el.form.requestSubmit()"
+                x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editSpec=false)">{{ slice.spec }}</textarea>
     </form>
   </div>
   <div class="bites-block">

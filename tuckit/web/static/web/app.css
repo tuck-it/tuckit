@@ -887,8 +887,9 @@ body { padding: 0; }
 .spec :is(p, ul, ol) { margin: 0 0 8px; }
 .spec pre { background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--radius-small); padding: 8px 10px; overflow-x: auto; }
 .spec code { font-family: var(--mono); font-size: 12px; }
-.spec-edit { width: 100%; background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius-small); color: var(--ink); font: inherit; padding: 8px 10px; resize: vertical; }
-.spec-edit:focus { outline: none; border-color: var(--blue); }
+.spec-edit { width: 100%; background: transparent; border: none; color: var(--ink);
+  font: inherit; line-height: 1.6; padding: 0; resize: none; overflow: hidden; }
+.spec-edit:focus { outline: none; }
 
 /* Bite row + checkbox — flat list item, filled square only on the done state
    (a form control affordance, not a status "chip"). */
@@ -1611,9 +1612,6 @@ html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
 /* Wide segmented status control: 4 equal columns, a dot on every tab. */
 .seg--tabs { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; }
 .seg--tabs .seg-item { justify-content: center; padding: 8px 6px; }
-
-.spec-box { border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--paper-solid); padding: 11px 13px; }
-.spec-box .spec-edit { margin-bottom: 8px; }
 
 .bites-block { display: flex; flex-direction: column; gap: 4px; }
 .bites-head { display: flex; align-items: center; gap: 10px; }

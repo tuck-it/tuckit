@@ -95,6 +95,9 @@
       el.innerHTML = "";
       if (window.__panelOpener) { window.__panelOpener.focus(); window.__panelOpener = null; }
     }
+    /* Grow a textarea to fit its content — used by the seamless description editor
+       so entering edit mode never jumps to a fixed-height box. */
+    function autosize(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
     function trapPanel(e, el) {
       if (!el.innerHTML.trim()) return;
       var f = Array.prototype.slice.call(
