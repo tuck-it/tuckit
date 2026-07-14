@@ -986,7 +986,9 @@ body { padding: 0; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 2px;
+  /* Lives inside a .panel now, so it carries the panel's own inner padding
+     rather than floating as bare text under the label. */
+  padding: 14px 16px;
   color: var(--ink-faint);
   /* A quiet note, not a headline — sits below the 16px content tier and above
      the 11px header tier, so it stops out-shouting the NOW/NEXT labels. */

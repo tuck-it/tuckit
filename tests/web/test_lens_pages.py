@@ -23,6 +23,7 @@ def test_attention_page_all_clear_when_empty(client_local, workspace):
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/attention/").content.decode()
     assert "all-clear" in body
+    assert 'class="panel"' in body   # empty state is carded, not floating bare text
 
 
 @pytest.mark.django_db
