@@ -50,7 +50,7 @@ def test_slice_panel_renders_segmented_status(client_local, workspace):
     p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "Backend"), "seg", status="building")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="seg"' in body and 'seg-item--on' in body
+    assert 'class="seg seg--tabs"' in body and 'seg-item--on' in body
 
 
 @pytest.mark.django_db

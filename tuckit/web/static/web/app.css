@@ -880,7 +880,6 @@ body { padding: 0; }
 .panel-head { display: flex; align-items: flex-start; gap: 10px; }
 .panel-head-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .panel-title { font-size: 18px; font-weight: 600; line-height: 1.4; letter-spacing: -0.02em; cursor: text; }
-.panel-area { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; }
 
 .meta { font-size: 12px; color: var(--ink-faint); }
 
@@ -1011,13 +1010,9 @@ body { padding: 0; }
 }
 .tag-input:focus { outline: none; border-color: var(--accent); }
 
-/* Status row — segmented control + a quiet drop/restore overflow control. */
+/* Status row — wraps the segmented status control. */
 .status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0; }
-.status-destructive { margin-top: 2px; }
 .dropped-tag { color: var(--ink-faint); font-size: 12px; }
-
-/* Panel meta footer. */
-.panel-meta { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-faint); display: flex; gap: 10px; flex-wrap: wrap; }
 
 .slice-activity { margin-top: 6px; }
 
@@ -1599,3 +1594,55 @@ html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
 }
 .shipped-chip:hover { border-color: var(--border); }
 .shipped-chip .chip-area { color: var(--ink-faint); font-size: 11px; }
+
+/* --- Slice panel redesign --- */
+.panel-crumb { display: flex; align-items: center; gap: 8px; }
+.crumb-link { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-faint); font-size: 12px; text-decoration: none; }
+.crumb-link:hover { color: var(--ink); }
+.crumb-icon { width: 14px; height: 14px; }
+.crumb-close { margin-left: auto; color: var(--ink-faint); padding: 3px; line-height: 0; }
+
+.panel-titlebar { display: flex; align-items: flex-start; gap: 10px; }
+.panel-titlebar .panel-title { font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -0.02em; cursor: text; }
+.panel-byline { font-size: 12px; color: var(--ink-faint); margin-top: -6px; }
+
+/* Wide segmented status control: 4 equal columns, a dot on every tab. */
+.seg--tabs { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; }
+.seg--tabs .seg-item { justify-content: center; padding: 8px 6px; }
+
+.spec-box { border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--paper-solid); padding: 11px 13px; }
+.spec-box .spec-edit { margin-bottom: 8px; }
+
+.bites-block { display: flex; flex-direction: column; gap: 4px; }
+.bites-head { display: flex; align-items: center; gap: 10px; }
+.bites-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+.bites-add-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+/* Bites progress bar REUSES the existing `.row-prog-track` component
+   (app.css ~L221): 44px neutral track, `--line-strong` fill — "a quiet
+   neutral fill, never the accent." No new progress CSS is added. */
+
+.bites-empty { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-solid);
+  padding: 22px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 4px; }
+.bites-empty-title { font-size: 14px; color: var(--ink-soft); }
+.bites-empty-sub { font-size: 12px; color: var(--ink-faint); }
+.bites-empty-cta { margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; }
+
+.section-label { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+.panel-divider { height: 1px; background: var(--line); }
+
+.action-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 8px;
+  margin: 6px -22px -22px; padding: 13px 22px; background: var(--paper-solid); border-top: 1px solid var(--line); }
+.action-spacer { flex: 1; }
+.action-drop { color: var(--warn); border-color: transparent; }
+.action-drop:hover { border-color: var(--warn); }
+
+/* Timeline node — only visible inside a .timeline (slice panel Activity).
+   The global activity feed renders the same partial but has no .timeline
+   wrapper, so the node stays hidden there. */
+.tl-node { display: none; }
+.timeline { position: relative; }
+.timeline .activity-row { padding: 8px 0; }
+.timeline .tl-node { display: flex; justify-content: center; position: relative; flex: 0 0 auto; width: 12px; align-self: stretch; }
+.timeline .tl-node::before { content: ""; position: absolute; left: 50%; top: 14px; bottom: -8px; width: 1px; background: var(--line); transform: translateX(-50%); }
+.timeline .activity-row:last-child .tl-node::before { display: none; }
+.timeline .tl-node i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); margin-top: 6px; }

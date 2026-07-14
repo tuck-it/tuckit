@@ -1,62 +1,96 @@
 {% load web_extras %}
-<div class="panel-inner" x-data="{open:true, editTitle:false, editSpec:false}">
-  <div class="panel-head">
-    <div class="panel-head-main">
-      <span class="panel-title" id="panel-title" x-show="!editTitle" x-on:click="editTitle=true">{{ slice.title }}</span>
-      <input name="title" value="{{ slice.title }}" class="title-edit" x-show="editTitle" x-cloak
-             hx-post="{% wurl 'web:slice_edit' slice.id %}" hx-trigger="blur, keydown[key=='Enter']"
-             hx-target="closest .panel-inner" hx-swap="outerHTML">
-      {% if slice.area and not slice.area.is_triage %}<span class="panel-area">{{ slice.area.name }}</span>{% endif %}
-    </div>
-    <a class="ghost" href="{% wurl 'web:slice' slice.id %}">Open full</a>
-    <button class="ghost" type="button" aria-label="Close panel"
-            hx-on:click="closePanel(document.getElementById('panel'))">✕</button>
+<div class="panel-inner" x-data="{editTitle:false, editSpec:false}">
+  <div class="panel-crumb">
+    <a class="crumb-link" href="{% wurl 'web:area' slice.area.slug %}">{% icon "area" "icon crumb-icon" %}{{ slice.area.name }}</a>
+    {% if is_panel %}
+    <button class="ghost crumb-close" type="button" aria-label="Close panel"
+            hx-on:click="closePanel(document.getElementById('panel'))">{% icon "close" "icon" %}</button>
+    {% endif %}
   </div>
+
+  <div class="panel-titlebar">
+    <span class="panel-title" id="panel-title" x-show="!editTitle" x-on:click="editTitle=true">{{ slice.title }}</span>
+    <input name="title" value="{{ slice.title }}" class="title-edit" x-show="editTitle" x-cloak
+           hx-post="{% wurl 'web:slice_edit' slice.id %}{{ panel_qs }}" hx-trigger="blur, keydown[key=='Enter']"
+           hx-target="closest .panel-inner" hx-swap="outerHTML">
+  </div>
+  <div class="panel-byline">Created by {% if slice.source == 'agent' %}agent{% else %}you{% endif %} · Updated {{ slice.updated_at|timesince }} 전</div>
+
   <div class="status-row">
-    <div class="seg">
+    <div class="seg seg--tabs">
       {% for st in statuses %}
         <button class="seg-item {% if st == slice.status %}seg-item--on{% endif %}"
-                hx-post="{% wurl 'web:slice_status' slice.id %}" hx-vals='{"status": "{{ st }}"}'
+                hx-post="{% wurl 'web:slice_status' slice.id %}{{ panel_qs }}" hx-vals='{"status": "{{ st }}"}'
                 hx-target="closest .panel-inner" hx-swap="outerHTML">
-          {% if st == slice.status %}<span class="status-dot status-dot--{{ st }}"></span>{% endif %}{{ st }}
+          <span class="status-dot status-dot--{{ st }}"></span>{{ st }}
         </button>
       {% endfor %}
     </div>
   </div>
-  <div class="spec" x-show="!editSpec" x-on:click="editSpec=true">{{ spec_html|safe }}</div>
-  <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}"
-        hx-target="closest .panel-inner" hx-swap="outerHTML">
-    <textarea name="spec" class="spec-edit" rows="6">{{ slice.spec }}</textarea>
-    <button class="ghost" type="submit">Save</button>
-  </form>
-  <div class="group-label"><span>Bites</span><span class="group-count">{% bite_progress slice %}</span></div>
-  <div id="bites-{{ slice.id }}">
-    {% for bite in bites %}{% include "web/partials/_bite_row.html" %}{% endfor %}
+
+  <div class="spec-box">
+    <div class="spec" x-show="!editSpec" x-on:click="editSpec=true">{% if slice.spec %}{{ spec_html|safe }}{% else %}<span class="muted">설명을 추가하려면 클릭…</span>{% endif %}</div>
+    <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}{{ panel_qs }}"
+          hx-target="closest .panel-inner" hx-swap="outerHTML">
+      <textarea name="spec" class="spec-edit" rows="6">{{ slice.spec }}</textarea>
+      <button class="ghost" type="submit">Save</button>
+    </form>
   </div>
-  <form hx-post="{% wurl 'web:bite_create' slice.id %}" hx-target="closest .panel-inner" hx-swap="outerHTML">
-    <input name="title" placeholder="Add a bite…" class="bite-add">
-  </form>
-  {% include "web/partials/_slice_tags.html" %}
-  <div class="panel-meta">
-    <span>Created by {% if slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
-    <span>Created {{ slice.created_at|timesince }} ago · Updated {{ slice.updated_at|timesince }} ago</span>
+  <div class="bites-block">
+    <div class="bites-head">
+      <span class="bites-label">Bites</span>
+      {% if bites_total %}
+        <span class="group-count">{{ bites_done }}/{{ bites_total }}</span>
+        <span class="row-prog-track"><i style="width: {{ bites_pct }}%"></i></span>
+      {% endif %}
+      <button class="ghost bites-add-btn" type="button" x-on:click="$refs.biteAdd.focus()">{% icon "plus" "icon" %} Add bite</button>
+    </div>
+    <div id="bites-{{ slice.id }}">
+      {% for bite in bites %}{% include "web/partials/_bite_row.html" %}{% endfor %}
+    </div>
+    {% if not bites %}
+    <div class="bites-empty">
+      <div class="bites-empty-title">아직 bite가 없습니다</div>
+      <div class="bites-empty-sub">이 slice를 구현하기 위한 작은 단계를 추가해보세요.</div>
+      <button class="ghost bites-empty-cta" type="button" x-on:click="$refs.biteAdd.focus()">{% icon "plus" "icon" %} Add your first bite</button>
+    </div>
+    {% endif %}
+    <form hx-post="{% wurl 'web:bite_create' slice.id %}{{ panel_qs }}" hx-target="closest .panel-inner" hx-swap="outerHTML">
+      <input name="title" placeholder="Add a bite…" class="bite-add" x-ref="biteAdd">
+    </form>
   </div>
+
+  <div class="panel-divider"></div>
+  <div class="context-block">
+    <div class="section-label">Context</div>
+    {% include "web/partials/_slice_tags.html" %}
+  </div>
+
   {% if activity %}
+  <div class="panel-divider"></div>
   <div class="slice-activity">
-    <div class="group-label">Activity</div>
-    <div class="panel">
+    <div class="section-label">Activity</div>
+    <div class="timeline">
       {% for event in activity %}{% include "web/partials/_activity_row.html" %}{% endfor %}
     </div>
   </div>
   {% endif %}
-  <div class="status-row status-destructive">
+
+  <div class="action-bar">
     {% if slice.status == 'dropped' %}
       <span class="dropped-tag">dropped</span>
-      <button class="ghost" hx-post="{% wurl 'web:slice_status' slice.id %}" hx-vals='{"status": "idea"}'
+      <button class="ghost" hx-post="{% wurl 'web:slice_status' slice.id %}{{ panel_qs }}" hx-vals='{"status": "idea"}'
               hx-target="closest .panel-inner" hx-swap="outerHTML">Restore</button>
     {% else %}
-      <button class="ghost seg-drop" hx-post="{% wurl 'web:slice_status' slice.id %}" hx-vals='{"status": "dropped"}'
-              hx-target="closest .panel-inner" hx-swap="outerHTML">Drop</button>
+      <button class="ghost action-drop" hx-post="{% wurl 'web:slice_status' slice.id %}{{ panel_qs }}" hx-vals='{"status": "dropped"}'
+              hx-target="closest .panel-inner" hx-swap="outerHTML">Drop slice</button>
+    {% endif %}
+    <span class="action-spacer"></span>
+    <button class="ghost" type="button" x-data="{copied:false}"
+            x-on:click="navigator.clipboard.writeText(window.location.origin + '{% wurl 'web:slice' slice.id %}'); copied=true; setTimeout(()=>copied=false,1500)"
+            x-text="copied ? 'Copied' : 'Copy link'">Copy link</button>
+    {% if is_panel %}
+    <a class="ghost" href="{% wurl 'web:slice' slice.id %}">Open full page →</a>
     {% endif %}
   </div>
 </div>

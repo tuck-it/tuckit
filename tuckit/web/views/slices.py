@@ -30,7 +30,7 @@ def slice_detail(request, slice_id):
         slice_ = get_slice(ws, slice_id)
     except NotFound:
         raise Http404
-    ctx = slice_panel_context(slice_)
-    is_panel = request.GET.get("panel") == "1" and request.headers.get("HX-Request")
+    is_panel = request.GET.get("panel") == "1" and bool(request.headers.get("HX-Request"))
+    ctx = slice_panel_context(slice_, is_panel=is_panel)
     template = "web/partials/_slice_panel.html" if is_panel else "web/slice_detail.html"
     return render(request, template, ctx)

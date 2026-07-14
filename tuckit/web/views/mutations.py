@@ -17,7 +17,11 @@ def _slice_or_404(request, slice_id):
 
 
 def _panel(request, slice_):
-    return render(request, "web/partials/_slice_panel.html", slice_panel_context(slice_))
+    is_panel = request.GET.get("panel") == "1"
+    return render(
+        request, "web/partials/_slice_panel.html",
+        slice_panel_context(slice_, is_panel=is_panel),
+    )
 
 
 def slice_status(request, slice_id):
