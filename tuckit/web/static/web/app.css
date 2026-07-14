@@ -527,10 +527,13 @@ body { padding: 0; }
 }
 .settings-section .org-row:last-of-type { border-bottom: 0; }
 
-/* Settings controls share one input height, border, and focus treatment. */
+/* Settings controls share one input height, border, and focus treatment.
+   --paper-deep (not --surface, which is just an alias for the card's own
+   --paper-raised background) so a control reads as a distinct well instead
+   of nearly disappearing into the card it sits on. */
 .settings-page :is(input:not([type="checkbox"]), select) {
   min-height: 36px;
-  background: var(--surface);
+  background: var(--paper-deep);
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
   color: var(--ink);
@@ -1002,11 +1005,12 @@ body { padding: 0; }
 .nm { line-height: 1.4; font-size: 14px; }
 .sub { color: var(--muted); font-size: 12px; }
 
-/* Member row's role control and Remove button sit side by side in .row-l —
-   force them to the same height so they read as one control pair instead of
-   a tall dropdown next to a short button. */
-.member-row .settings-select select { min-height: 28px; height: 28px; padding: 0 30px 0 10px; }
-.member-row .btn, .member-row .ghost { height: 28px; }
+/* Member row's role control and Remove/Cancel/Copy-link buttons sit side by
+   side in .row-l — match the page-wide 36px control height (the invite
+   form's role select uses the same .settings-select, so both dropdowns on
+   this page are now the same size) instead of a bespoke smaller one that
+   only matched the row's own button. */
+.member-row .btn, .member-row .ghost { height: 36px; }
 
 
 .btn {
