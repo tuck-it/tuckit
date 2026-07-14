@@ -10,7 +10,7 @@
             x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
       {% icon "plus" %}<span>Capture</span></button>
   </header>
-  <section class="group">
+  <section class="group group--inbox">
     {% include "web/partials/_triage_list.html" %}
   </section>
 {% endblock %}

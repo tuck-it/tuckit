@@ -8,7 +8,7 @@
       {% icon "plus" %}<span>Capture</span></button>
   </header>
 
-  <section class="group">
+  <section class="group group--attention">
     {% include "web/partials/_group_label.html" with label="Needs you" count=state.attention|length attention=True %}
     {% include "web/partials/_attention_panel.html" with items=state.attention %}
   </section>
@@ -17,7 +17,7 @@
 
   {% include "web/partials/_status_group.html" with label="Now" slices=state.building empty_text="Nothing in progress. Move a slice to building and it shows up here." %}
 
-  <section class="group">
+  <section class="group group--doing">
     <div class="group-label">Doing</div>
     {% if in_progress.bites %}
       <div class="panel">
@@ -35,7 +35,7 @@
     {% endif %}
   </section>
 
-  <section class="group" x-data="{open:false}">
+  <section class="group group--archive" x-data="{open:false}">
     <button class="tail-toggle group-label muted" type="button" x-on:click="open=!open" :class="{'tail-open': open}">
       {% icon "chevron" "icon icon-chev" %}
       Recently shipped {{ shipped_total }}

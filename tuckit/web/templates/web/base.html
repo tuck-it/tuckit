@@ -56,6 +56,19 @@
   <div id="toast" class="toast" x-cloak></div>
   {% include "web/partials/_capture_modal.html" %}
   <script>
+    /* Settings-form save confirmation. Independent of the capture toast's
+       OOB/Alpine mechanism above — replaces #toast with a plain element so it
+       can't be left stuck mid-animation by that flow's `show` state. */
+    function showToast(message, tone) {
+      var old = document.getElementById("toast");
+      var el = document.createElement("div");
+      el.id = "toast";
+      el.className = tone === "err" ? "toast toast-err" : "toast";
+      el.textContent = message;
+      old.replaceWith(el);
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(function () { el.textContent = ""; }, 1800);
+    }
     /* Slide-over focus management. #panel persists; htmx swaps its innerHTML.
        Capture the opener before the swap, move focus in after it, restore on close. */
     function closePanel(el) {

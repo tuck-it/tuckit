@@ -22,7 +22,12 @@ body { padding: 0; }
   gap: 4px;
 }
 
-.main { flex: 1 1 auto; padding: 24px clamp(20px, 3vw, 40px); max-width: 1000px; }
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 1320px;
+  padding: 30px clamp(24px, 3.5vw, 56px) 48px;
+}
 
 .brand { font-weight: 670; letter-spacing: -0.045em; font-size: 19px; color: var(--ink); padding: 4px 8px 16px; }
 
@@ -225,52 +230,69 @@ body { padding: 0; }
 .row-arrow { display: inline-flex; color: var(--line-strong); }
 .row-arrow .icon { width: 15px; height: 15px; }
 
-/* View toggle (List | Board) — plain text links, no pill/tab background. */
+/* View toggle: an anchored control, sized for repeated product navigation. */
 .view-toggle {
   display: flex;
-  gap: 12px;
+  gap: 2px;
+  padding: 3px;
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
 }
 
 .view-toggle-link {
   color: var(--ink-faint);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1;
+  padding: 7px 10px;
+  border-radius: calc(var(--radius-small) - 3px);
 }
 
 .view-toggle-link--active {
   color: var(--ink);
   font-weight: 600;
+  background: var(--paper-raised);
+  box-shadow: 0 1px 2px var(--shadow);
 }
 
-/* Board — columns side by side, each a flat bordered container. */
+/* Board: a structured planning surface. The state columns share a calm
+   background while individual work remains on raised cards. */
 .board {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(210px, 1fr));
+  gap: 12px;
+  align-items: start;
+  margin-top: 20px;
+  padding: 12px;
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 
 .board-col {
-  flex: 1 1 0;
   min-width: 0;
-  background: var(--paper-raised);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 8px;
+  overflow: hidden;
 }
 
 .board-col-cards {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 24px;
+  min-height: 112px;
+  padding: 10px;
 }
 
 .board-col-head {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 0 4px 8px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
 }
 .board-col-label {
   font-size: 12px;
@@ -279,20 +301,27 @@ body { padding: 0; }
   letter-spacing: 0.07em;
   color: var(--ink-faint);
 }
-.board-col-count { color: var(--ink-faint); font-size: 12px; }
+.board-col-count {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Slice card — compact flat surface; hover is a border change, not elevation. */
 .slice-card {
   color: var(--ink);
   text-decoration: none;
-  background: var(--paper);
+  background: var(--paper-raised);
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
-  padding: 8px 10px;
+  min-height: 74px;
+  padding: 10px;
   cursor: grab;
 }
-.slice-card:hover { border-color: var(--line-strong); }
-.card-title { line-height: 1.5; }
+.slice-card:hover { border-color: var(--blue); }
+.card-title { line-height: 1.45; font-size: 14px; font-weight: 570; }
 .card-meta {
   display: flex;
   align-items: baseline;
@@ -344,6 +373,8 @@ body { padding: 0; }
 /* Mobile: horizontal scroll-snap so four columns are not squeezed. */
 @media (max-width: 767px) {
   .board {
+    display: flex;
+    padding: 8px;
     overflow-x: auto;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
@@ -471,7 +502,8 @@ body { padding: 0; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
-.settings-section .group-label { margin-bottom: 0; }
+.settings-section .group-label { margin-bottom: 0; color: var(--ink-soft); }
+.settings-section--danger { border-color: var(--warn); }
 .settings-section .panel {
   background: none;
   border: 0;
@@ -521,11 +553,23 @@ body { padding: 0; }
   .token-add input { min-width: min(100%, 220px); }
 }
 
-/* Inline-edit workspace name, token list, MCP snippet. */
+/* Inline-edit workspace name, token list, MCP snippet. A bordered control on
+   hover (not plain text) so it reads as editable before the click. */
 .settings-name-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   cursor: text;
   font-size: 18px;
+  margin: -7px -10px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
 }
+.settings-name-display:hover { border-color: var(--line); background: var(--surface); }
+.settings-name-display .icon { opacity: 0; width: 14px; height: 14px; stroke: var(--ink-faint); transition: opacity .15s var(--ease); }
+.settings-name-display:hover .icon { opacity: 1; }
 
 /* Descriptive helper text (not an empty state): quiet but readable, sans. */
 .hint { color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
@@ -602,15 +646,18 @@ body { padding: 0; }
 
 
 
-/* Page heading + capture action row. */
+/* Page heading: a stable toolbar establishes the page's working context. */
 .page-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 0 22px;
+  min-height: 48px;
+  margin: 0 0 26px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--line);
 }
-.page-title { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -0.03em; }
+.page-title { margin: 0; font-size: 25px; font-weight: 670; letter-spacing: -0.04em; }
 .page-head-l { display: flex; align-items: baseline; gap: 10px; }
 .page-count { color: var(--ink-faint); font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
 
@@ -622,8 +669,28 @@ body { padding: 0; }
   max-width: 60ch;
 }
 
-/* Section wrapper rhythm. */
-.group { display: flex; flex-direction: column; gap: 8px; margin: 0 0 26px; }
+/* Section wrapper rhythm. Each group has a deliberate top edge rather than
+   sitting as unrelated text on the document canvas. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 30px;
+}
+.group + .group {
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.group--attention {
+  padding: 16px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.group--attention + .group { padding-top: 28px; }
+.group--attention .group-label { color: var(--ink-soft); }
+.group--inbox { max-width: 1080px; }
+.group--archive { margin-top: 4px; }
 
 /* Collapsed state groups (shipped / dropped) use a native <details>. */
 .group-fold-summary { cursor: pointer; list-style: none; margin-bottom: 0; }
@@ -729,6 +796,14 @@ body { padding: 0; }
 }
 .panel .slice-row:last-child,
 .panel .triage-row:last-child { border-bottom: 0; }
+
+/* Inbox is an operation queue. Preserve the row scanline while making each
+   assignment control feel like an intentional decision, not stray metadata. */
+.group--inbox .panel { box-shadow: 0 1px 2px var(--shadow); }
+.triage-row { min-height: 62px; }
+.triage-row:hover { background: var(--paper-deep); }
+.triage-controls { margin-left: auto; }
+.triage-select { min-height: 30px; padding: 4px 8px; }
 
 /* Attention reason: plain warm text, never a badge. */
 .row-reason {
@@ -883,10 +958,6 @@ body { padding: 0; }
 .nm { line-height: 1.4; }
 .sub { color: var(--muted); font-size: 12px; }
 
-.rolepill {
-  color: var(--muted);
-  font-size: 12px;
-}
 
 .btn {
   background: none;
@@ -980,6 +1051,7 @@ body { padding: 0; }
   z-index: 50;
 }
 .toast:empty { display: none; }
+.toast-err { border-color: var(--warn); color: var(--warn); }
 
 /* Sidebar Area rows: hover reveals rename/delete; inline rename input. */
 .area-item {

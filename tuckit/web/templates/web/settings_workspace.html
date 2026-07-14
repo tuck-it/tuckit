@@ -1,4 +1,5 @@
 {% extends "web/base.html" %}
+{% load web_extras %}
 {% block main %}
   <div class="settings-page">
   {% include "web/partials/_settings_scopenav.html" with active='workspace' %}
@@ -6,11 +7,14 @@
 
   <section class="group settings-section">
     <div class="group-label">Workspace name</div>
-    <div class="settings-name" x-data="{editing: false, name: '{{ workspace.name|escapejs }}'}">
-      <span class="settings-name-display" x-show="!editing" x-on:click="editing = true" x-text="name"></span>
+    <div class="settings-name" x-data="{editing: false, name: '{{ workspace.name|escapejs }}', saved: '{{ workspace.name|escapejs }}'}">
+      <span class="settings-name-display" x-show="!editing" x-on:click="editing = true">
+        <span x-text="name"></span>{% icon "edit" %}
+      </span>
       <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
              hx-post="{% url 'web:workspace_rename' current_workspace.org.slug current_workspace.slug %}" hx-trigger="blur, keydown[key=='Enter']"
              hx-vals="js:{name: name}" hx-swap="none"
+             hx-on::after-request="if(event.detail.successful){saved=name}else{name=saved; showToast(event.detail.xhr.responseText,'err')}"
              x-on:keydown.enter="editing = false" x-on:blur="editing = false">
     </div>
   </section>
@@ -45,7 +49,8 @@
   <section class="group settings-section">
     <div class="group-label">Shipped shown on board</div>
     <div class="hint">How many completed slices the Board tab keeps visible before "View all shipped".</div>
-    <form class="shipped-board-prefs" hx-post="{% url 'web:shipped_board_prefs' current_workspace.org.slug current_workspace.slug %}" hx-swap="none">
+    <form class="shipped-board-prefs" hx-post="{% url 'web:shipped_board_prefs' current_workspace.org.slug current_workspace.slug %}" hx-swap="none"
+          hx-on::after-request="showToast(event.detail.successful ? 'Saved.' : event.detail.xhr.responseText, event.detail.successful ? 'ok' : 'err')">
       <span class="settings-select"><select name="mode">
           <option value="count"{% if workspace.shipped_board_mode == 'count' %} selected{% endif %}>Most recent (count)</option>
           <option value="days"{% if workspace.shipped_board_mode == 'days' %} selected{% endif %}>Last N days</option>
@@ -56,7 +61,7 @@
   </section>
 
   {% if can_admin %}
-  <section class="group settings-section">
+  <section class="group settings-section settings-section--danger">
     <div class="group-label danger">Danger zone</div>
     <form hx-post="{% url 'web:workspace_delete' current_workspace.org.slug current_workspace.slug %}" hx-confirm="This workspace and all its areas and items will be deleted. Continue?">
       <button type="submit" class="btn danger">Delete workspace</button>

@@ -5,13 +5,14 @@
   </div>
   <div class="row-l">
     {% if can_owner and m.user != request.user %}
-      <span class="settings-select"><select hx-post="{% url 'web:org_member_role' org.slug m.id %}" hx-swap="none" name="role">
+      <span class="settings-select"><select hx-post="{% url 'web:org_member_role' org.slug m.id %}"
+              hx-target="#member-{{ m.id }}" hx-swap="outerHTML" name="role">
         {% for value, label in role_choices %}
           <option value="{{ value }}" {% if m.role == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select></span>
     {% else %}
-      <span class="rolepill">{{ m.get_role_display }}</span>
+      <span class="role-badge role-badge--{{ m.role }}">{{ m.get_role_display }}</span>
     {% endif %}
     {% if can_admin and m.role != 'owner' and m.user != request.user %}
       <button class="btn" hx-post="{% url 'web:org_member_remove' org.slug m.id %}"

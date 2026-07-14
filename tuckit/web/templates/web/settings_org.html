@@ -1,4 +1,5 @@
 {% extends "web/base.html" %}
+{% load web_extras %}
 {% block main %}
   <div class="settings-page">
   {% include "web/partials/_settings_scopenav.html" with active='org' %}
@@ -7,12 +8,15 @@
 
   <section class="group settings-section">
     <div class="group-label">Organization name</div>
-    <div class="settings-name" x-data="{editing:false, name:'{{ org.name|escapejs }}'}">
-      <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %} x-text="name"></span>
+    <div class="settings-name" x-data="{editing:false, name:'{{ org.name|escapejs }}', saved:'{{ org.name|escapejs }}'}">
+      <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %}>
+        <span x-text="name"></span>{% if can_admin %}{% icon "edit" %}{% endif %}
+      </span>
       {% if can_admin %}
       <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
              hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur, keydown[key=='Enter']"
              hx-vals="js:{name: name}" hx-swap="none"
+             hx-on::after-request="if(event.detail.successful){saved=name}else{name=saved; showToast(event.detail.xhr.responseText,'err')}"
              x-on:keydown.enter="editing=false" x-on:blur="editing=false">
       {% endif %}
     </div>
@@ -54,13 +58,16 @@
     <div class="group-label">Workspaces in this organization</div>
     <div class="panel">
       {% for ws in workspaces %}
-        <div class="field"><span class="nm">{{ ws.name }}</span></div>
+        <div class="field">
+          <span class="nm">{{ ws.name }}</span>
+          <a class="btn" href="{% url 'web:home' org.slug ws.slug %}">Open</a>
+        </div>
       {% endfor %}
     </div>
   </section>
 
   {% if can_owner %}
-  <section class="group settings-section">
+  <section class="group settings-section settings-section--danger">
     <div class="group-label danger">Danger zone</div>
     <form hx-post="{% url 'web:org_delete' org.slug %}" hx-confirm="The organization and all its workspaces will be deleted. Continue?">
       <button type="submit" class="btn danger">Delete organization</button>
