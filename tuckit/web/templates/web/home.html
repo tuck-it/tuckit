@@ -13,14 +13,21 @@
 
   {% include "web/partials/_stat_cards.html" %}
 
-  <section class="group">
-    {% include "web/partials/_group_label.html" with label="needs_you" count=state.attention|length attention=True primary=True %}
+  <section class="home-section">
+    <div class="home-section-head">
+      <span class="home-section-title"><span>needs_you</span></span>
+      <span class="home-section-count">{{ state.attention|length }}</span>
+    </div>
     {% include "web/partials/_attention_panel.html" with items=state.attention %}
   </section>
 
   {% if show_get_started %}{% include "web/partials/_get_started.html" %}{% endif %}
 
-  <div class="home-cols">
+  <section class="home-section">
+    <div class="home-section-head">
+      <span class="home-section-title"><span>Overview</span></span>
+    </div>
+    <div class="home-cols">
     {# Focus — building slices, with progress #}
     <section class="board-col">
       <div class="board-col-head">
@@ -95,9 +102,13 @@
       </section>
     </div>
   </div>
+  </section>
 
-  <section class="group group--archive">
-    <div class="group-label muted"><span>recently_shipped</span><span class="group-count">{{ shipped_total }}</span></div>
+  <section class="home-section">
+    <div class="home-section-head">
+      <span class="home-section-title"><span>recently_shipped</span></span>
+      <span class="home-section-count">{{ shipped_total }}</span>
+    </div>
     {% if state.shipped %}
       <div class="shipped-strip">
         {% for slice in state.shipped %}

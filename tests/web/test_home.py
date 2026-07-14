@@ -128,10 +128,21 @@ def test_home_active_headers_present(client_local, workspace):
     s = create_slice(a, "Building slice", status="building")
     create_bite(s, "Doing bite", status="doing")
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
-    # needs_you stays a lead-styled group; Focus/Doing/Next are board-style columns.
-    assert "group-label--lead" in body
+    # needs_you / Overview / recently_shipped are titled section boxes; the
+    # Focus/Doing/Next columns live inside the Overview box.
+    assert 'class="home-section"' in body
     assert 'class="home-cols"' in body
     assert "<span>doing</span>" in body
+
+
+@pytest.mark.django_db
+def test_home_sections_are_titled_boxes(client_local, workspace):
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    # Three titled boxes: needs_you, Overview (the columns), recently_shipped.
+    assert body.count('class="home-section"') >= 3
+    assert "<span>Overview</span>" in body
+    assert "<span>needs_you</span>" in body
+    assert "<span>recently_shipped</span>" in body
 
 
 @pytest.mark.django_db

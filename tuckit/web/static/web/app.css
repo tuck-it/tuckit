@@ -1435,17 +1435,43 @@ body { padding: 0; }
   .stat-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Home three-column now-surface — reuses the board's calm grid vocabulary. */
-.home-cols {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  align-items: start;
+/* Home section — a titled box grouping one region of the dashboard on the
+   board's calm paper-deep surface (header tier + contained body). */
+.home-section {
   margin-top: 20px;
   padding: 12px;
   background: var(--paper-deep);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+}
+.home-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 12px;
+}
+.home-section-title {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.home-section-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Home three-column now-surface — reuses the board's calm grid vocabulary.
+   The surrounding .home-section provides the box; this is just the grid. */
+.home-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
 }
 .home-col-stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .home-col-body {
@@ -1464,7 +1490,7 @@ body { padding: 0; }
 }
 
 /* Recently shipped — a calm always-visible strip (no celebratory chrome). */
-.shipped-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.shipped-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .shipped-chip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 10px; background: var(--paper); border: 1px solid var(--line);
