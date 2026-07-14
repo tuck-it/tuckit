@@ -262,3 +262,45 @@ def test_roadmap_board_view_reports_overflow(workspace):
     assert view["shipped_hidden"] == 1
     shipped_group = dict(view["groups"])["shipped"]
     assert len(shipped_group) == 1
+
+
+def test_snapshot_today_first_day_has_no_deltas(workspace):
+    from datetime import date
+    from tuckit.core.services.state import snapshot_today
+    from tuckit.core.models import WorkspaceStatSnapshot
+    area = create_area(workspace, "Backend")
+    create_slice(area, "A", status="building")
+    create_slice(area, "B", status="planned")
+    out = snapshot_today(workspace)
+    assert out["building"] == {"value": 1, "delta": None}
+    assert out["backlog"]["value"] == 1
+    assert out["backlog"]["delta"] is None
+    # exactly one row was written for today
+    assert WorkspaceStatSnapshot.objects.filter(workspace=workspace).count() == 1
+
+
+def test_snapshot_today_is_idempotent_per_day(workspace):
+    from tuckit.core.services.state import snapshot_today
+    from tuckit.core.models import WorkspaceStatSnapshot
+    area = create_area(workspace, "Backend")
+    create_slice(area, "A", status="building")
+    snapshot_today(workspace)
+    snapshot_today(workspace)
+    assert WorkspaceStatSnapshot.objects.filter(workspace=workspace).count() == 1
+
+
+def test_snapshot_today_delta_vs_prior_day(workspace):
+    from datetime import timedelta as _td
+    from django.utils import timezone as _tz
+    from tuckit.core.services.state import snapshot_today
+    from tuckit.core.models import WorkspaceStatSnapshot
+    area = create_area(workspace, "Backend")
+    create_slice(area, "A", status="building")
+    # simulate yesterday's snapshot: 3 building
+    yesterday = _tz.localdate() - _td(days=1)
+    WorkspaceStatSnapshot.objects.create(
+        workspace=workspace, date=yesterday, building_ct=3, backlog_ct=0,
+        shipped_week_ct=0, attention_ct=0,
+    )
+    out = snapshot_today(workspace)
+    assert out["building"] == {"value": 1, "delta": -2}  # 1 today vs 3 yesterday

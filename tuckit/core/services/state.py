@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from tuckit.core.models import Area, Bite, Slice, Workspace
+from tuckit.core.models import Area, Bite, Slice, Workspace, WorkspaceStatSnapshot
 from tuckit.core.services.areas import list_areas
 from tuckit.core.services.bites import list_bites
 from tuckit.core.services.slices import list_slices
@@ -108,6 +108,54 @@ def home_state(workspace: Workspace) -> dict:
         "ideas": bucket("idea"),
         "someday": someday,
         "shipped": shipped,
+    }
+
+
+def snapshot_today(workspace: Workspace) -> dict:
+    """Upsert today's count row for `workspace` and return each metric's value
+    plus its delta vs the most recent prior-day snapshot. Lazy — called on Home
+    load, so history accrues without a scheduler. delta is None on the first day
+    (no prior row) so the UI shows a value with no movement line."""
+    today = timezone.localdate()
+    building_ct = Slice.objects.filter(
+        area__workspace=workspace, area__is_triage=False, status="building"
+    ).count()
+    backlog_ct = Slice.objects.filter(
+        area__workspace=workspace, area__is_triage=False,
+        status__in=["planned", "idea"],
+    ).count()
+    week_ago = timezone.now() - timedelta(days=7)
+    shipped_week_ct = Slice.objects.filter(
+        area__workspace=workspace, status="shipped", completed_at__gte=week_ago
+    ).count()
+    attention_ct = len(attention_items(workspace))
+
+    WorkspaceStatSnapshot.objects.update_or_create(
+        workspace=workspace,
+        date=today,
+        defaults={
+            "building_ct": building_ct,
+            "backlog_ct": backlog_ct,
+            "shipped_week_ct": shipped_week_ct,
+            "attention_ct": attention_ct,
+        },
+    )
+    prior = (
+        WorkspaceStatSnapshot.objects
+        .filter(workspace=workspace, date__lt=today)
+        .order_by("-date")
+        .first()
+    )
+
+    def entry(value: int, field: str) -> dict:
+        p = getattr(prior, field) if prior else None
+        return {"value": value, "delta": None if p is None else value - p}
+
+    return {
+        "building": entry(building_ct, "building_ct"),
+        "backlog": entry(backlog_ct, "backlog_ct"),
+        "shipped_week": entry(shipped_week_ct, "shipped_week_ct"),
+        "attention": entry(attention_ct, "attention_ct"),
     }
 
 
