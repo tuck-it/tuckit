@@ -5,8 +5,16 @@
   <header class="page-head"><div class="page-head-l"><h1 class="page-title">Account settings</h1></div></header>
 
   <section class="group settings-section">
-    <div class="group-label">Account</div>
-    <div class="settings-value">{{ request.user.email }}</div>
+    <div class="group-label">General</div>
+    <div class="settings-row">
+      <div class="settings-row-text">
+        <div class="settings-row-label">Email</div>
+        <div class="settings-row-desc">Used to sign in to tuckit.</div>
+      </div>
+      <div class="settings-row-control">
+        <span class="settings-value">{{ request.user.email }}</span>
+      </div>
+    </div>
   </section>
 
   <section class="group settings-section">

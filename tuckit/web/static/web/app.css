@@ -551,17 +551,50 @@ body { padding: 0; }
   .settings-section { padding: 16px; }
   .token-add { flex-wrap: wrap; }
   .token-add input { min-width: min(100%, 220px); }
+  .settings-row { flex-wrap: wrap; gap: 10px; }
 }
+
+/* Settings row — bold label + one-line description paired with a
+   right-aligned control; several grouped under one .settings-section card so
+   the box matches a concern ("General"), not a single field. Mirrors the
+   label+description+control triad from reference SaaS preference panels. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.settings-section .settings-row:first-child { padding-top: 2px; }
+.settings-section .settings-row:last-child { padding-bottom: 2px; border-bottom: 0; }
+.settings-row-text { min-width: 0; }
+.settings-row-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+.settings-row-desc { font-size: 13px; color: var(--ink-soft); margin-top: 2px; line-height: 1.4; }
+.settings-row-control { flex: 0 0 auto; }
+
+/* Sub-heading inside a multi-concern card (e.g. roster + invite form both
+   live under "Members"). Lighter weight than .group-label so the card title
+   stays the dominant heading. */
+.settings-subhead {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-faint);
+  margin: 18px 0 8px;
+}
+.settings-section > .settings-subhead:first-of-type { margin-top: 4px; }
 
 /* Inline-edit workspace name, token list, MCP snippet. A bordered control on
    hover (not plain text) so it reads as editable before the click. */
 .settings-name-display {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
   cursor: text;
-  font-size: 18px;
+  font-size: 15px;
   margin: -7px -10px;
   padding: 7px 10px;
   border: 1px solid transparent;

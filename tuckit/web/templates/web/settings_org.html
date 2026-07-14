@@ -7,33 +7,39 @@
   <div class="hint">Members and plans are managed at the organization level.</div>
 
   <section class="group settings-section">
-    <div class="group-label">Organization name</div>
-    <div class="settings-name" x-data="{editing:false, name:'{{ org.name|escapejs }}', saved:'{{ org.name|escapejs }}'}">
-      <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %}>
-        <span x-text="name"></span>{% if can_admin %}{% icon "edit" %}{% endif %}
-      </span>
-      {% if can_admin %}
-      <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
-             hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur, keydown[key=='Enter']"
-             hx-vals="js:{name: name}" hx-swap="none"
-             hx-on::after-request="if(event.detail.successful){saved=name}else{name=saved; showToast(event.detail.xhr.responseText,'err')}"
-             x-on:keydown.enter="editing=false" x-on:blur="editing=false">
-      {% endif %}
+    <div class="group-label">General</div>
+    <div class="settings-row">
+      <div class="settings-row-text">
+        <div class="settings-row-label">Organization name</div>
+        <div class="settings-row-desc">Shown across tuckit for every member.</div>
+      </div>
+      <div class="settings-row-control">
+        <div class="settings-name" x-data="{editing:false, name:'{{ org.name|escapejs }}', saved:'{{ org.name|escapejs }}'}">
+          <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %}>
+            <span x-text="name"></span>{% if can_admin %}{% icon "edit" %}{% endif %}
+          </span>
+          {% if can_admin %}
+          <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
+                 hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur, keydown[key=='Enter']"
+                 hx-vals="js:{name: name}" hx-swap="none"
+                 hx-on::after-request="if(event.detail.successful){saved=name}else{name=saved; showToast(event.detail.xhr.responseText,'err')}"
+                 x-on:keydown.enter="editing=false" x-on:blur="editing=false">
+          {% endif %}
+        </div>
+      </div>
     </div>
   </section>
 
   {% block org_plan %}{% endblock %}{# neutral slot — cloud fills plan/billing here #}
 
   <section class="group settings-section">
-    <div class="group-label">Members · roles</div>
+    <div class="group-label">Members</div>
     <div id="members-list" class="panel">
       {% for m in members %}{% include "web/partials/_member_row.html" %}{% endfor %}
     </div>
-  </section>
 
-  {% if can_admin %}
-  <section class="group settings-section">
-    <div class="group-label">Invite members</div>
+    {% if can_admin %}
+    <div class="settings-subhead">Invite members</div>
     <div class="hint">Invite someone to the organization by email and role.</div>
     <div id="invite-list" class="panel">
       {% for inv in invitations %}
@@ -51,11 +57,11 @@
       </select></span>
       <button type="submit" class="button button-small">Invite</button>
     </form>
+    {% endif %}
   </section>
-  {% endif %}
 
   <section class="group settings-section">
-    <div class="group-label">Workspaces in this organization</div>
+    <div class="group-label">Workspaces</div>
     <div class="panel">
       {% for ws in workspaces %}
         <div class="field">
