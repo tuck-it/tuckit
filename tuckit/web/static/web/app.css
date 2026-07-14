@@ -876,7 +876,7 @@ body { padding: 0; }
 
 /* Same partial also renders as ordinary page content on the full slice page
    (web/slice_detail.html), so panel-inner itself carries no positioning. */
-.panel-inner { display: flex; flex-direction: column; gap: 14px; padding: 22px; }
+.panel-inner { display: flex; flex-direction: column; gap: 20px; padding: 22px; }
 .panel-head { display: flex; align-items: flex-start; gap: 10px; }
 .panel-head-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .panel-title { font-size: 18px; font-weight: 600; line-height: 1.4; letter-spacing: -0.02em; cursor: text; }
@@ -1607,15 +1607,10 @@ html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
 
 .panel-titlebar { display: flex; align-items: flex-start; gap: 10px; }
 .panel-titlebar .panel-title { font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -0.02em; cursor: text; }
-.panel-byline { font-size: 12px; color: var(--ink-faint); margin-top: -6px; }
-
-/* Wide segmented status control: 4 equal columns, a dot on every tab. */
-.seg--tabs { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; }
-.seg--tabs .seg-item { justify-content: center; padding: 8px 6px; }
 
 .bites-block { display: flex; flex-direction: column; gap: 4px; }
 .bites-head { display: flex; align-items: center; gap: 10px; }
-.bites-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+.bites-head .section-label { margin-bottom: 0; }
 .bites-add-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
 /* Bites progress bar REUSES the existing `.row-prog-track` component
    (app.css ~L221): 44px neutral track, `--line-strong` fill — "a quiet
@@ -1627,8 +1622,7 @@ html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
 .bites-empty-sub { font-size: 12px; color: var(--ink-faint); }
 .bites-empty-cta { margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; }
 
-.section-label { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
-.panel-divider { height: 1px; background: var(--line); }
+.section-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin-bottom: 8px; }
 
 .action-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 8px;
   margin: 6px -22px -22px; padding: 13px 22px; background: var(--paper-solid); border-top: 1px solid var(--line); }
@@ -1650,6 +1644,8 @@ html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
 .props { border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--paper-solid); padding: 2px 12px; }
 .prop-row { display: flex; align-items: center; gap: 12px; min-height: 34px; border-top: 1px solid var(--line); }
 .prop-row:first-child { border-top: none; }
+.prop-row--tags { align-items: flex-start; padding: 6px 0; }
+.prop-row--tags .prop-val { flex-wrap: wrap; }
 .prop-key { flex: 0 0 76px; font-size: 12px; color: var(--ink-faint); }
 .prop-val { font-size: 12px; color: var(--ink); display: flex; align-items: center; gap: 6px; }
 .status-select { position: relative; }

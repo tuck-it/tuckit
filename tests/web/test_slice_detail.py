@@ -176,16 +176,16 @@ def test_action_bar_has_copy_and_drop(client_local, workspace):
 
 
 @pytest.mark.django_db
-def test_context_tags_have_no_area_chip(client_local, workspace):
+def test_tags_live_in_properties_not_a_context_section(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{workspace.org.slug}/{workspace.slug}"
-    a = create_area(workspace, "Design")
-    s = create_slice(a, "태그")
+    s = create_slice(create_area(workspace, "Design"), "태그")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="section-label">Context' in body
-    assert "meta-area" not in body        # area chip removed from the tags row
+    assert 'class="section-label">Context' not in body   # standalone Context section removed
+    assert '<span class="prop-key">Tags' in body          # tags now a property row
     assert "Add tag" in body
+    assert "meta-area" not in body
 
 
 @pytest.mark.django_db

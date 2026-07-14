@@ -38,7 +38,7 @@ def test_spec_edit(client_local, workspace):
     assert Slice.objects.get(pk=s.id).spec == "새 스펙"
 
 @pytest.mark.django_db
-def test_status_control_is_segmented(client_local, workspace):
+def test_status_control_is_dropdown(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{workspace.org.slug}/{workspace.slug}"

@@ -18,12 +18,12 @@
     <div class="prop-row">
       <span class="prop-key">Status</span>
       <div class="prop-val status-select" x-data="{open:false}" x-on:keydown.escape="open=false">
-        <button type="button" class="status-pill" x-on:click="open=!open" :aria-expanded="open">
+        <button type="button" class="status-pill" aria-haspopup="menu" x-on:click="open=!open" :aria-expanded="open">
           <span class="status-dot status-dot--{{ slice.status }}"></span>{{ slice.status }}{% icon "chevron" "icon" %}
         </button>
-        <div class="status-menu" x-show="open" x-cloak x-on:click.outside="open=false">
+        <div class="status-menu" role="menu" x-show="open" x-cloak x-on:click.outside="open=false">
           {% for st in statuses %}
-          <button type="button" class="status-opt {% if st == slice.status %}status-opt--on{% endif %}"
+          <button type="button" class="status-opt {% if st == slice.status %}status-opt--on{% endif %}" role="menuitem"
                   x-on:click="open=false"
                   hx-post="{% wurl 'web:slice_status' slice.id %}{{ panel_qs }}" hx-vals='{"status": "{{ st }}"}'
                   hx-target="closest .panel-inner" hx-swap="outerHTML">
@@ -40,6 +40,10 @@
     <div class="prop-row">
       <span class="prop-key">Updated</span>
       <span class="prop-val">{{ slice.updated_at|timesince }} 전</span>
+    </div>
+    <div class="prop-row prop-row--tags">
+      <span class="prop-key">Tags</span>
+      <div class="prop-val">{% include "web/partials/_slice_tags.html" %}</div>
     </div>
   </div>
 
@@ -59,7 +63,7 @@
   </div>
   <div class="bites-block">
     <div class="bites-head">
-      <span class="bites-label">Bites</span>
+      <span class="section-label">Bites</span>
       {% if bites_total %}
         <span class="group-count">{{ bites_done }}/{{ bites_total }}</span>
         <span class="row-prog-track"><i style="width: {{ bites_pct }}%"></i></span>
@@ -81,14 +85,7 @@
     </form>
   </div>
 
-  <div class="panel-divider"></div>
-  <div class="context-block">
-    <div class="section-label">Context</div>
-    {% include "web/partials/_slice_tags.html" %}
-  </div>
-
   {% if activity %}
-  <div class="panel-divider"></div>
   <div class="slice-activity">
     <div class="section-label">Activity</div>
     <div class="timeline">
