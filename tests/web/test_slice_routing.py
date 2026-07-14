@@ -37,3 +37,11 @@ def test_page_without_slice_param_does_not_autoload(client_local, workspace):
     body = client_local.get(f"{p}/").content.decode()
     assert 'id="panel"' in body
     assert 'hx-trigger="load"' not in body
+
+
+@pytest.mark.django_db
+def test_page_with_nonnumeric_slice_param_does_not_crash_or_autoload(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    resp = client_local.get(f"{p}/?slice=abc")     # malformed id must not reverse() -> 500
+    assert resp.status_code == 200
+    assert 'hx-trigger="load"' not in resp.content.decode()
