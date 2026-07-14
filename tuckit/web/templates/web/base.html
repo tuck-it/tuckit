@@ -23,10 +23,13 @@
       }
     })();
   </script>
+  <!-- command_palette.js defines the commandPalette() global; it must load
+       before Alpine so the function exists when Alpine walks the DOM (Alpine
+       auto-starts synchronously the moment its deferred script runs). -->
+  <script defer src="{% static 'web/command_palette.js' %}"></script>
   <script defer src="{% static 'web/vendor/alpine.min.js' %}"></script>
   <script src="{% static 'web/vendor/htmx.min.js' %}"></script>
   <script src="{% static 'web/vendor/sortable.min.js' %}"></script>
-  <script defer src="{% static 'web/command_palette.js' %}"></script>
   <script>
     /* htmx 2.x skips swapping on 204 by default; this app relies on 204 +
        hx-swap to remove/empty elements (e.g. inbox row triage), so opt back in.
