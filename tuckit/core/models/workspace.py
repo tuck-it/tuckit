@@ -43,3 +43,27 @@ class ApiToken(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.workspace.slug})"
+
+
+class WorkspaceStatSnapshot(models.Model):
+    """One row of workspace counts per calendar day, written lazily on Home
+    load. Powers the Home summary cards' day-over-day deltas — no scheduler."""
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name="stat_snapshots"
+    )
+    date = models.DateField()
+    building_ct = models.IntegerField(default=0)
+    backlog_ct = models.IntegerField(default=0)
+    shipped_week_ct = models.IntegerField(default=0)
+    attention_ct = models.IntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workspace", "date"], name="uniq_ws_snapshot_per_day"
+            ),
+        ]
+        indexes = [models.Index(fields=["workspace", "date"])]
+
+    def __str__(self):
+        return f"{self.workspace.slug} @ {self.date}"
