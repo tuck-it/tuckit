@@ -1010,22 +1010,28 @@ body { padding: 0; }
    form's role select uses the same .settings-select, so both dropdowns on
    this page are now the same size) instead of a bespoke smaller one that
    only matched the row's own button. */
-.member-row .btn, .member-row .ghost { height: 36px; }
+/* .btn is already 36px everywhere; .ghost (Copy link) stays app-wide
+   unstyled-by-default here, just matched to the row's other controls. */
+.member-row .ghost { height: 36px; }
 
 
+/* Settings-page action button (Remove/Cancel/Save/Invite/Open/Manage — .btn
+   is only ever used on settings pages, never elsewhere in the app). Same
+   fill, border, height and text color as the settings role/mode <select>
+   it sits next to, so a row of controls reads as one family instead of a
+   filled dropdown next to a transparent, faint-text button. */
 .btn {
-  background: none;
-  border: 1px solid var(--border);
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
   border-radius: var(--radius-small);
-  color: var(--muted);
+  color: var(--ink);
   font: inherit;
-  font-size: 12px;
-  padding: 5px 10px;
+  height: 36px;
+  padding: 0 12px;
   cursor: pointer;
 }
 .btn:hover {
-  color: var(--text);
-  border-color: var(--accent);
+  border-color: var(--blue);
 }
 .btn.danger {
   color: var(--warn);
