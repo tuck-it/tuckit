@@ -531,30 +531,32 @@ body { padding: 0; }
    --paper-deep (not --surface, which is just an alias for the card's own
    --paper-raised background) so a control reads as a distinct well instead
    of nearly disappearing into the card it sits on. */
-.settings-page :is(input:not([type="checkbox"]), select) {
-  min-height: 36px;
+.settings-page :is(input:not([type="checkbox"]):not(.title-edit), select) {
+  min-height: 28px;
   background: var(--paper-deep);
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
   color: var(--ink);
   font: inherit;
+  font-size: 13px;
+  padding: 0 10px;
 }
-.settings-page :is(input:not([type="checkbox"]), select)::placeholder { color: var(--ink-faint); }
-.settings-page :is(input:not([type="checkbox"]), select):focus { outline: none; border-color: var(--blue); }
+.settings-page :is(input:not([type="checkbox"]):not(.title-edit), select)::placeholder { color: var(--ink-faint); }
+.settings-page :is(input:not([type="checkbox"]):not(.title-edit), select):focus { outline: none; border-color: var(--blue); }
 .settings-select { position: relative; display: inline-flex; align-items: center; }
 .settings-select::after {
   content: "⌄";
   position: absolute;
   right: 10px;
   color: var(--ink-faint);
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
   pointer-events: none;
 }
 .settings-select select {
   appearance: none;
   cursor: pointer;
-  padding: 7px 32px 7px 10px;
+  padding: 0 30px 0 10px;
 }
 .shipped-board-prefs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .shipped-board-prefs input { width: 76px; padding: 7px 10px; }
@@ -1012,7 +1014,7 @@ body { padding: 0; }
    only matched the row's own button. */
 /* .btn is already 36px everywhere; .ghost (Copy link) stays app-wide
    unstyled-by-default here, just matched to the row's other controls. */
-.member-row .ghost { height: 36px; }
+.member-row .ghost { height: 28px; }
 
 
 /* Settings-page action button (Remove/Cancel/Save/Invite/Open/Manage — .btn
@@ -1026,8 +1028,9 @@ body { padding: 0; }
   border-radius: var(--radius-small);
   color: var(--ink);
   font: inherit;
-  height: 36px;
-  padding: 0 12px;
+  font-size: 13px;
+  height: 28px;
+  padding: 0 10px;
   cursor: pointer;
 }
 .btn:hover {
