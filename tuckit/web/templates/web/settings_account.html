@@ -1,14 +1,15 @@
 {% extends "web/base.html" %}
 {% block main %}
+  <div class="settings-page">
   {% include "web/partials/_settings_scopenav.html" with active='account' %}
   <header class="page-head"><div class="page-head-l"><h1 class="page-title">Account settings</h1></div></header>
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Account</div>
     <div class="settings-value">{{ request.user.email }}</div>
   </section>
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Your organizations</div>
     {% for row in orgs %}
       {% include "web/partials/_org_row.html" %}
@@ -18,4 +19,5 @@
       <input name="name" class="org-add-input" placeholder="＋ New organization" maxlength="200" autocomplete="off">
     </form>
   </section>
+  </div>
 {% endblock %}

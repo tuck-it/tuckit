@@ -459,8 +459,69 @@ body { padding: 0; }
   display: none !important;
 }
 
-/* Settings — inline-edit workspace name, token list, MCP snippet.
-   Flat surfaces + plain text only: no shadow/gradient/band/filled chip. */
+/* Settings — a quiet, consistently-sized stack of bordered sections. */
+.settings-page { max-width: 760px; }
+.settings-page .page-head { margin-bottom: 20px; }
+.settings-page > .hint { margin: -10px 0 20px; }
+.settings-section {
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 18px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.settings-section .group-label { margin-bottom: 0; }
+.settings-section .panel {
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+.settings-section .panel .token-row:first-child,
+.settings-section .panel .field:first-child { border-top: 1px solid var(--line); }
+.settings-section .org-row {
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+.settings-section .org-row:first-child { border-top: 1px solid var(--line); }
+.settings-section .org-row:last-of-type { border-bottom: 0; }
+
+/* Settings controls share one input height, border, and focus treatment. */
+.settings-page :is(input:not([type="checkbox"]), select) {
+  min-height: 36px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  color: var(--ink);
+  font: inherit;
+}
+.settings-page :is(input:not([type="checkbox"]), select)::placeholder { color: var(--ink-faint); }
+.settings-page :is(input:not([type="checkbox"]), select):focus { outline: none; border-color: var(--blue); }
+.settings-select { position: relative; display: inline-flex; align-items: center; }
+.settings-select::after {
+  content: "⌄";
+  position: absolute;
+  right: 10px;
+  color: var(--ink-faint);
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
+}
+.settings-select select {
+  appearance: none;
+  cursor: pointer;
+  padding: 7px 32px 7px 10px;
+}
+.shipped-board-prefs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.shipped-board-prefs input { width: 76px; padding: 7px 10px; }
+@media (max-width: 560px) {
+  .settings-section { padding: 16px; }
+  .token-add { flex-wrap: wrap; }
+  .token-add input { min-width: min(100%, 220px); }
+}
+
+/* Inline-edit workspace name, token list, MCP snippet. */
 .settings-name-display {
   cursor: text;
   font-size: 18px;
@@ -520,7 +581,7 @@ body { padding: 0; }
 .ghost { background: none; border: 1px solid var(--line); border-radius: var(--radius-small); color: var(--ink-faint); font: inherit; font-size: 12px; padding: 4px 8px; cursor: pointer; }
 .ghost:hover { color: var(--ink); border-color: var(--blue); }
 
-.token-add { display: flex; gap: 8px; margin-top: 12px; }
+.token-add { display: flex; gap: 8px; margin-top: 2px; }
 .token-add input {
   flex: 1 1 auto;
   background: var(--surface);
@@ -530,7 +591,7 @@ body { padding: 0; }
   font: inherit;
   padding: 7px 10px;
 }
-.token-add input:focus { outline: none; border-color: var(--accent); }
+.token-add input:focus { outline: none; border-color: var(--blue); }
 
 .mcp-snippet { background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--radius-small); padding: 10px 12px; overflow-x: auto; font-family: var(--mono); font-size: 12px; color: var(--ink); }
 

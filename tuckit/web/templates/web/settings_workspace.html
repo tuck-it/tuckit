@@ -1,9 +1,10 @@
 {% extends "web/base.html" %}
 {% block main %}
+  <div class="settings-page">
   {% include "web/partials/_settings_scopenav.html" with active='workspace' %}
   <header class="page-head"><div class="page-head-l"><h1 class="page-title">Workspace settings</h1></div></header>
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Workspace name</div>
     <div class="settings-name" x-data="{editing: false, name: '{{ workspace.name|escapejs }}'}">
       <span class="settings-name-display" x-show="!editing" x-on:click="editing = true" x-text="name"></span>
@@ -14,7 +15,7 @@
     </div>
   </section>
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">API tokens</div>
     <div class="hint">The token an agent uses to connect to this workspace over MCP.</div>
     <div id="tokens-list" class="panel">
@@ -30,36 +31,37 @@
     </form>
   </section>
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Members</div>
     <div class="hint">Members and invitations are managed per organization. <a href="{% url 'web:settings_org' current_workspace.org.slug %}">Manage in organization settings →</a></div>
   </section>
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Connect an agent</div>
     <div class="hint">Register this workspace with Claude Code as an MCP server using the command below.</div>
     <pre class="mcp-snippet"><code>claude mcp add --transport http tuck-it {{ mcp_url }} --header "Authorization: Bearer &lt;token&gt;"</code></pre>
   </section>
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Shipped shown on board</div>
     <div class="hint">How many completed slices the Board tab keeps visible before "View all shipped".</div>
     <form class="shipped-board-prefs" hx-post="{% url 'web:shipped_board_prefs' current_workspace.org.slug current_workspace.slug %}" hx-swap="none">
-      <select name="mode">
-        <option value="count"{% if workspace.shipped_board_mode == 'count' %} selected{% endif %}>Most recent (count)</option>
-        <option value="days"{% if workspace.shipped_board_mode == 'days' %} selected{% endif %}>Last N days</option>
-      </select>
+      <span class="settings-select"><select name="mode">
+          <option value="count"{% if workspace.shipped_board_mode == 'count' %} selected{% endif %}>Most recent (count)</option>
+          <option value="days"{% if workspace.shipped_board_mode == 'days' %} selected{% endif %}>Last N days</option>
+      </select></span>
       <input name="limit" type="number" min="1" max="365" value="{{ workspace.shipped_board_limit }}">
       <button type="submit" class="btn">Save</button>
     </form>
   </section>
 
   {% if can_admin %}
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label danger">Danger zone</div>
     <form hx-post="{% url 'web:workspace_delete' current_workspace.org.slug current_workspace.slug %}" hx-confirm="This workspace and all its areas and items will be deleted. Continue?">
       <button type="submit" class="btn danger">Delete workspace</button>
     </form>
   </section>
   {% endif %}
+  </div>
 {% endblock %}

@@ -1,10 +1,11 @@
 {% extends "web/base.html" %}
 {% block main %}
+  <div class="settings-page">
   {% include "web/partials/_settings_scopenav.html" with active='org' %}
   <header class="page-head"><div class="page-head-l"><h1 class="page-title">Organization settings</h1></div></header>
   <div class="hint">Members and plans are managed at the organization level.</div>
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Organization name</div>
     <div class="settings-name" x-data="{editing:false, name:'{{ org.name|escapejs }}'}">
       <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %} x-text="name"></span>
@@ -19,7 +20,7 @@
 
   {% block org_plan %}{% endblock %}{# neutral slot — cloud fills plan/billing here #}
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Members · roles</div>
     <div id="members-list" class="panel">
       {% for m in members %}{% include "web/partials/_member_row.html" %}{% endfor %}
@@ -27,7 +28,7 @@
   </section>
 
   {% if can_admin %}
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Invite members</div>
     <div class="hint">Invite someone to the organization by email and role.</div>
     <div id="invite-list" class="panel">
@@ -40,16 +41,16 @@
     <form class="token-add" hx-post="{% url 'web:invite_create' org.slug %}" hx-target="#invite-list" hx-swap="afterbegin"
           hx-on::after-request="this.reset()">
       <input type="email" name="email" placeholder="Email" required>
-      <select name="role">
+      <span class="settings-select"><select name="role">
         <option value="member">Member</option>
         <option value="admin">Admin</option>
-      </select>
+      </select></span>
       <button type="submit" class="button button-small">Invite</button>
     </form>
   </section>
   {% endif %}
 
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label">Workspaces in this organization</div>
     <div class="panel">
       {% for ws in workspaces %}
@@ -59,11 +60,12 @@
   </section>
 
   {% if can_owner %}
-  <section class="group">
+  <section class="group settings-section">
     <div class="group-label danger">Danger zone</div>
     <form hx-post="{% url 'web:org_delete' org.slug %}" hx-confirm="The organization and all its workspaces will be deleted. Continue?">
       <button type="submit" class="btn danger">Delete organization</button>
     </form>
   </section>
   {% endif %}
+  </div>
 {% endblock %}
