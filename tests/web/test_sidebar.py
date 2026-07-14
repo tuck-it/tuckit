@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -75,3 +76,10 @@ def test_theme_toggle_is_labeled_row(client_local, workspace):
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert "util-theme" in body
     assert "util-theme-label" in body     # promoted to a labeled row
+
+
+def test_new_sidebar_css_uses_no_raw_hex():
+    css = APP_CSS.read_text(encoding="utf-8")
+    # No 3/6-digit hex color literals anywhere in the components file.
+    hexes = re.findall(r"#[0-9a-fA-F]{3,8}\b", css)
+    assert hexes == [], f"app.css must use var(--token), found hex: {hexes}"
