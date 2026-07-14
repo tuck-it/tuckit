@@ -1,6 +1,6 @@
 {% load web_extras %}
 {% if current_workspace %}
-<div class="ws-switch-wrap" x-data="{open: false}" x-on:keydown.escape="open = false">
+<div class="ws-switch-wrap side-top-ws" x-data="{open: false}" x-on:keydown.escape="open = false">
   <button type="button" class="ws-switch" x-on:click="open = !open"
           :aria-expanded="open.toString()" aria-haspopup="menu">
     <span class="ws-mono">{{ current_workspace.name|first|upper }}</span>

@@ -17,7 +17,7 @@
     instance = Sortable.create(nav, {
       animation: 150,
       draggable: ".area-item",
-      filter: ".area-act, .area-rename-input",  // don't start a drag from action buttons/input
+      filter: ".area-act, .area-menu-item, .area-rename-input",  // don't start a drag from action buttons/input
       onEnd: function (evt) {
         const item = evt.item;
         const areaId = item.getAttribute("data-area-id");

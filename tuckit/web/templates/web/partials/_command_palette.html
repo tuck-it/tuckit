@@ -1,0 +1,26 @@
+{% load web_extras %}
+<div id="command-palette" class="cmdk-overlay" x-show="pal" x-cloak
+     x-data="commandPalette()" x-effect="if (pal) open()"
+     x-on:click.self="pal = false; $nextTick(() => opener && opener.focus())"
+     x-on:keydown.escape="pal = false; $nextTick(() => opener && opener.focus())">
+  <div class="cmdk-box" role="dialog" aria-modal="true" aria-label="Command palette"
+       x-on:keydown.tab="trap($event)">
+    <input class="cmdk-input" type="text" placeholder="Search…" x-ref="search"
+           x-model="q" autocomplete="off" spellcheck="false"
+           x-on:input="filter()"
+           x-on:keydown.down.prevent="move(1)"
+           x-on:keydown.up.prevent="move(-1)"
+           x-on:keydown.enter.prevent="choose()">
+    <div class="cmdk-list" x-ref="list">
+      <a class="cmdk-row" data-label="Home" href="{% wurl 'web:home' %}">{% icon "home" %}<span>Home</span></a>
+      <a class="cmdk-row" data-label="Inbox" href="{% wurl 'web:triage' %}">{% icon "triage" %}<span>Inbox</span></a>
+      <a class="cmdk-row" data-label="Board" href="{% wurl 'web:roadmap' %}">{% icon "roadmap" %}<span>Board</span></a>
+      {% for a in areas %}
+        <a class="cmdk-row" data-label="{{ a.name }}" href="{% wurl 'web:area' a.slug %}">{% icon "area" %}<span>{{ a.name }}</span></a>
+      {% endfor %}
+      <a class="cmdk-row" data-label="Settings" href="{% url 'web:settings_workspace' current_workspace.org.slug current_workspace.slug %}">{% icon "settings" %}<span>Settings</span></a>
+      <button class="cmdk-row" type="button" data-label="Capture new item"
+              x-on:click="pal = false; cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">{% icon "plus" %}<span>Capture new item</span></button>
+    </div>
+  </div>
+</div>

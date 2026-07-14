@@ -18,11 +18,15 @@
       if (saved === "light" || saved === "dark") {
         document.documentElement.dataset.theme = saved;
       }
+      if (localStorage.getItem("sidebar-collapsed") === "1") {
+        document.documentElement.classList.add("sidebar-collapsed");
+      }
     })();
   </script>
   <script defer src="{% static 'web/vendor/alpine.min.js' %}"></script>
   <script src="{% static 'web/vendor/htmx.min.js' %}"></script>
   <script src="{% static 'web/vendor/sortable.min.js' %}"></script>
+  <script defer src="{% static 'web/command_palette.js' %}"></script>
   <script>
     /* htmx 2.x skips swapping on 204 by default; this app relies on 204 +
        hx-swap to remove/empty elements (e.g. inbox row triage), so opt back in.
@@ -31,8 +35,10 @@
   </script>
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-      x-data="{cap: false, menu: false, trapFocus(e){ if(!this.menu) return; const f=[...this.$refs.sidebarWrap.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')].filter(el=>el.offsetParent!==null); if(!f.length) return; const first=f[0], last=f[f.length-1]; if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); } else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); } }}"
-      x-on:keydown.window="if (!cap && $event.key === 'c' && !['INPUT','TEXTAREA'].includes($event.target.tagName)) { cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus()) }">
+      x-data="{cap: false, menu: false, pal: false, trapFocus(e){ if(!this.menu) return; const f=[...this.$refs.sidebarWrap.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')].filter(el=>el.offsetParent!==null); if(!f.length) return; const first=f[0], last=f[f.length-1]; if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); } else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); } }}"
+      x-on:keydown.window="if (!cap && $event.key === 'c' && !['INPUT','TEXTAREA'].includes($event.target.tagName)) { cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus()) }"
+      x-on:keydown.cmd.k.window.prevent="if (!cap) pal = true"
+      x-on:keydown.ctrl.k.window.prevent="if (!cap) pal = true">
   <header class="topbar-mobile">
     <button class="topbar-btn" type="button" aria-label="Open navigation menu" :aria-expanded="menu" aria-controls="app-sidebar"
             x-ref="menuToggle"
@@ -55,6 +61,7 @@
        x-on:keydown.tab="trapPanel($event, $el)"></div>
   <div id="toast" class="toast" x-cloak></div>
   {% include "web/partials/_capture_modal.html" %}
+  {% include "web/partials/_command_palette.html" %}
   <div id="member-modal" class="modal-overlay" role="dialog" aria-modal="true"
        x-on:click.self="closeMemberModal()"
        x-on:keydown.escape="$el.innerHTML.trim() && closeMemberModal()"
@@ -72,6 +79,12 @@
       old.replaceWith(el);
       clearTimeout(window.__toastTimer);
       window.__toastTimer = setTimeout(function () { el.textContent = ""; }, 1800);
+    }
+    /* Sidebar collapse: desktop-only icon rail, persisted. The class lives on
+       <html> so the head script can restore it before paint (no flash). */
+    function toggleSidebar() {
+      var on = document.documentElement.classList.toggle("sidebar-collapsed");
+      localStorage.setItem("sidebar-collapsed", on ? "1" : "0");
     }
     /* Slide-over focus management. #panel persists; htmx swaps its innerHTML.
        Capture the opener before the swap, move focus in after it, restore on close. */

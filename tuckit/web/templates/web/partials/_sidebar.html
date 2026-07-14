@@ -1,8 +1,19 @@
 {% load web_extras %}
 <aside class="sidebar">
-  <div class="brand">tuckit</div>
-  {% include "web/partials/_workspace_switcher.html" %}
+  <div class="side-top">
+    {% include "web/partials/_workspace_switcher.html" %}
+    <button class="side-top-act" type="button"
+            aria-label="Activity" title="Activity"
+            hx-get="{% wurl 'web:activity' %}?panel=1" hx-target="#panel">{% icon "activity" %}</button>
+    <button class="side-collapse" type="button"
+            aria-label="Collapse sidebar" title="Collapse sidebar"
+            x-on:click="toggleSidebar()">{% icon "chevron" %}</button>
+  </div>
+  <button class="search-pill" type="button" x-on:click="pal = true">
+    {% icon "search" %}<span class="nav-label">Search</span><kbd class="nav-kbd">⌘K</kbd>
+  </button>
 
+  <div class="section">Main</div>
   <nav class="nav-group">
     <a class="nav{% if request.resolver_match.url_name == 'home' %} nav--active{% endif %}"
        href="{% wurl 'web:home' %}">{% icon "home" %}<span class="nav-label">Home</span></a>
@@ -15,21 +26,23 @@
 
   <div class="nav-sep"></div>
 
-  <div class="section">Areas</div>
+  <div class="section area-section" x-data="{adding: false}">
+    <span>Areas</span>
+    <button type="button" class="area-add-btn" aria-label="Add area" title="Add area"
+            x-on:click="adding = !adding; $nextTick(() => adding && $refs.areaAddInput && $refs.areaAddInput.focus())">{% icon "plus" %}</button>
+    <form class="area-add" x-show="adding" x-cloak
+          hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
+          hx-on::after-request="this.reset(); adding = false">
+      <input name="name" x-ref="areaAddInput" class="area-add-input" placeholder="New area name…" autocomplete="off">
+    </form>
+  </div>
   {% include "web/partials/_area_nav.html" %}
-  <form class="area-add" hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
-        hx-on::after-request="this.reset()">
-    <input name="name" class="area-add-input" placeholder="＋ Area">
-  </form>
 
   <div class="nav-spacer"></div>
 
   <div class="util-row">
     <a class="util-btn util-settings{% if request.resolver_match.url_name == 'settings_workspace' or request.resolver_match.url_name == 'settings_org' %} util-btn--active{% endif %}"
        href="{% url 'web:settings_workspace' current_workspace.org.slug current_workspace.slug %}">{% icon "settings" %}<span class="util-label">Settings</span></a>
-    <button class="util-btn util-activity" type="button"
-            aria-label="Activity" title="Activity"
-            hx-get="{% wurl 'web:activity' %}?panel=1" hx-target="#panel">{% icon "activity" %}</button>
     <button class="util-btn util-theme" type="button"
             x-data="{theme: document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')}"
             x-on:click="theme = theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = theme; localStorage.setItem('theme', theme)"
@@ -37,6 +50,7 @@
             :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
       <span x-show="theme === 'dark'">{% icon "sun" %}</span>
       <span x-show="theme !== 'dark'" style="display:none">{% icon "moon" %}</span>
+      <span class="util-label util-theme-label" x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
     </button>
   </div>
 

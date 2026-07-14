@@ -95,8 +95,7 @@ def test_bottom_utility_row_replaces_bordered_theme_button(client_local, workspa
     body = client_local.get(f"{p}/").content.decode()
     assert 'class="util-row"' in body                 # compact icon row present
     assert "theme-toggle" not in body                 # old bordered button gone
-    assert ">Light mode<" not in body                 # text label gone
-    assert ">Dark mode<" not in body
+    assert "util-theme-label" in body                 # promoted to a labeled row (Task 7)
     assert "Switch to light mode" in body             # icon toggle keeps an accessible name
 
 

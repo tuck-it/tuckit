@@ -1,18 +1,22 @@
 {% load web_extras %}
-<div class="area-item" data-area-id="{{ a.id }}" x-data="{editing: false}">
+<div class="area-item" data-area-id="{{ a.id }}" x-data="{editing: false, menu: false}">
   <a class="nav area-link{% if active or request.resolver_match.url_name == 'area' and request.resolver_match.kwargs.slug == a.slug %} nav--active{% endif %}"
      href="{% wurl 'web:area' a.slug %}"
      x-show="!editing"
      x-on:dblclick.prevent="editing = true; $nextTick(() => { $refs.renameInput.focus(); $refs.renameInput.select() })">
     {% icon "area" %}<span class="nav-label">{{ a.name }}</span>
   </a>
-  <div class="area-actions" x-show="!editing">
-    <button type="button" class="area-act" title="Rename"
-            x-on:click="editing = true; $nextTick(() => { $refs.renameInput.focus(); $refs.renameInput.select() })">✎</button>
-    <button type="button" class="area-act area-act--danger" title="Delete"
-            hx-post="{% wurl 'web:area_delete' a.id %}"
-            hx-target="closest .area-item" hx-swap="outerHTML"
-            hx-confirm="This area and all items in it will be deleted. Continue?">✕</button>
+  <div class="area-menu" x-show="!editing" x-on:keydown.escape="menu = false">
+    <button type="button" class="area-act" title="Area actions" aria-haspopup="menu"
+            x-on:click="menu = !menu">{% icon "dots" %}</button>
+    <div class="area-menu-pop" x-show="menu" x-cloak x-on:click.outside="menu = false" role="menu">
+      <button type="button" class="area-menu-item" role="menuitem"
+              x-on:click="menu = false; editing = true; $nextTick(() => { $refs.renameInput.focus(); $refs.renameInput.select() })">Rename</button>
+      <button type="button" class="area-menu-item area-menu-item--danger" role="menuitem"
+              hx-post="{% wurl 'web:area_delete' a.id %}"
+              hx-target="closest .area-item" hx-swap="outerHTML"
+              hx-confirm="This area and all items in it will be deleted. Continue?">Delete</button>
+    </div>
   </div>
   <form class="area-rename" x-show="editing" x-cloak
         hx-post="{% wurl 'web:area_rename' a.id %}"
