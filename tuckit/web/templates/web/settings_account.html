@@ -4,8 +4,8 @@
   {% include "web/partials/_settings_scopenav.html" with active='account' %}
   <header class="page-head"><div class="page-head-l"><h1 class="page-title">Account settings</h1></div></header>
 
+  <div class="settings-title">General</div>
   <section class="group settings-section">
-    <div class="group-label">General</div>
     <div class="settings-row">
       <div class="settings-row-text">
         <div class="settings-row-label">Email</div>
@@ -17,8 +17,8 @@
     </div>
   </section>
 
+  <div class="settings-title">Your organizations</div>
   <section class="group settings-section">
-    <div class="group-label">Your organizations</div>
     {% for row in orgs %}
       {% include "web/partials/_org_row.html" %}
     {% endfor %}

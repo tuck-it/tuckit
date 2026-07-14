@@ -6,8 +6,8 @@
   <header class="page-head"><div class="page-head-l"><h1 class="page-title">Organization settings</h1></div></header>
   <div class="hint">Members and plans are managed at the organization level.</div>
 
+  <div class="settings-title">General</div>
   <section class="group settings-section">
-    <div class="group-label">General</div>
     <div class="settings-row">
       <div class="settings-row-text">
         <div class="settings-row-label">Organization name</div>
@@ -32,8 +32,8 @@
 
   {% block org_plan %}{% endblock %}{# neutral slot — cloud fills plan/billing here #}
 
+  <div class="settings-title">Members</div>
   <section class="group settings-section">
-    <div class="group-label">Members</div>
     <div id="members-list" class="panel">
       {% for m in members %}{% include "web/partials/_member_row.html" %}{% endfor %}
     </div>
@@ -60,8 +60,8 @@
     {% endif %}
   </section>
 
+  <div class="settings-title">Workspaces</div>
   <section class="group settings-section">
-    <div class="group-label">Workspaces</div>
     <div class="panel">
       {% for ws in workspaces %}
         <div class="field">
@@ -73,8 +73,8 @@
   </section>
 
   {% if can_owner %}
+  <div class="settings-title danger">Danger zone</div>
   <section class="group settings-section settings-section--danger">
-    <div class="group-label danger">Danger zone</div>
     <form hx-post="{% url 'web:org_delete' org.slug %}" hx-confirm="The organization and all its workspaces will be deleted. Continue?">
       <button type="submit" class="btn danger">Delete organization</button>
     </form>

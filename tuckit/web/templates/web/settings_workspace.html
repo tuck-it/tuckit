@@ -5,9 +5,8 @@
   {% include "web/partials/_settings_scopenav.html" with active='workspace' %}
   <header class="page-head"><div class="page-head-l"><h1 class="page-title">Workspace settings</h1></div></header>
 
+  <div class="settings-title">General</div>
   <section class="group settings-section">
-    <div class="group-label">General</div>
-
     <div class="settings-row">
       <div class="settings-row-text">
         <div class="settings-row-label">Workspace name</div>
@@ -56,8 +55,8 @@
     </div>
   </section>
 
+  <div class="settings-title">Agent access</div>
   <section class="group settings-section">
-    <div class="group-label">Agent access</div>
     <div class="hint">The token an agent uses to connect to this workspace over MCP.</div>
     <div id="tokens-list" class="panel">
       {% for token in tokens %}
@@ -77,8 +76,8 @@
   </section>
 
   {% if can_admin %}
+  <div class="settings-title danger">Danger zone</div>
   <section class="group settings-section settings-section--danger">
-    <div class="group-label danger">Danger zone</div>
     <form hx-post="{% url 'web:workspace_delete' current_workspace.org.slug current_workspace.slug %}" hx-confirm="This workspace and all its areas and items will be deleted. Continue?">
       <button type="submit" class="btn danger">Delete workspace</button>
     </form>
