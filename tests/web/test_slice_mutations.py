@@ -44,8 +44,8 @@ def test_status_control_is_segmented(client_local, workspace):
     p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "제품"), "X", status="building")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="seg seg--tabs"' in body   # merged .seg (frame) + .seg--tabs (wide grid) on one control
-    assert "seg-item--on" in body            # the active (building) segment
+    assert 'class="status-menu"' in body           # status control re-rendered after change
+    assert "status-opt--on" in body                # active option marked
 
 @pytest.mark.django_db
 def test_bite_body_updates_and_renders(client_local, workspace):
@@ -119,8 +119,8 @@ def test_slice_panel_shows_byline(client_local, workspace):
     p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "제품"), "메타 확인")  # default source=human
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="panel-byline"' in body
-    assert "Created by you" in body
+    assert 'class="props"' in body
+    assert "Created" in body
     assert "Updated" in body
 
 @pytest.mark.django_db

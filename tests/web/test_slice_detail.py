@@ -114,10 +114,11 @@ def test_panel_header_title_and_status_tabs(client_local, workspace):
     assert 'class="area-chip"' in body
     assert f'href="/{workspace.org.slug}/{workspace.slug}/areas/{a.slug}/"' in body   # chip links to area
     assert "Design" in body
-    assert 'class="panel-byline"' in body
-    assert "seg--tabs" in body
-    assert body.count('class="status-dot status-dot--') == 4    # a dot on every status tab
-    assert "seg-item--on" in body                               # active (building) tab
+    assert 'class="props"' in body
+    assert 'class="status-menu"' in body
+    assert body.count('class="status-opt') == 4          # one option per status
+    assert "status-opt--on" in body                       # active (building) option marked
+    assert "Created" in body and "Updated" in body        # properties rows
     assert 'class="spec-box"' in body
     # panel-only chrome present
     assert "crumb-close" in body
