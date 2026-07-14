@@ -43,3 +43,16 @@ def test_active_nav_has_accent_bar_via_token():
     css = APP_CSS.read_text(encoding="utf-8")
     assert "inset 3px 0 0 var(--blue)" in css       # accent bar, token color
     assert ".nav-count" in css and "var(--blue-soft)" in css  # inbox pill uses token bg
+
+
+@pytest.mark.django_db
+def test_collapse_button_and_toggle_present(client_local, workspace):
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert 'class="side-collapse"' in body
+    assert "toggleSidebar()" in body
+
+
+def test_collapsed_rail_css_present():
+    css = APP_CSS.read_text(encoding="utf-8")
+    assert "html.sidebar-collapsed .sidebar" in css
+    assert "@media (min-width: 768px)" in css       # desktop-scoped so mobile drawer is unaffected

@@ -31,15 +31,15 @@ body { padding: 0; }
 
 .side-top { display: flex; align-items: center; gap: 4px; padding: 0 4px 6px; }
 .side-top-ws { flex: 1 1 auto; padding: 0 !important; }
-.side-top-act {
+.side-top-act, .side-collapse {
   flex: 0 0 auto; width: 32px; height: 32px;
   display: grid; place-items: center;
   background: none; border: none; cursor: pointer;
   border-radius: var(--radius-small); color: var(--ink-faint);
 }
-.side-top-act:hover { background: var(--paper-raised); color: var(--ink); }
-.side-top-act .icon { stroke: var(--ink-faint); }
-.side-top-act:hover .icon { stroke: var(--ink); }
+.side-top-act:hover, .side-collapse:hover { background: var(--paper-raised); color: var(--ink); }
+.side-top-act .icon, .side-collapse .icon { stroke: var(--ink-faint); }
+.side-top-act:hover .icon, .side-collapse:hover .icon { stroke: var(--ink); }
 
 .search-pill {
   display: flex; align-items: center; gap: 8px; width: 100%;
@@ -1432,6 +1432,26 @@ body { padding: 0; }
 .gs-go{font-family:var(--mono);font-size:12px;color:var(--accent);text-decoration:none}
 .gs-list li.done .gs-go{visibility:hidden}
 .gs-go kbd{font-family:inherit;border:1px solid var(--line);border-radius:var(--radius-small);padding:0 5px}
+
+/* --- Collapsed (icon-only) sidebar, desktop only --- */
+.side-collapse .icon { transform: rotate(180deg); transition: transform 0.15s ease; }
+html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
+@media (min-width: 768px) {
+  html.sidebar-collapsed .sidebar { flex-basis: 60px; }
+  html.sidebar-collapsed .nav-label,
+  html.sidebar-collapsed .section,
+  html.sidebar-collapsed .nav-count,
+  html.sidebar-collapsed .nav-kbd,
+  html.sidebar-collapsed .ws-labels,
+  html.sidebar-collapsed .ws-chev,
+  html.sidebar-collapsed .search-pill .nav-label,
+  html.sidebar-collapsed .side-top-act:not(.side-collapse),
+  html.sidebar-collapsed .area-actions { display: none; }
+  html.sidebar-collapsed .side-top { flex-direction: column; gap: 6px; }
+  html.sidebar-collapsed .nav,
+  html.sidebar-collapsed .capture-btn,
+  html.sidebar-collapsed .search-pill { justify-content: center; padding-left: 0; padding-right: 0; }
+}
 
 /* --- Mobile shell (<768px): top bar + off-canvas menu --- */
 .topbar-mobile { display: none; }

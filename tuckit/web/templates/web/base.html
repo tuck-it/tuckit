@@ -18,6 +18,9 @@
       if (saved === "light" || saved === "dark") {
         document.documentElement.dataset.theme = saved;
       }
+      if (localStorage.getItem("sidebar-collapsed") === "1") {
+        document.documentElement.classList.add("sidebar-collapsed");
+      }
     })();
   </script>
   <script defer src="{% static 'web/vendor/alpine.min.js' %}"></script>
@@ -76,6 +79,12 @@
       old.replaceWith(el);
       clearTimeout(window.__toastTimer);
       window.__toastTimer = setTimeout(function () { el.textContent = ""; }, 1800);
+    }
+    /* Sidebar collapse: desktop-only icon rail, persisted. The class lives on
+       <html> so the head script can restore it before paint (no flash). */
+    function toggleSidebar() {
+      var on = document.documentElement.classList.toggle("sidebar-collapsed");
+      localStorage.setItem("sidebar-collapsed", on ? "1" : "0");
     }
     /* Slide-over focus management. #panel persists; htmx swaps its innerHTML.
        Capture the opener before the swap, move focus in after it, restore on close. */
