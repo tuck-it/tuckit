@@ -1,7 +1,14 @@
 {% load web_extras %}
 <aside class="sidebar">
-  <div class="brand">tuckit</div>
-  {% include "web/partials/_workspace_switcher.html" %}
+  <div class="side-top">
+    {% include "web/partials/_workspace_switcher.html" %}
+    <button class="side-top-act" type="button"
+            aria-label="Activity" title="Activity"
+            hx-get="{% wurl 'web:activity' %}?panel=1" hx-target="#panel">{% icon "activity" %}</button>
+  </div>
+  <button class="search-pill" type="button" x-on:click="pal = true">
+    {% icon "search" %}<span class="nav-label">Search</span><kbd class="nav-kbd">⌘K</kbd>
+  </button>
 
   <nav class="nav-group">
     <a class="nav{% if request.resolver_match.url_name == 'home' %} nav--active{% endif %}"
@@ -27,9 +34,6 @@
   <div class="util-row">
     <a class="util-btn util-settings{% if request.resolver_match.url_name == 'settings_workspace' or request.resolver_match.url_name == 'settings_org' %} util-btn--active{% endif %}"
        href="{% url 'web:settings_workspace' current_workspace.org.slug current_workspace.slug %}">{% icon "settings" %}<span class="util-label">Settings</span></a>
-    <button class="util-btn util-activity" type="button"
-            aria-label="Activity" title="Activity"
-            hx-get="{% wurl 'web:activity' %}?panel=1" hx-target="#panel">{% icon "activity" %}</button>
     <button class="util-btn util-theme" type="button"
             x-data="{theme: document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')}"
             x-on:click="theme = theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = theme; localStorage.setItem('theme', theme)"

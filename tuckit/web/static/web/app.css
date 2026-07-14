@@ -29,7 +29,28 @@ body { padding: 0; }
   padding: 30px clamp(24px, 3.5vw, 56px) 48px;
 }
 
-.brand { font-weight: 670; letter-spacing: -0.045em; font-size: 19px; color: var(--ink); padding: 4px 8px 16px; }
+.side-top { display: flex; align-items: center; gap: 4px; padding: 0 4px 6px; }
+.side-top-ws { flex: 1 1 auto; padding: 0 !important; }
+.side-top-act {
+  flex: 0 0 auto; width: 32px; height: 32px;
+  display: grid; place-items: center;
+  background: none; border: none; cursor: pointer;
+  border-radius: var(--radius-small); color: var(--ink-faint);
+}
+.side-top-act:hover { background: var(--paper-raised); color: var(--ink); }
+.side-top-act .icon { stroke: var(--ink-faint); }
+.side-top-act:hover .icon { stroke: var(--ink); }
+
+.search-pill {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  margin: 0 0 8px; padding: 7px 10px;
+  background: var(--paper-raised); border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  color: var(--ink-faint); font: inherit; cursor: pointer;
+}
+.search-pill:hover { border-color: var(--blue); color: var(--ink); }
+.search-pill .icon { stroke: var(--ink-faint); }
+.search-pill .nav-label { text-align: left; }
 
 /* --- Workspace switcher popover --- */
 .ws-switch-wrap { position: relative; padding: 0 4px 8px; }
@@ -77,6 +98,7 @@ body { padding: 0; }
 .ws-menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
 .ws-menu-settings { color: var(--ink-faint); }
 .ws-menu-settings .icon { stroke: var(--ink-faint); }
+.ws-menu { min-width: 200px; }
 
 .section {
   font-size: 11px;
