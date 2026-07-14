@@ -102,6 +102,42 @@ def test_slice_panel_context_flags_and_progress(workspace):
 
 
 @pytest.mark.django_db
+def test_panel_header_title_and_status_tabs(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    s = create_slice(a, "다크모드 폴리시", status="building")
+
+    # panel context
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert 'class="panel-crumb"' in body
+    assert f'href="/{workspace.org.slug}/{workspace.slug}/areas/{a.slug}/"' in body   # breadcrumb links to area
+    assert "Design" in body
+    assert 'class="panel-byline"' in body
+    assert "seg--tabs" in body
+    assert body.count('class="status-dot status-dot--') == 4    # a dot on every status tab
+    assert "seg-item--on" in body                               # active (building) tab
+    assert 'class="spec-box"' in body
+    # panel-only chrome present
+    assert "crumb-close" in body
+    assert "Open full page" in body
+
+
+@pytest.mark.django_db
+def test_full_page_hides_panel_only_chrome(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    a = create_area(workspace, "Design")
+    s = create_slice(a, "전체페이지")
+    body = client_local.get(f"{p}/slices/{s.id}/").content.decode()   # full page, no panel=1
+    assert "crumb-close" not in body        # no close button on the full page
+    assert "Open full page" not in body     # no self-link on the full page
+    assert 'class="panel-crumb"' in body    # breadcrumb still shown
+
+
+@pytest.mark.django_db
 def test_slice_activity_helper_is_chronological_and_scoped(workspace):
     from tuckit.core.services.activity import slice_activity
     from tuckit.core.services.areas import create_area

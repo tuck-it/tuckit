@@ -1,34 +1,42 @@
 {% load web_extras %}
-<div class="panel-inner" x-data="{open:true, editTitle:false, editSpec:false}">
-  <div class="panel-head">
-    <div class="panel-head-main">
-      <span class="panel-title" id="panel-title" x-show="!editTitle" x-on:click="editTitle=true">{{ slice.title }}</span>
-      <input name="title" value="{{ slice.title }}" class="title-edit" x-show="editTitle" x-cloak
-             hx-post="{% wurl 'web:slice_edit' slice.id %}" hx-trigger="blur, keydown[key=='Enter']"
-             hx-target="closest .panel-inner" hx-swap="outerHTML">
-      {% if slice.area and not slice.area.is_triage %}<span class="panel-area">{{ slice.area.name }}</span>{% endif %}
-    </div>
-    <a class="ghost" href="{% wurl 'web:slice' slice.id %}">Open full</a>
-    <button class="ghost" type="button" aria-label="Close panel"
-            hx-on:click="closePanel(document.getElementById('panel'))">✕</button>
+<div class="panel-inner" x-data="{editTitle:false, editSpec:false}">
+  <div class="panel-crumb">
+    <a class="crumb-link" href="{% wurl 'web:area' slice.area.slug %}">{% icon "area" "icon crumb-icon" %}{{ slice.area.name }}</a>
+    {% if is_panel %}
+    <a class="ghost crumb-open" href="{% wurl 'web:slice' slice.id %}">Open full page</a>
+    <button class="ghost crumb-close" type="button" aria-label="Close panel"
+            hx-on:click="closePanel(document.getElementById('panel'))">{% icon "close" "icon" %}</button>
+    {% endif %}
   </div>
+
+  <div class="panel-titlebar">
+    <span class="panel-title" id="panel-title" x-show="!editTitle" x-on:click="editTitle=true">{{ slice.title }}</span>
+    <input name="title" value="{{ slice.title }}" class="title-edit" x-show="editTitle" x-cloak
+           hx-post="{% wurl 'web:slice_edit' slice.id %}{{ panel_qs }}" hx-trigger="blur, keydown[key=='Enter']"
+           hx-target="closest .panel-inner" hx-swap="outerHTML">
+  </div>
+  <div class="panel-byline">Created by {% if slice.source == 'agent' %}agent{% else %}you{% endif %} · Updated {{ slice.updated_at|timesince }} 전</div>
+
   <div class="status-row">
-    <div class="seg">
+    <div class="seg seg--tabs">
       {% for st in statuses %}
         <button class="seg-item {% if st == slice.status %}seg-item--on{% endif %}"
-                hx-post="{% wurl 'web:slice_status' slice.id %}" hx-vals='{"status": "{{ st }}"}'
+                hx-post="{% wurl 'web:slice_status' slice.id %}{{ panel_qs }}" hx-vals='{"status": "{{ st }}"}'
                 hx-target="closest .panel-inner" hx-swap="outerHTML">
-          {% if st == slice.status %}<span class="status-dot status-dot--{{ st }}"></span>{% endif %}{{ st }}
+          <span class="status-dot status-dot--{{ st }}"></span>{{ st }}
         </button>
       {% endfor %}
     </div>
   </div>
-  <div class="spec" x-show="!editSpec" x-on:click="editSpec=true">{{ spec_html|safe }}</div>
-  <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}"
-        hx-target="closest .panel-inner" hx-swap="outerHTML">
-    <textarea name="spec" class="spec-edit" rows="6">{{ slice.spec }}</textarea>
-    <button class="ghost" type="submit">Save</button>
-  </form>
+
+  <div class="spec-box">
+    <div class="spec" x-show="!editSpec" x-on:click="editSpec=true">{% if slice.spec %}{{ spec_html|safe }}{% else %}<span class="muted">설명을 추가하려면 클릭…</span>{% endif %}</div>
+    <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}{{ panel_qs }}"
+          hx-target="closest .panel-inner" hx-swap="outerHTML">
+      <textarea name="spec" class="spec-edit" rows="6">{{ slice.spec }}</textarea>
+      <button class="ghost" type="submit">Save</button>
+    </form>
+  </div>
   <div class="group-label"><span>Bites</span><span class="group-count">{% bite_progress slice %}</span></div>
   <div id="bites-{{ slice.id }}">
     {% for bite in bites %}{% include "web/partials/_bite_row.html" %}{% endfor %}
