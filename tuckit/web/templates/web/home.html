@@ -30,28 +30,34 @@
     <div class="home-cols">
     {# Focus — building slices, with progress #}
     <section class="board-col">
-      <div class="board-col-head">
-        <span class="board-col-label"><span>focus</span></span>
-        <span class="board-col-count">{{ state.building|length }}</span>
+      <div class="home-col-head">
+        <div class="home-col-head-row">
+          <span class="board-col-label"><span>focus</span></span>
+          <span class="board-col-count">{{ state.building|length }}</span>
+        </div>
+        <div class="home-col-sub">slices you're building</div>
       </div>
       <div class="home-col-body">
-        {% for slice in state.building %}
+        {% for slice in state.building|slice:":5" %}
           {% include "web/partials/_slice_row.html" with show_area=True show_desc=True %}
         {% empty %}
           <div class="home-col-empty"><span>Nothing in focus yet. Move a slice to building.</span></div>
         {% endfor %}
       </div>
-      {% if state.building %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=building">View all &rarr;</a>{% endif %}
+      {% if state.building|length > 5 %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=building">View all ({{ state.building|length }}) &rarr;</a>{% endif %}
     </section>
 
     {# Doing — bites actively in progress #}
     <section class="board-col">
-      <div class="board-col-head">
-        <span class="board-col-label"><span>doing</span></span>
-        <span class="board-col-count">{{ in_progress.bites|length }}</span>
+      <div class="home-col-head">
+        <div class="home-col-head-row">
+          <span class="board-col-label"><span>doing</span></span>
+          <span class="board-col-count">{{ in_progress.bites|length }}</span>
+        </div>
+        <div class="home-col-sub">sub-tasks in progress</div>
       </div>
       <div class="home-col-body">
-        {% for bite in in_progress.bites %}
+        {% for bite in in_progress.bites|slice:":5" %}
           <a class="slice-row" href="{% wurl 'web:slice' bite.slice.id %}"
              hx-get="{% wurl 'web:slice' bite.slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
             {% include "web/partials/_status_dot.html" with status=bite.status %}
@@ -67,38 +73,44 @@
           </div>
         {% endfor %}
       </div>
+      {% if in_progress.bites|length > 5 %}<a class="home-col-more" href="{% wurl 'web:in_progress' %}">View all ({{ in_progress.bites|length }}) &rarr;</a>{% endif %}
     </section>
 
     {# Next + Later stacked #}
     <div class="home-col-stack">
       <section class="board-col">
-        <div class="board-col-head">
-          <span class="board-col-label"><span>next</span></span>
-          <span class="board-col-count">{{ state.planned|length }}</span>
+        <div class="home-col-head">
+          <div class="home-col-head-row">
+            <span class="board-col-label"><span>next</span></span>
+            <span class="board-col-count">{{ state.planned|length }}</span>
+          </div>
+          <div class="home-col-sub">queued slices</div>
         </div>
         <div class="home-col-body">
-          {% for slice in state.planned %}
+          {% for slice in state.planned|slice:":5" %}
             {% include "web/partials/_slice_row.html" with show_area=True %}
           {% empty %}
             <div class="home-col-empty"><span>No planned work queued.</span></div>
           {% endfor %}
         </div>
-        {% if state.planned %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=planned">View all &rarr;</a>{% endif %}
+        {% if state.planned|length > 5 %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=planned">View all ({{ state.planned|length }}) &rarr;</a>{% endif %}
       </section>
 
       <section class="board-col">
-        <div class="board-col-head">
-          <span class="board-col-label"><span>later</span></span>
-          <span class="board-col-count">{{ later_ct }}</span>
+        <div class="home-col-head">
+          <div class="home-col-head-row">
+            <span class="board-col-label"><span>later</span></span>
+            <span class="board-col-count">{{ later_ct }}</span>
+          </div>
+          <div class="home-col-sub">parked ideas</div>
         </div>
         <div class="home-col-body">
-          {% for slice in state.ideas %}{% include "web/partials/_slice_row.html" with show_area=True %}{% endfor %}
-          {% for slice in state.someday %}{% include "web/partials/_slice_row.html" with show_area=True %}{% endfor %}
-          {% if not state.ideas and not state.someday %}
+          {% for slice in later_items|slice:":5" %}{% include "web/partials/_slice_row.html" with show_area=True %}{% endfor %}
+          {% if not later_items %}
             <div class="home-col-empty"><span>Nothing parked for later.</span></div>
           {% endif %}
         </div>
-        {% if state.ideas or state.someday %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=idea">View all &rarr;</a>{% endif %}
+        {% if later_ct > 5 %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=idea">View all ({{ later_ct }}) &rarr;</a>{% endif %}
       </section>
     </div>
   </div>

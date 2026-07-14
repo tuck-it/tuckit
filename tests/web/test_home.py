@@ -136,6 +136,29 @@ def test_home_active_headers_present(client_local, workspace):
 
 
 @pytest.mark.django_db
+def test_home_columns_have_subtitles(client_local, workspace):
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert "slices you're building" in body   # Focus
+    assert "sub-tasks in progress" in body     # Doing
+    assert "queued slices" in body             # Next
+    assert "parked ideas" in body              # Later
+
+
+@pytest.mark.django_db
+def test_home_focus_column_previews_five_then_view_all(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    a = create_area(workspace, "Backend")
+    for i in range(1, 7):
+        create_slice(a, f"buildslice{i}", status="building")
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert "buildslice1" in body                  # first preview item shown
+    assert "buildslice6" not in body              # 6th is beyond the 5-item preview
+    assert "View all (6)" in body                 # overflow link with true total
+    assert "status=building" in body
+
+
+@pytest.mark.django_db
 def test_home_sections_are_titled_boxes(client_local, workspace):
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     # Three titled boxes: needs_you, Overview (the columns), recently_shipped.

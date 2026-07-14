@@ -123,6 +123,7 @@ body { padding: 0; }
 /* Status dot — small round indicator, never a banner/band. */
 .status-dot {
   display: inline-block;
+  flex-shrink: 0;   /* keep the 7px circle round inside flex rows (never squish) */
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -1474,10 +1475,17 @@ body { padding: 0; }
   align-items: start;
 }
 .home-col-stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* Home column header — label row + a one-line subtitle naming what the column
+   holds. Home-only (the Board tab keeps .board-col-head). */
+.home-col-head { padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.home-col-head-row { display: flex; align-items: center; gap: 7px; }
+.home-col-sub { margin-top: 2px; font-size: 11px; line-height: 1.3; color: var(--ink-faint); }
 .home-col-body {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 10px; min-height: 96px;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 8px; min-height: 80px;
 }
+/* Denser rows inside the Overview columns so the box stays compact. */
+.home-col-body .slice-row { min-height: 38px; padding: 6px 10px; }
 .home-col-empty {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 22px 12px; text-align: center; color: var(--ink-faint); font-size: 13px;
