@@ -1,9 +1,10 @@
 {% load web_extras %}
 <div id="command-palette" class="cmdk-overlay" x-show="pal" x-cloak
      x-data="commandPalette()" x-effect="if (pal) open()"
-     x-on:click.self="pal = false"
-     x-on:keydown.escape="pal = false">
-  <div class="cmdk-box" role="dialog" aria-modal="true" aria-label="Command palette">
+     x-on:click.self="pal = false; $nextTick(() => opener && opener.focus())"
+     x-on:keydown.escape="pal = false; $nextTick(() => opener && opener.focus())">
+  <div class="cmdk-box" role="dialog" aria-modal="true" aria-label="Command palette"
+       x-on:keydown.tab="trap($event)">
     <input class="cmdk-input" type="text" placeholder="Search…" x-ref="search"
            x-model="q" autocomplete="off" spellcheck="false"
            x-on:input="filter()"

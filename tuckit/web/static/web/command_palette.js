@@ -5,6 +5,7 @@ function commandPalette() {
   return {
     q: "",
     active: 0,
+    opener: null,
     rows() {
       return Array.prototype.slice.call(this.$refs.list.querySelectorAll("[data-label]"));
     },
@@ -15,6 +16,7 @@ function commandPalette() {
       });
     },
     open() {
+      this.opener = document.activeElement;
       this.q = "";
       this.active = 0;
       this.$nextTick(function () {
@@ -44,6 +46,15 @@ function commandPalette() {
     choose() {
       var vis = this.visible();
       if (vis[this.active]) vis[this.active].click();
+    },
+    /* Tab trap while the palette is open — mirrors trapFocus/trapPanel in
+       base.html, scoped to the search input plus the currently visible rows. */
+    trap(e) {
+      var f = [this.$refs.search].concat(this.visible());
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     },
   };
 }

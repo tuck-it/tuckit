@@ -79,6 +79,7 @@ body { padding: 0; }
   margin-top: 2px; padding: 6px;
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: 0 8px 28px var(--shadow);
+  min-width: 200px;
 }
 .ws-menu-org {
   font-size: 11px; font-family: var(--mono); text-transform: uppercase;
@@ -98,7 +99,6 @@ body { padding: 0; }
 .ws-menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
 .ws-menu-settings { color: var(--ink-faint); }
 .ws-menu-settings .icon { stroke: var(--ink-faint); }
-.ws-menu { min-width: 200px; }
 
 .section {
   font-size: 11px;
@@ -1515,6 +1515,7 @@ html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
     background: var(--overlay);
   }
   .main { max-width: none; padding: 20px 16px; }
+  .side-collapse { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
