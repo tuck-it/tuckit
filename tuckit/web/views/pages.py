@@ -21,17 +21,9 @@ def home(request):
     ob = onboarding_state(ws) if ws else None
     show_get_started = bool(ws and not ws.onboarding_dismissed and ob and not ob.done)
     state = home_state(ws) if ws else {}
-    shipped_total = shipped_hidden = 0
-    if ws:
-        visible, shipped_total = cap_shipped(ws, state.get("shipped", []))
-        shipped_hidden = shipped_total - len(visible)
-        state = {**state, "shipped": visible}
-    building_ct = len(state.get("building", []))
-    later_ct = len(state.get("ideas", [])) + len(state.get("someday", []))
-    queued_ct = len(state.get("planned", [])) + later_ct
     metrics = []
     if ws:
-        snap = snapshot_today(ws)
+        snap = snapshot_today(ws, state)
         _defs = [
             ("Building", "building"),
             ("Backlog", "backlog"),
@@ -47,6 +39,14 @@ def home(request):
                 "abs": abs(d) if d is not None else None,
                 "dir": None if d is None else ("up" if d > 0 else "down" if d < 0 else "flat"),
             })
+    shipped_total = shipped_hidden = 0
+    if ws:
+        visible, shipped_total = cap_shipped(ws, state.get("shipped", []))
+        shipped_hidden = shipped_total - len(visible)
+        state = {**state, "shipped": visible}
+    building_ct = len(state.get("building", []))
+    later_ct = len(state.get("ideas", [])) + len(state.get("someday", []))
+    queued_ct = len(state.get("planned", [])) + later_ct
     return render(request, "web/home.html", {
         "workspace": ws,
         "state": state,

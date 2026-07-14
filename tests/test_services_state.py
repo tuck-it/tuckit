@@ -265,13 +265,12 @@ def test_roadmap_board_view_reports_overflow(workspace):
 
 
 def test_snapshot_today_first_day_has_no_deltas(workspace):
-    from datetime import date
     from tuckit.core.services.state import snapshot_today
     from tuckit.core.models import WorkspaceStatSnapshot
     area = create_area(workspace, "Backend")
     create_slice(area, "A", status="building")
     create_slice(area, "B", status="planned")
-    out = snapshot_today(workspace)
+    out = snapshot_today(workspace, home_state(workspace))
     assert out["building"] == {"value": 1, "delta": None}
     assert out["backlog"]["value"] == 1
     assert out["backlog"]["delta"] is None
@@ -284,8 +283,8 @@ def test_snapshot_today_is_idempotent_per_day(workspace):
     from tuckit.core.models import WorkspaceStatSnapshot
     area = create_area(workspace, "Backend")
     create_slice(area, "A", status="building")
-    snapshot_today(workspace)
-    snapshot_today(workspace)
+    snapshot_today(workspace, home_state(workspace))
+    snapshot_today(workspace, home_state(workspace))
     assert WorkspaceStatSnapshot.objects.filter(workspace=workspace).count() == 1
 
 
@@ -302,5 +301,5 @@ def test_snapshot_today_delta_vs_prior_day(workspace):
         workspace=workspace, date=yesterday, building_ct=3, backlog_ct=0,
         shipped_week_ct=0, attention_ct=0,
     )
-    out = snapshot_today(workspace)
+    out = snapshot_today(workspace, home_state(workspace))
     assert out["building"] == {"value": 1, "delta": -2}  # 1 today vs 3 yesterday

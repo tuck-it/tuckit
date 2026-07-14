@@ -111,24 +111,22 @@ def home_state(workspace: Workspace) -> dict:
     }
 
 
-def snapshot_today(workspace: Workspace) -> dict:
+def snapshot_today(workspace: Workspace, state: dict) -> dict:
     """Upsert today's count row for `workspace` and return each metric's value
-    plus its delta vs the most recent prior-day snapshot. Lazy — called on Home
-    load, so history accrues without a scheduler. delta is None on the first day
-    (no prior row) so the UI shows a value with no movement line."""
+    plus its delta vs the most recent prior-day snapshot. Counts are derived
+    from the passed-in home_state so they match the Home buckets exactly
+    (e.g. stalled building slices count only toward Needs attention, not
+    Building). Lazy — called on Home load, so history accrues without a
+    scheduler. delta is None on the first day (no prior row) so the UI shows
+    a value with no movement line."""
     today = timezone.localdate()
-    building_ct = Slice.objects.filter(
-        area__workspace=workspace, area__is_triage=False, status="building"
-    ).count()
-    backlog_ct = Slice.objects.filter(
-        area__workspace=workspace, area__is_triage=False,
-        status__in=["planned", "idea"],
-    ).count()
+    building_ct = len(state["building"])
+    backlog_ct = len(state["planned"]) + len(state["ideas"]) + len(state["someday"])
     week_ago = timezone.now() - timedelta(days=7)
-    shipped_week_ct = Slice.objects.filter(
-        area__workspace=workspace, status="shipped", completed_at__gte=week_ago
-    ).count()
-    attention_ct = len(attention_items(workspace))
+    shipped_week_ct = sum(
+        1 for s in state["shipped"] if s.completed_at and s.completed_at >= week_ago
+    )
+    attention_ct = len(state["attention"])
 
     WorkspaceStatSnapshot.objects.update_or_create(
         workspace=workspace,
