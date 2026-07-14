@@ -34,7 +34,8 @@
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
       x-data="{cap: false, menu: false, pal: false, trapFocus(e){ if(!this.menu) return; const f=[...this.$refs.sidebarWrap.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')].filter(el=>el.offsetParent!==null); if(!f.length) return; const first=f[0], last=f[f.length-1]; if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); } else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); } }}"
       x-on:keydown.window="if (!cap && $event.key === 'c' && !['INPUT','TEXTAREA'].includes($event.target.tagName)) { cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus()) }"
-      x-on:keydown.k.window.prevent.stop="if ($event.metaKey || $event.ctrlKey) pal = true">
+      x-on:keydown.cmd.k.window.prevent="if (!cap) pal = true"
+      x-on:keydown.ctrl.k.window.prevent="if (!cap) pal = true">
   <header class="topbar-mobile">
     <button class="topbar-btn" type="button" aria-label="Open navigation menu" :aria-expanded="menu" aria-controls="app-sidebar"
             x-ref="menuToggle"
