@@ -96,20 +96,24 @@
     </div>
   </div>
 
-  <section class="group group--archive" x-data="{open:false}">
-    <button class="tail-toggle group-label muted" type="button" x-on:click="open=!open" :class="{'tail-open': open}">
-      {% icon "chevron" "icon icon-chev" %}
-      recently_shipped = {{ shipped_total }}
-    </button>
-    <div class="tail-body" x-show="open" x-cloak>
-      {% if state.shipped %}
-        <div class="panel">{% for slice in state.shipped %}{% include "web/partials/_slice_row.html" %}{% endfor %}</div>
+  <section class="group group--archive">
+    <div class="group-label muted"><span>recently_shipped</span><span class="group-count">{{ shipped_total }}</span></div>
+    {% if state.shipped %}
+      <div class="shipped-strip">
+        {% for slice in state.shipped %}
+          <a class="shipped-chip" href="{% wurl 'web:slice' slice.id %}"
+             hx-get="{% wurl 'web:slice' slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
+            {% include "web/partials/_status_dot.html" with status=slice.status %}
+            <span>{{ slice.title }}</span>
+            <span class="chip-area">{{ slice.area.name }}</span>
+          </a>
+        {% endfor %}
         {% if shipped_hidden %}
-          <a class="group-more" href="{% wurl 'web:roadmap' %}?view=list&status=shipped">View all shipped ({{ shipped_total }}) →</a>
+          <a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=shipped">View all ({{ shipped_total }}) &rarr;</a>
         {% endif %}
-      {% else %}
-        <div class="empty muted">Nothing shipped yet.</div>
-      {% endif %}
-    </div>
+      </div>
+    {% else %}
+      <div class="empty muted">Nothing shipped yet.</div>
+    {% endif %}
   </section>
 {% endblock %}

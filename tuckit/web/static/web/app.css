@@ -1486,3 +1486,13 @@ body { padding: 0; }
 @media (max-width: 860px) {
   .home-cols { grid-template-columns: 1fr; }
 }
+
+/* Recently shipped — a calm always-visible strip (no celebratory chrome). */
+.shipped-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.shipped-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--radius-small); font-size: 13px; color: var(--ink);
+}
+.shipped-chip:hover { border-color: var(--border); }
+.shipped-chip .chip-area { color: var(--ink-faint); font-size: 11px; }

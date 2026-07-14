@@ -70,17 +70,6 @@ def test_home_all_clear_when_no_attention(client_local, workspace):
 
 
 @pytest.mark.django_db
-def test_home_tail_contains_shipped_items(client_local, workspace):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    a = create_area(workspace, "제품")
-    create_slice(a, "배포된 기능", status="shipped")
-    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
-    assert "tail-body" in body
-    assert "배포된 기능" in body   # tail content present in DOM (x-show only toggles visibility)
-
-
-@pytest.mark.django_db
 def test_home_omits_roadmap_strip_and_recent_activity(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice, set_slice_status
@@ -189,6 +178,18 @@ def test_home_header_has_subtitle_not_count(client_local, workspace):
 
 
 @pytest.mark.django_db
+def test_home_recently_shipped_strip_shows_items(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    a = create_area(workspace, "Design")
+    create_slice(a, "Shipped feature", status="shipped")
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert 'class="shipped-strip"' in body
+    assert "Shipped feature" in body
+    assert "<span>recently_shipped</span>" in body
+
+
+@pytest.mark.django_db
 def test_home_recently_shipped_caps_and_links(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
@@ -200,5 +201,5 @@ def test_home_recently_shipped_caps_and_links(client_local, workspace):
     create_slice(a, "shipped one", status="shipped")
     create_slice(a, "shipped two", status="shipped")
     body = client_local.get(f"{p}/").content.decode()
-    assert "recently_shipped = 2" in body         # count shows the true total
+    assert "View all (2)" in body                 # true total in the overflow link
     assert "status=shipped" in body               # unified view-all link
