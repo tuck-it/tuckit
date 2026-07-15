@@ -41,9 +41,13 @@ def test_switcher_renders_sibling_workspace_links(client, two_workspaces):
 @pytest.mark.django_db
 def test_old_switch_route_is_gone(client, two_workspaces):
     # The POST switch endpoints were removed when switching became link-based.
+    # Trailing slash: since Task 3 the org-home catch-all (<slug:org_slug>/)
+    # matches any single path segment, so a slash-less request would instead
+    # trip Django's APPEND_SLASH/POST safety net rather than exercise the
+    # 404-for-unknown-org path this test cares about.
     user, a, b = two_workspaces
     client.force_login(user)
-    assert client.post("/switch-workspace", {"workspace_id": b.id}).status_code == 404
+    assert client.post("/switch-workspace/", {"workspace_id": b.id}).status_code == 404
 
 
 @pytest.mark.django_db

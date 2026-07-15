@@ -1710,3 +1710,22 @@ html.sidebar-collapsed .side-resize { display: none; }
 .gs-seal { font-size: 22px; }
 .gs-won { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .gs-done-note { margin: 0; color: var(--good); font-size: 13px; }
+
+/* --- Org home (/<org>/) --- */
+.orghome { padding: 24px; max-width: 960px; }
+.orghome-bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 20px; }
+.orghome-id { display: flex; align-items: center; gap: 10px; }
+.orghome-name { font-size: 22px; font-weight: 650; margin: 0; }
+.orghome-meta { color: var(--muted); font-size: 13px; }
+.orghome-rail { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+.orghome-side { display: flex; flex-direction: column; gap: 20px; }
+.orghome-block { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--paper-raised); }
+.ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.ws-card { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: var(--paper-raised); text-decoration: none; color: var(--ink); }
+.ws-card:hover { border-color: var(--line-strong); }
+.ws-card-name { font-weight: 600; }
+.ws-card-open { color: var(--blue); font-size: 12px; }
+.ws-new { display: flex; border: 1px dashed var(--line); border-radius: var(--radius); }
+.ws-new-input { width: 100%; border: 0; background: transparent; padding: 14px; color: var(--blue); font: inherit; border-radius: var(--radius); }
+.ws-new-input:focus-visible { outline: none; }
+@media (max-width: 720px) { .orghome-rail { grid-template-columns: 1fr; } }

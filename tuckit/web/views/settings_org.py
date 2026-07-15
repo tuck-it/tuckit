@@ -89,6 +89,27 @@ def member_remove(request, member_id):
     return HttpResponse(status=204)
 
 
+def org_home(request):
+    """First-class org landing at /<org_slug>/. request.org is set by
+    TenantMiddleware (404 for non-members); request.workspace stays None."""
+    org = request.org
+    members = list(list_org_members(org))
+    workspaces = list(org.workspaces.order_by("name"))
+    invitations = list(Invitation.objects.filter(org=org, accepted_at__isnull=True))
+    for inv in invitations:
+        inv.link = request.build_absolute_uri(reverse("web:invite_accept", args=[inv.token]))
+    return render(request, "web/org_home.html", {
+        "workspace": request.workspace,
+        "org": org,
+        "members": members,
+        "workspaces": workspaces,
+        "invitations": invitations,
+        "can_admin": is_org_admin(request.user, org),
+        "can_owner": is_org_owner(request.user, org),
+        "role_choices": OrgMember.ROLE_CHOICES,
+    })
+
+
 @require_POST
 def org_delete(request):
     org = request.org

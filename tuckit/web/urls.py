@@ -85,4 +85,10 @@ app_patterns = [
     path(f"{P}bites/<int:bite_id>/body", mutations.bite_body, name="bite_body"),
 ]
 
-urlpatterns = auth_patterns + settings_patterns + root_patterns + app_patterns
+# --- org home (tenant; org-only, single segment; MUST be last so literal
+#     single-segment routes like login/ first-org/ always win) ---
+org_patterns = [
+    path("<slug:org_slug>/", settings_org.org_home, name="org_home"),
+]
+
+urlpatterns = auth_patterns + settings_patterns + root_patterns + app_patterns + org_patterns
