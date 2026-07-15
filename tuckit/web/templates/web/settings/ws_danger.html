@@ -1,0 +1,14 @@
+{% extends "web/settings_base.html" %}
+{% block settings_title %}Workspace · Danger zone{% endblock %}
+{% block settings_content %}
+{% if can_admin %}
+<div class="settings-title danger">Danger zone</div>
+<section class="group settings-section settings-section--danger">
+  <form hx-post="{% url 'web:workspace_delete' workspace.org.slug workspace.slug %}" hx-confirm="This workspace and all its areas and items will be deleted. Continue?">
+    <button type="submit" class="btn danger">Delete workspace</button>
+  </form>
+</section>
+{% else %}
+<div class="hint">Only an organization admin can delete this workspace.</div>
+{% endif %}
+{% endblock %}

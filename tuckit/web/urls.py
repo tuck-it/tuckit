@@ -43,19 +43,27 @@ settings_patterns = [
     path("<slug:org_slug>/settings/workspaces/new", workspaces.workspace_create, name="workspace_create"),
     path("<slug:org_slug>/settings/danger", settings_org.org_danger, name="settings_org_danger"),
     path("<slug:org_slug>/settings/delete", settings_org.org_delete, name="org_delete"),
+    # --- workspace settings pages + mutations (Task 4) ---
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/general", settings_views.ws_general, name="settings_ws_general"),
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/rename", settings_views.workspace_rename, name="workspace_rename"),
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/agent", settings_views.ws_agent, name="settings_ws_agent"),
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/tokens", settings_views.token_create, name="token_create"),
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/tokens/<int:token_id>/revoke", settings_views.token_revoke, name="token_revoke"),
+    # NOTE: shipped-board routing overrides the brief (see task-4 controller notes) to
+    # avoid a path collision between the FIXED page URL (spec §5) and the mutation:
+    # the page lives at .../shipped-board and the mutation at .../shipped-board/prefs.
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/shipped-board", settings_views.ws_shipped, name="settings_ws_shipped"),
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/shipped-board/prefs", settings_views.shipped_board_prefs, name="shipped_board_prefs"),
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/danger", settings_views.ws_danger, name="settings_ws_danger"),
+    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/delete", settings_views.workspace_delete, name="workspace_delete"),
     # --- TEMPORARY stubs: _settings_nav.html (every settings page's sidebar)
     #     links to every section up front, and settings_root above already
     #     redirects to web:settings_ws_general — so these names must resolve
-    #     starting now, even though their real pages land in Tasks 4–5. Each
+    #     starting now, even though their real pages land in Task 5. Each
     #     stub is removed by whichever task adds the real view under the same
     #     name (path/name stay stable so no caller needs to change). ---
     path("<slug:org_slug>/settings/account/profile", settings_shell.stub_page("account_profile"), name="settings_account_profile"),
     path("<slug:org_slug>/settings/account/orgs", settings_shell.stub_page("account_orgs"), name="settings_account_orgs"),
-    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/general", settings_shell.stub_page("ws_general"), name="settings_ws_general"),
-    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/agent", settings_shell.stub_page("ws_agent"), name="settings_ws_agent"),
-    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/shipped", settings_shell.stub_page("ws_shipped"), name="settings_ws_shipped"),
-    path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/danger", settings_shell.stub_page("ws_danger"), name="settings_ws_danger"),
-    # (Task 4 appends workspaces/<ws>/… pages + ws mutations, replacing the stubs above)
     # (Task 5 appends account/… pages + account mutations, replacing the stubs above)
 ]
 
@@ -100,20 +108,15 @@ org_patterns = [
     path("<slug:org_slug>/", settings_org.org_home, name="org_home"),
 ]
 
-# --- legacy settings routes (old settings/<org>/... and settings/<org>/<ws>/...
-#     shapes) — TEMPORARY, removed in Task 7 once every reference is repointed
-#     at the new org-based settings_patterns above. ---
+# --- legacy settings routes (old settings/<org>/... shapes) — TEMPORARY, removed
+#     in Task 7 once every reference is repointed at the new org-based
+#     settings_patterns above. Task 4 migrated all workspace-scoped routes (page +
+#     mutations) into settings_patterns above; only account-scoped legacy routes
+#     remain here for Task 5. ---
 legacy_patterns = [
     path("settings/account", settings_account.account_settings, name="settings_account"),
     path("settings/account/orgs", settings_account.org_create, name="account_org_create"),
     path("settings/account/orgs/<int:org_id>/leave", settings_account.org_leave, name="account_org_leave"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/", settings_views.settings, name="settings"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/workspace", settings_views.workspace_settings, name="settings_workspace"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/rename", settings_views.workspace_rename, name="workspace_rename"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/shipped-board", settings_views.shipped_board_prefs, name="shipped_board_prefs"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/delete", settings_views.workspace_delete, name="workspace_delete"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/tokens", settings_views.token_create, name="token_create"),
-    path("settings/<slug:org_slug>/<slug:ws_slug>/tokens/<int:token_id>/revoke", settings_views.token_revoke, name="token_revoke"),
 ]
 
 urlpatterns = (

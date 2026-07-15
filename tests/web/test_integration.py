@@ -10,5 +10,5 @@ def test_all_pages_reachable(client_local, workspace):
     a = create_area(workspace, "Backend")
     s = create_slice(a, "결제 도입", status="building")
     for url in [f"{p}/", f"{p}/triage/", f"{p}/areas/{a.slug}/", f"{p}/areas/{a.slug}/?view=board",
-                f"{p}/slices/{s.id}/", f"/settings/{workspace.org.slug}/{workspace.slug}/workspace"]:
+                f"{p}/slices/{s.id}/", f"/{workspace.org.slug}/settings/workspaces/{workspace.slug}/general"]:
         assert client_local.get(url).status_code == 200, url
