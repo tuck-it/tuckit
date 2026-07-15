@@ -69,6 +69,7 @@
        x-on:keydown.escape="$el.innerHTML.trim() && closePanel($el)"
        x-on:keydown.tab="trapPanel($event, $el)"></div>
   <div id="toast" class="toast" x-cloak></div>
+  {% include "web/partials/_onboarding_widget.html" %}
   {% include "web/partials/_capture_modal.html" %}
   {% include "web/partials/_command_palette.html" %}
   <div id="member-modal" class="modal-overlay" role="dialog" aria-modal="true"

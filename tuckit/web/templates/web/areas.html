@@ -1,0 +1,43 @@
+{% extends "web/base.html" %}
+{% load web_extras %}
+{% block main %}
+  <header class="page-head">
+    <div class="page-head-l"><h1 class="page-title">Areas</h1></div>
+    {% if not is_empty %}
+    <form hx-post="{% wurl 'web:area_create' %}" hx-swap="none" hx-on::after-request="window.location.reload()"
+          class="areas-add" x-data>
+      <input name="name" placeholder="New area name…" maxlength="200" required>
+      <button class="button button-small button-primary" type="submit">+ Create Area</button>
+    </form>
+    {% endif %}
+  </header>
+
+  {% if is_empty %}
+  <div class="areas-empty">
+    <div class="areas-empty-icon">{% icon "area" "icon" %}</div>
+    <h2>Organize work into Areas</h2>
+    <p>An <b>Area</b> is a long-lived domain of responsibility. It never gets
+      "done"; it's a home for work, so nothing floats around unowned. Examples:
+      Backend, Marketing, Mobile.</p>
+    <form hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
+          hx-on::after-request="window.location.reload()" class="areas-empty-form" x-data>
+      <input name="name" placeholder="e.g. Backend" maxlength="200" required autofocus>
+      <button class="button button-primary" type="submit">+ Create your first Area</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="areas-grid">
+    {% for c in cards %}
+    <a class="area-card" href="{% wurl 'web:area' c.area.slug %}">
+      <div class="area-card-name">{{ c.area.name }}</div>
+      {% if c.area.description %}<div class="area-card-desc">{{ c.area.description }}</div>{% endif %}
+      <div class="area-card-meta">
+        <span>{{ c.total }} slice{{ c.total|pluralize }}</span>
+        {% if c.building %}<span class="area-card-dot"><span class="status-dot status-dot--building"></span>{{ c.building }}</span>{% endif %}
+        {% if c.shipped %}<span class="area-card-dot"><span class="status-dot status-dot--shipped"></span>{{ c.shipped }}</span>{% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endblock %}

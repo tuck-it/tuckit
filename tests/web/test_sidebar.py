@@ -207,3 +207,18 @@ def test_active_item_soft_fill_no_bar_and_main_label_removed(client_local, works
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert '<div class="section">Main</div>' not in body
     assert 'class="section area-section"' in body
+
+
+@pytest.mark.django_db
+def test_sidebar_areas_label_links_to_overview(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/").content.decode()
+    assert 'class="area-section-link"' in body
+    assert f'href="/{workspace.org.slug}/{workspace.slug}/areas/"' in body
+
+
+@pytest.mark.django_db
+def test_sidebar_areas_active_on_overview(client_local, workspace):
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/areas/").content.decode()
+    assert "area-section-link--active" in body

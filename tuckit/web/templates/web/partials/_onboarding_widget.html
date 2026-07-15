@@ -1,0 +1,76 @@
+{% load web_extras %}
+{% if show_get_started %}
+{% comment %}Newest non-triage area/slice are the deep-link targets for the
+Slice/Bite steps. `areas` comes from the sidebar_areas context processor.{% endcomment %}
+<div id="onboarding-widget"{% if oob %} hx-swap-oob="true"{% endif %}
+     class="ob-widget" x-data="{open: localStorage.getItem('ob-open') !== '0'}">
+  <button type="button" class="ob-toggle" x-on:click="open = !open; localStorage.setItem('ob-open', open ? '1' : '0')"
+          :aria-expanded="open" aria-controls="ob-body">
+    <span class="ob-title">Get started</span>
+    <span class="ob-count">{{ onboarding.completed }}/4</span>
+    <span class="ob-chev" :class="{'ob-chev--up': open}">{% icon "chevron" "icon" %}</span>
+  </button>
+
+  <div id="ob-body" class="ob-body" x-show="open" x-cloak>
+    <ol class="ob-steps">
+
+      {# Step 1 — Area: inline create via the REAL area_create endpoint #}
+      <li class="ob-step {% if onboarding.has_area %}done{% endif %} {% if onboarding.current == 1 %}current{% endif %}">
+        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Create your first Area</span></div>
+        {% if not onboarding.has_area %}
+        <p class="ob-hint">A long-lived domain of responsibility — e.g. Backend, Marketing.</p>
+        <form class="ob-form" hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
+              hx-on::after-request="this.reset()">
+          <input name="name" placeholder="e.g. Backend" maxlength="200" required>
+          <button class="button button-primary button-small" type="submit">+ Create Area</button>
+        </form>
+        {% endif %}
+      </li>
+
+      {# Step 2 — Slice: go to the REAL Area page #}
+      <li class="ob-step {% if onboarding.has_slice %}done{% endif %} {% if onboarding.current == 2 %}current{% endif %}">
+        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Add your first Slice</span></div>
+        {% if onboarding.has_area and not onboarding.has_slice %}
+        <p class="ob-hint">One chunk of product work. Add it on the Area page.</p>
+        <a class="button button-small ob-cta" href="{% wurl 'web:area' areas.0.slug %}?focus=slice">Open {{ areas.0.name }} →</a>
+        {% endif %}
+      </li>
+
+      {# Step 3 — Bite: go to the REAL Slice panel #}
+      <li class="ob-step {% if onboarding.has_bite %}done{% endif %} {% if onboarding.current == 3 %}current{% endif %}">
+        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Break it into Bites</span></div>
+        {% if onboarding.has_slice and not onboarding.has_bite and onboarding.newest_slice_id %}
+        <p class="ob-hint">One implementation step of a Slice. Add it in the Slice.</p>
+        <a class="button button-small ob-cta" href="{% wurl 'web:slice' onboarding.newest_slice_id %}?focus=bite">Open the Slice →</a>
+        {% endif %}
+      </li>
+
+      {# Step 4 — Connect: inline, reuses the existing connect fragments #}
+      <li class="ob-step {% if onboarding.connected %}done{% endif %} {% if onboarding.current == 4 %}current{% endif %}">
+        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Connect your agent</span></div>
+        {% if onboarding.current == 4 %}
+        <div id="ob-connect">
+          {% if onboarding.has_key %}
+            {% include "web/partials/_get_started_listen.html" with agent_baseline=onboarding_agent_baseline %}
+            <button type="button" class="button button-small" hx-post="{% wurl 'web:onboarding_connect_key' %}" hx-target="#ob-connect" hx-swap="innerHTML">Generate another key</button>
+          {% else %}
+            <div class="gs-field">
+              <label>MCP endpoint</label>
+              <div class="gs-copyrow" x-data>
+                <input class="gs-mono" value="{{ onboarding_mcp_url }}" readonly x-ref="v">
+                <button type="button" class="gs-mini" x-on:click="navigator.clipboard.writeText($refs.v.value)">Copy</button>
+              </div>
+            </div>
+            <button type="button" class="button button-primary button-small" hx-post="{% wurl 'web:onboarding_connect_key' %}" hx-target="#ob-connect" hx-swap="innerHTML">Generate agent key</button>
+          {% endif %}
+        </div>
+        {% endif %}
+      </li>
+    </ol>
+
+    <form class="ob-dismiss" method="post" action="{% wurl 'web:onboarding_dismiss' %}">{% csrf_token %}
+      <button type="submit" class="ob-dismiss-btn">Dismiss</button>
+    </form>
+  </div>
+</div>
+{% endif %}

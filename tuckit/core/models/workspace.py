@@ -15,6 +15,7 @@ class Workspace(models.Model):
     slug = models.SlugField(max_length=100, validators=[_SLUG_VALIDATOR])
     description = models.TextField(blank=True, default="")
     onboarding_dismissed = models.BooleanField(default=False)
+    onboarding_completed = models.BooleanField(default=False)
     shipped_board_mode = models.CharField(
         max_length=5, choices=SHIPPED_BOARD_MODE_CHOICES, default="count"
     )

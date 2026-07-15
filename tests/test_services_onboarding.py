@@ -58,6 +58,18 @@ def test_agent_activity_marks_connected(workspace):
 
 
 @pytest.mark.django_db
+def test_newest_slice_id_tracks_latest(workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.onboarding import onboarding_state
+    area = create_area(workspace, "Backend")
+    assert onboarding_state(workspace).newest_slice_id is None
+    s1 = create_slice(area, "One", status="idea")
+    s2 = create_slice(area, "Two", status="idea")
+    assert onboarding_state(workspace).newest_slice_id == s2.id
+
+
+@pytest.mark.django_db
 def test_all_done(workspace):
     from tuckit.core.models import ActivityEvent
     area = create_area(workspace, "Backend")

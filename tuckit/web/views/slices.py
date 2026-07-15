@@ -21,6 +21,7 @@ def area_view(request, slug):
         "groups": groups,
         "has_any_slice": has_any_slice,
         "view": request.GET.get("view", "list"),
+        "focus": request.GET.get("focus", ""),
     })
 
 
@@ -32,5 +33,6 @@ def slice_detail(request, slice_id):
         raise Http404
     is_panel = request.GET.get("panel") == "1" and bool(request.headers.get("HX-Request"))
     ctx = slice_panel_context(slice_, is_panel=is_panel)
+    ctx["focus"] = request.GET.get("focus", "")
     template = "web/partials/_slice_panel.html" if is_panel else "web/slice_detail.html"
     return render(request, template, ctx)
