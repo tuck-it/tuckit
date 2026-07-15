@@ -1,5 +1,6 @@
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
+from django.template.loader import render_to_string
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.resolve import get_slice, get_bite
@@ -58,7 +59,11 @@ def slice_tags(request, slice_id):
 def bite_create(request, slice_id):
     slice_ = _slice_or_404(request, slice_id)
     create_bite(slice_, request.POST["title"], source="human")
-    return _panel(request, slice_)
+    resp = _panel(request, slice_)
+    widget = render_to_string("web/partials/_onboarding_widget.html", {"oob": True}, request=request)
+    if widget.strip():
+        resp.content = resp.content + widget.encode()
+    return resp
 
 
 def bite_toggle(request, bite_id):

@@ -2,6 +2,7 @@ from urllib.parse import urlparse
 
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.urls import reverse
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
@@ -9,6 +10,13 @@ from tuckit.core.services.areas import get_or_create_triage, create_area, list_a
 from tuckit.core.services.slices import create_slice, set_slice_area, set_slice_status, list_slices, grouped_slices
 from tuckit.core.services.resolve import get_area, get_slice, get_area_by_slug
 from tuckit.web.auth import get_current_workspace
+
+
+def _widget_oob(request):
+    """Render the onboarding widget as an OOB fragment (empty string when the
+    widget is hidden, so callers can safely concatenate). Context processors
+    supply onboarding state; pass oob=True for the hx-swap-oob marker."""
+    return render_to_string("web/partials/_onboarding_widget.html", {"oob": True}, request=request)
 
 
 def capture(request):
@@ -56,8 +64,10 @@ def area_create(request):
     ws = get_current_workspace(request)
     create_area(ws, request.POST["name"])
     # OOB-swap the sidebar Areas list instead of a full-page reload; the
-    # sidebar_areas context processor supplies the refreshed `areas`.
-    return render(request, "web/partials/_area_nav.html", {"oob": True})
+    # sidebar_areas context processor supplies the refreshed `areas`. Also
+    # OOB-refresh the onboarding widget so its Step-1 checkbox ticks live.
+    html = render_to_string("web/partials/_area_nav.html", {"oob": True}, request=request)
+    return HttpResponse(html + _widget_oob(request))
 
 
 def area_rename(request, area_id):
@@ -115,8 +125,9 @@ def area_slice_create(request, slug):
         create_slice(area, title, status="idea", source="human")
     groups = grouped_slices(area)
     has_any_slice = any(items for _, items in groups)
-    return render(request, "web/partials/_area_list.html", {
+    html = render_to_string("web/partials/_area_list.html", {
         "area": area,
         "groups": groups,
         "has_any_slice": has_any_slice,
-    })
+    }, request=request)
+    return HttpResponse(html + _widget_oob(request))
