@@ -1729,3 +1729,19 @@ html.sidebar-collapsed .side-resize { display: none; }
 .ws-new-input { width: 100%; border: 0; background: transparent; padding: 14px; color: var(--blue); font: inherit; border-radius: var(--radius); }
 .ws-new-input:focus-visible { outline: none; }
 @media (max-width: 720px) { .orghome-rail { grid-template-columns: 1fr; } }
+
+/* --- Account overview: org cards + workspace chips --- */
+.org-card { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+.org-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 15px; background: var(--paper-raised); border-bottom: 1px solid var(--line); }
+.org-card-name { font-weight: 650; font-size: 15px; color: var(--ink); text-decoration: none; }
+.org-card-name:hover { color: var(--blue); }
+.org-card-open { margin-left: auto; color: var(--blue); font-size: 12px; text-decoration: none; }
+.org-ws-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 15px; }
+.org-ws-chip { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: var(--radius-small); padding: 7px 11px; text-decoration: none; color: var(--ink); }
+.org-ws-chip:hover { border-color: var(--line-strong); }
+.org-ws-chip .nm { font-size: 13px; }
+.org-ws-chip .go { color: var(--blue); font-size: 11px; }
+.org-ws-new { border-style: dashed; }
+.org-ws-new input { border: 0; background: transparent; font: inherit; color: var(--blue); width: 140px; }
+.org-ws-new input:focus-visible { outline: none; }
+.org-card-foot { padding: 8px 15px; border-top: 1px dashed var(--line); }

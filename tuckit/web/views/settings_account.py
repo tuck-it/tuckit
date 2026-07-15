@@ -30,6 +30,7 @@ def account_settings(request):
         row["can_leave"] = not sole_owner and len(orgs) > 1
         row["is_current"] = bool(ws) and ws.org_id == org.id
         row["first_workspace"] = Workspace.objects.filter(org=org).order_by("name").first()
+        row["can_create_ws"] = row["role"] in ("owner", "admin")
     return render(request, "web/settings_account.html", {
         "workspace": ws,
         "org": ws.org if ws else None,

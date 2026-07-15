@@ -104,3 +104,23 @@ def test_account_page_open_links_target_other_orgs(acct_ctx):
     body = client.get("/settings/account").content.decode()
     assert f'href="/{org_b.slug}/{ws_b.slug}/"' in body
     assert "web:account_org_open" not in body  # no leftover POST-switch tag
+
+
+@pytest.mark.django_db
+def test_account_page_lists_workspaces_not_just_counts(acct_ctx):
+    client, user, org_a, ws_a, org_b, ws_b = acct_ctx
+    _login(client, user, ws_a)
+    body = client.get("/settings/account").content.decode()
+    # each workspace is individually linked (open)
+    assert f'href="/{org_a.slug}/{ws_a.slug}/"' in body
+    assert f'href="/{org_b.slug}/{ws_b.slug}/"' in body
+    # org home reachable from the overview
+    assert f'href="/{org_a.slug}/"' in body
+
+
+@pytest.mark.django_db
+def test_account_page_has_new_workspace_form_for_owned_org(acct_ctx):
+    client, user, org_a, ws_a, org_b, ws_b = acct_ctx
+    _login(client, user, ws_a)          # user is owner of both orgs
+    body = client.get("/settings/account").content.decode()
+    assert f'action="/settings/{org_a.slug}/workspaces/new"' in body

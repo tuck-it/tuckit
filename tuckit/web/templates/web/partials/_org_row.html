@@ -1,19 +1,29 @@
-<div class="org-row" data-org-id="{{ row.org.id }}">
-  <div class="org-row-main">
-    <span class="org-row-name">{{ row.org.name }}</span>
+<div class="org-card" data-org-id="{{ row.org.id }}">
+  <div class="org-card-head">
+    <a class="org-card-name" href="{% url 'web:org_home' row.org.slug %}">{{ row.org.name }}</a>
     <span class="role-badge role-badge--{{ row.role }}">{{ row.role }}</span>
     <span class="org-row-meta">{{ row.workspace_count }} workspace{{ row.workspace_count|pluralize }}</span>
     {% if row.is_current %}<span class="org-row-meta">· current</span>{% endif %}
+    <a class="org-card-open" href="{% url 'web:org_home' row.org.slug %}">Org home →</a>
   </div>
-  <div class="org-row-actions">
-    {% if not row.is_current and row.first_workspace %}
-      <a class="btn" href="{% url 'web:home' row.org.slug row.first_workspace.slug %}">Open</a>
-    {% endif %}
-    {% if row.can_leave %}
-      <form hx-post="{% url 'web:account_org_leave' row.org.id %}"
-            hx-confirm="Leave {{ row.org.name }}?">
-        <button type="submit" class="btn danger">Leave</button>
+  <div class="org-ws-chips">
+    {% for ws in row.workspaces %}
+      <a class="org-ws-chip" href="{% url 'web:home' row.org.slug ws.slug %}">
+        <span class="nm">{{ ws.name }}</span><span class="go">Open →</span>
+      </a>
+    {% endfor %}
+    {% if row.can_create_ws %}
+      <form class="org-ws-chip org-ws-new" method="post" action="{% url 'web:workspace_create' row.org.slug %}">
+        {% csrf_token %}
+        <input name="name" placeholder="＋ New workspace" maxlength="200" autocomplete="off" required>
       </form>
     {% endif %}
   </div>
+  {% if row.can_leave %}
+  <div class="org-card-foot">
+    <form hx-post="{% url 'web:account_org_leave' row.org.id %}" hx-confirm="Leave {{ row.org.name }}?">
+      <button type="submit" class="btn danger">Leave</button>
+    </form>
+  </div>
+  {% endif %}
 </div>
