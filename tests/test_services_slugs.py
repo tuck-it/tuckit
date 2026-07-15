@@ -60,3 +60,8 @@ def test_invites_reserved_for_workspace_but_fine_for_org():
     with pytest.raises(InvalidValue):
         validate_slug("invites", kind="workspace")
     assert validate_slug("invites", kind="org") == "invites"
+
+
+def test_first_org_is_reserved():
+    with pytest.raises(InvalidValue):
+        validate_slug("first-org", kind="org")

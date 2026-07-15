@@ -10,7 +10,7 @@ RESERVED_ORG_SLUGS = {
     "healthcheck", "cloud", "static", "media", "account", "check-slug",
     "admin", "api", "app", "www", "assets", "about", "help", "support",
     "status", "docs", "blog", "pricing", "terms", "privacy", "mail",
-    "new", "me", "null", "undefined",
+    "new", "me", "null", "undefined", "first-org",
 }
 
 RESERVED_WORKSPACE_SLUGS = {
