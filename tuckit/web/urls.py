@@ -28,7 +28,6 @@ settings_patterns = [
     path("settings/account/orgs", settings_account.org_create, name="account_org_create"),
     path("settings/account/orgs/<int:org_id>/leave", settings_account.org_leave, name="account_org_leave"),
     # org level
-    path("settings/<slug:org_slug>/", settings_org.org_settings, name="settings_org"),
     path("settings/<slug:org_slug>/rename", settings_org.org_rename, name="org_rename"),
     path("settings/<slug:org_slug>/members/<int:member_id>/role", settings_org.member_role, name="org_member_role"),
     path("settings/<slug:org_slug>/members/<int:member_id>/remove", settings_org.member_remove, name="org_member_remove"),

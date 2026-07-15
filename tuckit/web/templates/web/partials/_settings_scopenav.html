@@ -1,6 +1,6 @@
 <div class="scopenav">
   <a class="scope {% if active == 'account' %}on{% endif %}" href="{% url 'web:settings_account' %}">Account</a>
-  <a class="scope {% if active == 'org' %}on{% endif %}" href="{% url 'web:settings_org' org.slug %}">Organization</a>
+  <a class="scope {% if active == 'org' %}on{% endif %}" href="{% url 'web:org_home' org.slug %}">Organization</a>
   {% if workspace %}
   <a class="scope {% if active == 'workspace' %}on{% endif %}" href="{% url 'web:settings_workspace' org.slug workspace.slug %}">Workspace</a>
   {% elif workspaces %}

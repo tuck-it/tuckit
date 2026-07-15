@@ -23,7 +23,7 @@ def org_ctx(client, db):
 def test_org_page_lists_members_and_workspaces(org_ctx):
     client, org, owner, member, ws = org_ctx
     _login(client, owner)
-    resp = client.get(f"/settings/{org.slug}/")
+    resp = client.get(f"/{org.slug}/")
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "Acme" in body
@@ -37,14 +37,14 @@ def test_org_only_settings_branch_works_for_member(org_ctx):
     # still renders the sidebar chrome via the current_workspace fallback.
     client, org, owner, member, ws = org_ctx
     _login(client, member)
-    resp = client.get(f"/settings/{org.slug}/")
+    resp = client.get(f"/{org.slug}/")
     assert resp.status_code == 200
 
 
 @pytest.mark.django_db
 def test_org_page_requires_login(client, db):
     org = Org.objects.create(name="Acme", slug="acme")
-    resp = client.get(f"/settings/{org.slug}/")
+    resp = client.get(f"/{org.slug}/")
     assert resp.status_code in (302, 404)  # anon -> login redirect
 
 
@@ -55,7 +55,7 @@ def test_nonmember_gets_404_on_other_org_settings(org_ctx):
     stranger = User.objects.create(email="stranger@x.com")
     OrgMember.objects.create(user=stranger, org=other, role="owner")
     _login(client, owner)  # owner is NOT a member of `other`
-    resp = client.get(f"/settings/{other.slug}/")
+    resp = client.get(f"/{other.slug}/")
     assert resp.status_code == 404
 
 
@@ -175,7 +175,7 @@ def test_org_page_shows_invite_form_and_pending(org_ctx):
     client, org, owner, member, ws = org_ctx
     Invitation.objects.create(org=org, email="pending@x.com", role="member", token="tok-abc")
     _login(client, owner)
-    body = client.get(f"/settings/{org.slug}/").content.decode()
+    body = client.get(f"/{org.slug}/").content.decode()
     assert "web:invite_create" not in body            # url resolved, not literal
     assert f'hx-post="/settings/{org.slug}/invites"' in body  # invite form present (org-level)
     assert "pending@x.com" in body                     # pending invite listed
@@ -200,7 +200,7 @@ def test_invite_urls_use_viewed_org_not_session_fallback(org_ctx):
     assert home.status_code == 200
     assert client.session.get("active_workspace_id") == ws_a.id
 
-    resp = client.get(f"/settings/{org_b.slug}/")
+    resp = client.get(f"/{org_b.slug}/")
     assert resp.status_code == 200
     body = resp.content.decode()
     assert f"/settings/{org_b.slug}/invites" in body

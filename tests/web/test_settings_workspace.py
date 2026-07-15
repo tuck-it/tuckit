@@ -74,7 +74,7 @@ def test_workspace_page_renders(client_local, workspace):
     assert workspace.name in body        # rename field
     assert "Existing" in body            # token listed
     assert "/mcp" in body                # agent snippet
-    assert f'href="/settings/{workspace.org.slug}/"' in body   # member-management link to org page
+    assert f'href="/{workspace.org.slug}/"' in body   # member-management link to org home
 
 
 @pytest.mark.django_db

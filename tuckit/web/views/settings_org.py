@@ -16,25 +16,6 @@ from tuckit.core.services.orgs import (
 from tuckit.web.htmx import redirect_response
 
 
-def org_settings(request):
-    org = request.org
-    members = list(list_org_members(org))
-    workspaces = list(org.workspaces.order_by("name"))
-    invitations = list(Invitation.objects.filter(org=org, accepted_at__isnull=True))
-    for inv in invitations:
-        inv.link = request.build_absolute_uri(reverse("web:invite_accept", args=[inv.token]))
-    return render(request, "web/settings_org.html", {
-        "workspace": request.workspace,
-        "org": org,
-        "members": members,
-        "workspaces": workspaces,
-        "invitations": invitations,
-        "can_admin": is_org_admin(request.user, org),
-        "can_owner": is_org_owner(request.user, org),
-        "role_choices": OrgMember.ROLE_CHOICES,
-    })
-
-
 @require_POST
 def org_rename(request):
     org = request.org

@@ -37,7 +37,7 @@
   <div class="nav-spacer"></div>
 
   <div class="util-row">
-    <a class="util-btn util-settings{% if request.resolver_match.url_name == 'settings_workspace' or request.resolver_match.url_name == 'settings_org' %} util-btn--active{% endif %}"
+    <a class="util-btn util-settings{% if request.resolver_match.url_name == 'settings_workspace' or request.resolver_match.url_name == 'org_home' %} util-btn--active{% endif %}"
        href="{% url 'web:settings_workspace' current_workspace.org.slug current_workspace.slug %}">{% icon "settings" %}<span class="util-label">Settings</span></a>
     <button class="util-btn util-theme" type="button"
             x-data="{theme: document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')}"
