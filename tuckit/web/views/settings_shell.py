@@ -1,6 +1,6 @@
 from django.shortcuts import redirect
 
-from tuckit.core.services.orgs import is_org_admin, is_org_owner, list_user_orgs
+from tuckit.core.services.orgs import is_org_admin, is_org_owner
 
 
 def _ws_in_org(request, org):
@@ -28,8 +28,6 @@ def settings_context(request, *, active):
     return {
         "nav_org": org,
         "nav_ws": _ws_in_org(request, org),
-        "nav_orgs": list_user_orgs(request.user),
-        "nav_workspaces": list(org.workspaces.order_by("name")) if org else [],
         "settings_active": active,
         "can_admin": is_org_admin(request.user, org) if org else False,
         "can_owner": is_org_owner(request.user, org) if org else False,
