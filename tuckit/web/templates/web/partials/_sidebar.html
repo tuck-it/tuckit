@@ -23,7 +23,8 @@
   <div class="nav-sep"></div>
 
   <div class="section area-section" x-data="{adding: false}">
-    <span>Areas</span>
+    <a class="area-section-link{% if request.resolver_match.url_name == 'areas' %} area-section-link--active{% endif %}"
+       href="{% wurl 'web:areas' %}">Areas</a>
     <button type="button" class="area-add-btn" aria-label="Add area" title="Add area"
             x-on:click="adding = !adding; $nextTick(() => adding && $refs.areaAddInput && $refs.areaAddInput.focus())">{% icon "plus" %}</button>
     <form class="area-add" x-show="adding" x-cloak
