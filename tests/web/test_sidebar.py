@@ -222,3 +222,9 @@ def test_sidebar_areas_active_on_overview(client_local, workspace):
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/areas/").content.decode()
     assert "area-section-link--active" in body
+
+
+@pytest.mark.django_db
+def test_sidebar_settings_opens_settings_mode(client_local, workspace):
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert f'href="/{workspace.org.slug}/settings/workspaces/{workspace.slug}/general"' in body

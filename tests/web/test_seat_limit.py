@@ -24,5 +24,5 @@ def test_invite_over_limit_returns_402(client):
     session["active_workspace_id"] = ws.id
     session.save()
 
-    resp = client.post(f"/settings/{org.slug}/invites", {"email": "new@x.com", "role": "member"})
+    resp = client.post(f"/{org.slug}/settings/invites", {"email": "new@x.com", "role": "member"})
     assert resp.status_code == 402

@@ -21,7 +21,7 @@
   </div>
   {% if row.can_leave %}
   <div class="org-card-foot">
-    <form hx-post="{% url 'web:account_org_leave' row.org.id %}" hx-confirm="Leave {{ row.org.name }}?">
+    <form hx-post="{% url 'web:account_org_leave' nav_org.slug row.org.id %}" hx-confirm="Leave {{ row.org.name }}?">
       <button type="submit" class="btn danger">Leave</button>
     </form>
   </div>

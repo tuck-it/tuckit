@@ -1,0 +1,28 @@
+{% extends "web/settings_base.html" %}
+{% load web_extras %}
+{% block settings_title %}Organization · {{ org.name }}{% endblock %}
+{% block settings_content %}
+<div class="settings-title">General</div>
+<section class="group settings-section">
+  <div class="settings-row">
+    <div class="settings-row-text">
+      <div class="settings-row-label">Organization name</div>
+      <div class="settings-row-desc">Shown across tuckit for every member.</div>
+    </div>
+    <div class="settings-row-control">
+      <div class="settings-name" x-data="{editing:false, name:'{{ org.name|escapejs }}', saved:'{{ org.name|escapejs }}'}">
+        <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %}>
+          <span x-text="name"></span>{% if can_admin %}{% icon "edit" %}{% endif %}
+        </span>
+        {% if can_admin %}
+        <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
+               hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur, keydown[key=='Enter']"
+               hx-vals="js:{name: name}" hx-swap="none"
+               hx-on::after-request="if(event.detail.successful){saved=name}else{name=saved; showToast(event.detail.xhr.responseText,'err')}"
+               x-on:keydown.enter="editing=false" x-on:blur="editing=false">
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

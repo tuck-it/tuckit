@@ -18,7 +18,7 @@
       {% for a in areas %}
         <a class="cmdk-row" data-label="{{ a.name }}" href="{% wurl 'web:area' a.slug %}">{% icon "area" %}<span>{{ a.name }}</span></a>
       {% endfor %}
-      <a class="cmdk-row" data-label="Settings" href="{% url 'web:settings_workspace' current_workspace.org.slug current_workspace.slug %}">{% icon "settings" %}<span>Settings</span></a>
+      <a class="cmdk-row" data-label="Settings" href="{% url 'web:settings_ws_general' current_workspace.org.slug current_workspace.slug %}">{% icon "settings" %}<span>Settings</span></a>
       <button class="cmdk-row" type="button" data-label="Capture new item"
               x-on:click="pal = false; cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">{% icon "plus" %}<span>Capture new item</span></button>
     </div>

@@ -66,7 +66,7 @@ def test_navigating_to_inaccessible_workspace_404s(client, two_workspaces):
 def test_create_workspace_in_org(client, two_workspaces):
     user, a, b = two_workspaces
     client.force_login(user)
-    resp = client.post(f"/settings/{a.org.slug}/workspaces/new", {"name": "Gamma"})
+    resp = client.post(f"/{a.org.slug}/settings/workspaces/new", {"name": "Gamma"})
     assert resp.status_code == 302
     assert a.org.workspaces.filter(name="Gamma").exists()
     gamma = a.org.workspaces.get(name="Gamma")
@@ -82,4 +82,15 @@ def test_switcher_links_org_header_to_org_home_and_overview(client, db):
     client.force_login(user)
     body = client.get(f"/{org.slug}/{ws.slug}/").content.decode()
     assert f'href="/{org.slug}/"' in body          # org header → org home
-    assert 'href="/settings/account"' in body       # footer → overview
+    assert f'href="/{org.slug}/settings/account/organizations"' in body       # footer → overview
+
+
+@pytest.mark.django_db
+def test_switcher_all_orgs_points_to_account_settings(client, db):
+    org = Org.objects.create(name="Acme", slug="acme")
+    user = User.objects.create(email="u2@a.com")
+    OrgMember.objects.create(user=user, org=org, role="owner")
+    ws = create_workspace(org, "Product")
+    client.force_login(user)
+    body = client.get(f"/{org.slug}/{ws.slug}/").content.decode()
+    assert f'href="/{org.slug}/settings/account/organizations"' in body

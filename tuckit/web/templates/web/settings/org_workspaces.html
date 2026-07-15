@@ -1,0 +1,9 @@
+{% extends "web/settings_base.html" %}
+{% load web_extras %}
+{% block settings_title %}Organization · Workspaces{% endblock %}
+{% block settings_content %}
+<div class="settings-title">Workspaces</div>
+<section class="group settings-section">
+  {% include "web/partials/_org_ws_grid.html" %}
+</section>
+{% endblock %}

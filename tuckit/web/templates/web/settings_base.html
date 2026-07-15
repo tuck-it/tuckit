@@ -1,0 +1,9 @@
+{% extends "web/base.html" %}
+{% block sidebar %}{% include "web/partials/_settings_nav.html" %}{% endblock %}
+{% block breadcrumb %}{% endblock %}
+{% block main %}
+  <div class="settings-page">
+    <header class="page-head"><div class="page-head-l"><h1 class="page-title">{% block settings_title %}Settings{% endblock %}</h1></div></header>
+    {% block settings_content %}{% endblock %}
+  </div>
+{% endblock %}

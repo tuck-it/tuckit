@@ -1,0 +1,22 @@
+{% load web_extras %}
+<aside class="settings-nav">
+  <a class="settings-back" href="{% if nav_ws %}{% url 'web:home' nav_org.slug nav_ws.slug %}{% else %}{% url 'web:org_home' nav_org.slug %}{% endif %}">{% icon "chevron" "icon settings-back-chev" %}<span>Back to app</span></a>
+
+  <div class="settings-grp">Account</div>
+  <a class="settings-item{% if settings_active == 'account_profile' %} on{% endif %}" href="{% url 'web:settings_account_profile' nav_org.slug %}">Profile</a>
+  <a class="settings-item{% if settings_active == 'account_orgs' %} on{% endif %}" href="{% url 'web:settings_account_orgs' nav_org.slug %}">Your organizations</a>
+
+  <div class="settings-grp">Organization<span class="settings-scope">{{ nav_org.name }}</span></div>
+  <a class="settings-item{% if settings_active == 'org_general' %} on{% endif %}" href="{% url 'web:settings_org_general' nav_org.slug %}">General</a>
+  <a class="settings-item{% if settings_active == 'org_members' %} on{% endif %}" href="{% url 'web:settings_org_members' nav_org.slug %}">Members</a>
+  <a class="settings-item{% if settings_active == 'org_workspaces' %} on{% endif %}" href="{% url 'web:settings_org_workspaces' nav_org.slug %}">Workspaces</a>
+  {% if can_owner %}<a class="settings-item danger{% if settings_active == 'org_danger' %} on{% endif %}" href="{% url 'web:settings_org_danger' nav_org.slug %}">Danger zone</a>{% endif %}
+
+  {% if nav_ws %}
+  <div class="settings-grp">Workspace<span class="settings-scope">{{ nav_ws.name }}</span></div>
+  <a class="settings-item{% if settings_active == 'ws_general' %} on{% endif %}" href="{% url 'web:settings_ws_general' nav_org.slug nav_ws.slug %}">General</a>
+  <a class="settings-item{% if settings_active == 'ws_agent' %} on{% endif %}" href="{% url 'web:settings_ws_agent' nav_org.slug nav_ws.slug %}">Agent access</a>
+  <a class="settings-item{% if settings_active == 'ws_shipped' %} on{% endif %}" href="{% url 'web:settings_ws_shipped' nav_org.slug nav_ws.slug %}">Shipped board</a>
+  {% if can_admin %}<a class="settings-item danger{% if settings_active == 'ws_danger' %} on{% endif %}" href="{% url 'web:settings_ws_danger' nav_org.slug nav_ws.slug %}">Danger zone</a>{% endif %}
+  {% endif %}
+</aside>

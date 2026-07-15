@@ -16,17 +16,14 @@ def org_ctx(client, db):
 
 
 @pytest.mark.django_db
-def test_org_home_renders_members_and_workspaces(org_ctx):
+def test_org_home_is_browse_only(org_ctx):
     client, org, owner, member, ws = org_ctx
     client.force_login(owner)
-    resp = client.get(f"/{org.slug}/")
-    assert resp.status_code == 200
-    body = resp.content.decode()
-    assert "Acme" in body
-    assert "o@a.com" in body and "m@a.com" in body
-    assert "Board" in body
-    # Opening a workspace links to its home
-    assert f'href="/{org.slug}/{ws.slug}/"' in body
+    body = client.get(f"/{org.slug}/").content.decode()
+    assert "Board" in body or ws.name in body                 # workspace grid present
+    assert "m@a.com" not in body                              # members NOT here anymore
+    assert "Delete organization" not in body                 # danger NOT here
+    assert f'href="/{org.slug}/settings/general"' in body    # link into org settings
 
 
 @pytest.mark.django_db
@@ -34,7 +31,7 @@ def test_org_home_shows_new_workspace_form_for_admin(org_ctx):
     client, org, owner, member, ws = org_ctx
     client.force_login(owner)
     body = client.get(f"/{org.slug}/").content.decode()
-    assert f'action="/settings/{org.slug}/workspaces/new"' in body
+    assert f'action="/{org.slug}/settings/workspaces/new"' in body
 
 
 @pytest.mark.django_db
@@ -42,7 +39,7 @@ def test_org_home_hides_new_workspace_form_for_member(org_ctx):
     client, org, owner, member, ws = org_ctx
     client.force_login(member)
     body = client.get(f"/{org.slug}/").content.decode()
-    assert f'action="/settings/{org.slug}/workspaces/new"' not in body
+    assert f'action="/{org.slug}/settings/workspaces/new"' not in body
 
 
 @pytest.mark.django_db
@@ -69,4 +66,4 @@ def test_org_home_breadcrumb(org_ctx):
     client.force_login(owner)
     body = client.get(f"/{org.slug}/").content.decode()
     assert 'class="crumbbar"' in body
-    assert 'href="/settings/account"' in body   # "My orgs" → overview
+    assert f'href="/{org.slug}/settings/account/organizations"' in body   # "My orgs" → overview

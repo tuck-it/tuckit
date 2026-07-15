@@ -12,29 +12,27 @@ from tuckit.core.services.orgs import (
     _owner_count,
 )
 from tuckit.web.htmx import redirect_response
+from tuckit.web.views.settings_shell import settings_context
 
 
-def account_settings(request):
-    # /settings/account is non-tenant (no request.workspace); use the chrome
-    # fallback workspace only to annotate which org is "current".
-    ws = (
-        accessible_workspaces(request.user).select_related("org").first()
-        if request.user.is_authenticated
-        else None
-    )
-    orgs = list_user_orgs(request.user) if request.user.is_authenticated else []
-    # annotate each row with whether 나가기 is allowed, so the template can hide it
+def account_profile(request):
+    ctx = settings_context(request, active="account_profile")
+    return render(request, "web/settings/account_profile.html", ctx)
+
+
+def account_orgs(request):
+    ws = (accessible_workspaces(request.user).select_related("org").first()
+          if request.user.is_authenticated else None)
+    orgs = list_user_orgs(request.user)
     for row in orgs:
         org = row["org"]
         sole_owner = row["role"] == "owner" and _owner_count(org) <= 1
         row["can_leave"] = not sole_owner and len(orgs) > 1
         row["is_current"] = bool(ws) and ws.org_id == org.id
         row["can_create_ws"] = row["role"] in ("owner", "admin")
-    return render(request, "web/settings_account.html", {
-        "workspace": ws,
-        "org": ws.org if ws else None,
-        "orgs": orgs,
-    })
+    ctx = settings_context(request, active="account_orgs")
+    ctx["orgs"] = orgs
+    return render(request, "web/settings/account_orgs.html", ctx)
 
 
 def _member_org(request, org_id):
@@ -63,4 +61,10 @@ def org_leave(request, org_id):
     active_id = request.session.get("active_workspace_id")
     if active_id is None or Workspace.objects.filter(pk=active_id, org=org).exists():
         request.session.pop("active_workspace_id", None)
-    return redirect_response(request, "web:settings_account")
+    # `web:settings_account` no longer exists (this task removes it), and the
+    # org just left may be the same org as the URL's org_slug — reversing back
+    # into that org's settings would 404 under TenantMiddleware once org
+    # membership is gone. web:root re-resolves a safe destination (remaining
+    # workspace, or first-org) via the same membership-checked fallback the
+    # workspace switcher uses.
+    return redirect_response(request, "web:root")

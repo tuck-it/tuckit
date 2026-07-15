@@ -45,7 +45,7 @@
             clearTimeout(t);
             t = setTimeout(function () {
               if (!slug.value) { status.textContent = ''; return; }
-              fetch('/settings/check-slug?kind=org&slug=' + encodeURIComponent(slug.value))
+              fetch('/api/check-slug?kind=org&slug=' + encodeURIComponent(slug.value))
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                   status.textContent = d.available ? 'Available' : (d.error || 'Unavailable');

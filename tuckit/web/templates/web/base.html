@@ -60,9 +60,9 @@
     <div class="sidebar-wrap" id="app-sidebar" x-ref="sidebarWrap" :class="{'menu-open': menu}"
          x-on:keydown.escape.window="if (menu) { menu = false; $refs.menuToggle.focus() }"
          x-on:keydown.tab="trapFocus($event)">
-      {% include "web/partials/_sidebar.html" %}
+      {% block sidebar %}{% include "web/partials/_sidebar.html" %}{% endblock %}
     </div>
-    <main class="main">{% include "web/partials/_breadcrumb.html" %}{% block main %}{% endblock %}</main>
+    <main class="main">{% block breadcrumb %}{% include "web/partials/_breadcrumb.html" %}{% endblock %}{% block main %}{% endblock %}</main>
   </div>
   <div id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title"
        {% with sid=request.GET.slice|ascii_int %}{% if sid %}hx-get="{% wurl 'web:slice' sid %}?panel=1" hx-trigger="load" hx-target="#panel"{% endif %}{% endwith %}

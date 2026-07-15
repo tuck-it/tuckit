@@ -5,64 +5,20 @@
 <div class="orghome">
   <header class="orghome-bar">
     <div class="orghome-id">
-      <h1 class="orghome-name" x-data="{editing:false, name:'{{ org.name|escapejs }}', saved:'{{ org.name|escapejs }}'}">
-        <span x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %}>
-          <span x-text="name"></span>{% if can_admin %}{% icon "edit" %}{% endif %}
-        </span>
-        {% if can_admin %}
-        <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
-               hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur, keydown[key=='Enter']"
-               hx-vals="js:{name: name}" hx-swap="none"
-               hx-on::after-request="if(event.detail.successful){saved=name}else{name=saved; showToast(event.detail.xhr.responseText,'err')}"
-               x-on:keydown.enter="editing=false" x-on:blur="editing=false">
-        {% endif %}
-      </h1>
+      <h1 class="orghome-name">{{ org.name }}</h1>
       <span class="role-badge role-badge--{{ can_owner|yesno:'owner,member' }}">
         {% if can_owner %}owner{% elif can_admin %}admin{% else %}member{% endif %}
       </span>
     </div>
-    <div class="orghome-meta">{{ workspaces|length }} workspace{{ workspaces|length|pluralize }} · {{ members|length }} member{{ members|length|pluralize }}</div>
+    <div class="orghome-bar-r">
+      <span class="orghome-meta">{{ workspaces|length }} workspace{{ workspaces|length|pluralize }}</span>
+      <a class="btn" href="{% url 'web:settings_org_general' org.slug %}">{% icon "settings" %} Organization settings</a>
+    </div>
   </header>
 
-  <div class="orghome-rail">
-    <aside class="orghome-side">
-      <div class="orghome-block">
-        <div class="settings-title">Members</div>
-        <table class="member-table">
-          <tbody id="members-list">
-            {% for m in members %}{% include "web/partials/_member_row.html" %}{% endfor %}
-            {% if can_admin %}
-              {% for inv in invitations %}{% include "web/partials/_invite_row.html" with inv=inv %}{% endfor %}
-            {% endif %}
-          </tbody>
-        </table>
-        {% if can_admin %}
-        <form class="token-add" hx-post="{% url 'web:invite_create' org.slug %}" hx-target="#members-list" hx-swap="beforeend"
-              hx-on::after-request="this.reset()">
-          <input type="email" name="email" placeholder="Email" required>
-          <span class="settings-select"><select name="role">
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </select></span>
-          <button type="submit" class="btn">Invite</button>
-        </form>
-        {% endif %}
-      </div>
-
-      {% if can_owner %}
-      <div class="orghome-block">
-        <div class="settings-title danger">Danger zone</div>
-        <form hx-post="{% url 'web:org_delete' org.slug %}" hx-confirm="The organization and all its workspaces will be deleted. Continue?">
-          <button type="submit" class="btn danger">Delete organization</button>
-        </form>
-      </div>
-      {% endif %}
-    </aside>
-
-    <section class="orghome-main">
-      <div class="settings-title">Workspaces</div>
-      {% include "web/partials/_org_ws_grid.html" %}
-    </section>
-  </div>
+  <section class="orghome-main">
+    <div class="settings-title">Workspaces</div>
+    {% include "web/partials/_org_ws_grid.html" %}
+  </section>
 </div>
 {% endblock %}

@@ -27,11 +27,11 @@
       {% endfor %}
     {% endfor %}
     <div class="ws-menu-sep"></div>
-    <a class="ws-menu-item ws-menu-settings" href="{% url 'web:settings_account' %}" role="menuitem">
+    <a class="ws-menu-item ws-menu-settings" href="{% url 'web:settings_account_orgs' current_workspace.org.slug %}" role="menuitem">
       {% icon "settings" %}<span>All organizations</span>
     </a>
     <a class="ws-menu-item ws-menu-settings"
-       href="{% url 'web:settings_workspace' current_workspace.org.slug current_workspace.slug %}" role="menuitem">
+       href="{% url 'web:settings_ws_general' current_workspace.org.slug current_workspace.slug %}" role="menuitem">
       {% icon "settings" %}<span>Workspace settings</span>
     </a>
   </div>

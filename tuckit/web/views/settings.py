@@ -10,22 +10,37 @@ from tuckit.core.services.orgs import delete_workspace, is_org_admin, rename_wor
 from tuckit.core.services.tokens import list_tokens, generate_token, revoke_token
 from tuckit.web.auth import get_current_workspace
 from tuckit.web.htmx import redirect_response
+from tuckit.web.views.settings_shell import settings_context
 
 
-def settings(request):
+def ws_general(request):
     ws = get_current_workspace(request)
-    return redirect("web:settings_workspace", org_slug=ws.org.slug, ws_slug=ws.slug)
+    ctx = settings_context(request, active="ws_general")
+    ctx["workspace"] = ws
+    return render(request, "web/settings/ws_general.html", ctx)
 
 
-def workspace_settings(request):
+def ws_agent(request):
     ws = get_current_workspace(request)
-    return render(request, "web/settings_workspace.html", {
-        "workspace": ws,
-        "org": ws.org if ws else None,
-        "tokens": list(list_tokens(ws)) if ws else [],
-        "mcp_url": request.build_absolute_uri("/mcp"),
-        "can_admin": bool(ws and is_org_admin(request.user, ws.org)),
-    })
+    ctx = settings_context(request, active="ws_agent")
+    ctx.update({"workspace": ws, "tokens": list(list_tokens(ws)) if ws else [],
+                "mcp_url": request.build_absolute_uri("/mcp"),
+                "can_admin": bool(ws and is_org_admin(request.user, ws.org))})
+    return render(request, "web/settings/ws_agent.html", ctx)
+
+
+def ws_shipped(request):
+    ws = get_current_workspace(request)
+    ctx = settings_context(request, active="ws_shipped")
+    ctx["workspace"] = ws
+    return render(request, "web/settings/ws_shipped.html", ctx)
+
+
+def ws_danger(request):
+    ws = get_current_workspace(request)
+    ctx = settings_context(request, active="ws_danger")
+    ctx.update({"workspace": ws, "can_admin": bool(ws and is_org_admin(request.user, ws.org))})
+    return render(request, "web/settings/ws_danger.html", ctx)
 
 
 @require_POST

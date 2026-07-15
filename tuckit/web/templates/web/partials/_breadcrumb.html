@@ -6,7 +6,7 @@
 </nav>
 {% elif request.org %}
 <nav class="crumbbar" aria-label="Breadcrumb">
-  <a href="{% url 'web:settings_account' %}">My orgs</a>
+  <a href="{% url 'web:settings_account_orgs' request.org.slug %}">My orgs</a>
   <span class="crumb-sep">/</span>
   <span class="crumb-here">{{ request.org.name }}</span>
 </nav>

@@ -1,0 +1,19 @@
+{% extends "web/settings_base.html" %}
+{% load web_extras %}
+{% block settings_title %}Workspace · Agent access{% endblock %}
+{% block settings_content %}
+<div class="settings-title">Agent access</div>
+<section class="group settings-section">
+  <div class="hint">The token an agent uses to connect to this workspace over MCP.</div>
+  <div id="tokens-list" class="panel">
+    {% for token in tokens %}{% include "web/partials/_token_row.html" %}{% empty %}<div class="empty muted">No tokens yet</div>{% endfor %}
+  </div>
+  <form class="token-add" hx-post="{% url 'web:token_create' workspace.org.slug workspace.slug %}" hx-target="#tokens-list" hx-swap="afterbegin"
+        hx-on::after-request="this.reset()">
+    <input name="name" placeholder="＋ Token name (e.g. Claude Code)">
+  </form>
+  <div class="settings-subhead">Connect an agent</div>
+  <div class="hint">Register this workspace with Claude Code as an MCP server using the command below.</div>
+  <pre class="mcp-snippet"><code>claude mcp add --transport http tuck-it {{ mcp_url }} --header "Authorization: Bearer &lt;token&gt;"</code></pre>
+</section>
+{% endblock %}

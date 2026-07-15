@@ -20,21 +20,30 @@ def acct_ctx(client, db):
 
 
 @pytest.mark.django_db
+def test_account_profile_shows_email(acct_ctx):
+    client, user, org_a, ws_a, org_b, ws_b = acct_ctx
+    _login(client, user, ws_a)
+    body = client.get(f"/{org_a.slug}/settings/account/profile").content.decode()
+    assert "u@u.com" in body
+    assert 'class="settings-nav"' in body
+
+
+@pytest.mark.django_db
 def test_account_page_lists_my_orgs(acct_ctx):
     client, user, org_a, ws_a, org_b, ws_b = acct_ctx
     _login(client, user, ws_a)
-    resp = client.get("/settings/account")
+    resp = client.get(f"/{org_a.slug}/settings/account/organizations")
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "Alpha" in body and "Beta" in body
-    assert "u@u.com" in body                       # email shown
+    # email now lives on the separate Profile page (test_account_profile_shows_email)
 
 
 @pytest.mark.django_db
 def test_create_org_from_account(acct_ctx):
     client, user, org_a, ws_a, org_b, ws_b = acct_ctx
     _login(client, user, ws_a)
-    resp = client.post("/settings/account/orgs", {"name": "Gamma"})
+    resp = client.post(f"/{org_a.slug}/settings/account/orgs", {"name": "Gamma"})
     assert resp.status_code in (204, 302)          # navigates to home
     assert OrgMember.objects.filter(user=user, org__name="Gamma", role="owner").exists()
     # active workspace switched to the new org's workspace
@@ -52,7 +61,7 @@ def test_leave_org_from_account(acct_ctx):
     OrgMember.objects.create(user=co_owner, org=org_b, role="owner")
     _login(client, user, ws_a)                     # currently in Alpha
     om_b = OrgMember.objects.get(user=user, org=org_b)
-    resp = client.post(f"/settings/account/orgs/{org_b.id}/leave")
+    resp = client.post(f"/{org_a.slug}/settings/account/orgs/{org_b.id}/leave")
     assert resp.status_code in (204, 302)
     assert not OrgMember.objects.filter(id=om_b.id).exists()
 
@@ -67,7 +76,7 @@ def test_leave_current_org_clears_active_workspace(acct_ctx):
     co_owner = User.objects.create(email="d@d.com")
     OrgMember.objects.create(user=co_owner, org=org_a, role="owner")
     _login(client, user, ws_a)                     # active = Alpha's ws
-    client.post(f"/settings/account/orgs/{org_a.id}/leave")
+    client.post(f"/{org_a.slug}/settings/account/orgs/{org_a.id}/leave")
     assert not OrgMember.objects.filter(user=user, org=org_a).exists()
     assert client.session.get("active_workspace_id") != ws_a.id
 
@@ -79,7 +88,7 @@ def test_leave_sole_owner_returns_400(acct_ctx):
     # user is sole owner of org_a and org_b; leaving org_a is allowed only if a
     # second owner exists. Here user is sole owner, so it must be rejected.
     _login(client, user, ws_b)
-    resp = client.post(f"/settings/account/orgs/{org_a.id}/leave")
+    resp = client.post(f"/{org_b.slug}/settings/account/orgs/{org_a.id}/leave")
     assert resp.status_code == 400
     assert OrgMember.objects.filter(user=user, org=org_a).exists()
 
@@ -90,7 +99,7 @@ def test_leave_org_not_a_member_404s(acct_ctx):
     stranger_owner = User.objects.create(email="s@s.com")
     foreign, _ = create_org(stranger_owner, name="Foreign")
     _login(client, user, ws_a)
-    resp = client.post(f"/settings/account/orgs/{foreign.id}/leave")
+    resp = client.post(f"/{org_a.slug}/settings/account/orgs/{foreign.id}/leave")
     assert resp.status_code == 404
     assert OrgMember.objects.filter(user=stranger_owner, org=foreign).exists()
 
@@ -101,7 +110,7 @@ def test_account_page_open_links_target_other_orgs(acct_ctx):
     # workspace. The current org shows no Open link; the other shows a prefixed one.
     client, user, org_a, ws_a, org_b, ws_b = acct_ctx
     _login(client, user, ws_a)
-    body = client.get("/settings/account").content.decode()
+    body = client.get(f"/{org_a.slug}/settings/account/organizations").content.decode()
     assert f'href="/{org_b.slug}/{ws_b.slug}/"' in body
     assert "web:account_org_open" not in body  # no leftover POST-switch tag
 
@@ -110,7 +119,7 @@ def test_account_page_open_links_target_other_orgs(acct_ctx):
 def test_account_page_lists_workspaces_not_just_counts(acct_ctx):
     client, user, org_a, ws_a, org_b, ws_b = acct_ctx
     _login(client, user, ws_a)
-    body = client.get("/settings/account").content.decode()
+    body = client.get(f"/{org_a.slug}/settings/account/organizations").content.decode()
     # each workspace is individually linked (open)
     assert f'href="/{org_a.slug}/{ws_a.slug}/"' in body
     assert f'href="/{org_b.slug}/{ws_b.slug}/"' in body
@@ -122,5 +131,5 @@ def test_account_page_lists_workspaces_not_just_counts(acct_ctx):
 def test_account_page_has_new_workspace_form_for_owned_org(acct_ctx):
     client, user, org_a, ws_a, org_b, ws_b = acct_ctx
     _login(client, user, ws_a)          # user is owner of both orgs
-    body = client.get("/settings/account").content.decode()
-    assert f'action="/settings/{org_a.slug}/workspaces/new"' in body
+    body = client.get(f"/{org_a.slug}/settings/account/organizations").content.decode()
+    assert f'action="/{org_a.slug}/settings/workspaces/new"' in body

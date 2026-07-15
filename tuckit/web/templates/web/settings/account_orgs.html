@@ -1,0 +1,12 @@
+{% extends "web/settings_base.html" %}
+{% block settings_title %}Account · Your organizations{% endblock %}
+{% block settings_content %}
+<div class="settings-title">Your organizations</div>
+<section class="group settings-section">
+  {% for row in orgs %}{% include "web/partials/_org_row.html" %}{% endfor %}
+  <form class="org-add" hx-post="{% url 'web:account_org_create' nav_org.slug %}" hx-swap="none"
+        hx-on::after-request="this.reset()">
+    <input name="name" class="org-add-input" placeholder="＋ New organization" maxlength="200" autocomplete="off">
+  </form>
+</section>
+{% endblock %}
