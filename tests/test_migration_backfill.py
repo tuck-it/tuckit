@@ -1,3 +1,5 @@
+import importlib
+
 import pytest
 from django.db.migrations.executor import MigrationExecutor
 from django.db import connection
@@ -35,3 +37,17 @@ def test_backfill_creates_org_and_migrates_membership():
     # Leave the DB migrated forward for the rest of the suite.
     executor = MigrationExecutor(connection)
     executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+@pytest.mark.django_db
+def test_dismissed_workspace_backfilled_completed(workspace):
+    from django.apps import apps
+    workspace.onboarding_dismissed = True
+    workspace.onboarding_completed = False
+    workspace.save(update_fields=["onboarding_dismissed", "onboarding_completed"])
+    mod = importlib.import_module(
+        "tuckit.core.migrations.0012_workspace_onboarding_completed"
+    )
+    mod.backfill_completed(apps, None)
+    workspace.refresh_from_db()
+    assert workspace.onboarding_completed is True

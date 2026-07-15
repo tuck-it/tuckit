@@ -20,3 +20,8 @@ def test_stat_snapshot_unique_per_workspace_per_day(db):
     WorkspaceStatSnapshot.objects.create(workspace=ws, date=d, building_ct=3)
     with pytest.raises(IntegrityError):
         WorkspaceStatSnapshot.objects.create(workspace=ws, date=d, building_ct=9)
+
+
+@pytest.mark.django_db
+def test_onboarding_completed_defaults_false(workspace):
+    assert workspace.onboarding_completed is False
