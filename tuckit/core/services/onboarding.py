@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from tuckit.core.models import ApiToken, Area, Bite, Slice, Workspace
+from tuckit.core.models import ActivityEvent, ApiToken, Area, Bite, Slice, Workspace
 
 
 @dataclass(frozen=True)
@@ -9,6 +9,7 @@ class OnboardingState:
     has_slice: bool
     has_bite: bool
     connected: bool
+    has_key: bool = False
 
     @property
     def completed(self) -> int:
@@ -37,5 +38,6 @@ def onboarding_state(workspace: Workspace) -> OnboardingState:
         has_area=Area.objects.filter(workspace=workspace, is_triage=False).exists(),
         has_slice=Slice.objects.filter(area__workspace=workspace).exists(),
         has_bite=Bite.objects.filter(slice__area__workspace=workspace).exists(),
-        connected=ApiToken.objects.filter(workspace=workspace).exists(),
+        connected=ActivityEvent.objects.filter(workspace=workspace, actor="agent").exists(),
+        has_key=ApiToken.objects.filter(workspace=workspace).exists(),
     )

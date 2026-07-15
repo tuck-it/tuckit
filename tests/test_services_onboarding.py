@@ -39,17 +39,33 @@ def test_bite_marks_has_bite(workspace):
 
 
 @pytest.mark.django_db
-def test_token_marks_connected(workspace):
+def test_token_marks_has_key_not_connected(workspace):
     ApiToken.objects.create(workspace=workspace, name="a", token_hash="x")
+    st = onboarding_state(workspace)
+    assert st.has_key is True
+    assert st.connected is False  # a key alone is not "connected"
+
+
+@pytest.mark.django_db
+def test_agent_activity_marks_connected(workspace):
+    from tuckit.core.models import ActivityEvent
+    ActivityEvent.objects.create(
+        workspace=workspace, actor="agent", verb="created",
+        target_type="slice", target_id=1, target_label="Retry webhooks",
+    )
     st = onboarding_state(workspace)
     assert st.connected is True
 
 
 @pytest.mark.django_db
 def test_all_done(workspace):
+    from tuckit.core.models import ActivityEvent
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
     create_bite(sl, "Add backoff")
-    ApiToken.objects.create(workspace=workspace, name="a", token_hash="x")
+    ActivityEvent.objects.create(
+        workspace=workspace, actor="agent", verb="created",
+        target_type="slice", target_id=sl.id, target_label=sl.title,
+    )
     st = onboarding_state(workspace)
     assert st.done is True and st.completed == 4 and st.current == 0

@@ -1,6 +1,5 @@
 import pytest
 
-from tuckit.core.models import ApiToken
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
@@ -36,10 +35,14 @@ def test_slice_form_appears_after_area(client_local, workspace):
 
 @pytest.mark.django_db
 def test_checklist_hidden_when_all_done(client_local, workspace):
+    from tuckit.core.models import ActivityEvent
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
     create_bite(sl, "Add backoff")
-    ApiToken.objects.create(workspace=workspace, name="a", token_hash="x")
+    ActivityEvent.objects.create(
+        workspace=workspace, actor="agent", verb="created",
+        target_type="slice", target_id=sl.id, target_label=sl.title,
+    )
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/").content.decode()
     assert "Get started" not in body
