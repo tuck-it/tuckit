@@ -1429,7 +1429,7 @@ body { padding: 0; }
 .side-collapse .icon { transform: rotate(180deg); transition: transform 0.15s ease; }
 html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
 @media (min-width: 768px) {
-  html.sidebar-collapsed .sidebar { flex-basis: 60px; }
+  html.sidebar-collapsed .sidebar { --sidebar-w: 60px; }
   html.sidebar-collapsed .nav-label,
   html.sidebar-collapsed .section,
   html.sidebar-collapsed .nav-count,
@@ -1441,6 +1441,7 @@ html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
   html.sidebar-collapsed .area-menu,
   html.sidebar-collapsed .util-label { display: none; }
   html.sidebar-collapsed .side-top { flex-direction: column; gap: 6px; }
+  html.sidebar-collapsed .side-collapse { order: -1; }
   html.sidebar-collapsed .nav,
   html.sidebar-collapsed .capture-btn,
   html.sidebar-collapsed .search-pill,

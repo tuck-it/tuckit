@@ -95,3 +95,13 @@ def test_sidebar_shell_is_pinned_and_width_variable():
     assert "--sidebar-w: 220px" in css            # :root default
     assert "var(--sidebar-w, 220px)" in css        # consumed by .sidebar
     assert "transition: flex-basis" in css
+
+
+def test_collapse_animates_and_keeps_chevron_on_top():
+    css = APP_CSS.read_text(encoding="utf-8")
+    # Collapse overrides the width variable (so flex-basis transition animates it)
+    assert "html.sidebar-collapsed .sidebar { --sidebar-w: 60px; }" in css
+    # Old instant flex-basis swap is gone
+    assert "html.sidebar-collapsed .sidebar { flex-basis: 60px; }" not in css
+    # Chevron is pulled to the top of the collapsed column
+    assert "html.sidebar-collapsed .side-collapse { order: -1; }" in css
