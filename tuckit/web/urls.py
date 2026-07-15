@@ -21,9 +21,13 @@ auth_patterns = [
     path("first-org/", onboarding.first_org, name="first_org"),
 ]
 
+# --- internal JSON API (no HTML pages) ---
+api_patterns = [
+    path("api/check-slug", login_not_required(routing.check_slug), name="api_check_slug"),
+]
+
 # --- settings hub (cross-cutting; explicit slugs) ---
 settings_patterns = [
-    path("settings/check-slug", login_not_required(routing.check_slug), name="check_slug"),
     path("settings/account", settings_account.account_settings, name="settings_account"),
     path("settings/account/orgs", settings_account.org_create, name="account_org_create"),
     path("settings/account/orgs/<int:org_id>/leave", settings_account.org_leave, name="account_org_leave"),
@@ -88,4 +92,4 @@ org_patterns = [
     path("<slug:org_slug>/", settings_org.org_home, name="org_home"),
 ]
 
-urlpatterns = auth_patterns + settings_patterns + root_patterns + app_patterns + org_patterns
+urlpatterns = auth_patterns + api_patterns + settings_patterns + root_patterns + app_patterns + org_patterns

@@ -60,7 +60,7 @@ def test_register_accepts_valid_slug(client, settings):
 
 @pytest.mark.django_db
 def test_check_slug_reachable_anonymously(client):
-    """/settings/check-slug must be login_not_required so the anonymous
+    """/api/check-slug must be login_not_required so the anonymous
     registration page's live-availability JS can call it."""
-    resp = client.get("/settings/check-slug", {"kind": "org", "slug": "anon-check"})
+    resp = client.get("/api/check-slug", {"kind": "org", "slug": "anon-check"})
     assert resp.status_code == 200
