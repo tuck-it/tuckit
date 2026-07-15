@@ -82,4 +82,4 @@ def test_switcher_links_org_header_to_org_home_and_overview(client, db):
     client.force_login(user)
     body = client.get(f"/{org.slug}/{ws.slug}/").content.decode()
     assert f'href="/{org.slug}/"' in body          # org header → org home
-    assert 'href="/settings/account"' in body       # footer → overview
+    assert f'href="/{org.slug}/settings/account/organizations"' in body       # footer → overview

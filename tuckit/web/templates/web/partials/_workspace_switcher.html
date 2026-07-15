@@ -27,7 +27,7 @@
       {% endfor %}
     {% endfor %}
     <div class="ws-menu-sep"></div>
-    <a class="ws-menu-item ws-menu-settings" href="{% url 'web:settings_account' %}" role="menuitem">
+    <a class="ws-menu-item ws-menu-settings" href="{% url 'web:settings_account_orgs' current_workspace.org.slug %}" role="menuitem">
       {% icon "settings" %}<span>All organizations</span>
     </a>
     <a class="ws-menu-item ws-menu-settings"

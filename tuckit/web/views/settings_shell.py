@@ -1,4 +1,4 @@
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 
 from tuckit.core.services.orgs import is_org_admin, is_org_owner, list_user_orgs
 
@@ -43,16 +43,5 @@ def settings_root(request):
     return redirect("web:settings_ws_general", org_slug=request.org.slug, ws_slug=ws.slug)
 
 
-def stub_page(active):
-    """TEMPORARY placeholder view for a settings page not yet built. _settings_nav.html
-    (Step 5) links to every section up front, and settings_root above already redirects
-    to web:settings_ws_general — so those url names must resolve starting in Task 2,
-    even though their real pages/views land in Tasks 3–5. Each stubbed route here is
-    removed by whichever task adds the real view under the same name (keeping the
-    path/name stable so no caller needs to change)."""
-
-    def view(request, *args, **kwargs):
-        ctx = settings_context(request, active=active)
-        return render(request, "web/settings/_stub.html", ctx)
-
-    return view
+def settings_account_root(request):
+    return redirect("web:settings_account_profile", org_slug=request.org.slug)

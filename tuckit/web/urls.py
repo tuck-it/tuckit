@@ -56,15 +56,12 @@ settings_patterns = [
     path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/shipped-board/prefs", settings_views.shipped_board_prefs, name="shipped_board_prefs"),
     path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/danger", settings_views.ws_danger, name="settings_ws_danger"),
     path("<slug:org_slug>/settings/workspaces/<slug:ws_slug>/delete", settings_views.workspace_delete, name="workspace_delete"),
-    # --- TEMPORARY stubs: _settings_nav.html (every settings page's sidebar)
-    #     links to every section up front, and settings_root above already
-    #     redirects to web:settings_ws_general — so these names must resolve
-    #     starting now, even though their real pages land in Task 5. Each
-    #     stub is removed by whichever task adds the real view under the same
-    #     name (path/name stay stable so no caller needs to change). ---
-    path("<slug:org_slug>/settings/account/profile", settings_shell.stub_page("account_profile"), name="settings_account_profile"),
-    path("<slug:org_slug>/settings/account/orgs", settings_shell.stub_page("account_orgs"), name="settings_account_orgs"),
-    # (Task 5 appends account/… pages + account mutations, replacing the stubs above)
+    # --- account settings pages + mutations (Task 5) ---
+    path("<slug:org_slug>/settings/account/profile", settings_account.account_profile, name="settings_account_profile"),
+    path("<slug:org_slug>/settings/account/organizations", settings_account.account_orgs, name="settings_account_orgs"),
+    path("<slug:org_slug>/settings/account/orgs", settings_account.org_create, name="account_org_create"),
+    path("<slug:org_slug>/settings/account/orgs/<int:org_id>/leave", settings_account.org_leave, name="account_org_leave"),
+    path("<slug:org_slug>/settings/account", settings_shell.settings_account_root, name="settings_account_root"),
 ]
 
 # --- bare root ---
@@ -108,18 +105,7 @@ org_patterns = [
     path("<slug:org_slug>/", settings_org.org_home, name="org_home"),
 ]
 
-# --- legacy settings routes (old settings/<org>/... shapes) — TEMPORARY, removed
-#     in Task 7 once every reference is repointed at the new org-based
-#     settings_patterns above. Task 4 migrated all workspace-scoped routes (page +
-#     mutations) into settings_patterns above; only account-scoped legacy routes
-#     remain here for Task 5. ---
-legacy_patterns = [
-    path("settings/account", settings_account.account_settings, name="settings_account"),
-    path("settings/account/orgs", settings_account.org_create, name="account_org_create"),
-    path("settings/account/orgs/<int:org_id>/leave", settings_account.org_leave, name="account_org_leave"),
-]
-
 urlpatterns = (
     auth_patterns + api_patterns + settings_patterns
-    + root_patterns + app_patterns + org_patterns + legacy_patterns
+    + root_patterns + app_patterns + org_patterns
 )

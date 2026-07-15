@@ -69,4 +69,4 @@ def test_org_home_breadcrumb(org_ctx):
     client.force_login(owner)
     body = client.get(f"/{org.slug}/").content.decode()
     assert 'class="crumbbar"' in body
-    assert 'href="/settings/account"' in body   # "My orgs" → overview
+    assert f'href="/{org.slug}/settings/account/organizations"' in body   # "My orgs" → overview

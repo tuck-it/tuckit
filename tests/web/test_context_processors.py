@@ -37,8 +37,8 @@ def test_sidebar_areas_visible_on_org_only_settings_page(owner_with_area):
 
 @pytest.mark.django_db
 def test_sidebar_areas_visible_on_account_settings_page(owner_with_area):
-    client, _org, _ws = owner_with_area
-    body = client.get("/settings/account").content.decode()
+    client, org, _ws = owner_with_area
+    body = client.get(f"/{org.slug}/settings/account/profile").content.decode()
     assert "Backend" in body
 
 
