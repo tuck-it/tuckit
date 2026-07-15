@@ -102,4 +102,8 @@ def onboarding(request):
         "show_get_started": show,
         "onboarding_mcp_url": request.build_absolute_uri("/mcp"),
         "onboarding_agent_baseline": baseline,
+        # Unprefixed aliases the current Home checklist partials still read
+        # ({{ mcp_url }} / {{ agent_baseline }}). Kept until Task 3 removes them.
+        "mcp_url": request.build_absolute_uri("/mcp"),
+        "agent_baseline": baseline,
     }

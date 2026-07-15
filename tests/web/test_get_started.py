@@ -84,6 +84,14 @@ def test_step4_shows_generate_key_when_no_key(client_local, workspace):
 
 
 @pytest.mark.django_db
+def test_home_connect_step_renders_mcp_endpoint(client_local, workspace):
+    # fresh workspace (not connected) → the connect card shows the real MCP endpoint value
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/").content.decode()
+    assert "http://testserver/mcp" in body
+
+
+@pytest.mark.django_db
 def test_step4_shows_poller_when_key_exists(client_local, workspace):
     from tuckit.core.models import ApiToken
     ApiToken.objects.create(workspace=workspace, name="a", token_hash="x")
