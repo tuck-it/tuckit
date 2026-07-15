@@ -218,6 +218,21 @@ def test_list_user_orgs_returns_role_and_workspace_count():
 
 
 @pytest.mark.django_db
+def test_list_user_orgs_includes_workspaces():
+    from tuckit.core.models import User
+    from tuckit.core.services.orgs import create_org, create_workspace, list_user_orgs
+
+    user = User.objects.create(email="w@w.com")
+    org, first_ws = create_org(user, name="Acme")
+    second_ws = create_workspace(org, "Marketing")
+
+    rows = list_user_orgs(user)
+    assert len(rows) == 1
+    names = [w.name for w in rows[0]["workspaces"]]
+    assert names == sorted([first_ws.name, second_ws.name])
+
+
+@pytest.mark.django_db
 def test_leave_org_removes_membership():
     owner = User.objects.create(email="o@o.com")
     org, _ = create_org(owner, name="Team")            # owner also needs a 2nd org

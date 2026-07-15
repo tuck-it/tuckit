@@ -153,10 +153,12 @@ def list_user_orgs(user) -> list[dict]:
         OrgMember.objects.filter(user=user).select_related("org").order_by("org__name")
     )
     for m in memberships:
+        workspaces = list(Workspace.objects.filter(org=m.org).order_by("name"))
         rows.append({
             "org": m.org,
             "role": m.role,
-            "workspace_count": Workspace.objects.filter(org=m.org).count(),
+            "workspace_count": len(workspaces),
+            "workspaces": workspaces,
         })
     return rows
 
