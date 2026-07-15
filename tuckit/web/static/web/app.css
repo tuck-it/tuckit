@@ -10,10 +10,19 @@
    Keep only product-shell padding that base.css does not own. */
 body { padding: 0; }
 
+:root { --sidebar-w: 220px; }
+
 .app { display: flex; min-height: 100vh; }
 
 .sidebar {
-  flex: 0 0 220px;
+  flex: 0 0 var(--sidebar-w, 220px);
+  transition: flex-basis .2s var(--ease);
+  position: sticky;
+  top: 0;
+  align-self: flex-start;      /* don't stretch to .app (document) height */
+  height: 100dvh;              /* always the viewport height */
+  overflow-x: hidden;          /* clip labels while width animates */
+  overflow-y: auto;            /* sidebar scrolls independently when tall */
   background: var(--paper-deep);
   border-right: 1px solid var(--line);
   padding: 16px 12px;

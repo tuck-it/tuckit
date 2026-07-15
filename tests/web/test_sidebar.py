@@ -83,3 +83,15 @@ def test_new_sidebar_css_uses_no_raw_hex():
     # No 3/6-digit hex color literals anywhere in the components file.
     hexes = re.findall(r"#[0-9a-fA-F]{3,8}\b", css)
     assert hexes == [], f"app.css must use var(--token), found hex: {hexes}"
+
+
+def test_sidebar_shell_is_pinned_and_width_variable():
+    css = APP_CSS.read_text(encoding="utf-8")
+    # Viewport-pinned, self-scrolling shell
+    assert "position: sticky" in css
+    assert "100dvh" in css
+    assert "overflow-y: auto" in css
+    # Width driven by a variable with an animated flex-basis
+    assert "--sidebar-w: 220px" in css            # :root default
+    assert "var(--sidebar-w, 220px)" in css        # consumed by .sidebar
+    assert "transition: flex-basis" in css
