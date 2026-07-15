@@ -5,36 +5,53 @@ from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
 
 
+def _p(ws):
+    return f"/{ws.org.slug}/{ws.slug}"
+
+
 @pytest.mark.django_db
-def test_checklist_shows_four_steps_on_fresh_home(client_local, workspace):
-    p = f"/{workspace.org.slug}/{workspace.slug}"
-    body = client_local.get(f"{p}/").content.decode()
-    assert "Get started" in body
+def test_widget_shows_four_steps_on_fresh_home(client_local, workspace):
+    body = client_local.get(f"{_p(workspace)}/").content.decode()
+    assert 'id="onboarding-widget"' in body
     assert "Create your first Area" in body
     assert "Add your first Slice" in body
     assert "Break it into Bites" in body
     assert "Connect your agent" in body
+    # a11y: disclosure toggle points at the collapsible body, decorative
+    # checkmark glyphs are hidden from assistive tech.
+    assert 'aria-controls="ob-body"' in body
+    assert 'id="ob-body"' in body
+    assert 'class="ob-box" aria-hidden="true"' in body
 
 
 @pytest.mark.django_db
-def test_fresh_home_gates_slice_step(client_local, workspace):
-    p = f"/{workspace.org.slug}/{workspace.slug}"
-    body = client_local.get(f"{p}/").content.decode()
-    # no Area yet → the Slice step shows the gate hint, not a create form
-    assert "Create an Area first." in body
+def test_widget_area_step_posts_to_real_endpoint(client_local, workspace):
+    # Area is created inline in the widget via the REAL area_create endpoint.
+    body = client_local.get(f"{_p(workspace)}/").content.decode()
+    assert "/areas/new" in body  # web:area_create target
+    assert "/onboarding/area" not in body  # bespoke endpoint retired
 
 
 @pytest.mark.django_db
-def test_slice_form_appears_after_area(client_local, workspace):
+def test_widget_slice_step_links_to_real_area_page(client_local, workspace):
     create_area(workspace, "Backend")
-    p = f"/{workspace.org.slug}/{workspace.slug}"
-    body = client_local.get(f"{p}/").content.decode()
-    assert "/onboarding/slice" in body
-    assert "Create an Area first." not in body
+    body = client_local.get(f"{_p(workspace)}/").content.decode()
+    # Slice step deep-links into the real Area page with a focus hint.
+    assert "focus=slice" in body
 
 
 @pytest.mark.django_db
-def test_checklist_hidden_when_all_done(client_local, workspace):
+def test_widget_bite_step_links_to_real_slice(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    area = create_area(workspace, "Backend")
+    sl = create_slice(area, "Retry webhooks", status="idea")
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert f"/slices/{sl.id}/?focus=bite" in body
+
+
+@pytest.mark.django_db
+def test_widget_hidden_when_all_done(client_local, workspace):
     from tuckit.core.models import ActivityEvent
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
@@ -43,51 +60,39 @@ def test_checklist_hidden_when_all_done(client_local, workspace):
         workspace=workspace, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,
     )
-    p = f"/{workspace.org.slug}/{workspace.slug}"
-    body = client_local.get(f"{p}/").content.decode()
-    assert "Get started" not in body
+    body = client_local.get(f"{_p(workspace)}/").content.decode()
+    assert 'id="onboarding-widget"' not in body
 
 
 @pytest.mark.django_db
-def test_dismiss_hides_checklist(client_local, workspace):
-    p = f"/{workspace.org.slug}/{workspace.slug}"
+def test_dismiss_hides_widget(client_local, workspace):
+    p = _p(workspace)
     r = client_local.post(f"{p}/onboarding/dismiss")
     assert r.status_code in (200, 204, 302)
     workspace.refresh_from_db()
     assert workspace.onboarding_dismissed is True
-    assert "Get started" not in client_local.get(f"{p}/").content.decode()
-
-
-@pytest.mark.django_db
-def test_checklist_above_needs_you_when_no_area(client_local, workspace):
-    # Fresh workspace (only Triage, no Area) → checklist is the hero, above needs_you
-    p = f"/{workspace.org.slug}/{workspace.slug}"
-    body = client_local.get(f"{p}/").content.decode()
-    assert body.index("Get started") < body.index("needs_you")
-
-
-@pytest.mark.django_db
-def test_checklist_below_needs_you_once_area_exists(client_local, workspace):
-    create_area(workspace, "Backend")  # has_area True, still onboarding
-    p = f"/{workspace.org.slug}/{workspace.slug}"
-    body = client_local.get(f"{p}/").content.decode()
-    assert body.index("needs_you") < body.index("Get started")
+    assert 'id="onboarding-widget"' not in client_local.get(f"{p}/").content.decode()
 
 
 @pytest.mark.django_db
 def test_step4_shows_generate_key_when_no_key(client_local, workspace):
-    create_area(workspace, "Backend")  # so checklist shows and step 4 reachable
-    p = f"/{workspace.org.slug}/{workspace.slug}"
-    body = client_local.get(f"{p}/").content.decode()
-    assert "/onboarding/connect-key" in body     # generate button target
-    assert "/welcome/" not in body               # no link out to the old page
+    # Reach step 4 (onboarding.current == 4) by completing area/slice/bite first —
+    # the widget only renders the connect UI once current == 4.
+    area = create_area(workspace, "Backend")
+    sl = create_slice(area, "Retry webhooks", status="planned")
+    create_bite(sl, "Add backoff")
+    body = client_local.get(f"{_p(workspace)}/").content.decode()
+    assert "/onboarding/connect-key" in body
+    assert "/welcome/" not in body
 
 
 @pytest.mark.django_db
 def test_step4_shows_poller_when_key_exists(client_local, workspace):
     from tuckit.core.models import ApiToken
+    area = create_area(workspace, "Backend")
+    sl = create_slice(area, "Retry webhooks", status="planned")
+    create_bite(sl, "Add backoff")
     ApiToken.objects.create(workspace=workspace, name="a", token_hash="x")
-    p = f"/{workspace.org.slug}/{workspace.slug}"
-    body = client_local.get(f"{p}/").content.decode()
-    assert 'id="gs-listen"' in body              # listening/poller state
+    body = client_local.get(f"{_p(workspace)}/").content.decode()
+    assert 'id="gs-listen"' in body
     assert "/onboarding/agent-activity" in body

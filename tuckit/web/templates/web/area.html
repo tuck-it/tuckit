@@ -15,7 +15,9 @@
     {% include "web/partials/_board.html" %}
     {% if not has_any_slice %}<div class="empty muted">No slices yet.</div>{% endif %}
   {% else %}
-    <div class="slice-add" x-data="{ add: false }">
+    <div class="slice-add {% if focus == 'slice' %}ob-focus-slice{% endif %}"
+         x-data="{ add: {% if focus == 'slice' %}true{% else %}false{% endif %} }"
+         x-init="if (add) $nextTick(() => $refs.addInput.focus())">
       <button class="slice-add-toggle" type="button" x-show="!add"
               x-on:click="add = true; $nextTick(() => $refs.addInput.focus())">+ Add slice</button>
       <form x-show="add" x-cloak

@@ -68,6 +68,7 @@ TEMPLATES = [
                 "tuckit.web.context_processors.switchable_workspaces",
                 "tuckit.web.context_processors.current_workspace",
                 "tuckit.web.context_processors.auth_chrome",
+                "tuckit.web.context_processors.onboarding",
             ],
         },
     },

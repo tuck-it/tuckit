@@ -105,6 +105,14 @@ def test_add_slice_ignores_blank_title(client_local, workspace):
 
 
 @pytest.mark.django_db
+def test_area_page_autoopens_slice_add_on_focus_hint(client_local, workspace):
+    area = create_area(workspace, "Backend")
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/areas/{area.slug}/?focus=slice").content.decode()
+    assert "ob-focus-slice" in body
+
+
+@pytest.mark.django_db
 def test_add_slice_other_workspace_404(client_local, workspace):
     from tuckit.core.models import Org, Workspace
     p = f"/{workspace.org.slug}/{workspace.slug}"

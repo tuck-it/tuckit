@@ -81,7 +81,8 @@
     </div>
     {% endif %}
     <form hx-post="{% wurl 'web:bite_create' slice.id %}{{ panel_qs }}" hx-target="closest .panel-inner" hx-swap="outerHTML">
-      <input name="title" placeholder="Add a bite…" class="bite-add" x-ref="biteAdd">
+      <input name="title" placeholder="Add a bite…" class="bite-add {% if focus == 'bite' %}ob-focus-bite{% endif %}" x-ref="biteAdd"
+             {% if focus == 'bite' %}x-init="$nextTick(() => $el.focus())"{% endif %}>
     </form>
   </div>
 

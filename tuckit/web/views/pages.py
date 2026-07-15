@@ -11,15 +11,11 @@ from tuckit.core.services.state import (
     cap_shipped,
     snapshot_today,
 )
-from tuckit.core.models import ActivityEvent
-from tuckit.core.services.onboarding import onboarding_state
 from tuckit.web.auth import get_current_workspace
 
 
 def home(request):
     ws = get_current_workspace(request)
-    ob = onboarding_state(ws) if ws else None
-    show_get_started = bool(ws and not ws.onboarding_dismissed and ob and not ob.done)
     state = home_state(ws) if ws else {}
     metrics = []
     if ws:
@@ -57,13 +53,6 @@ def home(request):
         "queued_ct": queued_ct,
         "in_progress": in_progress_state(ws) if ws else {"slices": [], "bites": []},
         "roadmap": roadmap_state(ws) if ws else {},
-        "onboarding": ob,
-        "show_get_started": show_get_started,
-        "mcp_url": request.build_absolute_uri("/mcp"),
-        "agent_baseline": (
-            ActivityEvent.objects.filter(workspace=ws).order_by("-id")
-            .values_list("id", flat=True).first() or 0
-        ) if ws else 0,
         "shipped_total": shipped_total,
         "shipped_hidden": shipped_hidden,
         "metrics": metrics,
@@ -111,6 +100,27 @@ def roadmap(request):
         "shipped_total": board["shipped_total"],
         "shipped_hidden": board["shipped_hidden"],
     })
+
+
+def areas(request):
+    ws = get_current_workspace(request)
+    cards = []
+    if ws:
+        from tuckit.core.services.areas import list_areas
+        from tuckit.core.models import Slice
+        for a in list_areas(ws):
+            if a.is_triage:
+                continue
+            counts = {}
+            for s in Slice.objects.filter(area=a).exclude(status="dropped").values_list("status", flat=True):
+                counts[s] = counts.get(s, 0) + 1
+            cards.append({
+                "area": a,
+                "total": sum(counts.values()),
+                "building": counts.get("building", 0),
+                "shipped": counts.get("shipped", 0),
+            })
+    return render(request, "web/areas.html", {"cards": cards, "is_empty": not cards})
 
 
 @require_POST

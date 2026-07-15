@@ -89,3 +89,30 @@ def auth_chrome(request):
         "registration_open": settings.REGISTRATION_OPEN,
         "marketing_url": getattr(settings, "TUCKIT_MARKETING_URL", "") or "",
     }
+
+
+def onboarding(request):
+    """Expose onboarding state to every template so the floating Get-started
+    widget renders on all pages — and make completion sticky so deleting an
+    Area after finishing never resurrects the checklist."""
+    from tuckit.core.services.onboarding import onboarding_state
+    from tuckit.core.models import ActivityEvent
+
+    ws = current_workspace_or_fallback(request)
+    if not ws or ws.onboarding_completed or ws.onboarding_dismissed:
+        return {}
+    state = onboarding_state(ws)
+    if state.done and not ws.onboarding_completed:
+        ws.onboarding_completed = True
+        ws.save(update_fields=["onboarding_completed"])
+    show = not ws.onboarding_dismissed and not ws.onboarding_completed and not state.done
+    baseline = (
+        ActivityEvent.objects.filter(workspace=ws).order_by("-id")
+        .values_list("id", flat=True).first() or 0
+    )
+    return {
+        "onboarding": state,
+        "show_get_started": show,
+        "onboarding_mcp_url": request.build_absolute_uri("/mcp"),
+        "onboarding_agent_baseline": baseline,
+    }
