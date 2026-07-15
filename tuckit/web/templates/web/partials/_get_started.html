@@ -2,19 +2,72 @@
 <section class="get-started" aria-label="Get started">
   <div class="gs-head">
     <div><h2 class="gs-title">Get started</h2>
-      <p class="gs-sub">{{ onboarding.completed }} of 3 done — you're almost set.</p></div>
+      <p class="gs-sub">{{ onboarding.completed }} of 4 — build the structure by hand, then hand the work to your agent.</p></div>
     <form method="post" action="{% wurl 'web:onboarding_dismiss' %}">{% csrf_token %}
       <button class="gs-dismiss" type="submit">Dismiss</button></form>
   </div>
   <ul class="gs-list">
-    <li class="{% if onboarding.connected %}done{% endif %}">
-      <span class="gs-box">✓</span><span class="gs-lbl">Connect your AI agent</span>
-      <a class="gs-go" href="{% url 'web:welcome' %}">Connect →</a></li>
-    <li class="{% if onboarding.captured %}done{% endif %}">
-      <span class="gs-box">✓</span><span class="gs-lbl">Capture your first slice</span>
-      <span class="gs-go">press <kbd>C</kbd></span></li>
-    <li class="{% if onboarding.triaged %}done{% endif %}">
-      <span class="gs-box">✓</span><span class="gs-lbl">Triage it into an area</span>
-      <a class="gs-go" href="{% wurl 'web:triage' %}">Open Triage →</a></li>
+
+    <li class="gs-step {% if onboarding.has_area %}done{% endif %}">
+      <details {% if onboarding.current == 1 %}open{% endif %}>
+        <summary><span class="gs-box">✓</span><span class="gs-lbl">Create your first Area</span></summary>
+        <div class="gs-card">
+          <p class="gs-def"><b>Area</b> — a long-lived domain of responsibility. It never gets “done”; it’s a home for work, so nothing floats around unowned.</p>
+          <p class="gs-eg">Examples: Backend, Marketing, Mobile. (<b>Triage</b> is the one built-in Area — the inbox for anything not yet sorted.)</p>
+          {% if not onboarding.has_area %}
+          <form class="gs-form" method="post" action="{% wurl 'web:onboarding_area' %}">{% csrf_token %}
+            <input name="name" placeholder="e.g. Backend" maxlength="200" required>
+            <button class="button button-primary" type="submit">+ Create Area</button>
+          </form>
+          {% endif %}
+        </div>
+      </details>
+    </li>
+
+    <li class="gs-step {% if onboarding.has_slice %}done{% endif %} {% if not onboarding.has_area %}gated{% endif %}">
+      <details {% if onboarding.current == 2 %}open{% endif %}>
+        <summary><span class="gs-box">✓</span><span class="gs-lbl">Add your first Slice</span></summary>
+        <div class="gs-card">
+          <p class="gs-def"><b>Slice</b> — one chunk of product work: an idea, feature, or fix. It moves idea → planned → building → shipped.</p>
+          <p class="gs-eg">Examples: “Retry failed webhooks”, “Redesign the login screen”.</p>
+          {% if onboarding.has_area and not onboarding.has_slice %}
+          <form class="gs-form" method="post" action="{% wurl 'web:onboarding_slice' %}">{% csrf_token %}
+            <input name="title" placeholder="e.g. Retry failed webhooks" maxlength="300" required>
+            <button class="button button-primary" type="submit">+ Add Slice</button>
+          </form>
+          {% elif not onboarding.has_area %}
+          <p class="gs-gate">Create an Area first.</p>
+          {% endif %}
+        </div>
+      </details>
+    </li>
+
+    <li class="gs-step {% if onboarding.has_bite %}done{% endif %} {% if not onboarding.has_slice %}gated{% endif %}">
+      <details {% if onboarding.current == 3 %}open{% endif %}>
+        <summary><span class="gs-box">✓</span><span class="gs-lbl">Break it into Bites</span></summary>
+        <div class="gs-card">
+          <p class="gs-def"><b>Bite</b> — one implementation step of a Slice: the concrete to-dos (todo → doing → done). When every Bite is done, the Slice ships.</p>
+          <p class="gs-eg">Under “Retry failed webhooks” → “Add exponential backoff”, “Cap retries at 5”.</p>
+          {% if onboarding.has_slice and not onboarding.has_bite %}
+          <form class="gs-form" method="post" action="{% wurl 'web:onboarding_bite' %}">{% csrf_token %}
+            <input name="title" placeholder="e.g. Add exponential backoff" maxlength="300" required>
+            <button class="button button-primary" type="submit">+ Add Bite</button>
+          </form>
+          {% elif not onboarding.has_slice %}
+          <p class="gs-gate">Add a Slice first.</p>
+          {% endif %}
+        </div>
+      </details>
+    </li>
+
+    <li class="gs-step {% if onboarding.connected %}done{% endif %}">
+      <details {% if onboarding.current == 4 %}open{% endif %}>
+        <summary><span class="gs-box">✓</span><span class="gs-lbl">Connect your agent</span></summary>
+        <div class="gs-card">
+          <p class="gs-def">You just built the structure by hand — so you <b>understand</b> it. From here your AI agent reads and writes these same Areas, Slices, and Bites over MCP. It does the work; nothing it does slips past you.</p>
+          <a class="button button-primary" href="{% url 'web:welcome' %}?step=connect">Connect your agent →</a>
+        </div>
+      </details>
+    </li>
   </ul>
 </section>
