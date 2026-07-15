@@ -53,3 +53,19 @@ def test_dismiss_hides_checklist(client_local, workspace):
     workspace.refresh_from_db()
     assert workspace.onboarding_dismissed is True
     assert "Get started" not in client_local.get(f"{p}/").content.decode()
+
+
+@pytest.mark.django_db
+def test_checklist_above_needs_you_when_no_area(client_local, workspace):
+    # Fresh workspace (only Triage, no Area) → checklist is the hero, above needs_you
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/").content.decode()
+    assert body.index("Get started") < body.index("needs_you")
+
+
+@pytest.mark.django_db
+def test_checklist_below_needs_you_once_area_exists(client_local, workspace):
+    create_area(workspace, "Backend")  # has_area True, still onboarding
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{p}/").content.decode()
+    assert body.index("needs_you") < body.index("Get started")
