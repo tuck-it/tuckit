@@ -148,3 +148,15 @@ def test_sidebar_js_syncs_aria_valuenow_on_load_and_clamps_persisted_width():
     assert 'handle.setAttribute("aria-valuenow", String(currentWidth()))' in js
     # endDrag clamps the persisted value instead of writing it raw.
     assert "clamp(parseInt(getComputedStyle(root).getPropertyValue(\"--sidebar-w\"), 10))" in js
+
+
+def test_sidebar_and_panel_density_tightened():
+    css = APP_CSS.read_text(encoding="utf-8")
+    # .sidebar carries an explicit 13px so labels drop from the inherited 16px
+    assert re.search(r"\.sidebar\s*\{[^}]*font-size:\s*13px", css), ".sidebar must set font-size: 13px"
+    assert "min-height: 32px" in css        # nav/capture rows tightened from 40 (new value)
+    assert re.search(r"\.util-btn\s*\{[^}]*min-height:\s*30px", css), ".util-btn must be 30px"
+    assert "min-height: 40px" not in css    # no 40px sidebar rows remain
+    # slice-panel frame stepped down (reading body untouched)
+    assert ".panel-titlebar .panel-title { font-size: 20px;" in css
+    assert ".section-label { font-size: 11px;" in css
