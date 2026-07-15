@@ -7,7 +7,7 @@
             hx-get="{% wurl 'web:activity' %}?panel=1" hx-target="#panel">{% icon "activity" %}</button>
     <button class="side-collapse" type="button"
             aria-label="Collapse sidebar" title="Collapse sidebar"
-            x-on:click="toggleSidebar()">{% icon "chevron" %}</button>
+            x-on:click="toggleSidebar()">{% icon "panel-left" %}</button>
   </div>
   <button class="search-pill" type="button" x-on:click="pal = true">
     {% icon "search" %}<span class="nav-label">Search</span><kbd class="nav-kbd">⌘K</kbd>

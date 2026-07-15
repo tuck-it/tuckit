@@ -160,3 +160,18 @@ def test_sidebar_and_panel_density_tightened():
     # slice-panel frame stepped down (reading body untouched)
     assert ".panel-titlebar .panel-title { font-size: 20px;" in css
     assert ".section-label { font-size: 11px;" in css
+
+
+@pytest.mark.django_db
+def test_collapse_button_uses_panel_left_icon(client_local, workspace):
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert 'class="side-collapse"' in body
+    assert 'd="M9 3v18"' in body            # panel-left divider line rendered on the collapse button
+
+
+def test_panel_left_registered_and_rotation_removed():
+    from tuckit.web.templatetags.web_extras import _ICON_PATHS
+    assert "panel-left" in _ICON_PATHS
+    assert "chevron" in _ICON_PATHS         # still used by the workspace switcher
+    css = APP_CSS.read_text(encoding="utf-8")
+    assert "transform: rotate(180deg)" not in css   # chevron-rotation rule gone

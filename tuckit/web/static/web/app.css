@@ -1427,8 +1427,6 @@ body { padding: 0; }
 .gs-go kbd{font-family:inherit;border:1px solid var(--line);border-radius:var(--radius-small);padding:0 5px}
 
 /* --- Collapsed (icon-only) sidebar, desktop only --- */
-.side-collapse .icon { transform: rotate(180deg); transition: transform 0.15s ease; }
-html.sidebar-collapsed .side-collapse .icon { transform: rotate(0deg); }
 @media (min-width: 768px) {
   html.sidebar-collapsed .sidebar { --sidebar-w: 60px; }
   html.sidebar-collapsed .nav-label,
