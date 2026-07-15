@@ -21,12 +21,17 @@
       if (localStorage.getItem("sidebar-collapsed") === "1") {
         document.documentElement.classList.add("sidebar-collapsed");
       }
+      var sw = parseInt(localStorage.getItem("sidebar-width"), 10);
+      if (sw >= 180 && sw <= 420) {
+        document.documentElement.style.setProperty("--sidebar-w", sw + "px");
+      }
     })();
   </script>
   <!-- command_palette.js defines the commandPalette() global; it must load
        before Alpine so the function exists when Alpine walks the DOM (Alpine
        auto-starts synchronously the moment its deferred script runs). -->
   <script defer src="{% static 'web/command_palette.js' %}"></script>
+  <script defer src="{% static 'web/sidebar.js' %}"></script>
   <script defer src="{% static 'web/vendor/alpine.min.js' %}"></script>
   <script src="{% static 'web/vendor/htmx.min.js' %}"></script>
   <script src="{% static 'web/vendor/sortable.min.js' %}"></script>

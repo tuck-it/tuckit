@@ -121,3 +121,20 @@ def test_resize_handle_css_present():
     assert "col-resize" in css                       # resize cursor
     assert "html.resizing .sidebar { transition: none; }" in css   # 1:1 tracking
     assert "html.sidebar-collapsed .side-resize { display: none; }" in css  # hidden collapsed
+
+
+SIDEBAR_JS = APP_CSS.parent / "sidebar.js"
+
+
+@pytest.mark.django_db
+def test_sidebar_js_loaded_and_width_restored(client_local, workspace):
+    body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
+    assert "sidebar.js" in body                 # behavior script loaded
+    assert "sidebar-width" in body              # pre-paint restore reads the key
+
+
+def test_sidebar_js_clamps_to_bounds():
+    js = SIDEBAR_JS.read_text(encoding="utf-8")
+    assert "180" in js and "420" in js          # min/max bounds
+    assert "sidebar-width" in js                # persists under this key
+    assert "resizing" in js                     # toggles the no-transition drag class
