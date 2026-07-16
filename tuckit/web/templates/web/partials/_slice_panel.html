@@ -1,5 +1,5 @@
 {% load web_extras %}
-<div class="panel-inner" x-data="{editTitle:false, editSpec:false}">
+<div class="panel-inner" x-data="{editTitle:false, editSpec:false, editPlan:false, editConstraints:false}">
   <div class="panel-crumb">
     <a class="area-chip" href="{% wurl 'web:area' slice.area.slug %}">{% icon "area" "icon area-chip-icon" %}{{ slice.area.name }}</a>
     {% if is_panel %}
@@ -59,6 +59,32 @@
                 x-on:keydown.meta.enter.prevent="$el.form.requestSubmit()"
                 x-on:keydown.ctrl.enter.prevent="$el.form.requestSubmit()"
                 x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editSpec=false)">{{ slice.spec }}</textarea>
+    </form>
+  </div>
+  <div class="desc-block">
+    <div class="section-label">Plan</div>
+    <div class="spec" x-show="!editPlan"
+         x-on:click="editPlan=true; $nextTick(()=>{ $refs.planEdit.focus(); autosize($refs.planEdit); })">{% if plan.body %}{{ plan_html|safe }}{% else %}<span class="muted">Click to add a plan…</span>{% endif %}</div>
+    <form x-show="editPlan" x-cloak hx-post="{% wurl 'web:plan_edit' slice.id %}{{ panel_qs }}"
+          hx-target="closest .panel-inner" hx-swap="outerHTML">
+      <textarea name="body" class="spec-edit" x-ref="planEdit" rows="2"
+                x-on:input="autosize($event.target)"
+                x-on:keydown.escape.stop="editPlan=false"
+                x-on:keydown.meta.enter.prevent="$el.form.requestSubmit()"
+                x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editPlan=false)">{{ plan.body }}</textarea>
+    </form>
+  </div>
+  <div class="desc-block">
+    <div class="section-label">Constraints</div>
+    <div class="spec" x-show="!editConstraints"
+         x-on:click="editConstraints=true; $nextTick(()=>{ $refs.consEdit.focus(); autosize($refs.consEdit); })">{% if plan.constraints %}{{ constraints_html|safe }}{% else %}<span class="muted">Click to add constraints…</span>{% endif %}</div>
+    <form x-show="editConstraints" x-cloak hx-post="{% wurl 'web:plan_edit' slice.id %}{{ panel_qs }}"
+          hx-target="closest .panel-inner" hx-swap="outerHTML">
+      <textarea name="constraints" class="spec-edit" x-ref="consEdit" rows="2"
+                x-on:input="autosize($event.target)"
+                x-on:keydown.escape.stop="editConstraints=false"
+                x-on:keydown.meta.enter.prevent="$el.form.requestSubmit()"
+                x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editConstraints=false)">{{ plan.constraints }}</textarea>
     </form>
   </div>
   <div class="bites-block">

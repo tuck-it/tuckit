@@ -3,6 +3,7 @@ import nh3
 
 from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import list_bites, bite_progress
+from tuckit.core.services.plans import get_plan
 
 
 def render_markdown_html(text: str) -> str:
@@ -16,6 +17,7 @@ render_spec_html = render_markdown_html
 
 def slice_panel_context(slice_, is_panel: bool = False) -> dict:
     done, total = bite_progress(slice_)
+    plan = get_plan(slice_)
     return {
         "slice": slice_,
         "spec_html": render_markdown_html(slice_.spec),
@@ -27,4 +29,7 @@ def slice_panel_context(slice_, is_panel: bool = False) -> dict:
         "bites_done": done,
         "bites_total": total,
         "bites_pct": round(done / total * 100) if total else 0,
+        "plan": plan,
+        "plan_html": render_markdown_html(plan.body) if plan and plan.body else "",
+        "constraints_html": render_markdown_html(plan.constraints) if plan and plan.constraints else "",
     }

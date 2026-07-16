@@ -229,3 +229,21 @@ def test_spec_is_boxed_inline_edit(client_local, workspace):
     # Spec reads as a field: boxed like the other props (border + background).
     css = (Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "app.css").read_text()
     assert ".spec, .spec-edit {" in css                  # shared box rule present
+
+
+@pytest.mark.django_db
+def test_plan_section_renders_and_edits(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    a = create_area(workspace, "B")
+    s = create_slice(a, "S")
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+
+    body = client_local.get(f"{p}/slices/{s.id}/").content.decode()
+    assert '<div class="section-label">Plan</div>' in body
+    assert '<div class="section-label">Constraints</div>' in body
+
+    client_local.post(f"{p}/slices/{s.id}/plan",
+                      {"body": "Goal: X", "constraints": "no billing"})
+    s.refresh_from_db()
+    assert s.plan.body == "Goal: X" and s.plan.constraints == "no billing"

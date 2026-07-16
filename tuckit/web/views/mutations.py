@@ -6,6 +6,7 @@ from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.resolve import get_slice, get_bite
 from tuckit.core.services.slices import set_slice_status, update_slice
 from tuckit.core.services.bites import create_bite, set_bite_status, update_bite
+from tuckit.core.services.plans import set_plan
 from tuckit.web.auth import get_current_workspace
 from tuckit.web.panel import slice_panel_context
 
@@ -40,6 +41,15 @@ def slice_edit(request, slice_id):
     if "title" in request.POST: kwargs["title"] = request.POST["title"]
     if "spec" in request.POST: kwargs["spec"] = request.POST["spec"]
     update_slice(slice_, **kwargs)
+    return _panel(request, slice_)
+
+
+def plan_edit(request, slice_id):
+    slice_ = _slice_or_404(request, slice_id)
+    kwargs = {}
+    if "body" in request.POST: kwargs["body"] = request.POST["body"]
+    if "constraints" in request.POST: kwargs["constraints"] = request.POST["constraints"]
+    set_plan(slice_, **kwargs)
     return _panel(request, slice_)
 
 
