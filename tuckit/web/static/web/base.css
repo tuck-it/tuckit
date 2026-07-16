@@ -34,7 +34,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: "Onest Variable", "Onest", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
+  font-size: var(--text-base);
   line-height: 1.55;
   text-rendering: optimizeLegibility;
 }
@@ -100,7 +100,8 @@ h3 { font-size: 18px; }
 .button-primary:hover { background: var(--blue); border-color: var(--blue); transform: translateY(-1px); }
 
 /* --- Form-control focus primitive --- */
-input, textarea, select { font: inherit; }
+/* Text-entry controls hold a 14px readability floor above the dense 13px body. */
+input, textarea, select { font: inherit; font-size: var(--text-md); }
 input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: none;
   border-color: var(--blue);
