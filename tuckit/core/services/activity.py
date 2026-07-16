@@ -33,9 +33,9 @@ def slice_activity(slice_):
     bites' events, oldest-first — so the detail reads like a comment thread."""
     from django.db.models import Q
 
-    from tuckit.core.models import ActivityEvent
+    from tuckit.core.models import ActivityEvent, Bite
 
-    bite_ids = list(slice_.bites.values_list("id", flat=True))
+    bite_ids = list(Bite.objects.filter(plan__slice=slice_).values_list("id", flat=True))
     return list(
         ActivityEvent.objects.filter(workspace=slice_.area.workspace)
         .filter(Q(target_type="slice", target_id=slice_.id)

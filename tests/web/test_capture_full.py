@@ -1,7 +1,8 @@
 """The global capture modal is a full slice-authoring form: Title is required,
-everything else (area, status, spec, tags, bites) is optional. Submitting a
-title alone stays a quick Inbox capture; filling any optional field creates a
-complete slice and redirects the user into it."""
+everything else (area, status, spec, tags) is optional. Submitting a title
+alone stays a quick Inbox capture; filling any optional field creates a
+complete slice and redirects the user into it. Bites are no longer authored
+from capture — they live under a Slice's Plan section."""
 import pytest
 
 from tuckit.core.models import Slice
@@ -29,14 +30,12 @@ def test_capture_rich_creates_full_slice_and_redirects(client_local, workspace):
         "spec": "Paddle webhook 처리",
         "status": "planned",
         "tags": ["billing", "urgent"],
-        "bite_titles": ["웹훅 서명 검증", "이벤트 저장"],
     }, HTTP_HX_REQUEST="true")
     assert resp.status_code == 204
     s = Slice.objects.get(title="결제 연동")
     assert s.spec == "Paddle webhook 처리"
     assert s.status == "planned"
     assert {t.name for t in s.tags.all()} == {"billing", "urgent"}
-    assert [b.title for b in s.bites.order_by("rank")] == ["웹훅 서명 검증", "이벤트 저장"]
     assert resp["HX-Redirect"].endswith(f"/slices/{s.id}/")
 
 
@@ -61,16 +60,6 @@ def test_capture_status_change_alone_is_rich(client_local, workspace):
     assert resp.status_code == 204
     assert "HX-Redirect" in resp
     assert Slice.objects.get(title="planned thing").status == "building"
-
-
-@pytest.mark.django_db
-def test_capture_skips_blank_bite_rows(client_local, workspace):
-    resp = client_local.post(f"{P(workspace)}/capture", {
-        "title": "with bites", "spec": "x", "bite_titles": ["", "real step", "   "],
-    }, HTTP_HX_REQUEST="true")
-    assert resp.status_code == 204
-    s = Slice.objects.get(title="with bites")
-    assert [b.title for b in s.bites.all()] == ["real step"]
 
 
 @pytest.mark.django_db
@@ -103,4 +92,4 @@ def test_capture_modal_renders_full_form(client_local, workspace):
     assert 'capture-lbl">Spec<' in body        # field labelled Spec, not Description
     assert 'capture-lbl">Description<' not in body
     assert "Backend" in body            # workspace area offered in the Area select
-    assert "Add bite" in body           # bite-row adder present
+    assert 'name="bite_titles"' not in body   # capture no longer authors bites

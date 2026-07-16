@@ -31,9 +31,10 @@ def test_slice_panel_order_and_close_aria(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
     a = create_area(workspace, "Backend")
     s = create_slice(a, "panel order", status="building", tags=["billing"])
-    create_bite(s, "step one")
+    create_bite(create_plan(s, title="Plan"), "step one")
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'aria-label="Close panel"' in body

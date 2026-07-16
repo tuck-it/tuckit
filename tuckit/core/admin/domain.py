@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from tuckit.core.models import Area, Bite, Slice, Tag
+from tuckit.core.models import Area, Bite, Plan, Slice, Tag
 
 
 @admin.register(Tag)
@@ -18,10 +18,10 @@ class AreaAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
 
-class BiteInline(admin.TabularInline):
-    model = Bite
+class PlanInline(admin.TabularInline):
+    model = Plan
     extra = 0
-    fields = ("title", "status", "source", "rank")
+    fields = ("title", "source")
     show_change_link = True
 
 
@@ -33,13 +33,12 @@ class SliceAdmin(admin.ModelAdmin):
     autocomplete_fields = ("area",)
     filter_horizontal = ("tags",)
     readonly_fields = ("created_at", "updated_at", "completed_at")
-    inlines = [BiteInline]
+    inlines = [PlanInline]
 
 
 @admin.register(Bite)
 class BiteAdmin(admin.ModelAdmin):
-    list_display = ("title", "slice", "status", "source")
+    list_display = ("title", "plan", "status", "source")
     list_filter = ("status", "source")
     search_fields = ("title",)
-    autocomplete_fields = ("slice",)
     readonly_fields = ("created_at", "updated_at")

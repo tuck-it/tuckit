@@ -5,6 +5,7 @@ from tuckit.core.models import Slice
 from tuckit.core.services.areas import create_area, get_or_create_triage
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
+from tuckit.core.services.plans import create_plan
 
 
 @pytest.mark.django_db
@@ -30,7 +31,7 @@ def test_attention_page_all_clear_when_empty(client_local, workspace):
 def test_in_progress_page_shows_building_and_doing(client_local, workspace):
     a = create_area(workspace, "Backend")
     s = create_slice(a, "빌딩 슬라이스", status="building")
-    create_bite(s, "두잉 바이트", status="doing")
+    create_bite(create_plan(s, title="Plan"), "두잉 바이트", status="doing")
     p = f"/{workspace.org.slug}/{workspace.slug}"
     body = client_local.get(f"{p}/in-progress/").content.decode()
     assert "빌딩 슬라이스" in body

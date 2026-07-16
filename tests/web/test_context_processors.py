@@ -4,6 +4,7 @@ from django.test import override_settings
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
+from tuckit.core.services.plans import create_plan
 from tuckit.core.services.orgs import create_workspace
 from tuckit.web.context_processors import auth_chrome
 from tuckit.core.services.slices import create_slice
@@ -60,7 +61,8 @@ def test_onboarding_hidden_stays_hidden_after_area_deleted(client_local, workspa
     from tuckit.core.services.areas import delete_area
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
-    create_bite(sl, "Add backoff")
+    p = create_plan(sl, title="Plan")
+    create_bite(p, "Add backoff")
     ActivityEvent.objects.create(
         workspace=workspace, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,

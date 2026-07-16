@@ -1,18 +1,22 @@
 from django.db import transaction
 from django.db.models import QuerySet
 
-from tuckit.core.models import Bite, Slice
+from tuckit.core.models import Bite, Plan, Slice
 from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.validation import validate_choice
 
 
-def list_bites(slice_: Slice) -> QuerySet:
-    return Bite.objects.filter(slice=slice_)
+def list_bites(plan_: Plan) -> QuerySet:
+    return Bite.objects.filter(plan=plan_)
+
+
+def slice_bites(slice_: Slice) -> QuerySet:
+    return Bite.objects.filter(plan__slice=slice_)
 
 
 def create_bite(
-    slice_: Slice,
+    plan_: Plan,
     title: str,
     *,
     body: str = "",
@@ -22,12 +26,12 @@ def create_bite(
     source: str = "human",
 ) -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
-    rank = rank_for(Bite, {"slice": slice_}, before=before, after=after)
+    rank = rank_for(Bite, {"plan": plan_}, before=before, after=after)
     with transaction.atomic():
         b = Bite.objects.create(
-            slice=slice_, title=title, body=body, status=status, rank=rank, source=source,
+            plan=plan_, title=title, body=body, status=status, rank=rank, source=source,
         )
-        record_activity(slice_.area.workspace, actor=source, verb="created", target=b)
+        record_activity(plan_.slice.area.workspace, actor=source, verb="created", target=b)
     return b
 
 
@@ -51,7 +55,7 @@ def update_bite(
         bite.save()
         if status is not None and status != old_status:
             record_activity(
-                bite.slice.area.workspace, actor=actor, verb=status_verb(status),
+                bite.plan.slice.area.workspace, actor=actor, verb=status_verb(status),
                 target=bite, from_value=old_status, to_value=status,
             )
     return bite
@@ -65,18 +69,18 @@ def set_bite_status(bite: Bite, status: str, *, actor: str = "human") -> Bite:
         bite.save(update_fields=["status", "updated_at"])
         if status != old_status:
             record_activity(
-                bite.slice.area.workspace, actor=actor, verb=status_verb(status),
+                bite.plan.slice.area.workspace, actor=actor, verb=status_verb(status),
                 target=bite, from_value=old_status, to_value=status,
             )
     return bite
 
 
 def reorder_bite(bite: Bite, *, before: Bite | None = None, after: Bite | None = None) -> Bite:
-    bite.rank = rank_for(Bite, {"slice": bite.slice}, before=before, after=after)
+    bite.rank = rank_for(Bite, {"plan": bite.plan}, before=before, after=after)
     bite.save(update_fields=["rank", "updated_at"])
     return bite
 
 
 def bite_progress(slice_: Slice) -> tuple[int, int]:
-    qs = Bite.objects.filter(slice=slice_).exclude(status="dropped")
+    qs = Bite.objects.filter(plan__slice=slice_).exclude(status="dropped")
     return qs.filter(status="done").count(), qs.count()

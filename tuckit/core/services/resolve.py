@@ -1,4 +1,4 @@
-from tuckit.core.models import Area, Bite, Slice, Workspace
+from tuckit.core.models import Area, Bite, Plan, Slice, Workspace
 from tuckit.core.services.exceptions import NotFound
 
 
@@ -25,6 +25,13 @@ def get_slice(workspace: Workspace, slice_id: int) -> Slice:
 
 def get_bite(workspace: Workspace, bite_id: int) -> Bite:
     try:
-        return Bite.objects.get(pk=bite_id, slice__area__workspace=workspace)
+        return Bite.objects.get(pk=bite_id, plan__slice__area__workspace=workspace)
     except Bite.DoesNotExist:
         raise NotFound(f"bite {bite_id} not found")
+
+
+def get_plan(workspace: Workspace, plan_id: int) -> Plan:
+    try:
+        return Plan.objects.get(pk=plan_id, slice__area__workspace=workspace)
+    except Plan.DoesNotExist:
+        raise NotFound(f"plan {plan_id} not found")

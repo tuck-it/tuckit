@@ -5,6 +5,7 @@ from django.utils import timezone
 from tuckit.core.models import Org, Slice, Workspace
 from tuckit.core.services.areas import create_area, get_or_create_triage
 from tuckit.core.services.bites import create_bite
+from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.state import (
     attention_items,
@@ -30,8 +31,9 @@ def test_project_state_buckets_by_status(workspace):
     area = create_area(workspace, "Backend")
     create_slice(area, "Auth", status="shipped")
     building = create_slice(area, "Payments", status="building")
-    create_bite(building, "Stripe", status="doing")
-    create_bite(building, "Done bite", status="done")
+    building_plan = create_plan(building, title="Plan")
+    create_bite(building_plan, "Stripe", status="doing")
+    create_bite(building_plan, "Done bite", status="done")
     create_slice(area, "Notifications", status="planned")
     create_slice(area, "Someday idea", status="idea", tags=["someday"])
 
@@ -59,8 +61,9 @@ def test_project_state_can_scope_to_one_area(workspace):
 def test_render_slice_markdown_includes_spec_and_bites(workspace):
     area = create_area(workspace, "Backend")
     s = create_slice(area, "Auth", spec="Support OAuth login.", status="building", tags=["feature"])
-    create_bite(s, "JWT", status="done")
-    create_bite(s, "Social login", status="todo")
+    p = create_plan(s, title="Plan")
+    create_bite(p, "JWT", status="done")
+    create_bite(p, "Social login", status="todo")
 
     md = render_slice_markdown(s)
     assert "# Auth" in md
@@ -74,7 +77,8 @@ def test_render_slice_markdown_includes_spec_and_bites(workspace):
 def test_render_slice_markdown_includes_bite_body(workspace):
     area = create_area(workspace, "Backend")
     s = create_slice(area, "Auth")
-    create_bite(s, "JWT", body="use RS256 keys")
+    p = create_plan(s, title="Plan")
+    create_bite(p, "JWT", body="use RS256 keys")
     md = render_slice_markdown(s)
     assert "- [ ] JWT" in md
     assert "use RS256 keys" in md
@@ -97,9 +101,10 @@ def test_counts_and_dropped_bite_excluded(workspace):
     area = create_area(workspace, "Backend")
     shipped = create_slice(area, "Auth", status="shipped")
     building = create_slice(area, "Payments", status="building")
-    create_bite(building, "Open", status="doing")
-    create_bite(building, "Done", status="done")
-    create_bite(building, "Dropped", status="dropped")
+    building_plan = create_plan(building, title="Plan")
+    create_bite(building_plan, "Open", status="doing")
+    create_bite(building_plan, "Done", status="done")
+    create_bite(building_plan, "Dropped", status="dropped")
     state = get_project_state(workspace)
     a = state["areas"][0]
     # only the 'doing' bite is open; done + dropped excluded:
@@ -185,8 +190,9 @@ def test_in_progress_state_has_building_slices_and_doing_bites():
     a = create_area(ws, "Backend")
     s = create_slice(a, "building slice", status="building")
     create_slice(a, "idea slice", status="idea")
-    create_bite(s, "doing bite", status="doing")
-    create_bite(s, "todo bite", status="todo")
+    p = create_plan(s, title="Plan")
+    create_bite(p, "doing bite", status="doing")
+    create_bite(p, "todo bite", status="todo")
     st = in_progress_state(ws)
     assert [x.title for x in st["slices"]] == ["building slice"]
     assert [x.title for x in st["bites"]] == ["doing bite"]
@@ -317,10 +323,32 @@ def test_snapshot_today_delta_vs_prior_day(workspace):
 
 @pytest.mark.django_db
 def test_render_slice_markdown_includes_plan_and_constraints(workspace):
-    from tuckit.core.services.plans import set_plan
+    from tuckit.core.services.plans import create_plan
     area = create_area(workspace, "Backend")
     s = create_slice(area, "Auth", spec="design")
-    set_plan(s, body="Goal: ship auth", constraints="no billing")
+    create_plan(s, body="Goal: ship auth", constraints="no billing")
     md = render_slice_markdown(s)
     assert "## Plan" in md and "Goal: ship auth" in md
-    assert "## Constraints" in md and "no billing" in md
+    assert "### Constraints" in md and "no billing" in md
+
+
+@pytest.mark.django_db
+def test_render_slice_markdown_renders_every_plan(workspace):
+    from tuckit.core.services.plans import create_plan
+    area = create_area(workspace, "Backend")
+    s = create_slice(area, "Auth", spec="design")
+    p1 = create_plan(s, title="Backend plan", body="Backend goal", constraints="no billing")
+    p2 = create_plan(s, title="Frontend plan", body="Frontend goal")
+    create_bite(p1, "Backend bite")
+    create_bite(p2, "Frontend bite")
+
+    md = render_slice_markdown(s)
+
+    assert "## Backend plan" in md
+    assert "Backend goal" in md
+    assert "### Constraints" in md and "no billing" in md
+    assert "- [ ] Backend bite" in md
+
+    assert "## Frontend plan" in md
+    assert "Frontend goal" in md
+    assert "- [ ] Frontend bite" in md

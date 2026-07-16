@@ -18,7 +18,18 @@ def bite_dict(bite) -> dict:
         "title": bite.title,
         "body": bite.body,
         "status": bite.status,
-        "slice_id": bite.slice_id,
+        "plan_id": bite.plan_id,
+        "slice_id": bite.plan.slice_id,
+    }
+
+
+def plan_dict(plan) -> dict:
+    return {
+        "id": plan.id,
+        "slice_id": plan.slice_id,
+        "title": plan.title,
+        "body": plan.body,
+        "constraints": plan.constraints,
     }
 
 

@@ -56,11 +56,11 @@
       </div>
       <div class="home-col-body">
         {% for bite in in_progress.bites|slice:":5" %}
-          <a class="slice-row" href="{% wurl 'web:slice' bite.slice.id %}"
-             hx-get="{% wurl 'web:slice' bite.slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
+          <a class="slice-row" href="{% wurl 'web:slice' bite.plan.slice.id %}"
+             hx-get="{% wurl 'web:slice' bite.plan.slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
             {% include "web/partials/_status_dot.html" with status=bite.status %}
             <span class="row-title">{{ bite.title }}</span>
-            <span class="row-meta">{{ bite.slice.title }}</span>
+            <span class="row-meta">{{ bite.plan.slice.title }}</span>
           </a>
         {% empty %}
           <div class="home-col-empty">

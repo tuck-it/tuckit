@@ -3,6 +3,7 @@ import pytest
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
+from tuckit.core.services.plans import create_plan
 
 
 def _p(ws):
@@ -55,7 +56,7 @@ def test_widget_hidden_when_all_done(client_local, workspace):
     from tuckit.core.models import ActivityEvent
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
-    create_bite(sl, "Add backoff")
+    create_bite(create_plan(sl, title="Plan"), "Add backoff")
     ActivityEvent.objects.create(
         workspace=workspace, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,
@@ -80,7 +81,7 @@ def test_step4_shows_generate_key_when_no_key(client_local, workspace):
     # the widget only renders the connect UI once current == 4.
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
-    create_bite(sl, "Add backoff")
+    create_bite(create_plan(sl, title="Plan"), "Add backoff")
     body = client_local.get(f"{_p(workspace)}/").content.decode()
     assert "/onboarding/connect-key" in body
     assert "/welcome/" not in body
@@ -91,7 +92,7 @@ def test_step4_shows_poller_when_key_exists(client_local, workspace):
     from tuckit.core.models import ApiToken
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
-    create_bite(sl, "Add backoff")
+    create_bite(create_plan(sl, title="Plan"), "Add backoff")
     ApiToken.objects.create(workspace=workspace, name="a", token_hash="x")
     body = client_local.get(f"{_p(workspace)}/").content.decode()
     assert 'id="gs-listen"' in body

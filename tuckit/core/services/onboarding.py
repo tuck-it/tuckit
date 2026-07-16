@@ -42,7 +42,7 @@ def onboarding_state(workspace: Workspace) -> OnboardingState:
     return OnboardingState(
         has_area=Area.objects.filter(workspace=workspace, is_triage=False).exists(),
         has_slice=Slice.objects.filter(area__workspace=workspace).exists(),
-        has_bite=Bite.objects.filter(slice__area__workspace=workspace).exists(),
+        has_bite=Bite.objects.filter(plan__slice__area__workspace=workspace).exists(),
         connected=ActivityEvent.objects.filter(workspace=workspace, actor="agent").exists(),
         has_key=ApiToken.objects.filter(workspace=workspace).exists(),
         newest_slice_id=newest,

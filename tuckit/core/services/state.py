@@ -4,7 +4,8 @@ from django.utils import timezone
 
 from tuckit.core.models import Area, Bite, Slice, Workspace, WorkspaceStatSnapshot
 from tuckit.core.services.areas import list_areas
-from tuckit.core.services.bites import list_bites
+from tuckit.core.services.bites import list_bites, slice_bites
+from tuckit.core.services.plans import list_plans
 from tuckit.core.services.slices import list_slices
 
 _OPEN_BITE_STATUSES = ["todo", "doing"]
@@ -31,7 +32,7 @@ def _area_state(area: Area) -> dict:
     building_out = []
     open_bite_count = 0
     for s in building:
-        open_bites = [b for b in list_bites(s) if b.status in _OPEN_BITE_STATUSES]
+        open_bites = [b for b in slice_bites(s) if b.status in _OPEN_BITE_STATUSES]
         open_bite_count += len(open_bites)
         building_out.append(
             {
@@ -71,21 +72,18 @@ def render_slice_markdown(slice_: Slice) -> str:
     lines.append("")
     if slice_.spec:
         lines += [slice_.spec, ""]
-    from tuckit.core.services.plans import get_plan
-    plan = get_plan(slice_)
-    if plan:
+    for plan in list_plans(slice_):
+        lines.append(f"## {plan.title or 'Plan'}")
         if plan.body:
-            lines += ["## Plan", plan.body, ""]
+            lines += [plan.body, ""]
         if plan.constraints:
-            lines += ["## Constraints", plan.constraints, ""]
-    bites = list(list_bites(slice_))
-    if bites:
-        lines.append("## Bites")
-        for b in bites:
+            lines += ["### Constraints", plan.constraints, ""]
+        for b in list_bites(plan):
             check = "x" if b.status == "done" else " "
             lines.append(f"- [{check}] {b.title}")
             if b.body:
                 lines += [f"      {line}" for line in b.body.splitlines()]
+        lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -255,9 +253,9 @@ def in_progress_state(workspace: Workspace) -> dict:
     )
     bites = list(
         Bite.objects.filter(
-            slice__area__workspace=workspace, slice__area__is_triage=False, status="doing"
+            plan__slice__area__workspace=workspace, plan__slice__area__is_triage=False, status="doing"
         )
-        .select_related("slice", "slice__area")
-        .order_by("slice__area__name", "rank")
+        .select_related("plan__slice", "plan__slice__area")
+        .order_by("plan__slice__area__name", "rank")
     )
     return {"slices": slices, "bites": bites}

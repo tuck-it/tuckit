@@ -4,6 +4,7 @@ from tuckit.core.models import Org, Workspace
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite, set_bite_status
 from tuckit.core.services.exceptions import InvalidValue
+from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice, set_slice_status, update_slice
 
 
@@ -45,8 +46,9 @@ def test_valid_status_still_works(area):
 @pytest.mark.django_db
 def test_bite_status_validation(area):
     s = create_slice(area, "X")
+    p = create_plan(s, title="Plan")
     with pytest.raises(InvalidValue):
-        create_bite(s, "B", status="wip")
-    b = create_bite(s, "B2")
+        create_bite(p, "B", status="wip")
+    b = create_bite(p, "B2")
     with pytest.raises(InvalidValue):
         set_bite_status(b, "wip")

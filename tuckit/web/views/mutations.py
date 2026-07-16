@@ -1,12 +1,11 @@
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
-from django.template.loader import render_to_string
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
-from tuckit.core.services.resolve import get_slice, get_bite
+from tuckit.core.services.resolve import get_slice, get_bite, get_plan as resolve_plan
 from tuckit.core.services.slices import set_slice_status, update_slice
-from tuckit.core.services.bites import create_bite, set_bite_status, update_bite
-from tuckit.core.services.plans import set_plan
+from tuckit.core.services.bites import set_bite_status, update_bite
+from tuckit.core.services.plans import create_plan, delete_plan, update_plan
 from tuckit.web.auth import get_current_workspace
 from tuckit.web.panel import slice_panel_context
 
@@ -14,6 +13,13 @@ from tuckit.web.panel import slice_panel_context
 def _slice_or_404(request, slice_id):
     try:
         return get_slice(get_current_workspace(request), slice_id)
+    except NotFound:
+        raise Http404
+
+
+def _plan_or_404(request, plan_id):
+    try:
+        return resolve_plan(get_current_workspace(request), plan_id)
     except NotFound:
         raise Http404
 
@@ -44,12 +50,26 @@ def slice_edit(request, slice_id):
     return _panel(request, slice_)
 
 
-def plan_edit(request, slice_id):
+def plan_create(request, slice_id):
     slice_ = _slice_or_404(request, slice_id)
+    create_plan(slice_, title=request.POST.get("title", "").strip(), actor="human")
+    return _panel(request, slice_)
+
+
+def plan_edit(request, plan_id):
+    plan = _plan_or_404(request, plan_id)
     kwargs = {}
+    if "title" in request.POST: kwargs["title"] = request.POST["title"]
     if "body" in request.POST: kwargs["body"] = request.POST["body"]
     if "constraints" in request.POST: kwargs["constraints"] = request.POST["constraints"]
-    set_plan(slice_, **kwargs)
+    update_plan(plan, **kwargs)
+    return _panel(request, plan.slice)
+
+
+def plan_delete(request, plan_id):
+    plan = _plan_or_404(request, plan_id)
+    slice_ = plan.slice
+    delete_plan(plan)
     return _panel(request, slice_)
 
 
@@ -64,16 +84,6 @@ def slice_tags(request, slice_id):
         names.remove(remove)
     update_slice(slice_, tags=names)
     return render(request, "web/partials/_slice_tags.html", {"slice": slice_})
-
-
-def bite_create(request, slice_id):
-    slice_ = _slice_or_404(request, slice_id)
-    create_bite(slice_, request.POST["title"], source="human")
-    resp = _panel(request, slice_)
-    widget = render_to_string("web/partials/_onboarding_widget.html", {"oob": True}, request=request)
-    if widget.strip():
-        resp.content = resp.content + widget.encode()
-    return resp
 
 
 def bite_toggle(request, bite_id):

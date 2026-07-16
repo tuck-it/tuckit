@@ -21,11 +21,14 @@ def test_invalid_status_rejected(client_local, workspace):
     assert Slice.objects.get(pk=s.id).status == "planned"
 
 @pytest.mark.django_db
-def test_bite_create_and_toggle(client_local, workspace):
+def test_bite_toggle(client_local, workspace):
+    """Bites are no longer hand-added from the panel; they're authored via a
+    Plan (by an agent or the plan API) and only toggled here."""
+    from tuckit.core.services.plans import create_plan
     p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "B"), "x")
-    client_local.post(f"{p}/slices/{s.id}/bites", {"title": "웹훅"}, HTTP_HX_REQUEST="true")
-    b = Bite.objects.get(slice=s)
+    plan_ = create_plan(s, title="Plan")
+    b = create_bite(plan_, "웹훅")
     assert b.status == "todo"
     client_local.post(f"{p}/bites/{b.id}/toggle", HTTP_HX_REQUEST="true")
     assert Bite.objects.get(pk=b.id).status == "done"
@@ -52,9 +55,10 @@ def test_bite_body_updates_and_renders(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
     p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "제품"), "슬라이스")
-    b = create_bite(s, "Slack 연동")
+    b = create_bite(create_plan(s, title="Plan"), "Slack 연동")
     resp = client_local.post(f"{p}/bites/{b.id}/body", {"body": "## 설계\n실패 시 재시도"})
     assert resp.status_code == 200
     b.refresh_from_db()
@@ -66,9 +70,10 @@ def test_bite_body_is_sanitized(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
     p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "제품"), "슬라이스")
-    b = create_bite(s, "위험", body="<script>alert(1)</script>정상")
+    b = create_bite(create_plan(s, title="Plan"), "위험", body="<script>alert(1)</script>정상")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert "<script>" not in body
     assert "정상" in body
@@ -131,9 +136,10 @@ def test_bite_source_time_renders_korean(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
     p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "제품"), "슬라이스")
-    b = create_bite(s, "노트 bite", body="## 메모")
+    b = create_bite(create_plan(s, title="Plan"), "노트 bite", body="## 메모")
     Bite.objects.filter(pk=b.pk).update(updated_at=timezone.now() - timedelta(hours=2, minutes=30))
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     # timesince now renders in Korean, not "2 hours, 30 minutes"

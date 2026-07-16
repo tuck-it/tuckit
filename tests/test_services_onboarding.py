@@ -4,6 +4,7 @@ from tuckit.core.models import ApiToken, Area
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
+from tuckit.core.services.plans import create_plan
 from tuckit.core.services.onboarding import onboarding_state
 
 
@@ -33,7 +34,8 @@ def test_slice_marks_has_slice(workspace):
 def test_bite_marks_has_bite(workspace):
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="idea")
-    create_bite(sl, "Add backoff")
+    p = create_plan(sl, title="Plan")
+    create_bite(p, "Add backoff")
     st = onboarding_state(workspace)
     assert st.has_bite is True and st.current == 4
 
@@ -74,7 +76,8 @@ def test_all_done(workspace):
     from tuckit.core.models import ActivityEvent
     area = create_area(workspace, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
-    create_bite(sl, "Add backoff")
+    p = create_plan(sl, title="Plan")
+    create_bite(p, "Add backoff")
     ActivityEvent.objects.create(
         workspace=workspace, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,

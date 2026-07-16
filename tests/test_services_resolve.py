@@ -4,6 +4,7 @@ from tuckit.core.models import Org, Workspace
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
 from tuckit.core.services.exceptions import NotFound
+from tuckit.core.services.plans import create_plan
 from tuckit.core.services.resolve import get_area, get_bite, get_slice
 from tuckit.core.services.slices import create_slice
 
@@ -15,7 +16,8 @@ def data(db):
     other = Workspace.objects.create(org=org, name="B", slug="b")
     area = create_area(ws, "Backend")
     slice_ = create_slice(area, "Auth")
-    bite = create_bite(slice_, "JWT")
+    plan = create_plan(slice_, title="Plan")
+    bite = create_bite(plan, "JWT")
     return ws, other, area, slice_, bite
 
 

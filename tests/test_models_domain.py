@@ -1,7 +1,7 @@
 import pytest
 from django.db import IntegrityError
 
-from tuckit.core.models import Area, Bite, Org, Slice, Tag, Workspace
+from tuckit.core.models import Area, Bite, Org, Plan, Slice, Tag, Workspace
 
 
 @pytest.fixture
@@ -44,9 +44,10 @@ def test_tag_unique_per_workspace(workspace):
 
 
 @pytest.mark.django_db
-def test_bite_requires_slice(workspace):
+def test_bite_requires_plan(workspace):
     area = Area.objects.create(workspace=workspace, name="Backend", slug="backend", rank="a0")
     s = Slice.objects.create(area=area, title="Auth", rank="a0")
-    b = Bite.objects.create(slice=s, title="JWT", rank="a0")
+    p = Plan.objects.create(slice=s, title="Plan")
+    b = Bite.objects.create(plan=p, title="JWT", rank="a0")
     assert b.status == "todo"
-    assert b.slice_id == s.id
+    assert b.plan_id == p.id

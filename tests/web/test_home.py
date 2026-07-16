@@ -96,9 +96,10 @@ def test_home_shows_doing_bites_and_planned_in_next(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
     a = create_area(workspace, "Backend")
     s = create_slice(a, "Building slice", status="building")
-    create_bite(s, "Active bite", status="doing")
+    create_bite(create_plan(s, title="Plan"), "Active bite", status="doing")
     create_slice(a, "Planned next", status="planned")
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert "Active bite" in body           # doing bite in the Doing column
@@ -123,9 +124,10 @@ def test_home_active_headers_present(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
     a = create_area(workspace, "Backend")
     s = create_slice(a, "Building slice", status="building")
-    create_bite(s, "Doing bite", status="doing")
+    create_bite(create_plan(s, title="Plan"), "Doing bite", status="doing")
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     # needs_you / Overview / recently_shipped are titled section boxes; the
     # Focus/Doing/Next columns live inside the Overview box.
@@ -172,10 +174,12 @@ def test_home_building_row_shows_progress_bar(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
     a = create_area(workspace, "Backend")
     s = create_slice(a, "결제 도입", status="building")
-    create_bite(s, "완료된 것", status="done")
-    create_bite(s, "남은 것", status="todo")
+    p = create_plan(s, title="Plan")
+    create_bite(p, "완료된 것", status="done")
+    create_bite(p, "남은 것", status="todo")
     body = client_local.get(f"/{workspace.org.slug}/{workspace.slug}/").content.decode()
     assert 'class="row-prog-track"' in body   # thin bar on the building row
     assert "width:50%" in body                # 1 of 2 bites done
