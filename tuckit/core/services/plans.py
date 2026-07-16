@@ -30,3 +30,7 @@ def update_plan(plan, *, title=None, body=None, constraints=None, actor="human")
 
 def ensure_default_plan(slice_, actor="agent"):
     return get_plan(slice_) or create_plan(slice_, title="Plan", actor=actor)
+
+
+def delete_plan(plan):
+    plan.delete()

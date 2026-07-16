@@ -238,20 +238,54 @@ def test_spec_is_boxed_inline_edit(client_local, workspace):
 
 
 @pytest.mark.django_db
-def test_plan_section_renders_and_edits(client_local, workspace):
+def test_slice_panel_shows_plans_and_add_plan(client_local, workspace):
+    from tuckit.core.services.plans import create_plan
+    from tuckit.core.services.bites import create_bite
+    a = create_area(workspace, "B"); s = create_slice(a, "S")
+    p = create_plan(s, title="Backend", body="overview"); create_bite(p, "step one")
+    url = f"/{workspace.org.slug}/{workspace.slug}"
+    body = client_local.get(f"{url}/slices/{s.id}/").content.decode()
+    assert "Backend" in body and "overview" in body and "step one" in body
+    assert 'class="bites-add' not in body        # no hand-add-bite control
+    # add-plan affordance present; POST creates a plan
+    assert "Add plan" in body
+    client_local.post(f"{url}/slices/{s.id}/plans", {"title": "UI"})
+    assert s.plans.filter(title="UI").exists()
+
+
+@pytest.mark.django_db
+def test_plan_edit_updates_body_and_constraints(client_local, workspace):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.plans import create_plan, get_plan
     a = create_area(workspace, "B")
     s = create_slice(a, "S")
+    plan = create_plan(s, title="Plan")
     p = f"/{workspace.org.slug}/{workspace.slug}"
 
     body = client_local.get(f"{p}/slices/{s.id}/").content.decode()
-    assert '<div class="section-label">Plan</div>' in body
     assert '<div class="section-label">Constraints</div>' in body
 
-    client_local.post(f"{p}/slices/{s.id}/plan",
+    client_local.post(f"{p}/plans/{plan.id}/edit",
                       {"body": "Goal: X", "constraints": "no billing"})
-    s.refresh_from_db()
-    from tuckit.core.services.plans import get_plan
-    plan = get_plan(s)
+    plan.refresh_from_db()
     assert plan.body == "Goal: X" and plan.constraints == "no billing"
+
+
+@pytest.mark.django_db
+def test_plan_delete_removes_plan_and_its_bites(client_local, workspace):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.plans import create_plan
+    from tuckit.core.services.bites import create_bite
+    from tuckit.core.models import Plan, Bite
+    a = create_area(workspace, "B")
+    s = create_slice(a, "S")
+    plan = create_plan(s, title="Doomed")
+    create_bite(plan, "will vanish")
+    p = f"/{workspace.org.slug}/{workspace.slug}"
+
+    resp = client_local.post(f"{p}/plans/{plan.id}/delete")
+    assert resp.status_code == 200
+    assert not Plan.objects.filter(pk=plan.id).exists()
+    assert not Bite.objects.filter(title="will vanish").exists()

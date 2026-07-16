@@ -1,6 +1,5 @@
 from urllib.parse import urlparse
 
-from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -8,8 +7,6 @@ from django.urls import reverse
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.areas import get_or_create_triage, create_area, list_areas, rename_area, delete_area, reorder_area
-from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import ensure_default_plan
 from tuckit.core.services.slices import create_slice, set_slice_area, set_slice_status, list_slices, grouped_slices
 from tuckit.core.services.resolve import get_area, get_slice, get_area_by_slug
 from tuckit.web.auth import get_current_workspace
@@ -24,10 +21,11 @@ def _widget_oob(request):
 
 
 def capture(request):
-    """Global capture. Title is required; area/status/spec/tags/bites are
-    optional. A bare title stays a quick Inbox capture (OOB toast bundle, modal
-    keeps capturing); any authored detail creates a full slice and redirects the
-    user into it."""
+    """Global capture. Title is required; area/status/spec/tags are optional.
+    A bare title stays a quick Inbox capture (OOB toast bundle, modal keeps
+    capturing); any authored detail creates a full slice and redirects the
+    user into it. Bites are no longer authored here — they live under a
+    Slice's Plan section."""
     ws = get_current_workspace(request)
 
     title = request.POST.get("title", "").strip()
@@ -37,7 +35,6 @@ def capture(request):
     status = request.POST.get("status", "idea") or "idea"
     spec = request.POST.get("spec", "").strip()
     tags = [t.strip() for t in request.POST.getlist("tags") if t.strip()]
-    bite_titles = [b.strip() for b in request.POST.getlist("bite_titles") if b.strip()]
 
     area = None
     if request.POST.get("area_id"):
@@ -51,18 +48,13 @@ def capture(request):
 
     # "Rich" = the user authored beyond a bare title-into-Inbox capture.
     rich = bool(
-        spec or tags or bite_titles
+        spec or tags
         or (area is not None and not area.is_triage)
         or status != "idea"
     )
 
     try:
-        with transaction.atomic():
-            slice_ = create_slice(target_area, title, spec=spec, status=status, tags=tags, source="human")
-            if bite_titles:
-                plan = ensure_default_plan(slice_, actor="human")
-                for bite_title in bite_titles:
-                    create_bite(plan, bite_title, source="human")
+        slice_ = create_slice(target_area, title, spec=spec, status=status, tags=tags, source="human")
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
 

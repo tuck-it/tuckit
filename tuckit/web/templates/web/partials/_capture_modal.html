@@ -3,8 +3,8 @@
      x-on:keydown.escape.window="cap=false"
      x-on:click.self="cap=false">
   <form class="capture-modal capture-modal--full" hx-post="{% wurl 'web:capture' %}" hx-swap="none"
-        x-data="{ tags: [], tagDraft: '', bites: [''] }"
-        hx-on::after-request="if (event.detail.successful && !event.detail.xhr.getResponseHeader('HX-Redirect')) { this.reset(); tags=[]; tagDraft=''; bites=['']; $refs.captureInput.focus() }">
+        x-data="{ tags: [], tagDraft: '' }"
+        hx-on::after-request="if (event.detail.successful && !event.detail.xhr.getResponseHeader('HX-Redirect')) { this.reset(); tags=[]; tagDraft=''; $refs.captureInput.focus() }">
     <input name="title" class="capture-input" placeholder="Capture…  (Enter to save, Esc to close)" x-ref="captureInput"
            required autocomplete="off" x-on:keydown.escape="cap=false" autofocus>
 
@@ -46,21 +46,6 @@
           <input class="tag-input" placeholder="+ add tag" x-model="tagDraft"
                  x-on:keydown.enter.prevent="if (tagDraft.trim()) { tags.push(tagDraft.trim()); tagDraft='' }"
                  x-on:keydown.comma.prevent="if (tagDraft.trim()) { tags.push(tagDraft.trim()); tagDraft='' }">
-        </div>
-      </div>
-
-      <div class="capture-field">
-        <span class="capture-lbl">Bites <span class="capture-hint">(implementation steps)</span></span>
-        <div class="capture-bites">
-          <template x-for="(b, i) in bites" :key="i">
-            <div class="capture-bite">
-              <input name="bite_titles" class="capture-bite-input" placeholder="Step…" x-model="bites[i]"
-                     x-on:keydown.enter.prevent="if (i === bites.length - 1 && bites[i].trim()) bites.push('')">
-              <button class="tag-x" type="button" x-on:click="bites.splice(i,1); if (!bites.length) bites.push('')"
-                      aria-label="Remove bite">×</button>
-            </div>
-          </template>
-          <button class="addtag" type="button" x-on:click="bites.push('')">＋ Add bite</button>
         </div>
       </div>
     </div>

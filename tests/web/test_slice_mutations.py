@@ -21,11 +21,14 @@ def test_invalid_status_rejected(client_local, workspace):
     assert Slice.objects.get(pk=s.id).status == "planned"
 
 @pytest.mark.django_db
-def test_bite_create_and_toggle(client_local, workspace):
+def test_bite_toggle(client_local, workspace):
+    """Bites are no longer hand-added from the panel; they're authored via a
+    Plan (by an agent or the plan API) and only toggled here."""
+    from tuckit.core.services.plans import create_plan
     p = f"/{workspace.org.slug}/{workspace.slug}"
     s = create_slice(create_area(workspace, "B"), "x")
-    client_local.post(f"{p}/slices/{s.id}/bites", {"title": "웹훅"}, HTTP_HX_REQUEST="true")
-    b = Bite.objects.get(plan__slice=s)
+    plan_ = create_plan(s, title="Plan")
+    b = create_bite(plan_, "웹훅")
     assert b.status == "todo"
     client_local.post(f"{p}/bites/{b.id}/toggle", HTTP_HX_REQUEST="true")
     assert Bite.objects.get(pk=b.id).status == "done"

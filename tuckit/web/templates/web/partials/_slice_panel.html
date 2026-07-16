@@ -1,5 +1,5 @@
 {% load web_extras %}
-<div class="panel-inner" x-data="{editTitle:false, editSpec:false, editPlan:false, editConstraints:false}">
+<div class="panel-inner" x-data="{editTitle:false, editSpec:false}">
   <div class="panel-crumb">
     <a class="area-chip" href="{% wurl 'web:area' slice.area.slug %}">{% icon "area" "icon area-chip-icon" %}{{ slice.area.name }}</a>
     {% if is_panel %}
@@ -61,55 +61,69 @@
                 x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editSpec=false)">{{ slice.spec }}</textarea>
     </form>
   </div>
-  <div class="desc-block">
-    <div class="section-label">Plan</div>
-    <div class="spec" x-show="!editPlan"
-         x-on:click="editPlan=true; $nextTick(()=>{ $refs.planEdit.focus(); autosize($refs.planEdit); })">{% if plan.body %}{{ plan_html|safe }}{% else %}<span class="muted">Click to add a plan…</span>{% endif %}</div>
-    <form x-show="editPlan" x-cloak hx-post="{% wurl 'web:plan_edit' slice.id %}{{ panel_qs }}"
+  {% for entry in plans %}
+  <div class="desc-block plan-section" x-data="{editBody:false, editCons:false}">
+    <div class="bites-head">
+      <span class="section-label">{{ entry.plan.title|default:"Plan" }}</span>
+      <button class="ghost" type="button"
+              hx-post="{% wurl 'web:plan_delete' entry.plan.id %}{{ panel_qs }}"
+              hx-target="closest .panel-inner" hx-swap="outerHTML"
+              hx-confirm="Delete this plan and its bites?">Delete plan</button>
+    </div>
+    <div class="spec" x-show="!editBody"
+         x-on:click="editBody=true; $nextTick(()=>{ $refs.body.focus(); autosize($refs.body); })">{% if entry.plan.body %}{{ entry.plan_html|safe }}{% else %}<span class="muted">Click to add an overview…</span>{% endif %}</div>
+    <form x-show="editBody" x-cloak hx-post="{% wurl 'web:plan_edit' entry.plan.id %}{{ panel_qs }}"
           hx-target="closest .panel-inner" hx-swap="outerHTML">
-      <textarea name="body" class="spec-edit" x-ref="planEdit" rows="2"
+      <textarea name="body" class="spec-edit" x-ref="body" rows="2"
                 x-on:input="autosize($event.target)"
-                x-on:keydown.escape.stop="editPlan=false"
+                x-on:keydown.escape.stop="editBody=false"
                 x-on:keydown.meta.enter.prevent="$el.form.requestSubmit()"
-                x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editPlan=false)">{{ plan.body }}</textarea>
+                x-on:keydown.ctrl.enter.prevent="$el.form.requestSubmit()"
+                x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editBody=false)">{{ entry.plan.body }}</textarea>
     </form>
-  </div>
-  <div class="desc-block">
+
     <div class="section-label">Constraints</div>
-    <div class="spec" x-show="!editConstraints"
-         x-on:click="editConstraints=true; $nextTick(()=>{ $refs.consEdit.focus(); autosize($refs.consEdit); })">{% if plan.constraints %}{{ constraints_html|safe }}{% else %}<span class="muted">Click to add constraints…</span>{% endif %}</div>
-    <form x-show="editConstraints" x-cloak hx-post="{% wurl 'web:plan_edit' slice.id %}{{ panel_qs }}"
+    <div class="spec" x-show="!editCons"
+         x-on:click="editCons=true; $nextTick(()=>{ $refs.cons.focus(); autosize($refs.cons); })">{% if entry.plan.constraints %}{{ entry.constraints_html|safe }}{% else %}<span class="muted">Click to add constraints…</span>{% endif %}</div>
+    <form x-show="editCons" x-cloak hx-post="{% wurl 'web:plan_edit' entry.plan.id %}{{ panel_qs }}"
           hx-target="closest .panel-inner" hx-swap="outerHTML">
-      <textarea name="constraints" class="spec-edit" x-ref="consEdit" rows="2"
+      <textarea name="constraints" class="spec-edit" x-ref="cons" rows="2"
                 x-on:input="autosize($event.target)"
-                x-on:keydown.escape.stop="editConstraints=false"
+                x-on:keydown.escape.stop="editCons=false"
                 x-on:keydown.meta.enter.prevent="$el.form.requestSubmit()"
-                x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editConstraints=false)">{{ plan.constraints }}</textarea>
+                x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editCons=false)">{{ entry.plan.constraints }}</textarea>
+    </form>
+
+    {% if entry.bites %}
+    <div class="plan-bites">
+      {% for bite in entry.bites %}{% include "web/partials/_bite_row.html" %}{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <div class="desc-block">
+    <form class="plan-add" hx-post="{% wurl 'web:plan_create' slice.id %}{{ panel_qs }}"
+          hx-target="closest .panel-inner" hx-swap="outerHTML">
+      <input name="title" placeholder="Plan title…" class="bite-add">
+      <button class="ghost" type="submit">＋ Add plan</button>
     </form>
   </div>
-  <div class="bites-block">
+
+  <div class="bites-block" id="bites-{{ slice.id }}">
     <div class="bites-head">
       <span class="section-label">Bites</span>
       {% if bites_total %}
         <span class="group-count">{{ bites_done }}/{{ bites_total }}</span>
         <span class="row-prog-track"><i style="width: {{ bites_pct }}%"></i></span>
       {% endif %}
-      <button class="ghost bites-add-btn" type="button" x-on:click="$refs.biteAdd.focus()">{% icon "plus" "icon" %} Add bite</button>
     </div>
-    <div id="bites-{{ slice.id }}">
-      {% for bite in bites %}{% include "web/partials/_bite_row.html" %}{% endfor %}
-    </div>
-    {% if not bites %}
+    {% if not bites_total %}
     <div class="bites-empty">
       <div class="bites-empty-title">No bites yet</div>
-      <div class="bites-empty-sub">Add small steps to implement this slice.</div>
-      <button class="ghost bites-empty-cta" type="button" x-on:click="$refs.biteAdd.focus()">{% icon "plus" "icon" %} Add your first bite</button>
+      <div class="bites-empty-sub">Add a plan, then break it into steps.</div>
     </div>
     {% endif %}
-    <form hx-post="{% wurl 'web:bite_create' slice.id %}{{ panel_qs }}" hx-target="closest .panel-inner" hx-swap="outerHTML">
-      <input name="title" placeholder="Add a bite…" class="bite-add {% if focus == 'bite' %}ob-focus-bite{% endif %}" x-ref="biteAdd"
-             {% if focus == 'bite' %}x-init="$nextTick(() => $el.focus())"{% endif %}>
-    </form>
   </div>
 
   {% if activity %}

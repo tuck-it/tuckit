@@ -1,7 +1,6 @@
 import pytest
 
 from tuckit.core.services.areas import create_area
-from tuckit.core.services.slices import create_slice
 
 
 def _p(ws):
@@ -22,15 +21,6 @@ def test_area_create_oob_refreshes_widget(client_local, workspace):
 def test_slice_create_oob_refreshes_widget(client_local, workspace):
     area = create_area(workspace, "Backend")
     r = client_local.post(f"{_p(workspace)}/areas/{area.slug}/slices", {"title": "Retry webhooks"})
-    body = r.content.decode()
-    assert 'id="onboarding-widget"' in body
-
-
-@pytest.mark.django_db
-def test_bite_create_oob_refreshes_widget(client_local, workspace):
-    area = create_area(workspace, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="idea")
-    r = client_local.post(f"{_p(workspace)}/slices/{sl.id}/bites", {"title": "Add backoff"})
     body = r.content.decode()
     assert 'id="onboarding-widget"' in body
 
