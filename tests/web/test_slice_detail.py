@@ -246,4 +246,6 @@ def test_plan_section_renders_and_edits(client_local, workspace):
     client_local.post(f"{p}/slices/{s.id}/plan",
                       {"body": "Goal: X", "constraints": "no billing"})
     s.refresh_from_db()
-    assert s.plan.body == "Goal: X" and s.plan.constraints == "no billing"
+    from tuckit.core.services.plans import get_plan
+    plan = get_plan(s)
+    assert plan.body == "Goal: X" and plan.constraints == "no billing"

@@ -2,21 +2,31 @@ from tuckit.core.models import Plan
 from tuckit.core.services.activity import record_activity
 
 
+def list_plans(slice_):
+    return Plan.objects.filter(slice=slice_).order_by("id")
+
+
 def get_plan(slice_):
-    return Plan.objects.filter(slice=slice_).first()
+    return list_plans(slice_).first()
 
 
-def set_plan(slice_, *, body=None, constraints=None, actor="human"):
-    """Get-or-create the slice's single Plan, update the given fields, and log a
-    `planned` activity when anything changed. Re-plan overwrites in place."""
-    plan, changed = Plan.objects.get_or_create(slice=slice_, defaults={"source": actor})
-    if body is not None and body != plan.body:
-        plan.body = body
-        changed = True
-    if constraints is not None and constraints != plan.constraints:
-        plan.constraints = constraints
-        changed = True
+def create_plan(slice_, *, title="", body="", constraints="", actor="human"):
+    plan = Plan.objects.create(slice=slice_, title=title, body=body, constraints=constraints, source=actor)
+    record_activity(slice_.area.workspace, actor=actor, verb="planned", target=slice_)
+    return plan
+
+
+def update_plan(plan, *, title=None, body=None, constraints=None, actor="human"):
+    changed = False
+    for field, value in (("title", title), ("body", body), ("constraints", constraints)):
+        if value is not None and value != getattr(plan, field):
+            setattr(plan, field, value)
+            changed = True
     if changed:
         plan.save()
-        record_activity(slice_.area.workspace, actor=actor, verb="planned", target=slice_)
+        record_activity(plan.slice.area.workspace, actor=actor, verb="planned", target=plan.slice)
     return plan
+
+
+def ensure_default_plan(slice_, actor="agent"):
+    return get_plan(slice_) or create_plan(slice_, title="Plan", actor=actor)

@@ -89,7 +89,8 @@ class Bite(models.Model):
 class Plan(models.Model):
     SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
 
-    slice = models.OneToOneField(Slice, on_delete=models.CASCADE, related_name="plan")
+    slice = models.ForeignKey(Slice, on_delete=models.CASCADE, related_name="plans")
+    title = models.CharField(max_length=300, blank=True, default="")
     body = models.TextField(blank=True, default="")
     constraints = models.TextField(blank=True, default="")
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="human")
