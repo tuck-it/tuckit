@@ -213,12 +213,12 @@ body { padding: 0; }
 .slice-row {
   color: var(--ink);
   text-decoration: none;
-  line-height: 1.5;
-  min-height: 46px;
-  padding: 8px 14px;
+  line-height: 1.45;
+  min-height: 30px;
+  padding: var(--space-3) var(--space-5);
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: var(--space-4);
   transition: background .15s var(--ease);
 }
 .slice-row:hover { background: var(--paper-deep); }
@@ -379,9 +379,9 @@ body { padding: 0; }
 .board-col-head {
   display: flex;
   align-items: center;
-  gap: 7px;
-  min-height: 42px;
-  padding: 0 12px;
+  gap: var(--space-3);
+  min-height: 32px;
+  padding: 0 var(--space-6);
   border-bottom: 1px solid var(--line);
 }
 .board-col-label {
@@ -1599,7 +1599,7 @@ html.sidebar-collapsed .side-resize { display: none; }
   padding: var(--space-4); min-height: 64px;
 }
 /* Denser rows inside the Overview columns so the box stays compact. */
-.home-col-body .slice-row { min-height: 38px; padding: 6px 10px; }
+.home-col-body .slice-row { min-height: 28px; padding: var(--space-2) var(--space-5); }
 .home-col-empty {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 22px 12px; text-align: center; color: var(--ink-faint); font-size: 13px;
