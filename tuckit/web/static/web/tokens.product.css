@@ -29,6 +29,24 @@
   --active: var(--paper-deep);
 }
 
+/* --- Density tokens (product-only; high-density baseline) ---
+   Single-source knobs for spacing + type. Retune density here, not in app.css.
+   Brand rhythm (landing) is unaffected — these live in the product layer. */
+:root {
+  /* spacing scale (4px grid) */
+  --space-1: 2px;  --space-2: 4px;  --space-3: 6px;  --space-4: 8px;
+  --space-5: 10px; --space-6: 12px; --space-7: 16px; --space-8: 20px;
+  --space-9: 24px;
+  /* semantic shell / rhythm */
+  --main-pad-y: 18px;
+  --main-pad-x: clamp(16px, 2vw, 28px);
+  --main-pad-b: 32px;
+  --section-gap: 10px;
+  /* type scale */
+  --text-xs: 11px; --text-sm: 12px; --text-base: 13px; --text-md: 14px;
+  --text-lg: 16px; --text-title: 18px; --text-stat: 20px;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --dot-idea: #8e918e;
