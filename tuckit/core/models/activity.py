@@ -12,6 +12,7 @@ class ActivityEvent(models.Model):
         ("moved", "moved"),
         ("shipped", "shipped"),
         ("dropped", "dropped"),
+        ("planned", "planned"),
     ]
     TARGET_CHOICES = [("slice", "Slice"), ("bite", "Bite"), ("area", "Area")]
 
