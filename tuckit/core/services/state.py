@@ -71,6 +71,13 @@ def render_slice_markdown(slice_: Slice) -> str:
     lines.append("")
     if slice_.spec:
         lines += [slice_.spec, ""]
+    from tuckit.core.services.plans import get_plan
+    plan = get_plan(slice_)
+    if plan:
+        if plan.body:
+            lines += ["## Plan", plan.body, ""]
+        if plan.constraints:
+            lines += ["## Constraints", plan.constraints, ""]
     bites = list(list_bites(slice_))
     if bites:
         lines.append("## Bites")

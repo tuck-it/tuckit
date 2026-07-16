@@ -313,3 +313,14 @@ def test_snapshot_today_delta_vs_prior_day(workspace):
     )
     out = snapshot_today(workspace, home_state(workspace))
     assert out["building"] == {"value": 1, "delta": -2}  # 1 today vs 3 yesterday
+
+
+@pytest.mark.django_db
+def test_render_slice_markdown_includes_plan_and_constraints(workspace):
+    from tuckit.core.services.plans import set_plan
+    area = create_area(workspace, "Backend")
+    s = create_slice(area, "Auth", spec="design")
+    set_plan(s, body="Goal: ship auth", constraints="no billing")
+    md = render_slice_markdown(s)
+    assert "## Plan" in md and "Goal: ship auth" in md
+    assert "## Constraints" in md and "no billing" in md

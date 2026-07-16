@@ -15,6 +15,7 @@ from tuckit.core.services.bites import (
     set_bite_status as _set_bite_status,
     update_bite as _update_bite,
 )
+from tuckit.core.services.plans import set_plan as _set_plan
 from tuckit.core.services.resolve import get_area
 from tuckit.core.services.resolve import get_bite as _resolve_bite
 from tuckit.core.services.resolve import get_slice as _resolve_slice
@@ -152,6 +153,20 @@ async def get_slice(ctx: Context, slice_id: int) -> str:
 
     def _run():
         return render_slice_markdown(_resolve_slice(workspace, slice_id))
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def set_plan(ctx: Context, slice_id: int, body: str | None = None, constraints: str | None = None) -> str:
+    """Set the slice's plan — an overview (`body`) and global `constraints`.
+    Omitted fields are left unchanged. Returns the slice rendered as markdown."""
+    workspace = await require_workspace(ctx)
+
+    def _run():
+        s = _resolve_slice(workspace, slice_id)
+        _set_plan(s, body=body, constraints=constraints, actor="agent")
+        return render_slice_markdown(s)
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
