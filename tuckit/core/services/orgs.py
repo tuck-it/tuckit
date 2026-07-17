@@ -78,20 +78,20 @@ def _unique_org_slug(name: str) -> str:
 
 
 @transaction.atomic
-def create_org(user, *, name: str, slug: str | None = None) -> tuple[Org, Workspace]:
+def create_org(user, *, name: str, slug: str | None = None) -> Org:
     from tuckit.core.services.hooks import run_signup_hook  # local: avoid import cycle
 
     name = (name or "").strip()
     if not name:
-        raise InvalidValue("조직 이름을 입력하세요")
+        raise InvalidValue("Enter an organization name.")
     slug = validate_slug(slug, kind="org") if slug else _unique_org_slug(name)
     if Org.objects.filter(slug=slug).exists():
-        raise InvalidValue(f"이미 사용 중인 조직 슬러그입니다: {slug}")
+        raise InvalidValue(f"That organization slug is already taken: {slug}")
     org = Org.objects.create(name=name, slug=slug)
     OrgMember.objects.create(user=user, org=org, role="owner")
-    workspace = create_workspace(org, name)
+    get_or_create_triage(org)
     run_signup_hook(user=user, org=org)
-    return org, workspace
+    return org
 
 
 _VALID_ROLES = {"owner", "admin", "member"}
@@ -104,7 +104,7 @@ def is_org_owner(user, org) -> bool:
 def rename_org(org: Org, name: str, description: str | None = None) -> Org:
     name = (name or "").strip()
     if not name:
-        raise InvalidValue("조직 이름을 입력하세요")
+        raise InvalidValue("Enter an organization name.")
     org.name = name
     update_fields = ["name"]
     if description is not None:
@@ -135,9 +135,9 @@ def _owner_count(org: Org) -> int:
 
 def change_member_role(org: Org, *, member: OrgMember, role: str) -> OrgMember:
     if role not in _VALID_ROLES:
-        raise InvalidValue(f"알 수 없는 역할: {role}")
+        raise InvalidValue(f"Unknown role: {role}")
     if member.role == "owner" and role != "owner" and _owner_count(org) <= 1:
-        raise InvalidValue("마지막 소유자의 역할은 바꿀 수 없습니다")
+        raise InvalidValue("Can't change the last owner's role.")
     member.role = role
     member.save(update_fields=["role"])
     return member
@@ -145,7 +145,7 @@ def change_member_role(org: Org, *, member: OrgMember, role: str) -> OrgMember:
 
 def remove_member(org: Org, *, member: OrgMember) -> None:
     if member.role == "owner":
-        raise InvalidValue("소유자는 제거할 수 없습니다 — 먼저 역할을 변경하세요")
+        raise InvalidValue("The owner can't be removed — change their role first.")
     member.delete()
 
 
@@ -174,9 +174,9 @@ def list_user_orgs(user) -> list[dict]:
 def leave_org(user, *, org) -> None:
     membership = OrgMember.objects.filter(user=user, org=org).first()
     if membership is None:
-        raise InvalidValue("이 조직의 멤버가 아닙니다")
+        raise InvalidValue("You're not a member of this organization.")
     if membership.role == "owner" and _owner_count(org) <= 1:
-        raise InvalidValue("단독 소유자는 나갈 수 없습니다 — 먼저 소유권을 넘기거나 조직을 삭제하세요")
+        raise InvalidValue("The sole owner can't leave — transfer ownership or delete the org first.")
     if OrgMember.objects.filter(user=user).count() <= 1:
-        raise InvalidValue("마지막 조직은 나갈 수 없습니다")
+        raise InvalidValue("You can't leave your last organization.")
     membership.delete()

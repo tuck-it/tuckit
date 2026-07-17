@@ -10,7 +10,7 @@ def test_command_creates_account_from_password_env(monkeypatch):
     call_command(
         "create_account",
         email="a@b.com",
-        workspace="Space",
+        org="Space",
         slug="space",
         password_env="SEED_PW",
     )
@@ -27,7 +27,7 @@ def test_command_errors_when_password_env_missing(monkeypatch):
         call_command(
             "create_account",
             email="a@b.com",
-            workspace="Space",
+            org="Space",
             slug="space",
             password_env="NOPE",
         )

@@ -8,11 +8,11 @@ from tuckit.core.services.exceptions import InvalidValue
 
 
 class Command(BaseCommand):
-    help = "Create a real user with an org (owner membership) and its first workspace."
+    help = "Create a real user with an org (owner membership)."
 
     def add_arguments(self, parser):
         parser.add_argument("--email", required=True)
-        parser.add_argument("--workspace", required=True, help="Org name (also used as the first workspace name).")
+        parser.add_argument("--org", required=True, help="Organization name.")
         parser.add_argument("--slug", required=True, help="Org slug.")
         parser.add_argument(
             "--password-env",
@@ -31,9 +31,9 @@ class Command(BaseCommand):
             password = getpass.getpass("Password: ")
 
         try:
-            user, org, workspace = register(
+            user, org = register(
                 email=options["email"],
-                org_name=options["workspace"],
+                org_name=options["org"],
                 slug=options["slug"],
                 password=password,
             )

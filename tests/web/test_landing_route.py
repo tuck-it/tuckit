@@ -28,7 +28,7 @@ def test_landing_route_orgless_user_goes_to_orgs():
 @pytest.mark.django_db
 def test_landing_route_user_with_org_goes_home():
     u = User.objects.create(email="b@example.com")
-    org, _ws = create_org(u, name="Acme")
+    org = create_org(u, name="Acme")
     name, kwargs = landing_route(_req(u))
     assert name == "web:home"
     assert kwargs == {"org_slug": org.slug}

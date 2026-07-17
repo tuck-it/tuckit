@@ -17,8 +17,7 @@ def orgs(request):
     that would otherwise get stuck at the app root). Login-protected by middleware."""
     if request.method == "POST":
         try:
-            # TODO(task-10): create_org returns just Org once Workspace is dropped.
-            org, _ws = create_org(request.user, name=request.POST.get("name", ""), slug=request.POST.get("slug", ""))
+            org = create_org(request.user, name=request.POST.get("name", ""), slug=request.POST.get("slug", ""))
         except InvalidValue as exc:
             return render(request, "web/orgs.html", {
                 "orgs": accessible_orgs(request.user),

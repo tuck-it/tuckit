@@ -41,7 +41,7 @@ def _member_org(request, org_id):
 @require_POST
 def org_create(request):
     try:
-        org, ws = create_org(request.user, name=request.POST.get("name", ""))
+        org = create_org(request.user, name=request.POST.get("name", ""))
     except InvalidValue as exc:
         return HttpResponse(str(exc), status=400)
     request.session["active_org_id"] = org.id

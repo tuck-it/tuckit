@@ -159,21 +159,21 @@ def test_cannot_delete_last_workspace_in_org(org_with_owner):
 
 
 @pytest.mark.django_db
-def test_create_org_makes_org_owner_and_first_workspace():
+def test_create_org_makes_org_owner_and_seeds_triage_no_workspace():
     user = User.objects.create(email="u@u.com")
-    org, ws = create_org(user, name="Acme Labs")
+    org = create_org(user, name="Acme Labs")
     assert org.slug == "acme-labs"                       # auto slug from name
     assert OrgMember.objects.filter(user=user, org=org, role="owner").exists()
-    assert ws.org == org
     assert Area.objects.filter(org=org, is_triage=True).count() == 1
     assert Area.objects.filter(org=org, is_triage=False).count() == 0
+    assert Workspace.objects.filter(org=org).count() == 0
 
 
 @pytest.mark.django_db
 def test_create_org_auto_slug_is_unique():
     user = User.objects.create(email="u@u.com")
-    a, _ = create_org(user, name="Dup")
-    b, _ = create_org(user, name="Dup")
+    a = create_org(user, name="Dup")
+    b = create_org(user, name="Dup")
     assert a.slug != b.slug                               # second gets -2 suffix
 
 
@@ -205,7 +205,7 @@ def test_create_org_runs_signup_hook():
     mod._hook = _hook
     with override_settings(TUCKIT_SIGNUP_HOOK="tests.test_services_orgs._hook"):
         user = User.objects.create(email="hook@u.com")
-        org, ws = create_org(user, name="Hooked")
+        org = create_org(user, name="Hooked")
     assert seen["ok"] == ("hook@u.com", org.slug)
     assert org.pk is not None
 
@@ -213,9 +213,12 @@ def test_create_org_runs_signup_hook():
 @pytest.mark.django_db
 def test_list_user_orgs_returns_role_and_workspace_count():
     user = User.objects.create(email="u@u.com")
-    org_a, _ = create_org(user, name="Alpha")          # owner, 1 ws
-    org_b, _ = create_org(user, name="Beta")           # owner, 1 ws
-    Workspace.objects.create(org=org_b, name="Extra", slug="extra")  # Beta now 2 ws
+    org_a = create_org(user, name="Alpha")
+    org_b = create_org(user, name="Beta")
+    # create_org no longer auto-creates a workspace; build the counts explicitly.
+    Workspace.objects.create(org=org_a, name="Main", slug="main")  # Alpha: 1 ws
+    Workspace.objects.create(org=org_b, name="Main", slug="main")  # Beta: 1 ws
+    Workspace.objects.create(org=org_b, name="Extra", slug="extra")  # Beta: 2 ws
     rows = list_user_orgs(user)
     by_name = {r["org"].name: r for r in rows}
     assert by_name["Alpha"]["role"] == "owner"
@@ -230,7 +233,8 @@ def test_list_user_orgs_includes_workspaces():
     from tuckit.core.services.orgs import create_org, create_workspace, list_user_orgs
 
     user = User.objects.create(email="w@w.com")
-    org, first_ws = create_org(user, name="Acme")
+    org = create_org(user, name="Acme")
+    first_ws = create_workspace(org, "General")
     second_ws = create_workspace(org, "Marketing")
 
     rows = list_user_orgs(user)
@@ -242,11 +246,11 @@ def test_list_user_orgs_includes_workspaces():
 @pytest.mark.django_db
 def test_leave_org_removes_membership():
     owner = User.objects.create(email="o@o.com")
-    org, _ = create_org(owner, name="Team")            # owner also needs a 2nd org
-    create_org(owner, name="Solo")                     # so leaving Team isn't "last org"
+    org = create_org(owner, name="Team")               # owner also needs a 2nd org
+    create_org(owner, name="Solo")                      # so leaving Team isn't "last org"
     member = User.objects.create(email="m@m.com")
     OrgMember.objects.create(user=member, org=org, role="member")
-    create_org(member, name="Members Own")             # member has a 2nd org too
+    create_org(member, name="Members Own")              # member has a 2nd org too
     leave_org(member, org=org)
     assert not OrgMember.objects.filter(user=member, org=org).exists()
 
@@ -255,7 +259,7 @@ def test_leave_org_removes_membership():
 def test_leave_org_rejects_non_member():
     stranger = User.objects.create(email="s@s.com")
     other_owner = User.objects.create(email="o@o.com")
-    org, _ = create_org(other_owner, name="NotYours")
+    org = create_org(other_owner, name="NotYours")
     create_org(stranger, name="Strangers Own")
     with pytest.raises(InvalidValue):
         leave_org(stranger, org=org)
@@ -264,8 +268,8 @@ def test_leave_org_rejects_non_member():
 @pytest.mark.django_db
 def test_leave_org_rejects_sole_owner():
     owner = User.objects.create(email="o@o.com")
-    org, _ = create_org(owner, name="OnlyOwner")
-    create_org(owner, name="Second")                   # not last-org, isolate the sole-owner guard
+    org = create_org(owner, name="OnlyOwner")
+    create_org(owner, name="Second")                    # not last-org, isolate the sole-owner guard
     with pytest.raises(InvalidValue):
         leave_org(owner, org=org)
     assert OrgMember.objects.filter(user=owner, org=org).exists()
@@ -275,7 +279,7 @@ def test_leave_org_rejects_sole_owner():
 def test_leave_org_rejects_last_org():
     member = User.objects.create(email="m@m.com")
     other_owner = User.objects.create(email="o@o.com")
-    org, _ = create_org(other_owner, name="TheOrg")
+    org = create_org(other_owner, name="TheOrg")
     OrgMember.objects.create(user=member, org=org, role="member")  # member's ONLY org
     with pytest.raises(InvalidValue):
         leave_org(member, org=org)

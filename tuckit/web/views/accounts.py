@@ -13,7 +13,7 @@ def register_view(request):
         raise Http404
     if request.method == "POST":
         try:
-            user, org, _ws = register(
+            user, org = register(
                 email=request.POST.get("email", ""),
                 org_name=request.POST.get("org_name", ""),
                 slug=request.POST.get("slug", ""),
