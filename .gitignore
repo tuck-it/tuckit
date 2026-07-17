@@ -16,3 +16,6 @@ __pycache__/
 .claude/
 .serena/
 .superpowers/
+
+# Brainstorming specs and implementation plans — local-only, never publish
+docs/superpowers/
