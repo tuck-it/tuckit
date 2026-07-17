@@ -19,14 +19,7 @@ def _unique_slug(workspace: Workspace, name: str) -> str:
     base = slugify(name) or "area"
     slug = base
     i = 2
-    # Area is now unique on (workspace, slug) AND (org, slug) — dual FK, both
-    # constraints live — so a candidate must clear both scopes. Org can have
-    # multiple workspaces, each seeding its own Triage, so a workspace-only
-    # check alone is no longer sufficient.
-    while (
-        Area.objects.filter(workspace=workspace, slug=slug).exists()
-        or Area.objects.filter(org=workspace.org, slug=slug).exists()
-    ):
+    while Area.objects.filter(workspace=workspace, slug=slug).exists():
         slug = f"{base}-{i}"
         i += 1
     return slug

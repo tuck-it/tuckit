@@ -9,7 +9,7 @@ class Tag(models.Model):
     name = models.CharField(max_length=100)
 
     class Meta:
-        unique_together = [("workspace", "name"), ("org", "name")]
+        unique_together = [("workspace", "name")]
 
     def __str__(self):
         return f"#{self.name}"
@@ -28,7 +28,7 @@ class Area(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = [("workspace", "slug"), ("org", "slug")]
+        unique_together = [("workspace", "slug")]
         ordering = ["rank"]
 
     def __str__(self):

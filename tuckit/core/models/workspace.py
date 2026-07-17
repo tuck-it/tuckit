@@ -63,9 +63,6 @@ class WorkspaceStatSnapshot(models.Model):
             models.UniqueConstraint(
                 fields=["workspace", "date"], name="uniq_ws_snapshot_per_day"
             ),
-            models.UniqueConstraint(
-                fields=["org", "date"], name="uniq_org_snapshot_per_day"
-            ),
         ]
 
     def __str__(self):

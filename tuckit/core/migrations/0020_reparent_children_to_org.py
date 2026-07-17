@@ -76,20 +76,8 @@ class Migration(migrations.Migration):
             name='org',
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='stat_snapshots', to='core.org'),
         ),
-        migrations.AlterUniqueTogether(
-            name='area',
-            unique_together={('org', 'slug'), ('workspace', 'slug')},
-        ),
-        migrations.AlterUniqueTogether(
-            name='tag',
-            unique_together={('org', 'name'), ('workspace', 'name')},
-        ),
         migrations.AddIndex(
             model_name='activityevent',
             index=models.Index(fields=['org', '-created_at'], name='core_activi_org_id_afb032_idx'),
-        ),
-        migrations.AddConstraint(
-            model_name='workspacestatsnapshot',
-            constraint=models.UniqueConstraint(fields=('org', 'date'), name='uniq_org_snapshot_per_day'),
         ),
     ]

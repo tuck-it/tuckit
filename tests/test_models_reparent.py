@@ -32,12 +32,3 @@ def test_tag_belongs_to_org(org, ws):
 def test_api_token_belongs_to_org(org, ws):
     token = ApiToken.objects.create(workspace=ws, org=org, name="agent", token_hash="x" * 64)
     assert list(org.tokens.all()) == [token]
-
-
-@pytest.mark.django_db
-def test_area_slug_unique_per_org(org, ws):
-    from django.db import IntegrityError
-
-    Area.objects.create(workspace=ws, org=org, name="Backend", slug="backend", rank="n")
-    with pytest.raises(IntegrityError):
-        Area.objects.create(workspace=ws, org=org, name="Other", slug="backend", rank="o")
