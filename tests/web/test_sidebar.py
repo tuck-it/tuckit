@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from tuckit.core.models import Workspace
+from tuckit.core.models import Org, OrgMember, Workspace
 from tuckit.web.templatetags.web_extras import icon
 
 APP_CSS = Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "app.css"
@@ -242,3 +242,27 @@ def test_sidebar_areas_active_on_overview(client_local, org):
 def test_sidebar_settings_opens_settings_mode(client_local, org):
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert f'href="/{org.slug}/settings/"' in body
+
+
+@pytest.mark.django_db
+def test_switcher_lists_orgs_flat(client_local, org, django_user_model):
+    second = Org.objects.create(name="Second Co", slug="second-co")
+    user = django_user_model.objects.get(email="local@tuckit.local")
+    OrgMember.objects.create(user=user, org=second, role="owner")
+
+    body = client_local.get(f"/{org.slug}/").content.decode()
+
+    assert f'href="/{second.slug}/"' in body
+    assert "ws-menu-org" not in body  # the org-header/regroup row is gone
+
+
+@pytest.mark.django_db
+def test_switcher_footer_links_to_picker(client_local, org):
+    assert 'href="/orgs/"' in client_local.get(f"/{org.slug}/").content.decode()
+
+
+@pytest.mark.django_db
+def test_no_breadcrumb_on_any_page(client_local, org):
+    for path in ("", "areas/", "roadmap/"):
+        body = client_local.get(f"/{org.slug}/{path}").content.decode()
+        assert "crumbbar" not in body

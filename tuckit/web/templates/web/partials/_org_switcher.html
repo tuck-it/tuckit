@@ -10,9 +10,6 @@
     {% icon "chevron" "icon ws-chev" %}
   </button>
 
-  <!-- NOTE: this menu is a flat org switcher pending Task 9's proper rewrite —
-       the per-workspace picker it used to render no longer applies now that
-       Home lives at the org root. -->
   <div class="ws-menu" x-show="open" x-transition.origin.top
        x-on:click.outside="open = false" role="menu" style="display:none">
     {% for org in switchable_orgs %}
@@ -23,7 +20,7 @@
       </a>
     {% endfor %}
     <div class="ws-menu-sep"></div>
-    <a class="ws-menu-item ws-menu-settings" href="{% url 'web:settings_account_orgs' current_org.slug %}" role="menuitem">
+    <a class="ws-menu-item ws-menu-settings" href="{% url 'web:orgs' %}" role="menuitem">
       {% icon "settings" %}<span>All organizations</span>
     </a>
     <a class="ws-menu-item ws-menu-settings"

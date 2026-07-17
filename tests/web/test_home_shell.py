@@ -114,9 +114,3 @@ def test_capture_button_is_solid_teal_primary():
     assert "border: none" in block              # mismatched border removed
 
 
-@pytest.mark.django_db
-def test_workspace_breadcrumb_links_to_org_home(client_local, org):
-    ws = Workspace.objects.get(org=org)
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert 'class="crumbbar"' in body
-    assert f'href="/{org.slug}/"' in body    # org segment → org home

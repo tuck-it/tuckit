@@ -79,7 +79,6 @@ body { padding: 0; }
   font-family: var(--mono); font-size: 13px; font-weight: 600;
 }
 .ws-labels { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
-.ws-org { font-size: 11px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-name { font-size: 13px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-chev { width: 14px; height: 14px; stroke: var(--ink-faint); transform: rotate(90deg); transition: transform 0.15s ease; }
 .ws-switch[aria-expanded="true"] .ws-chev { transform: rotate(-90deg); }
@@ -90,10 +89,6 @@ body { padding: 0; }
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: 0 8px 28px var(--shadow);
   min-width: 200px;
-}
-.ws-menu-org {
-  font-size: 11px; font-family: var(--mono); text-transform: uppercase;
-  letter-spacing: 0.07em; color: var(--ink-faint); padding: 8px 8px 4px;
 }
 .ws-menu-form { margin: 0; }
 .ws-menu-item {
@@ -1842,19 +1837,6 @@ html.sidebar-collapsed .side-resize { display: none; }
 .org-ws-new input { border: 0; background: transparent; font: inherit; color: var(--blue); width: 140px; }
 .org-ws-new input:focus-visible { outline: none; }
 .org-card-foot { padding: 8px 15px; border-top: 1px dashed var(--line); }
-
-/* --- Switcher: navigable org header --- */
-.ws-menu-org-link { display: flex; align-items: center; justify-content: space-between; text-decoration: none; color: var(--muted); }
-.ws-menu-org-link:hover { color: var(--blue); }
-.ws-menu-org-go { font-size: 11px; opacity: 0; }
-.ws-menu-org-link:hover .ws-menu-org-go { opacity: 1; }
-
-/* --- App-shell breadcrumb --- */
-.crumbbar { display: flex; align-items: center; gap: 8px; padding: var(--space-3) 0 0; font-size: var(--text-base); }
-.crumbbar a { color: var(--blue); text-decoration: none; }
-.crumbbar a:hover { text-decoration: underline; }
-.crumb-sep { color: var(--muted); }
-.crumb-here { font-weight: 600; color: var(--ink); }
 
 /* --- Onboarding floating widget --- */
 .ob-widget { position: fixed; right: 20px; bottom: 20px; z-index: 60; width: 320px;
