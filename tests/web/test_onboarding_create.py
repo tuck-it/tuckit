@@ -22,7 +22,7 @@ def test_area_create_oob_refreshes_widget(client_local, org):
 @pytest.mark.django_db
 def test_slice_create_oob_refreshes_widget(client_local, org):
     ws = Workspace.objects.get(org=org)
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     r = client_local.post(f"{_p(ws)}/areas/{area.slug}/slices", {"title": "Retry webhooks"})
     body = r.content.decode()
     assert 'id="onboarding-widget"' in body

@@ -15,8 +15,8 @@ def test_register_creates_user_org_workspace():
     assert org.slug == "space"
     assert ws.org == org
     assert OrgMember.objects.filter(user=user, org=org, role="owner").exists()
-    assert Area.objects.filter(workspace=ws, is_triage=True).count() == 1
-    assert Area.objects.filter(workspace=ws, is_triage=False).count() == 0
+    assert Area.objects.filter(org=org, is_triage=True).count() == 1
+    assert Area.objects.filter(org=org, is_triage=False).count() == 0
 
 
 @pytest.mark.django_db

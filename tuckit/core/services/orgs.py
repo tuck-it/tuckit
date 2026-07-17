@@ -52,7 +52,7 @@ def create_workspace(org: Org, name: str, slug: str | None = None) -> Workspace:
         raise InvalidValue(f"이미 같은 이름의 워크스페이스가 있습니다: {name}")
     slug = validate_slug(slug, kind="workspace") if slug else _unique_ws_slug(org, name)
     ws = Workspace.objects.create(org=org, name=name, slug=slug)
-    get_or_create_triage(ws)
+    get_or_create_triage(org)
     return ws
 
 

@@ -18,7 +18,7 @@ def test_fresh_workspace_all_incomplete(org):
 @pytest.mark.django_db
 def test_area_marks_has_area(org):
     ws = Workspace.objects.get(org=org)  # still needed: create_area stays workspace-scoped
-    create_area(ws, "Backend")
+    create_area(ws.org, "Backend")
     st = onboarding_state(org)
     assert st.has_area is True and st.current == 2
 
@@ -26,7 +26,7 @@ def test_area_marks_has_area(org):
 @pytest.mark.django_db
 def test_slice_marks_has_slice(org):
     ws = Workspace.objects.get(org=org)  # still needed: create_area stays workspace-scoped
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     create_slice(area, "Retry webhooks", status="idea")
     st = onboarding_state(org)
     assert st.has_area is True and st.has_slice is True and st.current == 3
@@ -35,7 +35,7 @@ def test_slice_marks_has_slice(org):
 @pytest.mark.django_db
 def test_bite_marks_has_bite(org):
     ws = Workspace.objects.get(org=org)  # still needed: create_area stays workspace-scoped
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="idea")
     p = create_plan(sl, title="Plan")
     create_bite(p, "Add backoff")
@@ -70,7 +70,7 @@ def test_newest_slice_id_tracks_latest(org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.onboarding import onboarding_state
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     assert onboarding_state(org).newest_slice_id is None
     s1 = create_slice(area, "One", status="idea")
     s2 = create_slice(area, "Two", status="idea")
@@ -81,7 +81,7 @@ def test_newest_slice_id_tracks_latest(org):
 def test_all_done(org):
     ws = Workspace.objects.get(org=org)  # still needed: create_area stays workspace-scoped
     from tuckit.core.models import ActivityEvent
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
     p = create_plan(sl, title="Plan")
     create_bite(p, "Add backoff")

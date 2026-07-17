@@ -8,7 +8,7 @@ from tuckit.core.models import Slice, Bite, Workspace
 def test_status_change_updates_and_returns_panel(client_local, org):
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "B"), "x", status="planned")
+    s = create_slice(create_area(ws.org, "B"), "x", status="planned")
     resp = client_local.post(f"{p}/slices/{s.id}/status", {"status": "building"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     assert Slice.objects.get(pk=s.id).status == "building"
@@ -17,7 +17,7 @@ def test_status_change_updates_and_returns_panel(client_local, org):
 def test_invalid_status_rejected(client_local, org):
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "B"), "x", status="planned")
+    s = create_slice(create_area(ws.org, "B"), "x", status="planned")
     resp = client_local.post(f"{p}/slices/{s.id}/status", {"status": "blocked"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 400
     assert Slice.objects.get(pk=s.id).status == "planned"
@@ -29,7 +29,7 @@ def test_bite_toggle(client_local, org):
     Plan (by an agent or the plan API) and only toggled here."""
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "B"), "x")
+    s = create_slice(create_area(ws.org, "B"), "x")
     plan_ = create_plan(s, title="Plan")
     b = create_bite(plan_, "웹훅")
     assert b.status == "todo"
@@ -40,7 +40,7 @@ def test_bite_toggle(client_local, org):
 def test_spec_edit(client_local, org):
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "B"), "x")
+    s = create_slice(create_area(ws.org, "B"), "x")
     client_local.post(f"{p}/slices/{s.id}/edit", {"spec": "새 스펙"}, HTTP_HX_REQUEST="true")
     assert Slice.objects.get(pk=s.id).spec == "새 스펙"
 
@@ -50,7 +50,7 @@ def test_status_control_is_dropdown(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "제품"), "X", status="building")
+    s = create_slice(create_area(ws.org, "제품"), "X", status="building")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="status-menu"' in body           # status control re-rendered after change
     assert "status-opt--on" in body                # active option marked
@@ -63,7 +63,7 @@ def test_bite_body_updates_and_renders(client_local, org):
     from tuckit.core.services.plans import create_plan
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "제품"), "슬라이스")
+    s = create_slice(create_area(ws.org, "제품"), "슬라이스")
     b = create_bite(create_plan(s, title="Plan"), "Slack 연동")
     resp = client_local.post(f"{p}/bites/{b.id}/body", {"body": "## 설계\n실패 시 재시도"})
     assert resp.status_code == 200
@@ -79,7 +79,7 @@ def test_bite_body_is_sanitized(client_local, org):
     from tuckit.core.services.plans import create_plan
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "제품"), "슬라이스")
+    s = create_slice(create_area(ws.org, "제품"), "슬라이스")
     b = create_bite(create_plan(s, title="Plan"), "위험", body="<script>alert(1)</script>정상")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert "<script>" not in body
@@ -91,7 +91,7 @@ def test_slice_tag_add_then_remove(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "제품"), "태그 편집")
+    s = create_slice(create_area(ws.org, "제품"), "태그 편집")
 
     resp = client_local.post(f"{p}/slices/{s.id}/tags", {"add": "billing"})
     assert resp.status_code == 200
@@ -108,7 +108,7 @@ def test_slice_panel_active_shows_drop_control(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "제품"), "진행 중인 것", status="building")
+    s = create_slice(create_area(ws.org, "제품"), "진행 중인 것", status="building")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert "Drop" in body
 
@@ -118,7 +118,7 @@ def test_slice_panel_dropped_shows_restore(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "제품"), "버린 것", status="dropped")
+    s = create_slice(create_area(ws.org, "제품"), "버린 것", status="dropped")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert "Restore" in body
     # restoring puts it back into the flow
@@ -133,7 +133,7 @@ def test_slice_panel_shows_byline(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "제품"), "메타 확인")  # default source=human
+    s = create_slice(create_area(ws.org, "제품"), "메타 확인")  # default source=human
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="props"' in body
     assert "Created" in body
@@ -150,7 +150,7 @@ def test_bite_source_time_renders_korean(client_local, org):
     from tuckit.core.services.plans import create_plan
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "제품"), "슬라이스")
+    s = create_slice(create_area(ws.org, "제품"), "슬라이스")
     b = create_bite(create_plan(s, title="Plan"), "노트 bite", body="## 메모")
     Bite.objects.filter(pk=b.pk).update(updated_at=timezone.now() - timedelta(hours=2, minutes=30))
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()

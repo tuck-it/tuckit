@@ -43,7 +43,7 @@ def capture(request):
         except (NotFound, ValueError):
             raise Http404
 
-    triage = get_or_create_triage(ws)
+    triage = get_or_create_triage(ws.org)
     target_area = area or triage
 
     # "Rich" = the user authored beyond a bare title-into-Inbox capture.
@@ -68,17 +68,17 @@ def capture(request):
     # response fits every page).
     return render(request, "web/partials/_capture_result.html", {
         "slices": list(list_slices(triage).prefetch_related("tags")),
-        "areas": [a for a in list_areas(ws) if not a.is_triage],
+        "areas": [a for a in list_areas(ws.org) if not a.is_triage],
         "statuses": ["idea", "planned", "building", "shipped"],
     })
 
 
 def triage_list(request):
     ws = get_current_workspace(request)
-    triage_area = get_or_create_triage(ws)
+    triage_area = get_or_create_triage(ws.org)
     return render(request, "web/triage.html", {
         "slices": list(list_slices(triage_area).prefetch_related("tags")),
-        "areas": [a for a in list_areas(ws) if not a.is_triage],
+        "areas": [a for a in list_areas(ws.org) if not a.is_triage],
         "statuses": ["idea", "planned", "building", "shipped"],
     })
 
@@ -102,7 +102,7 @@ def triage(request, slice_id):
 
 def area_create(request):
     ws = get_current_workspace(request)
-    create_area(ws, request.POST["name"])
+    create_area(ws.org, request.POST["name"])
     # OOB-swap the sidebar Areas list instead of a full-page reload; the
     # sidebar_areas context processor supplies the refreshed `areas`. Also
     # OOB-refresh the onboarding widget so its Step-1 checkbox ticks live.

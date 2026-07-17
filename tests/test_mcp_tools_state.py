@@ -45,7 +45,7 @@ from asgiref.sync import sync_to_async  # noqa: E402
 def _make_ws():
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="MyProduct", slug="myproduct", description="demo")
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     create_slice(area, "Auth", status="shipped")
     return ws
 

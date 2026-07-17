@@ -10,7 +10,7 @@ def test_capture_lands_in_triage_as_idea(client_local, org):
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
     client_local.post(f"{p}/capture", {"title": "재시도 큐"}, HTTP_HX_REQUEST="true")
-    inbox = get_or_create_triage(ws)
+    inbox = get_or_create_triage(ws.org)
     s = Slice.objects.get(area=inbox)
     assert s.title == "재시도 큐" and s.status == "idea" and s.source == "human"
 
@@ -18,7 +18,7 @@ def test_capture_lands_in_triage_as_idea(client_local, org):
 def test_triage_lists_captures(client_local, org):
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    inbox = get_or_create_triage(ws)
+    inbox = get_or_create_triage(ws.org)
     create_slice(inbox, "정리 대상")
     body = client_local.get(f"{p}/triage/").content.decode()
     assert "정리 대상" in body
@@ -26,9 +26,9 @@ def test_triage_lists_captures(client_local, org):
 @pytest.mark.django_db
 def test_triage_moves_out(client_local, org):
     ws = Workspace.objects.get(org=org)
-    inbox = get_or_create_triage(ws)
+    inbox = get_or_create_triage(ws.org)
     p = f"/{org.slug}/{ws.slug}"
-    backend = create_area(ws, "Backend")
+    backend = create_area(ws.org, "Backend")
     s = create_slice(inbox, "옮길 것")
     client_local.post(f"{p}/slices/{s.id}/triage", {"area_id": backend.id, "status": "planned"}, HTTP_HX_REQUEST="true")
     s.refresh_from_db()
@@ -46,7 +46,7 @@ def test_capture_returns_toast_count_and_row(client_local, org):
     # No full-page reload: capture returns OOB swaps for toast, count, and the new row.
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    get_or_create_triage(ws)
+    get_or_create_triage(ws.org)
     resp = client_local.post(f"{p}/capture", {"title": "빠른 기록"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     body = resp.content.decode()
@@ -80,9 +80,9 @@ def test_area_create_returns_oob_area_nav(client_local, org):
 @pytest.mark.django_db
 def test_triage_invalid_status_returns_400(client_local, org):
     ws = Workspace.objects.get(org=org)
-    inbox = get_or_create_triage(ws)
+    inbox = get_or_create_triage(ws.org)
     p = f"/{org.slug}/{ws.slug}"
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     s = create_slice(inbox, "잘못된 상태")
     resp = client_local.post(
         f"{p}/slices/{s.id}/triage", {"area_id": area.id, "status": "blocked"}, HTTP_HX_REQUEST="true"
@@ -97,7 +97,7 @@ def test_triage_row_has_no_manual_caret_and_area_placeholder(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    create_slice(get_or_create_triage(ws), "미분류 항목")
+    create_slice(get_or_create_triage(ws.org), "미분류 항목")
     body = client_local.get(f"{p}/triage/").content.decode()
     assert "</select>▾" not in body          # manual caret removed
     assert "Assign area" in body           # placeholder present
@@ -108,7 +108,7 @@ def test_triage_status_only_keeps_area(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(get_or_create_triage(ws), "상태만 변경")
+    s = create_slice(get_or_create_triage(ws.org), "상태만 변경")
     resp = client_local.post(f"{p}/slices/{s.id}/triage", {"area_id": "", "status": "planned"})
     assert resp.status_code in (200, 204)
     s.refresh_from_db()
@@ -118,11 +118,11 @@ def test_triage_status_only_keeps_area(client_local, org):
 def test_triage_foreign_area_404s(client_local, org):
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    inbox = get_or_create_triage(ws)
+    inbox = get_or_create_triage(ws.org)
     s = create_slice(inbox, "다른 워크스페이스로")
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     other_ws = Workspace.objects.create(org=other_org, name="Other", slug="other")
-    foreign_area = create_area(other_ws, "Foreign")
+    foreign_area = create_area(other_ws.org, "Foreign")
     resp = client_local.post(
         f"{p}/slices/{s.id}/triage", {"area_id": foreign_area.id, "status": "planned"}, HTTP_HX_REQUEST="true"
     )
@@ -136,7 +136,7 @@ def test_inbox_heading_and_agent_source_badge(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    tri = get_or_create_triage(ws)
+    tri = get_or_create_triage(ws.org)
     create_slice(tri, "에이전트가 만든 것", status="idea", source="agent")
     body = client_local.get(f"{p}/triage/").content.decode()
     assert '<h1 class="page-title">Inbox</h1>' in body       # renamed heading

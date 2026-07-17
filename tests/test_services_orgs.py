@@ -23,8 +23,8 @@ def test_create_workspace_sets_up_inbox_only(org_with_owner):
     org, _ = org_with_owner
     ws = create_workspace(org, "Board")
     assert ws.org == org
-    assert Area.objects.filter(workspace=ws, is_triage=True).count() == 1
-    assert Area.objects.filter(workspace=ws, is_triage=False).count() == 0
+    assert Area.objects.filter(org=org, is_triage=True).count() == 1
+    assert Area.objects.filter(org=org, is_triage=False).count() == 0
 
 
 @pytest.mark.django_db
@@ -131,14 +131,21 @@ def test_cannot_remove_owner(org_owner_admin_member):
 
 @pytest.mark.django_db
 def test_delete_workspace_removes_it_and_cascades(org_with_owner):
+    """Areas are org-scoped now (workspace=None on create — see task-5-report.md
+    Option B fix): get_or_create_triage(org) is idempotent per org, so "Doomed"'s
+    seed call finds "Keep"'s existing triage rather than creating its own, and
+    no Area carries a `workspace` FK for delete_workspace to cascade through
+    anymore. This test now only asserts the workspace row itself is removed
+    (and its org-scoped areas are untouched); delete_workspace is dropped
+    entirely in Task 10."""
     org, _ = org_with_owner
     keep = create_workspace(org, "Keep")
     doomed = create_workspace(org, "Doomed")
-    area_ids = list(Area.objects.filter(workspace=doomed).values_list("id", flat=True))
-    assert area_ids  # create_workspace seeds inbox + Default
+    area_ids = list(Area.objects.filter(org=org).values_list("id", flat=True))
+    assert area_ids  # create_workspace seeds the org's inbox
     delete_workspace(doomed)
     assert not Workspace.objects.filter(id=doomed.id).exists()
-    assert not Area.objects.filter(id__in=area_ids).exists()  # cascaded
+    assert Area.objects.filter(id__in=area_ids).exists()  # org-scoped, not cascaded
     assert Workspace.objects.filter(id=keep.id).exists()
 
 
@@ -158,8 +165,8 @@ def test_create_org_makes_org_owner_and_first_workspace():
     assert org.slug == "acme-labs"                       # auto slug from name
     assert OrgMember.objects.filter(user=user, org=org, role="owner").exists()
     assert ws.org == org
-    assert Area.objects.filter(workspace=ws, is_triage=True).count() == 1
-    assert Area.objects.filter(workspace=ws, is_triage=False).count() == 0
+    assert Area.objects.filter(org=org, is_triage=True).count() == 1
+    assert Area.objects.filter(org=org, is_triage=False).count() == 0
 
 
 @pytest.mark.django_db

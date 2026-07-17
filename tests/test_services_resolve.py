@@ -18,7 +18,7 @@ def data(db):
     # boundary), so "rejects other tenant" must use a genuinely different org.
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     other = Workspace.objects.create(org=other_org, name="B", slug="b")
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     slice_ = create_slice(area, "Auth")
     plan = create_plan(slice_, title="Plan")
     bite = create_bite(plan, "JWT")

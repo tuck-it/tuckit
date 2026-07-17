@@ -12,7 +12,7 @@ def ensure_bootstrap(email: str = "local@tuckit.local", org_slug: str = "default
     workspace = org.workspaces.first() or create_workspace(org, "Default", slug="default")
 
     raw = None
-    if not ApiToken.objects.filter(workspace=workspace).exists():
+    if not ApiToken.objects.filter(org=workspace.org).exists():
         _, raw = generate_token(workspace, "local-cli")
     return org, raw
 

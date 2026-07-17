@@ -14,7 +14,7 @@ def _seed():
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="P", slug="p")
     _, raw = generate_token(ws, "t")
-    s = create_slice(create_area(ws, "Backend"), "Auth")
+    s = create_slice(create_area(ws.org, "Backend"), "Auth")
     return raw, s.id
 
 

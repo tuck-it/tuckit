@@ -18,7 +18,7 @@ from tuckit.core.services.slices import create_slice
 def slice_(db):
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="P", slug="p")
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     return create_slice(area, "Auth")
 
 
@@ -67,7 +67,7 @@ def test_reorder_bite_to_front(plan_):
 def test_bite_progress_counts_done_over_non_dropped():
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="W", slug="w")
-    area = create_area(ws, "A")
+    area = create_area(ws.org, "A")
     s = create_slice(area, "S")
     p = create_plan(s, title="Plan")
     create_bite(p, "a", status="done")

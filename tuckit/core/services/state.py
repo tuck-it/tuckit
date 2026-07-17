@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from tuckit.core.models import Area, Bite, Org, Slice, Workspace, WorkspaceStatSnapshot
+from tuckit.core.models import Area, Bite, Org, Slice, WorkspaceStatSnapshot
 from tuckit.core.services.bites import list_bites, slice_bites
 from tuckit.core.services.plans import list_plans
 from tuckit.core.services.slices import list_slices
@@ -117,20 +117,6 @@ def home_state(org: Org) -> dict:
     }
 
 
-def _snapshot_workspace(org: Org) -> Workspace:
-    """WorkspaceStatSnapshot is still uniquely keyed on (workspace, date), not
-    (org, date) — that constraint move is Task 12. snapshot_today only
-    receives an Org, so during the transition we pin the upsert (and its
-    prior-day comparison) to one deterministic workspace of the org (the
-    oldest) rather than filtering by org+date directly: an org-scoped filter
-    could match more than one existing row once an org has several
-    workspaces, raising MultipleObjectsReturned, or silently compare against
-    a different workspace's prior-day row. This means multi-workspace orgs
-    get one shared stat history (attributed to their first workspace) until
-    Task 12 moves the constraint to (org, date) — see task-5 report."""
-    return Workspace.objects.filter(org=org).order_by("id").first()
-
-
 def snapshot_today(org: Org, state: dict) -> dict:
     """Upsert today's count row for `org` and return each metric's value
     plus its delta vs the most recent prior-day snapshot. Counts are derived
@@ -138,8 +124,13 @@ def snapshot_today(org: Org, state: dict) -> dict:
     (e.g. stalled building slices count only toward Needs attention, not
     Building). Lazy — called on Home load, so history accrues without a
     scheduler. delta is None on the first day (no prior row) so the UI shows
-    a value with no movement line."""
-    workspace = _snapshot_workspace(org)
+    a value with no movement line.
+
+    Org-scoped (workspace= is no longer written — WorkspaceStatSnapshot.workspace
+    is nullable now, see task-5-report.md Option B fix). The DB uniqueness is
+    still (workspace, date), not (org, date) (Task 12 moves it), but since new
+    rows always have workspace=None that constraint no longer disambiguates
+    anything for us — the org+date lookup below is the real key going forward."""
     today = timezone.localdate()
     building_ct = len(state["building"])
     backlog_ct = len(state["planned"]) + len(state["ideas"]) + len(state["someday"])
@@ -150,10 +141,9 @@ def snapshot_today(org: Org, state: dict) -> dict:
     attention_ct = len(state["attention"])
 
     WorkspaceStatSnapshot.objects.update_or_create(
-        workspace=workspace,  # TODO(task-12): drop workspace= (move uniqueness to (org, date))
+        org=org,
         date=today,
         defaults={
-            "org": org,
             "building_ct": building_ct,
             "backlog_ct": backlog_ct,
             "shipped_week_ct": shipped_week_ct,
@@ -162,7 +152,7 @@ def snapshot_today(org: Org, state: dict) -> dict:
     )
     prior = (
         WorkspaceStatSnapshot.objects
-        .filter(workspace=workspace, date__lt=today)
+        .filter(org=org, date__lt=today)
         .order_by("-date")
         .first()
     )

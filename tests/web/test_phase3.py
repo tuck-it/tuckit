@@ -9,7 +9,7 @@ def test_triage_heading_has_count_and_capture(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    create_slice(get_or_create_triage(ws), "loose end")
+    create_slice(get_or_create_triage(ws.org), "loose end")
     body = client_local.get(f"{p}/triage/").content.decode()
     assert 'class="page-head"' in body
     assert 'class="page-count"' in body
@@ -22,7 +22,7 @@ def test_triage_row_shows_provenance_and_english_controls(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    create_slice(get_or_create_triage(ws), "loose end")
+    create_slice(get_or_create_triage(ws.org), "loose end")
     body = client_local.get(f"{p}/triage/").content.decode()
     assert 'class="triage-controls"' in body        # controls grouped for reveal
     assert "Assign area" in body
@@ -37,7 +37,7 @@ def test_slice_panel_order_and_close_aria(client_local, org):
     from tuckit.core.services.bites import create_bite
     from tuckit.core.services.plans import create_plan
     ws = Workspace.objects.get(org=org)
-    a = create_area(ws, "Backend")
+    a = create_area(ws.org, "Backend")
     s = create_slice(a, "panel order", status="building", tags=["billing"])
     create_bite(create_plan(s, title="Plan"), "step one")
     p = f"/{org.slug}/{ws.slug}"
@@ -56,7 +56,7 @@ def test_slice_panel_renders_status_dropdown(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "Backend"), "seg", status="building")
+    s = create_slice(create_area(ws.org, "Backend"), "seg", status="building")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="status-menu"' in body and 'status-opt--on' in body
 

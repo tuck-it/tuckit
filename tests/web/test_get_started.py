@@ -39,7 +39,7 @@ def test_widget_area_step_posts_to_real_endpoint(client_local, org):
 @pytest.mark.django_db
 def test_widget_slice_step_links_to_real_area_page(client_local, org):
     ws = Workspace.objects.get(org=org)
-    create_area(ws, "Backend")
+    create_area(ws.org, "Backend")
     body = client_local.get(f"{_p(ws)}/").content.decode()
     # Slice step deep-links into the real Area page with a focus hint.
     assert "focus=slice" in body
@@ -50,7 +50,7 @@ def test_widget_bite_step_links_to_real_slice(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="idea")
     body = client_local.get(f"/{org.slug}/{ws.slug}/").content.decode()
     assert f"/slices/{sl.id}/?focus=bite" in body
@@ -60,7 +60,7 @@ def test_widget_bite_step_links_to_real_slice(client_local, org):
 def test_widget_hidden_when_all_done(client_local, org):
     from tuckit.core.models import ActivityEvent
     ws = Workspace.objects.get(org=org)
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
     create_bite(create_plan(sl, title="Plan"), "Add backoff")
     ActivityEvent.objects.create(
@@ -87,7 +87,7 @@ def test_step4_shows_generate_key_when_no_key(client_local, org):
     # Reach step 4 (onboarding.current == 4) by completing area/slice/bite first —
     # the widget only renders the connect UI once current == 4.
     ws = Workspace.objects.get(org=org)
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
     create_bite(create_plan(sl, title="Plan"), "Add backoff")
     body = client_local.get(f"{_p(ws)}/").content.decode()
@@ -99,7 +99,7 @@ def test_step4_shows_generate_key_when_no_key(client_local, org):
 def test_step4_shows_poller_when_key_exists(client_local, org):
     from tuckit.core.models import ApiToken
     ws = Workspace.objects.get(org=org)
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
     create_bite(create_plan(sl, title="Plan"), "Add backoff")
     ApiToken.objects.create(workspace=ws, org=org, name="a", token_hash="x")

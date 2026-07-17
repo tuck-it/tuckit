@@ -30,7 +30,7 @@ def ws(db):
 def test_project_state_buckets_by_status(ws):
     ws.org.description = "A demo product"
     ws.org.save(update_fields=["description", "updated_at"])
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     create_slice(area, "Auth", status="shipped")
     building = create_slice(area, "Payments", status="building")
     building_plan = create_plan(building, title="Plan")
@@ -51,8 +51,8 @@ def test_project_state_buckets_by_status(ws):
 
 @pytest.mark.django_db
 def test_project_state_can_scope_to_one_area(ws):
-    a1 = create_area(ws, "Backend")
-    create_area(ws, "Frontend")
+    a1 = create_area(ws.org, "Backend")
+    create_area(ws.org, "Frontend")
     create_slice(a1, "Auth", status="shipped")
     state = get_project_state(ws.org, area=a1)
     assert len(state["areas"]) == 1
@@ -61,7 +61,7 @@ def test_project_state_can_scope_to_one_area(ws):
 
 @pytest.mark.django_db
 def test_render_slice_markdown_includes_spec_and_bites(ws):
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     s = create_slice(area, "Auth", spec="Support OAuth login.", status="building", tags=["feature"])
     p = create_plan(s, title="Plan")
     create_bite(p, "JWT", status="done")
@@ -77,7 +77,7 @@ def test_render_slice_markdown_includes_spec_and_bites(ws):
 
 @pytest.mark.django_db
 def test_render_slice_markdown_includes_bite_body(ws):
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     s = create_slice(area, "Auth")
     p = create_plan(s, title="Plan")
     create_bite(p, "JWT", body="use RS256 keys")
@@ -88,7 +88,7 @@ def test_render_slice_markdown_includes_bite_body(ws):
 
 @pytest.mark.django_db
 def test_someday_slice_is_exclusive_to_someday_bucket(ws):
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     create_slice(area, "Planned someday", status="planned", tags=["someday"])
     create_slice(area, "Plain planned", status="planned")
     state = get_project_state(ws.org)
@@ -100,7 +100,7 @@ def test_someday_slice_is_exclusive_to_someday_bucket(ws):
 
 @pytest.mark.django_db
 def test_counts_and_dropped_bite_excluded(ws):
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     shipped = create_slice(area, "Auth", status="shipped")
     building = create_slice(area, "Payments", status="building")
     building_plan = create_plan(building, title="Plan")
@@ -119,8 +119,8 @@ def test_counts_and_dropped_bite_excluded(ws):
 def test_attention_flags_stale_inbox_and_stalled_building():
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="W", slug="w")
-    inbox = get_or_create_triage(ws)
-    backend = create_area(ws, "Backend")
+    inbox = get_or_create_triage(ws.org)
+    backend = create_area(ws.org, "Backend")
     stale_in = create_slice(inbox, "old capture")
     fresh_in = create_slice(inbox, "new capture")
     stalled = create_slice(backend, "in flight", status="building")
@@ -137,7 +137,7 @@ def test_attention_flags_stale_inbox_and_stalled_building():
 def test_home_state_buckets_across_areas_someday_excluded():
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="W", slug="w")
-    a1 = create_area(ws, "Backend"); a2 = create_area(ws, "Frontend")
+    a1 = create_area(ws.org, "Backend"); a2 = create_area(ws.org, "Frontend")
     create_slice(a1, "pay", status="building")
     create_slice(a2, "ui", status="building")
     create_slice(a1, "next", status="planned")
@@ -155,7 +155,7 @@ def test_attention_items_include_reason_and_days():
 
     org, _ = ensure_bootstrap()
     ws = Workspace.objects.get(org=org)  # still needed: get_or_create_triage stays workspace-scoped
-    inbox = get_or_create_triage(ws)
+    inbox = get_or_create_triage(ws.org)
     s = create_slice(inbox, "오래된 캡처", status="idea")
     old = timezone.now() - timedelta(days=11)
     Slice.objects.filter(pk=s.pk).update(updated_at=old)
@@ -171,13 +171,13 @@ def test_attention_items_include_reason_and_days():
 def test_roadmap_state_buckets_non_triage_slices():
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="W", slug="w")
-    a = create_area(ws, "Backend")
+    a = create_area(ws.org, "Backend")
     create_slice(a, "idea one", status="idea")
     create_slice(a, "planned one", status="planned")
     create_slice(a, "building one", status="building")
     create_slice(a, "shipped one", status="shipped")
     create_slice(a, "dropped one", status="dropped")
-    create_slice(get_or_create_triage(ws), "captured", status="idea")  # triage excluded
+    create_slice(get_or_create_triage(ws.org), "captured", status="idea")  # triage excluded
     rs = roadmap_state(org)
     assert [s.title for s in rs["idea"]] == ["idea one"]        # triage 'captured' excluded
     assert [s.title for s in rs["planned"]] == ["planned one"]
@@ -190,7 +190,7 @@ def test_roadmap_state_buckets_non_triage_slices():
 def test_in_progress_state_has_building_slices_and_doing_bites():
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="W", slug="w")
-    a = create_area(ws, "Backend")
+    a = create_area(ws.org, "Backend")
     s = create_slice(a, "building slice", status="building")
     create_slice(a, "idea slice", status="idea")
     p = create_plan(s, title="Plan")
@@ -205,8 +205,8 @@ def test_in_progress_state_has_building_slices_and_doing_bites():
 def test_roadmap_and_in_progress_sort_by_area_name():
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="W", slug="w")
-    zeta = create_area(ws, "Zeta")
-    alpha = create_area(ws, "Alpha")
+    zeta = create_area(ws.org, "Zeta")
+    alpha = create_area(ws.org, "Alpha")
     # Created Zeta-first, but both functions must return them Alpha-first (sort
     # key is (area name, rank)). Guards against the sort key being dropped/reversed.
     create_slice(zeta, "z build", status="building")
@@ -221,7 +221,7 @@ def test_home_state_excludes_attention_from_building():
 
     org, _ = ensure_bootstrap()
     ws = Workspace.objects.get(org=org)  # still needed: create_area stays workspace-scoped
-    a = create_area(ws, "제품")
+    a = create_area(ws.org, "제품")
     s = create_slice(a, "정체된 작업", status="building")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
 
@@ -234,7 +234,7 @@ def test_home_state_excludes_attention_from_building():
 def test_cap_shipped_count_mode(ws):
     ws.org.shipped_board_mode = "count"
     ws.org.shipped_board_limit = 2
-    a = create_area(ws, "A")
+    a = create_area(ws.org, "A")
     for i in range(5):
         create_slice(a, f"s{i}", status="shipped")
     shipped = roadmap_state(ws.org)["shipped"]
@@ -247,7 +247,7 @@ def test_cap_shipped_count_mode(ws):
 def test_cap_shipped_days_mode_excludes_old(ws):
     ws.org.shipped_board_mode = "days"
     ws.org.shipped_board_limit = 30
-    a = create_area(ws, "A")
+    a = create_area(ws.org, "A")
     recent = create_slice(a, "recent", status="shipped")
     old = create_slice(a, "old", status="shipped")
     old.completed_at = timezone.now() - timedelta(days=90)
@@ -261,7 +261,7 @@ def test_cap_shipped_days_mode_excludes_old(ws):
 
 @pytest.mark.django_db
 def test_shipped_sorted_newest_first(ws):
-    a = create_area(ws, "A")
+    a = create_area(ws.org, "A")
     first = create_slice(a, "first", status="shipped")
     second = create_slice(a, "second", status="shipped")
     first.completed_at = timezone.now() - timedelta(days=5)
@@ -274,7 +274,7 @@ def test_shipped_sorted_newest_first(ws):
 def test_roadmap_board_view_reports_overflow(ws):
     ws.org.shipped_board_mode = "count"
     ws.org.shipped_board_limit = 1
-    a = create_area(ws, "A")
+    a = create_area(ws.org, "A")
     create_slice(a, "s1", status="shipped")
     create_slice(a, "s2", status="shipped")
     view = roadmap_board_view(ws.org)
@@ -287,7 +287,7 @@ def test_roadmap_board_view_reports_overflow(ws):
 def test_snapshot_today_first_day_has_no_deltas(ws):
     from tuckit.core.services.state import snapshot_today
     from tuckit.core.models import WorkspaceStatSnapshot
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     create_slice(area, "A", status="building")
     create_slice(area, "B", status="planned")
     out = snapshot_today(ws.org, home_state(ws.org))
@@ -295,17 +295,17 @@ def test_snapshot_today_first_day_has_no_deltas(ws):
     assert out["backlog"]["value"] == 1
     assert out["backlog"]["delta"] is None
     # exactly one row was written for today
-    assert WorkspaceStatSnapshot.objects.filter(workspace=ws).count() == 1
+    assert WorkspaceStatSnapshot.objects.filter(org=ws.org).count() == 1
 
 
 def test_snapshot_today_is_idempotent_per_day(ws):
     from tuckit.core.services.state import snapshot_today
     from tuckit.core.models import WorkspaceStatSnapshot
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     create_slice(area, "A", status="building")
     snapshot_today(ws.org, home_state(ws.org))
     snapshot_today(ws.org, home_state(ws.org))
-    assert WorkspaceStatSnapshot.objects.filter(workspace=ws).count() == 1
+    assert WorkspaceStatSnapshot.objects.filter(org=ws.org).count() == 1
 
 
 def test_snapshot_today_delta_vs_prior_day(ws):
@@ -313,7 +313,7 @@ def test_snapshot_today_delta_vs_prior_day(ws):
     from django.utils import timezone as _tz
     from tuckit.core.services.state import snapshot_today
     from tuckit.core.models import WorkspaceStatSnapshot
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     create_slice(area, "A", status="building")
     # simulate yesterday's snapshot: 3 building
     yesterday = _tz.localdate() - _td(days=1)
@@ -328,7 +328,7 @@ def test_snapshot_today_delta_vs_prior_day(ws):
 @pytest.mark.django_db
 def test_render_slice_markdown_includes_plan_and_constraints(ws):
     from tuckit.core.services.plans import create_plan
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     s = create_slice(area, "Auth", spec="design")
     create_plan(s, body="Goal: ship auth", constraints="no billing")
     md = render_slice_markdown(s)
@@ -339,7 +339,7 @@ def test_render_slice_markdown_includes_plan_and_constraints(ws):
 @pytest.mark.django_db
 def test_render_slice_markdown_renders_every_plan(ws):
     from tuckit.core.services.plans import create_plan
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     s = create_slice(area, "Auth", spec="design")
     p1 = create_plan(s, title="Backend plan", body="Backend goal", constraints="no billing")
     p2 = create_plan(s, title="Frontend plan", body="Frontend goal")

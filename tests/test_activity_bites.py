@@ -12,7 +12,7 @@ def _ws(slug="w"):
 
 
 def _slice(ws):
-    return create_slice(create_area(ws, "Backend"), "S", status="building")
+    return create_slice(create_area(ws.org, "Backend"), "S", status="building")
 
 
 def _plan(ws):

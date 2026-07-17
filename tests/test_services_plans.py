@@ -9,7 +9,7 @@ from tuckit.core.services.slices import create_slice
 @pytest.mark.django_db
 def test_create_plan_logs_activity(org):
     ws = Workspace.objects.get(org=org)
-    s = create_slice(create_area(ws, "B"), "S")
+    s = create_slice(create_area(ws.org, "B"), "S")
     assert get_plan(s) is None
 
     p = create_plan(s, title="Backend", body="v1", constraints="no billing", actor="agent")
@@ -23,7 +23,7 @@ def test_create_plan_logs_activity(org):
 @pytest.mark.django_db
 def test_update_plan_changes_fields_and_logs_only_on_real_change(org):
     ws = Workspace.objects.get(org=org)
-    s = create_slice(create_area(ws, "B"), "S")
+    s = create_slice(create_area(ws.org, "B"), "S")
     p = create_plan(s, body="v1", constraints="no billing", actor="agent")
     assert ActivityEvent.objects.filter(
         target_type="slice", target_id=s.id, verb="planned"
@@ -46,7 +46,7 @@ def test_update_plan_changes_fields_and_logs_only_on_real_change(org):
 @pytest.mark.django_db
 def test_list_plans_returns_them_in_order(org):
     ws = Workspace.objects.get(org=org)
-    s = create_slice(create_area(ws, "B"), "S")
+    s = create_slice(create_area(ws.org, "B"), "S")
     p1 = create_plan(s, title="Backend")
     p2 = create_plan(s, title="UI")
     assert list(list_plans(s)) == [p1, p2]

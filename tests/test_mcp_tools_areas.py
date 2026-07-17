@@ -36,7 +36,7 @@ async def test_list_tags():
 
     @sync_to_async
     def tag_it():
-        area = svc_create_area(ws, "Backend")
+        area = svc_create_area(ws.org, "Backend")
         create_slice(area, "Auth", tags=["bug", "someday"])
 
     await tag_it()

@@ -27,7 +27,7 @@ def test_page_with_slice_param_autoloads_panel(client_local, org):
     from tuckit.core.services.slices import create_slice
     ws = Workspace.objects.get(org=org)
     p = f"/{org.slug}/{ws.slug}"
-    s = create_slice(create_area(ws, "Design"), "복원")
+    s = create_slice(create_area(ws.org, "Design"), "복원")
     body = client_local.get(f"{p}/?slice={s.id}").content.decode()   # home is /{org}/{ws}/
     assert 'hx-trigger="load"' in body
     assert f'/slices/{s.id}/?panel=1' in body    # panel endpoint wired into #panel

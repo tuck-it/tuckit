@@ -16,7 +16,7 @@ def owner_with_area(client, db):
     owner = User.objects.create(email="o@a.com")
     OrgMember.objects.create(user=owner, org=org, role="owner")
     ws = create_workspace(org, "Board")
-    create_area(ws, "Backend")
+    create_area(ws.org, "Backend")
     client.force_login(owner)
     session = client.session
     session["active_workspace_id"] = ws.id
@@ -60,7 +60,7 @@ def test_onboarding_hidden_stays_hidden_after_area_deleted(client_local, org):
     from tuckit.core.models import ActivityEvent, Workspace
     from tuckit.core.services.areas import delete_area
     ws = Workspace.objects.get(org=org)
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="planned")
     p = create_plan(sl, title="Plan")
     create_bite(p, "Add backoff")

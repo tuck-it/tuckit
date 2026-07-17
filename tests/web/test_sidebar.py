@@ -18,7 +18,7 @@ def test_search_and_dots_icons_have_paths():
 def test_command_palette_rendered_with_area_rows(client_local, org):
     from tuckit.core.services.areas import create_area
     ws = Workspace.objects.get(org=org)
-    create_area(ws, "Backend")
+    create_area(ws.org, "Backend")
     body = client_local.get(f"/{org.slug}/{ws.slug}/").content.decode()
     assert 'id="command-palette"' in body           # overlay present
     assert 'data-label="Backend"' in body           # area is a command row
@@ -72,7 +72,7 @@ def test_collapsed_rail_css_present():
 def test_areas_header_add_and_row_menu(client_local, org):
     from tuckit.core.services.areas import create_area
     ws = Workspace.objects.get(org=org)
-    create_area(ws, "Backend")
+    create_area(ws.org, "Backend")
     body = client_local.get(f"/{org.slug}/{ws.slug}/").content.decode()
     assert 'class="section area-section"' in body      # header row
     assert 'class="area-add-btn"' in body               # + button in header

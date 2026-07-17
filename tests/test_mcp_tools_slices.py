@@ -28,7 +28,7 @@ def _seed():
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     other = Workspace.objects.create(org=other_org, name="O", slug="o")
     _, raw = generate_token(ws, "t")
-    area = create_area(ws, "Backend")
+    area = create_area(ws.org, "Backend")
     return ws, other, raw, area.id
 
 

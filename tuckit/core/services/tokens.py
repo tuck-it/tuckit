@@ -11,23 +11,20 @@ def hash_token(raw: str) -> str:
 
 
 def generate_token(workspace: Workspace, name: str) -> tuple[ApiToken, str]:
-    """NOTE: kept workspace-scoped, not migrated to org — every call site
-    (web/views/settings.py, web/views/onboarding.py) already has the exact
-    Workspace on hand, and ApiToken.workspace is still the non-null legacy FK
-    (dropped in Task 12), so there's no ambiguity to resolve here."""
+    """Takes a Workspace (every call site already has one on hand) but writes
+    and reads are org-scoped now that ApiToken.workspace is nullable — the org
+    is the real tenant boundary (see task-5-report.md Option B fix)."""
     raw = secrets.token_urlsafe(32)
-    token = ApiToken.objects.create(
-        workspace=workspace, org=workspace.org, name=name, token_hash=hash_token(raw)  # TODO(task-12): drop workspace=
-    )
+    token = ApiToken.objects.create(org=workspace.org, name=name, token_hash=hash_token(raw))
     return token, raw
 
 
 def list_tokens(workspace: Workspace):
-    return ApiToken.objects.filter(workspace=workspace).order_by("-created_at")
+    return ApiToken.objects.filter(org=workspace.org).order_by("-created_at")
 
 
 def revoke_token(workspace: Workspace, token_id: int) -> None:
-    ApiToken.objects.filter(workspace=workspace, pk=token_id).delete()
+    ApiToken.objects.filter(org=workspace.org, pk=token_id).delete()
 
 
 def resolve_org(raw: str) -> Org | None:

@@ -30,7 +30,7 @@ def first_org(request):
 
 def _agent_baseline(ws) -> int:
     return (
-        ActivityEvent.objects.filter(workspace=ws).order_by("-id")
+        ActivityEvent.objects.filter(org=ws.org).order_by("-id")
         .values_list("id", flat=True).first() or 0
     )
 
@@ -57,7 +57,7 @@ def agent_check(request):
     except ValueError:
         since = 0
     ev = (
-        ActivityEvent.objects.filter(workspace=ws, actor="agent", id__gt=since)
+        ActivityEvent.objects.filter(org=ws.org, actor="agent", id__gt=since)
         .order_by("id").first()
     )
     if ev is None:

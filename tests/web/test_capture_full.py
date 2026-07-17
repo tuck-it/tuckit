@@ -16,7 +16,7 @@ P = lambda ws: f"/{ws.org.slug}/{ws.slug}"
 def test_capture_title_only_stays_quick(client_local, org):
     """Title-only keeps today's behavior: Inbox/idea, 200 toast bundle, no redirect."""
     ws = Workspace.objects.get(org=org)
-    get_or_create_triage(ws)
+    get_or_create_triage(ws.org)
     resp = client_local.post(f"{P(ws)}/capture", {"title": "quick one"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     assert "HX-Redirect" not in resp
@@ -44,7 +44,7 @@ def test_capture_rich_creates_full_slice_and_redirects(client_local, org):
 @pytest.mark.django_db
 def test_capture_rich_into_explicit_area(client_local, org):
     ws = Workspace.objects.get(org=org)
-    backend = create_area(ws, "Backend")
+    backend = create_area(ws.org, "Backend")
     resp = client_local.post(
         f"{P(ws)}/capture", {"title": "in area", "area_id": backend.id}, HTTP_HX_REQUEST="true"
     )
@@ -89,7 +89,7 @@ def test_capture_invalid_status_400_creates_nothing(client_local, org):
 @pytest.mark.django_db
 def test_capture_modal_renders_full_form(client_local, org):
     ws = Workspace.objects.get(org=org)
-    create_area(ws, "Backend")
+    create_area(ws.org, "Backend")
     body = client_local.get(f"{P(ws)}/triage/").content.decode()
     # required title + the optional authoring controls
     assert 'name="title"' in body

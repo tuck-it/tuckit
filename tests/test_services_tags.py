@@ -12,8 +12,8 @@ def ws(db):
 
 @pytest.mark.django_db
 def test_get_or_create_tags_is_idempotent(ws):
-    first = get_or_create_tags(ws, ["bug", "someday"])
-    second = get_or_create_tags(ws, ["bug"])
+    first = get_or_create_tags(ws.org, ["bug", "someday"])
+    second = get_or_create_tags(ws.org, ["bug"])
     assert {t.name for t in first} == {"bug", "someday"}
     assert second[0].id == next(t.id for t in first if t.name == "bug")
     assert list_tags(ws.org).count() == 2

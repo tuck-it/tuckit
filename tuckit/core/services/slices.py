@@ -52,7 +52,7 @@ def create_slice(
             completed_at=timezone.now() if status == "shipped" else None,
         )
         if tags:
-            slice_.tags.set(get_or_create_tags(area.workspace, tags))
+            slice_.tags.set(get_or_create_tags(area.org, tags))
         record_activity(area.org, actor=source, verb="created", target=slice_)
     return slice_
 
@@ -77,7 +77,7 @@ def update_slice(
     with transaction.atomic():
         slice_.save()
         if tags is not None:
-            slice_.tags.set(get_or_create_tags(slice_.area.workspace, tags))
+            slice_.tags.set(get_or_create_tags(slice_.area.org, tags))
         if status is not None and status != old_status:
             record_activity(
                 slice_.area.org, actor=actor, verb=status_verb(status),

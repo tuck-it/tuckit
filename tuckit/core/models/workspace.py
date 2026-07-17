@@ -34,7 +34,7 @@ class Workspace(models.Model):
 
 
 class ApiToken(models.Model):
-    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="tokens")
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="tokens", null=True, blank=True)
     org = models.ForeignKey(Org, on_delete=models.CASCADE, related_name="tokens")
     name = models.CharField(max_length=200)
     token_hash = models.CharField(max_length=64, unique=True)
@@ -42,14 +42,14 @@ class ApiToken(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} ({self.workspace.slug})"
+        return f"{self.name} ({self.workspace.slug if self.workspace_id else self.org.slug})"
 
 
 class WorkspaceStatSnapshot(models.Model):
     """One row of workspace counts per calendar day, written lazily on Home
     load. Powers the Home summary cards' day-over-day deltas — no scheduler."""
     workspace = models.ForeignKey(
-        Workspace, on_delete=models.CASCADE, related_name="stat_snapshots"
+        Workspace, on_delete=models.CASCADE, related_name="stat_snapshots", null=True, blank=True
     )
     org = models.ForeignKey(Org, on_delete=models.CASCADE, related_name="stat_snapshots")
     date = models.DateField()
@@ -66,4 +66,4 @@ class WorkspaceStatSnapshot(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.workspace.slug} @ {self.date}"
+        return f"{self.workspace.slug if self.workspace_id else self.org.slug} @ {self.date}"

@@ -10,7 +10,7 @@ def sidebar_areas(request):
     ws = current_workspace_or_fallback(request)
     if not ws:
         return {}
-    return {"areas": [a for a in list_areas(ws) if not a.is_triage]}
+    return {"areas": [a for a in list_areas(ws.org) if not a.is_triage]}
 
 
 def triage_count(request):
@@ -21,7 +21,7 @@ def triage_count(request):
     ws = current_workspace_or_fallback(request)
     if not ws:
         return {}
-    triage = Area.objects.filter(workspace=ws, is_triage=True).first()
+    triage = Area.objects.filter(org=ws.org, is_triage=True).first()
     n = Slice.objects.filter(area=triage).exclude(status="dropped").count() if triage else 0
     return {"triage_count": n}
 
@@ -47,10 +47,10 @@ def in_progress_count(request):
         return {}
     n = (
         Slice.objects.filter(
-            area__workspace=ws, area__is_triage=False, status="building"
+            area__org=ws.org, area__is_triage=False, status="building"
         ).count()
         + Bite.objects.filter(
-            plan__slice__area__workspace=ws, plan__slice__area__is_triage=False, status="doing"
+            plan__slice__area__org=ws.org, plan__slice__area__is_triage=False, status="doing"
         ).count()
     )
     return {"in_progress_count": n}
@@ -107,7 +107,7 @@ def onboarding(request):
         ws.save(update_fields=["onboarding_completed"])
     show = not ws.onboarding_dismissed and not ws.onboarding_completed and not state.done
     baseline = (
-        ActivityEvent.objects.filter(workspace=ws).order_by("-id")
+        ActivityEvent.objects.filter(org=ws.org).order_by("-id")
         .values_list("id", flat=True).first() or 0
     )
     return {

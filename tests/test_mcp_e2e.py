@@ -35,7 +35,7 @@ def test_mcp_streamable_http_round_trip_returns_real_state(asgi_app):
     # Seed a real org/workspace/area/slice and a real hashed API token.
     org = Org.objects.create(name="Acme", slug="acme", description="demo product")
     workspace = Workspace.objects.create(org=org, name="MyProduct", slug="myproduct")
-    area = create_area(workspace, "Backend")
+    area = create_area(workspace.org, "Backend")
     create_slice(area, "Auth", status="shipped")
     _token, raw_token = generate_token(workspace, "e2e-token")
 

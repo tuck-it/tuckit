@@ -4,7 +4,7 @@ from tuckit.core.models.workspace import Workspace
 
 
 class Tag(models.Model):
-    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="tags")
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="tags", null=True, blank=True)
     org = models.ForeignKey("core.Org", on_delete=models.CASCADE, related_name="tags")
     name = models.CharField(max_length=100)
 
@@ -16,7 +16,7 @@ class Tag(models.Model):
 
 
 class Area(models.Model):
-    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="areas")
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="areas", null=True, blank=True)
     org = models.ForeignKey("core.Org", on_delete=models.CASCADE, related_name="areas")
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=100)

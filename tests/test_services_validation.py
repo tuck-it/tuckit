@@ -12,7 +12,7 @@ from tuckit.core.services.slices import create_slice, set_slice_status, update_s
 def area(db):
     org = Org.objects.create(name="Acme", slug="acme")
     ws = Workspace.objects.create(org=org, name="A", slug="a")
-    return create_area(ws, "Backend")
+    return create_area(ws.org, "Backend")
 
 
 @pytest.mark.django_db

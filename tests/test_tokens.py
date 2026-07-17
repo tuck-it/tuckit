@@ -26,7 +26,7 @@ def test_resolve_org_returns_owner_and_stamps_use(ws):
     assert resolved == ws.org
     from tuckit.core.models import ApiToken
 
-    assert ApiToken.objects.get(workspace=ws).last_used_at is not None
+    assert ApiToken.objects.get(org=ws.org).last_used_at is not None
 
 
 @pytest.mark.django_db

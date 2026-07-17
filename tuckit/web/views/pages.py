@@ -108,7 +108,7 @@ def areas(request):
     if ws:
         from tuckit.core.services.areas import list_areas
         from tuckit.core.models import Slice
-        for a in list_areas(ws):
+        for a in list_areas(ws.org):
             if a.is_triage:
                 continue
             counts = {}

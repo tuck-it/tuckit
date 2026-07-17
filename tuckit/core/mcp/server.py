@@ -6,7 +6,6 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from tuckit.core.mcp.auth import require_org
 from tuckit.core.mcp.serializers import area_dict, bite_dict, plan_dict, slice_dict
-from tuckit.core.models import Workspace
 from tuckit.core.services.areas import create_area as _create_area
 from tuckit.core.services.areas import list_areas as _list_areas
 from tuckit.core.services.bites import (
@@ -92,15 +91,6 @@ mcp = FastMCP(
 )
 
 
-def _a_workspace(org) -> Workspace:
-    """areas.create_area/list_areas are still workspace-scoped (see task-5
-    report: their signature can't move without touching the protected
-    tests/test_mcp_tools_*.py files, which seed data by calling them
-    directly with a real Workspace). Bridge the org this tool call resolved
-    to one of its workspaces -- dropped once Task 12 removes Workspace."""
-    return Workspace.objects.filter(org=org).order_by("id").first()
-
-
 def _project_state(org, area_id: int | None) -> dict:
     area = get_area(org, area_id) if area_id is not None else None
     return _get_project_state(org, area=area)
@@ -120,7 +110,7 @@ async def list_areas(ctx: Context) -> list[dict]:
     org = await require_org(ctx)
 
     def _run():
-        return [area_dict(a) for a in _list_areas(_a_workspace(org))]
+        return [area_dict(a) for a in _list_areas(org)]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -131,7 +121,7 @@ async def create_area(ctx: Context, name: str, description: str = "") -> dict:
     org = await require_org(ctx)
 
     def _run():
-        return area_dict(_create_area(_a_workspace(org), name, description=description))
+        return area_dict(_create_area(org, name, description=description))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
