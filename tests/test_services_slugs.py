@@ -72,3 +72,12 @@ def test_orgs_is_reserved():
     # with this slug would be unreachable at its own /<slug>/ home.
     with pytest.raises(InvalidValue):
         validate_slug("orgs", kind="org")
+
+
+@pytest.mark.parametrize("segment", [
+    "areas", "slices", "plans", "bites", "capture", "triage", "attention",
+    "in-progress", "roadmap", "onboarding", "settings", "orgs",
+])
+def test_app_segments_are_reserved(segment):
+    with pytest.raises(InvalidValue):
+        validate_slug(segment, kind="org")

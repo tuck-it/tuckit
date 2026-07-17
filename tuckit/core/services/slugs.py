@@ -5,12 +5,20 @@ from tuckit.core.services.exceptions import InvalidValue
 _SLUG_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
 _MIN, _MAX = 2, 32
 
+# An org slug occupies the first URL segment, so now that /<org>/ is the app
+# root it shares a namespace with every top-level app route (e.g. /areas/,
+# /capture/) as well as the literal reserved words below. An org named
+# "areas" would otherwise shadow the /<org>/areas/ route, so every app
+# segment must be listed here too.
 RESERVED_ORG_SLUGS = {
     "settings", "login", "logout", "register", "invite", "welcome",
     "healthcheck", "cloud", "static", "media", "account", "check-slug",
     "admin", "api", "app", "www", "assets", "about", "help", "support",
     "status", "docs", "blog", "pricing", "terms", "privacy", "mail",
     "new", "me", "null", "undefined", "first-org", "orgs",
+    # app segments under /<org>/
+    "areas", "slices", "plans", "bites", "capture", "triage", "attention",
+    "in-progress", "roadmap", "onboarding",
 }
 
 RESERVED_WORKSPACE_SLUGS = {

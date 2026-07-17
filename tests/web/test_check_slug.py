@@ -94,3 +94,13 @@ def test_workspace_kind_blocked_for_nonmember(client, db):
     resp_free = client.get("/api/check-slug",
                            {"kind": "workspace", "slug": "fresh", "org": "acme"})
     assert resp_free.json() == {"available": False, "error": "Organization not found."}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("segment", ["areas", "capture", "roadmap", "orgs"])
+def test_reserved_app_segment_is_unavailable(client, segment):
+    resp = client.get(f"/api/check-slug?slug={segment}")
+    assert resp.json() == {
+        "available": False,
+        "error": f"'{segment}' is reserved and can't be used.",
+    }
