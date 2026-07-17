@@ -1,11 +1,13 @@
 import pytest
 
 from tuckit.core.management.commands.bootstrap import ensure_bootstrap
+from tuckit.core.models import Workspace
 
 
 @pytest.mark.django_db
 def test_workspace_shipped_board_defaults():
-    ws, _ = ensure_bootstrap()
+    org, _ = ensure_bootstrap()
+    ws = Workspace.objects.get(org=org)
     assert ws.shipped_board_mode == "count"
     assert ws.shipped_board_limit == 8
 
