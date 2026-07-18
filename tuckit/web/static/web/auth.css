@@ -164,6 +164,18 @@ a.auth-brand:hover {
   background: var(--paper-raised);
   box-shadow: 0 18px 50px var(--shadow);
 }
+
+/* Each step arrives with the same entrance, binding the screens into one flow. */
+@keyframes auth-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.auth-split { animation: auth-enter 0.3s var(--ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-split { animation: none; }
+}
+
 .auth-panel {
   position: relative;
   padding: 32px 28px;
