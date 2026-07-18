@@ -161,17 +161,24 @@ def test_area_quick_add_honors_chosen_area(client_local, org):
 
 
 @pytest.mark.django_db
-def test_empty_area_shows_expanded_form(client_local, org):
-    a = create_area(org, "Empty")
+def test_area_page_has_new_slice_modal(client_local, org):
+    a = create_area(org, "Backend")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
-    # The quick-add form auto-expands its details for an empty area (unique marker
-    # not shared with the always-present capture modal).
-    assert "details: true" in body
+    assert "＋ New slice" in body                     # the modal trigger button
+    assert f"/areas/{a.slug}/slices" in body          # modal posts a full slice to this area
+    assert "New slice in Backend" in body             # modal is a distinct, titled surface
 
 
 @pytest.mark.django_db
-def test_nonempty_area_keeps_quick_add_collapsed(client_local, org):
-    a = create_area(org, "Busy")
-    create_slice(a, "existing", status="idea")
+def test_focus_slice_opens_modal(client_local, org):
+    # Onboarding Step 2 deep-links ?focus=slice — the create modal auto-opens.
+    a = create_area(org, "Empty")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/?focus=slice").content.decode()
+    assert "open: true" in body
+
+
+@pytest.mark.django_db
+def test_area_page_modal_closed_by_default(client_local, org):
+    a = create_area(org, "Backend")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
-    assert "details: false" in body
+    assert "open: false" in body
