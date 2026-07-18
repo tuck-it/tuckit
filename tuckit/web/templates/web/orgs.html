@@ -3,7 +3,9 @@
 {% include "registration/_auth_head.html" with page_title="Your organizations" %}
 <body>
   <main class="auth-shell">
-    <div class="auth-card">
+    <div class="auth-split">
+      {% include "registration/_auth_panel.html" %}
+      <div class="auth-formcol">
       {% include "registration/_auth_brand.html" %}
       <h1 class="auth-title">Your organizations</h1>
       {% if orgs %}
@@ -14,7 +16,7 @@
           {% endfor %}
         </div>
       {% else %}
-        <p class="auth-sub">Create your first organization. It's your company or team — you can create more later.</p>
+        <p class="auth-sub">Create your first organization. It's your company or team, and you can create more later.</p>
       {% endif %}
       {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
       <form method="post" class="auth-form">
@@ -68,6 +70,7 @@
           {% csrf_token %}
           <button type="submit">Log out</button>
         </form>
+      </div>
       </div>
     </div>
   </main>

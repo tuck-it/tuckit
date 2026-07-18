@@ -6,11 +6,10 @@ from tuckit.core.services.invitations import create_invitation
 
 
 @pytest.mark.django_db
-def test_login_screen_uses_design_system(client, org):
+def test_login_screen_uses_design_system(client):
     body = client.get("/login/").content.decode()
     # standalone page, English, not the app shell
     assert '<html lang="en"' in body
-    assert 'class="auth-card"' in body
     # token chain linked in order, ending in auth.css; app.css NOT linked
     i_brand = body.find("tokens.brand.css")
     i_product = body.find("tokens.product.css")
@@ -19,31 +18,17 @@ def test_login_screen_uses_design_system(client, org):
     assert -1 not in (i_brand, i_product, i_base, i_auth)
     assert i_brand < i_product < i_base < i_auth
     assert "web/app.css" not in body
-    # login form fields preserved (names unchanged)
-    assert 'name="username"' in body
-    assert 'name="password"' in body
+    # email-first entry: split panel + email field, no password on this step
+    assert 'class="auth-split"' in body
+    assert 'name="email"' in body
+    assert 'type="password"' not in body
 
 
 @pytest.mark.django_db
-@override_settings(REGISTRATION_OPEN=True)
-def test_register_screen_uses_design_system(client):
-    body = client.get("/register/").content.decode()
-    assert 'class="auth-card"' in body
-    assert "web/auth.css" in body
-    assert "web/app.css" not in body
-    for name in ("email", "org_name", "slug", "password"):
-        assert f'name="{name}"' in body
-
-
-@pytest.mark.django_db
-@override_settings(REGISTRATION_OPEN=True)
-def test_register_duplicate_slug_shows_styled_error(client):
-    Org.objects.create(name="Taken", slug="taken")
-    resp = client.post("/register/", {
-        "email": "new@x.com", "org_name": "X", "slug": "taken", "password": "pw123456",
-    })
-    assert resp.status_code == 200
-    assert 'class="auth-error"' in resp.content.decode()
+def test_login_has_brand_panel_with_tagline(client):
+    body = client.get("/login/").content.decode()
+    assert "auth-panel" in body
+    assert "Your project shouldn't." in body
 
 
 @pytest.mark.django_db
@@ -59,34 +44,6 @@ def test_invite_screen_uses_design_system(client):
     assert "Join Acme" in body          # English heading with org name
     assert "new@x.com" in body          # locked email shown for anonymous invitee
     assert 'name="password"' in body
-
-
-@pytest.mark.django_db
-@override_settings(REGISTRATION_OPEN=True)
-def test_login_shows_signup_link_when_open(client):
-    body = client.get("/login/").content.decode()
-    assert 'href="/register/"' in body
-    assert "Sign up" in body
-
-
-@pytest.mark.django_db
-@override_settings(REGISTRATION_OPEN=False)
-def test_login_hides_signup_link_when_closed(client):
-    body = client.get("/login/").content.decode()
-    assert 'href="/register/"' not in body
-
-
-@pytest.mark.django_db
-@override_settings(REGISTRATION_OPEN=True)
-def test_register_shows_login_link(client):
-    body = client.get("/register/").content.decode()
-    assert 'href="/login/"' in body
-
-
-@pytest.mark.django_db
-def test_login_shows_tagline(client):
-    body = client.get("/login/").content.decode()
-    assert "Shared project state for you and your coding agents." in body
 
 
 @pytest.mark.django_db

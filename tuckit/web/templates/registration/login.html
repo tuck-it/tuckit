@@ -3,15 +3,18 @@
 {% include "registration/_auth_head.html" with page_title="Log in" %}
 <body>
   <main class="auth-shell">
-    <div class="auth-card">
-      {% include "registration/_auth_brand.html" %}
-      {% if step == "password" %}
-        {% include "registration/_auth_step_password.html" %}
-      {% elif step == "set_password" %}
-        {% include "registration/_auth_step_set_password.html" %}
-      {% else %}
-        {% include "registration/_auth_step_email.html" %}
-      {% endif %}
+    <div class="auth-split">
+      {% include "registration/_auth_panel.html" %}
+      <div class="auth-formcol">
+        {% include "registration/_auth_brand.html" %}
+        {% if step == "password" %}
+          {% include "registration/_auth_step_password.html" %}
+        {% elif step == "set_password" %}
+          {% include "registration/_auth_step_set_password.html" %}
+        {% else %}
+          {% include "registration/_auth_step_email.html" %}
+        {% endif %}
+      </div>
     </div>
   </main>
 </body>

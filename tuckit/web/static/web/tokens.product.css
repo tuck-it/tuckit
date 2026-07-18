@@ -27,6 +27,12 @@
   --border: var(--line);
   --accent: var(--blue);
   --active: var(--paper-deep);
+
+  /* Auth split brand panel — a fixed deep-teal that reads on either shell. */
+  --auth-panel-a: #245a78;
+  --auth-panel-b: #163f56;
+  --auth-panel-ink: #eaf2f4;
+  --auth-panel-em: #ffffff;
 }
 
 /* --- Density tokens (product-only; high-density baseline) ---
