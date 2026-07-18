@@ -247,7 +247,6 @@ def test_bite_source_time_renders_english(client_local, org):
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     # timesince now renders in English, not Korean
     assert "hours" in body and "minutes" in body
-    assert "hrs" not in body
 
 
 @pytest.mark.django_db

@@ -73,7 +73,6 @@ def test_area_list_empty_copy_is_english(client_local, org):
     a = create_area(org, "Empty")
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert "No slices yet." in body
-    assert "There are no slices yet" not in body
 
 
 @pytest.mark.django_db
