@@ -122,9 +122,9 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 USE_TZ = True
 
-# Korean UI: makes django's timesince/date filters render in Korean
-# ("2시간 전"), not the default English ("2 hours, 38 minutes").
-LANGUAGE_CODE = "ko-kr"
+# English UI: django's timesince/date filters render in English
+# ("2 hours ago"), the framework default.
+LANGUAGE_CODE = "en-us"
 USE_I18N = True
 
 if not DEBUG:

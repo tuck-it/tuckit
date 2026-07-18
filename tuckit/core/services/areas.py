@@ -53,7 +53,7 @@ def update_area(area: Area, *, name: str | None = None, description: str | None 
     if name is not None:
         name = name.strip()
         if not name:
-            raise InvalidValue("이름을 입력해주세요")
+            raise InvalidValue("Please enter a name")
         area.name = name
         fields.append("name")
     if description is not None:
@@ -65,7 +65,7 @@ def update_area(area: Area, *, name: str | None = None, description: str | None 
 
 def delete_area(area: Area) -> None:
     if area.is_triage:
-        raise InvalidValue("Triage는 삭제할 수 없습니다")
+        raise InvalidValue("Triage cannot be deleted")
     area.delete()  # cascades to slices/bites via FK on_delete=CASCADE
 
 

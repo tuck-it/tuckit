@@ -10,7 +10,7 @@ from tuckit.core.services.exceptions import InvalidValue, NotFound
 
 def create_invitation(*, org, email, role, invited_by) -> Invitation:
     if OrgMember.objects.filter(org=org, user__email__iexact=email).exists():
-        raise InvalidValue("이미 이 조직의 멤버입니다")
+        raise InvalidValue("Already a member of this organization")
     assert_can_add_seat(org)
     return Invitation.objects.create(
         org=org, email=email, role=role, token=secrets.token_urlsafe(32), invited_by=invited_by
@@ -20,7 +20,7 @@ def create_invitation(*, org, email, role, invited_by) -> Invitation:
 def get_pending_invitation(token) -> Invitation:
     inv = Invitation.objects.select_related("org").filter(token=token, accepted_at__isnull=True).first()
     if inv is None:
-        raise NotFound("초대가 유효하지 않거나 이미 사용되었습니다")
+        raise NotFound("This invitation is invalid or has already been used")
     return inv
 
 
@@ -33,11 +33,11 @@ def accept_invitation(*, token, user) -> OrgMember:
         .first()
     )
     if inv is None:
-        raise NotFound("초대가 유효하지 않거나 이미 사용되었습니다")
+        raise NotFound("This invitation is invalid or has already been used")
     if user.email.lower() != inv.email.lower():
-        raise InvalidValue("초대된 이메일과 로그인 이메일이 다릅니다")
+        raise InvalidValue("The invited email does not match your login email")
     if OrgMember.objects.filter(user=user, org=inv.org).exists():
-        raise InvalidValue("이미 이 조직의 멤버입니다")
+        raise InvalidValue("Already a member of this organization")
     member = OrgMember.objects.create(user=user, org=inv.org, role=inv.role)
     inv.accepted_at = timezone.now()
     inv.save(update_fields=["accepted_at"])
@@ -65,8 +65,8 @@ def send_invitation_email(*, invitation, link) -> None:
     from django.core.mail import send_mail
 
     send_mail(
-        subject=f"[{invitation.org.name}] 조직 초대",
-        message=f"{invitation.org.name} 조직에 초대되었습니다.\n\n수락 링크: {link}",
+        subject=f"[{invitation.org.name}] Organization invitation",
+        message=f"You've been invited to the {invitation.org.name} organization.\n\nAccept invitation: {link}",
         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
         recipient_list=[invitation.email],
         fail_silently=True,

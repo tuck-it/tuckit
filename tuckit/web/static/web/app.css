@@ -1442,7 +1442,7 @@ body { padding: 0; }
 .roadmap-strip:hover .rm-seg { border-color: var(--accent); }
 .rm-building { color: var(--text); }
 
-/* --- Account settings: org list rows + inline "+ 새 조직" add form --- */
+/* --- Account settings: org list rows + inline "+ New organization" add form --- */
 .org-row {
   display: flex;
   align-items: center;
@@ -1488,7 +1488,7 @@ body { padding: 0; }
   color: var(--muted);
 }
 
-/* Inline "+ 새 조직" add form — mirrors .area-add / .area-add-input. */
+/* Inline "+ New organization" add form — mirrors .area-add / .area-add-input. */
 .org-add {
   padding: 4px 8px;
 }

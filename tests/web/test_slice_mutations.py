@@ -245,9 +245,9 @@ def test_bite_source_time_renders_korean(client_local, org):
     b = create_bite(create_plan(s, title="Plan"), "노트 bite", body="## 메모")
     Bite.objects.filter(pk=b.pk).update(updated_at=timezone.now() - timedelta(hours=2, minutes=30))
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    # timesince now renders in Korean, not "2 hours, 30 minutes"
-    assert "hours" not in body and "minutes" not in body
-    assert "시간" in body
+    # timesince now renders in English, not Korean
+    assert "hours" in body and "minutes" in body
+    assert "시간" not in body
 
 
 @pytest.mark.django_db

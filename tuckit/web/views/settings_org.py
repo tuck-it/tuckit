@@ -37,7 +37,7 @@ def _member_in_org(request, member_id):
 def member_role(request, member_id):
     member = _member_in_org(request, member_id)
     if not is_org_owner(request.user, request.org):
-        return HttpResponseForbidden("권한이 없습니다")
+        return HttpResponseForbidden("Permission denied")
     try:
         change_member_role(request.org, member=member, role=request.POST.get("role", ""))
     except InvalidValue as exc:
@@ -63,7 +63,7 @@ def member_manage(request, member_id):
 def member_remove(request, member_id):
     member = _member_in_org(request, member_id)
     if not is_org_admin(request.user, request.org):
-        return HttpResponseForbidden("권한이 없습니다")
+        return HttpResponseForbidden("Permission denied")
     try:
         remove_member(request.org, member=member)
     except InvalidValue as exc:
