@@ -13,14 +13,14 @@ def _org(slug="w"):
 def test_record_activity_derives_target_fields():
     org = _org()
     a = create_area(org, "Backend")
-    s = create_slice(a, "결제 도입", status="idea")
+    s = create_slice(a, "Payment integration", status="idea")
     ActivityEvent.objects.all().delete()  # ignore the create_slice event from Task 2
     record_activity(org, actor="agent", verb="status_changed", target=s, from_value="idea", to_value="building")
     e = ActivityEvent.objects.get()
     assert e.org_id == org.id
     assert e.actor == "agent" and e.verb == "status_changed"
     assert e.target_type == "slice" and e.target_id == s.id
-    assert e.target_label == "결제 도입"
+    assert e.target_label == "Payment integration"
     assert e.from_value == "idea" and e.to_value == "building"
 
 
@@ -28,12 +28,12 @@ def test_record_activity_derives_target_fields():
 def test_record_activity_survives_target_deletion():
     org = _org("w2")
     a = create_area(org, "Backend")
-    s = create_slice(a, "삭제될 것")
+    s = create_slice(a, "To be deleted")
     ActivityEvent.objects.all().delete()
     record_activity(org, actor="human", verb="created", target=s)
     s.delete()
     e = ActivityEvent.objects.get()   # log row still there
-    assert e.target_label == "삭제될 것" and e.target_id is not None
+    assert e.target_label == "To be deleted" and e.target_id is not None
 
 
 def test_status_verb_maps_terminal_states():

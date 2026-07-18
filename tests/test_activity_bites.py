@@ -21,15 +21,15 @@ def _plan(org):
 @pytest.mark.django_db
 def test_create_bite_records_created():
     org = _org()
-    create_bite(_plan(org), "구현", status="todo", source="agent")
+    create_bite(_plan(org), "Implementation", status="todo", source="agent")
     e = ActivityEvent.objects.get(verb="created", target_type="bite")
-    assert e.actor == "agent" and e.target_label == "구현"
+    assert e.actor == "agent" and e.target_label == "Implementation"
 
 
 @pytest.mark.django_db
 def test_set_bite_status_records_transition_with_actor():
     org = _org("w2")
-    b = create_bite(_plan(org), "구현", status="todo")
+    b = create_bite(_plan(org), "Implementation", status="todo")
     ActivityEvent.objects.all().delete()
     set_bite_status(b, "doing", actor="human")
     e = ActivityEvent.objects.get()
@@ -40,7 +40,7 @@ def test_set_bite_status_records_transition_with_actor():
 @pytest.mark.django_db
 def test_bite_status_noop_records_nothing():
     org = _org("w3")
-    b = create_bite(_plan(org), "구현", status="doing")
+    b = create_bite(_plan(org), "Implementation", status="doing")
     ActivityEvent.objects.all().delete()
     set_bite_status(b, "doing")
     assert ActivityEvent.objects.count() == 0

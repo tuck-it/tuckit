@@ -25,8 +25,8 @@ def test_home_sidebar_excludes_triage_area(client_local, org):
 def test_tags_render_with_hash_span(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
-    a = create_area(org, "제품")
-    create_slice(a, "태그 있는 슬라이스", status="building", tags=["billing"])
+    a = create_area(org, "Product")
+    create_slice(a, "Tagged slice", status="building", tags=["billing"])
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert 'class="tag-hash"' in body
 
@@ -38,8 +38,8 @@ def test_home_attention_shows_reason_label(client_local, org):
     from tuckit.core.models import Slice
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
-    a = create_area(org, "제품")
-    s = create_slice(a, "정체된 작업", status="building")
+    a = create_area(org, "Product")
+    s = create_slice(a, "Stalled work", status="building")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert "9d idle" in body
@@ -53,12 +53,12 @@ def test_home_stale_building_slice_not_duplicated_in_now(client_local, org):
     from tuckit.core.models import Slice
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
-    a = create_area(org, "제품")
-    s = create_slice(a, "정체된 빌딩 슬라이스", status="building")
+    a = create_area(org, "Product")
+    s = create_slice(a, "Stalled building slice", status="building")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert "9d idle" in body                       # confirms it landed in Needs you/Attention
-    assert body.count("정체된 빌딩 슬라이스") == 1   # must not also repeat in the Now group
+    assert body.count("Stalled building slice") == 1   # must not also repeat in the Now group
 
 
 @pytest.mark.django_db
@@ -73,7 +73,7 @@ def test_home_omits_roadmap_strip_and_recent_activity(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice, set_slice_status
     a = create_area(org, "Backend")
-    s = create_slice(a, "빌딩", status="planned")
+    s = create_slice(a, "Building", status="planned")
     set_slice_status(s, "building")
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert 'class="roadmap-strip"' not in body        # moved off Home
@@ -111,11 +111,11 @@ def test_home_now_row_shows_spec_summary(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     a = create_area(org, "Backend")
-    create_slice(a, "결제 도입", status="building",
-                 spec="---\nname: billing\n---\n# 한 줄 요약 캡션\n본문 이어짐")
+    create_slice(a, "Payment integration", status="building",
+                 spec="---\nname: billing\n---\n# One-line summary caption\nbody continues")
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert 'class="row-desc"' in body      # one-line caption slot rendered
-    assert "한 줄 요약 캡션" in body        # first meaningful spec line, markdown stripped
+    assert "One-line summary caption" in body        # first meaningful spec line, markdown stripped
 
 
 @pytest.mark.django_db
@@ -175,10 +175,10 @@ def test_home_building_row_shows_progress_bar(client_local, org):
     from tuckit.core.services.bites import create_bite
     from tuckit.core.services.plans import create_plan
     a = create_area(org, "Backend")
-    s = create_slice(a, "결제 도입", status="building")
+    s = create_slice(a, "Payment integration", status="building")
     p = create_plan(s, title="Plan")
-    create_bite(p, "완료된 것", status="done")
-    create_bite(p, "남은 것", status="todo")
+    create_bite(p, "Completed one", status="done")
+    create_bite(p, "Remaining one", status="todo")
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert 'class="row-prog-track"' in body   # thin bar on the building row
     assert "width:50%" in body                # 1 of 2 bites done

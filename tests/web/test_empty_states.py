@@ -15,8 +15,8 @@ def test_in_progress_empty_is_english(client_local, org):
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/in-progress/").content.decode()
     assert "Nothing in progress" in body
-    # no Korean left in the empty copy
-    assert "진행 중인" not in body
+    # no old placeholder copy left in the empty state
+    assert "Ongoing work" not in body
 
 
 @pytest.mark.django_db

@@ -152,7 +152,7 @@ def test_attention_items_include_reason_and_days():
 
     org, _ = ensure_bootstrap()
     inbox = get_or_create_triage(org)
-    s = create_slice(inbox, "오래된 캡처", status="idea")
+    s = create_slice(inbox, "Old capture", status="idea")
     old = timezone.now() - timedelta(days=11)
     Slice.objects.filter(pk=s.pk).update(updated_at=old)
 
@@ -213,8 +213,8 @@ def test_home_state_excludes_attention_from_building():
     from tuckit.core.management.commands.bootstrap import ensure_bootstrap
 
     org, _ = ensure_bootstrap()
-    a = create_area(org, "제품")
-    s = create_slice(a, "정체된 작업", status="building")
+    a = create_area(org, "Product")
+    s = create_slice(a, "Stalled work", status="building")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
 
     state = home_state(org)

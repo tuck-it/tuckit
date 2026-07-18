@@ -7,12 +7,12 @@ from tuckit.core.services.slices import create_slice
 def test_area_view_groups_by_status(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    create_slice(a, "결제 도입", status="building")
-    create_slice(a, "로그인 XSS", status="planned")
+    create_slice(a, "Payment integration", status="building")
+    create_slice(a, "Login XSS", status="planned")
     resp = client_local.get(f"{p}/areas/{a.slug}/")
     assert resp.status_code == 200
     body = resp.content.decode()
-    assert "결제 도입" in body and "로그인 XSS" in body
+    assert "Payment integration" in body and "Login XSS" in body
 
 
 @pytest.mark.django_db
@@ -73,7 +73,7 @@ def test_area_list_empty_copy_is_english(client_local, org):
     a = create_area(org, "Empty")
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert "No slices yet." in body
-    assert "아직 Slice가 없어요" not in body
+    assert "There are no slices yet" not in body
 
 
 @pytest.mark.django_db

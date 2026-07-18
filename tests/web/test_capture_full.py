@@ -26,14 +26,14 @@ def test_capture_title_only_stays_quick(client_local, org):
 @pytest.mark.django_db
 def test_capture_rich_creates_full_slice_and_redirects(client_local, org):
     resp = client_local.post(f"{P(org)}/capture", {
-        "title": "결제 연동",
-        "spec": "Paddle webhook 처리",
+        "title": "Payment integration",
+        "spec": "Paddle webhook handling",
         "status": "planned",
         "tags": ["billing", "urgent"],
     }, HTTP_HX_REQUEST="true")
     assert resp.status_code == 204
-    s = Slice.objects.get(title="결제 연동")
-    assert s.spec == "Paddle webhook 처리"
+    s = Slice.objects.get(title="Payment integration")
+    assert s.spec == "Paddle webhook handling"
     assert s.status == "planned"
     assert {t.name for t in s.tags.all()} == {"billing", "urgent"}
     assert resp["HX-Redirect"].endswith(f"/slices/{s.id}/")

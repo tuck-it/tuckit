@@ -11,14 +11,14 @@ from tuckit.core.services.plans import create_plan
 def test_slice_full_page_renders_spec_and_bites(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    s = create_slice(a, "결제 도입", spec="## 목표\nStripe 붙이기", status="building")
-    create_bite(create_plan(s, title="Plan"), "SDK 연동", status="done")
+    s = create_slice(a, "Payment integration", spec="## Goal\nWire up Stripe", status="building")
+    create_bite(create_plan(s, title="Plan"), "SDK integration", status="done")
     resp = client_local.get(f"{p}/slices/{s.id}/")
     body = resp.content.decode()
     assert resp.status_code == 200
-    assert "결제 도입" in body
+    assert "Payment integration" in body
     assert "<h2" in body            # markdown rendered
-    assert "SDK 연동" in body
+    assert "SDK integration" in body
 
 
 @pytest.mark.django_db
@@ -38,8 +38,8 @@ def test_spec_html_is_sanitized(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(
         a,
-        "위험한 스펙",
-        spec="## 제목\n<script>alert(1)</script>\n<img src=x onerror=alert(1)>",
+        "Risky spec",
+        spec="## Title\n<script>alert(1)</script>\n<img src=x onerror=alert(1)>",
     )
     resp = client_local.get(f"{p}/slices/{s.id}/")
     body = resp.content.decode()
@@ -73,13 +73,13 @@ def test_slice_panel_shows_its_activity_thread(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    s = create_slice(a, "스레드 슬라이스", status="idea")   # logs created (slice)
+    s = create_slice(a, "Thread slice", status="idea")   # logs created (slice)
     set_slice_status(s, "building")                          # logs status_changed (slice)
-    create_bite(create_plan(s, title="Plan"), "첫 바이트")                              # logs created (bite)
+    create_bite(create_plan(s, title="Plan"), "First bite")                             # logs created (bite)
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="slice-activity"' in body                  # thread section present
     assert body.count('class="activity-row"') >= 3           # slice + status + bite events
-    assert "첫 바이트" in body                               # bite event joined into the slice thread
+    assert "First bite" in body                              # bite event joined into the slice thread
 
 
 @pytest.mark.django_db
@@ -110,7 +110,7 @@ def test_panel_header_title_and_status_tabs(client_local, org):
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    s = create_slice(a, "다크모드 폴리시", status="building")
+    s = create_slice(a, "Dark mode policy", status="building")
 
     # panel context
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
@@ -134,7 +134,7 @@ def test_full_page_hides_panel_only_chrome(client_local, org):
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    s = create_slice(a, "전체페이지")
+    s = create_slice(a, "Full page")
     body = client_local.get(f"{p}/slices/{s.id}/").content.decode()   # full page, no panel=1
     assert "crumb-close" not in body        # no close button on the full page
     assert "Open full page" not in body     # no self-link on the full page
@@ -172,7 +172,7 @@ def test_action_bar_has_copy_and_drop(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "액션", status="building")
+    s = create_slice(create_area(org, "Design"), "Action", status="building")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="action-bar"' in body
     assert "Copy link" in body
@@ -184,7 +184,7 @@ def test_tags_live_in_properties_not_a_context_section(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "태그")
+    s = create_slice(create_area(org, "Design"), "Tag")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="section-label">Context' not in body   # standalone Context section removed
     assert '<span class="prop-key">Tags' in body          # tags now a property row
@@ -197,7 +197,7 @@ def test_activity_timeline_has_nodes(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice, set_slice_status
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "타임라인", status="idea")
+    s = create_slice(create_area(org, "Design"), "Timeline", status="idea")
     set_slice_status(s, "building")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="timeline"' in body

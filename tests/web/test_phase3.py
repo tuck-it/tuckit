@@ -24,7 +24,7 @@ def test_triage_row_shows_provenance_and_english_controls(client_local, org):
     assert 'class="triage-controls"' in body        # controls grouped for reveal
     assert "Assign area" in body
     assert ">Status" in body
-    assert "— Area 지정 —" not in body
+    assert "— Choose an area —" not in body
 
 
 @pytest.mark.django_db

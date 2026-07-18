@@ -11,11 +11,11 @@ from tuckit.core.services.plans import create_plan
 @pytest.mark.django_db
 def test_attention_page_lists_stale_items(client_local, org):
     a = create_area(org, "Backend")
-    s = create_slice(a, "정체된 작업", status="building")
+    s = create_slice(a, "Stalled work", status="building")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/attention/").content.decode()
-    assert "정체된 작업" in body
+    assert "Stalled work" in body
     assert "9d idle" in body
 
 
@@ -30,24 +30,24 @@ def test_attention_page_all_clear_when_empty(client_local, org):
 @pytest.mark.django_db
 def test_in_progress_page_shows_building_and_doing(client_local, org):
     a = create_area(org, "Backend")
-    s = create_slice(a, "빌딩 슬라이스", status="building")
-    create_bite(create_plan(s, title="Plan"), "두잉 바이트", status="doing")
+    s = create_slice(a, "Building slice", status="building")
+    create_bite(create_plan(s, title="Plan"), "Doing bite", status="doing")
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/in-progress/").content.decode()
-    assert "빌딩 슬라이스" in body
-    assert "두잉 바이트" in body
+    assert "Building slice" in body
+    assert "Doing bite" in body
 
 
 @pytest.mark.django_db
 def test_roadmap_page_shows_distribution_and_slices(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "로드맵 항목", status="planned")
-    create_slice(get_or_create_triage(org), "캡처", status="idea")  # excluded
+    create_slice(a, "Roadmap item", status="planned")
+    create_slice(get_or_create_triage(org), "Stray note", status="idea")  # excluded
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/roadmap/").content.decode()
-    assert "로드맵 항목" in body
+    assert "Roadmap item" in body
     assert 'data-status="planned"' in body   # rendered in its status column
-    assert "캡처" not in body   # triage slices excluded from roadmap
+    assert "Stray note" not in body   # triage slices excluded from roadmap
 
 
 @pytest.mark.django_db
