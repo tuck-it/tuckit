@@ -83,6 +83,17 @@ def test_bite_delete_removes_it(client_local, org):
 
 
 @pytest.mark.django_db
+def test_bite_row_has_rename_and_delete_controls(client_local, org):
+    from tuckit.core.services.plans import create_plan
+    p = f"/{org.slug}"
+    s = create_slice(create_area(org, "B"), "x")
+    b = create_bite(create_plan(s, title="Plan"), "step")
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert f"/bites/{b.id}/edit" in body
+    assert f"/bites/{b.id}/delete" in body
+
+
+@pytest.mark.django_db
 def test_panel_shows_plan_empty_state_when_no_plan(client_local, org):
     p = f"/{org.slug}"
     s = create_slice(create_area(org, "B"), "x")  # no plan

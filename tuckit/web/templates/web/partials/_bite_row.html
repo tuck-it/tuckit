@@ -1,14 +1,33 @@
 {% load web_extras %}
-<div class="bite {% if bite.status == 'done' %}bite--done{% endif %}" x-data="{open:false, edit:false}">
+<div class="bite {% if bite.status == 'done' %}bite--done{% endif %}" x-data="{open:false, edit:false, editTitle:false}">
   <div class="bite-line">
     <button class="checkbox {% if bite.status == 'done' %}checkbox--on{% endif %}" type="button"
             hx-post="{% wurl 'web:bite_toggle' bite.id %}" hx-target="closest .bite" hx-swap="outerHTML"
             aria-label="Toggle done">{% if bite.status == 'done' %}{% icon "check" "icon icon-check" %}{% endif %}</button>
-    <span class="bite-title" x-on:click="open=!open">{{ bite.title }}</span>
+    <span class="bite-title" x-show="!editTitle" x-on:click="open=!open">{{ bite.title }}</span>
+    <form x-show="editTitle" x-cloak class="bite-title-edit" hx-post="{% wurl 'web:bite_edit' bite.id %}"
+          hx-target="closest .bite" hx-swap="outerHTML">
+      <input name="title" value="{{ bite.title }}" x-ref="titleInput" class="title-edit"
+             x-on:keydown.escape.stop="editTitle=false"
+             x-on:keydown.enter.prevent="$el.form.requestSubmit()"
+             x-on:blur="$el.value !== $el.defaultValue ? $el.form.requestSubmit() : (editTitle=false)">
+    </form>
     {% if bite.body %}{% icon "note" "icon bite-note" %}{% endif %}
     <span class="bite-status muted">{{ bite.status }}</span>
     <button class="bite-chev" type="button" x-on:click="open=!open" :class="open && 'bite-chev--open'">
       {% icon "chevron" "icon icon-chev" %}</button>
+    <div class="bite-menu status-select" x-data="{menu:false}"
+         x-on:keydown.escape="if(menu){menu=false;$event.stopPropagation()}">
+      <button type="button" class="ghost bite-menu-btn" aria-haspopup="menu" aria-label="Bite actions"
+              x-on:click="menu=!menu" :aria-expanded="menu">⋯</button>
+      <div class="status-menu" role="menu" x-show="menu" x-cloak x-on:click.outside="menu=false">
+        <button type="button" class="status-opt" role="menuitem"
+                x-on:click="menu=false; editTitle=true; $nextTick(()=>$refs.titleInput.focus())">Rename</button>
+        <button type="button" class="status-opt" role="menuitem"
+                hx-post="{% wurl 'web:bite_delete' bite.id %}" hx-target="closest .panel-inner" hx-swap="outerHTML"
+                hx-confirm="Delete this bite?" x-on:click="menu=false">Delete</button>
+      </div>
+    </div>
   </div>
   <div class="bite-body" x-show="open" x-cloak>
     <div class="bite-body-src muted">
