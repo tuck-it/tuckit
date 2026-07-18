@@ -4,26 +4,24 @@
   <header class="page-head">
     <div class="page-head-l"><h1 class="page-title">Areas</h1></div>
     {% if not is_empty %}
-    <form hx-post="{% wurl 'web:area_create' %}" hx-swap="none" hx-on::after-request="window.location.reload()"
-          class="areas-add" x-data>
-      {% include "web/partials/_area_fields.html" %}
-      <button class="button button-small button-primary" type="submit">+ Create Area</button>
-    </form>
+    <div x-data="{ modal: false }">
+      <button type="button" class="button button-small button-primary"
+              x-on:click="modal = true; $nextTick(() => $refs.nameInput && $refs.nameInput.focus())">+ Create Area</button>
+      {% include "web/partials/_area_create_modal.html" with reload=True %}
+    </div>
     {% endif %}
   </header>
 
   {% if is_empty %}
-  <div class="areas-empty">
+  <div class="areas-empty" x-data="{ modal: false }">
     <div class="areas-empty-icon">{% icon "area" "icon" %}</div>
     <h2>Organize work into Areas</h2>
     <p>An <b>Area</b> is a long-lived domain of responsibility. It never gets
       "done"; it's a home for work, so nothing floats around unowned. Examples:
       Backend, Marketing, Mobile.</p>
-    <form hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
-          hx-on::after-request="window.location.reload()" class="areas-empty-form" x-data>
-      {% include "web/partials/_area_fields.html" %}
-      <button class="button button-primary" type="submit">+ Create your first Area</button>
-    </form>
+    <button type="button" class="button button-primary"
+            x-on:click="modal = true; $nextTick(() => $refs.nameInput && $refs.nameInput.focus())">+ Create your first Area</button>
+    {% include "web/partials/_area_create_modal.html" with reload=True %}
   </div>
   {% else %}
   <div class="areas-grid">

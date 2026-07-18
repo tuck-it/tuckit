@@ -187,13 +187,13 @@ def test_area_page_exposes_edit_form(client_local, org):
 
 @pytest.mark.django_db
 def test_sidebar_create_form_not_prefilled_on_area_page(client_local, org):
-    # The sidebar "+ Area" create form is global; on an area detail page it must
+    # The sidebar "+ Area" create modal is global; on an area detail page it must
     # NOT inherit that page's `area` (name/description) — else new-area creation
     # starts pre-filled with the current area's values.
     import re
     a = create_area(org, "Backend", description="APIs and jobs")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
-    m = re.search(r'<form class="area-add".*?</form>', body, re.S)
+    m = re.search(r'<form class="[^"]*area-create-form[^"]*".*?</form>', body, re.S)
     assert m is not None
     form = m.group(0)
     assert 'value="Backend"' not in form      # name not prefilled

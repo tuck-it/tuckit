@@ -106,9 +106,9 @@ def test_onboarding_step1_has_description_field(client_local, org):
     import re
     body = client_local.get(f"/{org.slug}/triage/").content.decode()
     assert 'id="onboarding-widget"' in body
-    # Scope to the onboarding Step-1 modal form so we don't match the sidebar create form.
-    m = re.search(r'<form class="[^"]*ob-modal-area[^"]*".*?</form>', body, re.S)
+    # Step 1 opens the shared Area-create modal (also used by the sidebar/areas page).
+    m = re.search(r'<form class="[^"]*area-create-form[^"]*".*?</form>', body, re.S)
     assert m is not None
-    assert 'name="description"' in m.group(0)   # Step 1 exposes description via the shared partial
-    # Description is shown expanded from the start in onboarding (no toggle step).
+    assert 'name="description"' in m.group(0)   # exposes description via the shared partial
+    # Description is shown expanded from the start (no "+ Add description" toggle step).
     assert "{show: true}" in m.group(0)

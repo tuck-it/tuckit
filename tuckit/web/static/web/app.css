@@ -543,6 +543,9 @@ body { padding: 0; }
   width: 420px;
   max-width: 90vw;
 }
+/* Shared Area-create modal is used inside centered containers (the Areas empty
+   state) — pin its own text alignment so it doesn't inherit center. */
+.area-create-form { text-align: left; }
 
 .capture-input {
   width: 100%;

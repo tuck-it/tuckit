@@ -22,18 +22,7 @@ Slice/Bite steps. `areas` comes from the sidebar_areas context processor.{% endc
         <p class="ob-hint">A long-lived domain of responsibility — e.g. Backend, Marketing.</p>
         <button type="button" class="button button-primary button-small ob-cta"
                 x-on:click="modal = true; $nextTick(() => $refs.nameInput && $refs.nameInput.focus())">+ Create Area</button>
-        <div class="capture-overlay" x-show="modal" x-cloak
-             x-on:keydown.escape.window="modal = false" x-on:click.self="modal = false">
-          <form class="capture-modal ob-modal-area" hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
-                hx-on::after-request="if (event.detail.successful) { modal = false; this.reset() }">
-            <div class="capture-lbl">Create your first Area</div>
-            {% include "web/partials/_area_fields.html" with desc_open=True %}
-            <div class="capture-actions">
-              <button type="button" class="ghost" x-on:click="modal = false">Cancel</button>
-              <button type="submit" class="button">Create Area</button>
-            </div>
-          </form>
-        </div>
+        {% include "web/partials/_area_create_modal.html" %}
         {% endif %}
       </li>
 
