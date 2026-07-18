@@ -10,14 +10,7 @@ from tuckit.core.services.areas import get_or_create_triage, create_area, list_a
 from tuckit.core.services.slices import create_slice, set_slice_area, set_slice_status, list_slices, grouped_slices
 from tuckit.core.services.resolve import get_area, get_slice, get_area_by_slug
 from tuckit.web.auth import get_current_org
-from tuckit.web.htmx import redirect_response
-
-
-def _widget_oob(request):
-    """Render the onboarding widget as an OOB fragment (empty string when the
-    widget is hidden, so callers can safely concatenate). Context processors
-    supply onboarding state; pass oob=True for the hx-swap-oob marker."""
-    return render_to_string("web/partials/_onboarding_widget.html", {"oob": True}, request=request)
+from tuckit.web.htmx import redirect_response, widget_oob
 
 
 def capture(request):
@@ -107,7 +100,7 @@ def area_create(request):
     # sidebar_areas context processor supplies the refreshed `areas`. Also
     # OOB-refresh the onboarding widget so its Step-1 checkbox ticks live.
     html = render_to_string("web/partials/_area_nav.html", {"oob": True}, request=request)
-    return HttpResponse(html + _widget_oob(request))
+    return HttpResponse(html + widget_oob(request))
 
 
 def area_rename(request, area_id):
@@ -201,4 +194,4 @@ def area_slice_create(request, slug):
         "groups": groups,
         "has_any_slice": has_any_slice,
     }, request=request)
-    return HttpResponse(html + _widget_oob(request))
+    return HttpResponse(html + widget_oob(request))
