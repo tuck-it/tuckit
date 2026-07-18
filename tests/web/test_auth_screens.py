@@ -50,12 +50,12 @@ def test_invite_screen_uses_design_system(client):
 @override_settings(TUCKIT_MARKETING_URL="https://tuckit.dev")
 def test_auth_brand_links_to_marketing_when_set(client):
     body = client.get("/login/").content.decode()
-    assert '<a class="auth-brand" href="https://tuckit.dev">' in body
+    assert '<a class="auth-panel-brand" href="https://tuckit.dev">' in body
 
 
 @pytest.mark.django_db
 @override_settings(TUCKIT_MARKETING_URL="")
 def test_auth_brand_plain_when_unset(client):
     body = client.get("/login/").content.decode()
-    assert '<a class="auth-brand"' not in body
-    assert '<div class="auth-brand">' in body
+    assert '<a class="auth-panel-brand"' not in body
+    assert '<div class="auth-panel-brand">' in body

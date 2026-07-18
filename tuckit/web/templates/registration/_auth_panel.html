@@ -1,5 +1,5 @@
 <aside class="auth-panel">
-  <div class="auth-panel-brand">tuckit</div>
+  {% if marketing_url %}<a class="auth-panel-brand" href="{{ marketing_url }}">tuckit</a>{% else %}<div class="auth-panel-brand">tuckit</div>{% endif %}
   <div class="auth-panel-tag"><span class="dim">Your agent forgets.</span><br><span class="em">Your project shouldn't.</span></div>
   <p class="auth-panel-sub">tuckit keeps the plan, the context, and the decisions in one place your agent can read back.</p>
 </aside>

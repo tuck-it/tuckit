@@ -1,66 +1,64 @@
 import pytest
 from django.test import override_settings
 
-from tuckit.core.models import Org, User
+from tuckit.core.models import Area, Org, User
+
+pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.django_db
+def _signup(client, email="new@x.com", password="pw12345678"):
+    """Email-first sign-up: creating the account (org comes later at /orgs)."""
+    return client.post("/login/", {"step": "register", "email": email, "password": password})
+
+
+@override_settings(REGISTRATION_OPEN=True)
+def test_signup_creates_account_with_no_org_and_logs_in(client):
+    r = _signup(client)
+    assert r.status_code == 302
+    u = User.objects.get(email="new@x.com")
+    assert not Org.objects.filter(members__user=u).exists()  # account only, no org yet
+    assert client.get("/orgs/").status_code == 200  # logged in -> org picker reachable
+
+
 @override_settings(REGISTRATION_OPEN=False)
-def test_register_closed_returns_404(client):
-    assert client.get("/register/").status_code == 404
+def test_signup_closed_shows_no_account(client):
+    r = client.post("/login/", {"step": "identify", "email": "ghost@x.com"})
+    assert r.status_code == 200
+    assert "No account found." in r.content.decode()
+    assert not User.objects.filter(email="ghost@x.com").exists()
 
 
-@pytest.mark.django_db
 @override_settings(REGISTRATION_OPEN=True)
-def test_register_open_creates_account_and_logs_in(client):
-    resp = client.post("/register/", {
-        "email": "new@x.com", "org_name": "NewCo", "slug": "newco", "password": "pw123456",
-    })
-    assert resp.status_code == 302
-    assert User.objects.filter(email="new@x.com").exists()
-    assert Org.objects.filter(slug="newco").exists()
-    # logged in: home is now reachable
-    assert client.get("/", follow=True).status_code == 200
+def test_signup_then_create_org_lands_home(client):
+    _signup(client, email="e2e@x.com")
+    r = client.post("/orgs/", {"name": "Acme", "slug": "acme"})
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/acme/"
+    u = User.objects.get(email="e2e@x.com")
+    org = Org.objects.get(members__user=u)
+    assert org.slug == "acme"
+    assert Area.objects.filter(org=org, is_triage=True).count() == 1
 
 
-@pytest.mark.django_db
 @override_settings(REGISTRATION_OPEN=True)
-def test_register_duplicate_slug_shows_error(client):
-    Org.objects.create(name="Taken", slug="taken")
-    resp = client.post("/register/", {
-        "email": "new@x.com", "org_name": "X", "slug": "taken", "password": "pw123456",
-    })
-    assert resp.status_code == 200  # re-rendered with error
-    assert not User.objects.filter(email="new@x.com").exists()
-    assert "already taken" in resp.content.decode().lower()  # English error copy
-
-
-@pytest.mark.django_db
-def test_register_rejects_bad_slug(client, settings):
-    settings.REGISTRATION_OPEN = True
-    resp = client.post("/register/", {
-        "email": "z@a.com", "org_name": "Acme", "slug": "Bad Slug!",
-        "password": "sufficiently-long-pw-123",
-    })
-    assert resp.status_code == 200  # form re-rendered
-    assert not User.objects.filter(email="z@a.com").exists()
+def test_create_org_rejects_bad_slug(client):
+    _signup(client, email="z@a.com")
+    r = client.post("/orgs/", {"name": "Acme", "slug": "Bad Slug!"})
+    assert r.status_code == 200
     assert not Org.objects.filter(name="Acme").exists()
 
 
-@pytest.mark.django_db
-def test_register_accepts_valid_slug(client, settings):
-    settings.REGISTRATION_OPEN = True
-    resp = client.post("/register/", {
-        "email": "z2@a.com", "org_name": "Acme", "slug": "acme",
-        "password": "sufficiently-long-pw-123",
-    })
-    assert resp.status_code == 302
-    assert Org.objects.get(slug="acme")
+@override_settings(REGISTRATION_OPEN=True)
+def test_create_org_rejects_duplicate_slug(client):
+    Org.objects.create(name="Taken", slug="taken")
+    _signup(client, email="d@a.com")
+    r = client.post("/orgs/", {"name": "X", "slug": "taken"})
+    assert r.status_code == 200
+    assert "already taken" in r.content.decode().lower()
 
 
-@pytest.mark.django_db
 def test_check_slug_reachable_anonymously(client):
-    """/api/check-slug must be login_not_required so the anonymous
-    registration page's live-availability JS can call it."""
+    """/api/check-slug must be login_not_required so the org-create page's
+    live-availability JS can call it."""
     resp = client.get("/api/check-slug", {"kind": "org", "slug": "anon-check"})
     assert resp.status_code == 200

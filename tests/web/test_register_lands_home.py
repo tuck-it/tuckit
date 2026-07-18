@@ -3,31 +3,29 @@ from django.test import override_settings
 
 from tuckit.core.models import Area, Org, User
 
+pytestmark = pytest.mark.django_db
 
-@pytest.mark.django_db
+
+def _signup(client, email, password="pw12345678"):
+    return client.post("/login/", {"step": "register", "email": email, "password": password})
+
+
 @override_settings(REGISTRATION_OPEN=True)
-def test_self_service_register_lands_on_home(client):
-    r = client.post("/register/", {
-        "email": "new@example.com", "org_name": "Acme",
-        "slug": "acme", "password": "pw12345678",
-    })
+def test_self_service_signup_then_org_lands_on_home(client):
+    _signup(client, "new@example.com")
+    r = client.post("/orgs/", {"name": "Acme", "slug": "acme"})
     assert r.status_code == 302
     u = User.objects.get(email="new@example.com")
     org = Org.objects.get(members__user=u)
     assert r.headers["Location"] == f"/{org.slug}/"
 
 
-@pytest.mark.django_db
 @override_settings(REGISTRATION_OPEN=True)
-def test_self_service_register_creates_exactly_one_org_and_triage(client):
-    """Regression for the original bug: signup used to create an Org AND an
-    auto-named Workspace, redirecting to /<org_slug>/<workspace_slug>/ instead
-    of the flat /<org_slug>/ the app now serves. Assert the fix: one Org and
-    one Triage Area for the new user (the Workspace model is gone entirely)."""
-    r = client.post("/register/", {
-        "email": "logical@example.com", "org_name": "Logical Org",
-        "slug": "logical-org", "password": "pw12345678",
-    })
+def test_signup_creates_exactly_one_org_and_triage(client):
+    """Regression: the flat app serves /<org_slug>/ (the Workspace model is gone),
+    and a fresh org gets exactly one Triage Area."""
+    _signup(client, "logical@example.com")
+    r = client.post("/orgs/", {"name": "Logical Org", "slug": "logical-org"})
     assert r.status_code == 302
     assert r.headers["Location"] == "/logical-org/"
     u = User.objects.get(email="logical@example.com")

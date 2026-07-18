@@ -183,6 +183,8 @@ a.auth-brand:hover {
   letter-spacing: -0.02em;
   color: var(--auth-panel-em);
 }
+a.auth-panel-brand { text-decoration: none; display: inline-block; }
+a.auth-panel-brand:hover { opacity: 0.85; }
 .auth-panel-tag {
   margin-top: auto;
   font-size: 24px;

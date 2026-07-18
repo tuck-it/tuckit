@@ -6,7 +6,6 @@
     <div class="auth-split">
       {% include "registration/_auth_panel.html" %}
       <div class="auth-formcol">
-        {% include "registration/_auth_brand.html" %}
         {% if step == "password" %}
           {% include "registration/_auth_step_password.html" %}
         {% elif step == "set_password" %}
