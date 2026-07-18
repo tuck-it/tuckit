@@ -595,7 +595,7 @@ body { padding: 0; }
 .capture-field { display: flex; flex-direction: column; gap: 4px; }
 .capture-field--inline { flex: 1; }
 .capture-lbl { color: var(--muted); font-size: 11px; }
-.capture-hint { color: var(--ink-faint); }
+.capture-hint { color: var(--ink-faint); font-size: 11px; margin: -2px 0 2px; }
 .capture-select,
 .capture-spec,
 .capture-bite-input {

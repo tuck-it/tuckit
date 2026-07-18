@@ -29,3 +29,19 @@ def test_slice_detail_uses_english_copy(client_local, org):
     assert "전</span>" not in body            # timesince "… 전"
     # English replacements present (empty slice → PLAN empty state)
     assert "No plan yet" in body
+
+
+@pytest.mark.django_db
+def test_add_plan_and_bite_inputs_show_examples(client_local, org):
+    """The add-plan / add-bite inputs teach by example so a human knows what
+    to type — obvious fields stay unadorned, these two do not."""
+    from tuckit.core.services.plans import create_plan
+
+    a = create_area(org, "Backend")
+    s = create_slice(a, "Retry webhooks")
+    create_plan(s, title="v1")  # a plan exists → the add-bite row renders
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    # add-plan input carries an example, not a bare "Plan title…"
+    assert "v1 approach" in body
+    # add-bite input carries an example step
+    assert "Write the retry unit test" in body

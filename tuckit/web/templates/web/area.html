@@ -27,8 +27,9 @@
               hx-target="#area-list" hx-swap="outerHTML"
               hx-on::after-request="if (event.detail.successful) { open = false; this.reset(); tags = []; tagDraft = '' }">
           <div class="capture-lbl">New slice in {{ area.name }}</div>
+          <div class="capture-hint">A slice is one shippable chunk of product work.</div>
           <input name="title" class="capture-input" x-ref="addTitle" required autocomplete="off"
-                 placeholder="Slice title…  (Enter to save, Esc to close)"
+                 placeholder="e.g. Retry failed webhooks  (Enter to save, Esc to close)"
                  x-on:keydown.escape="open = false">
           {% include "web/partials/_slice_fields.html" with selected_area=area %}
           <div class="capture-actions">
