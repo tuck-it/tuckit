@@ -44,6 +44,21 @@ def test_picker_shows_signed_in_identity_and_logout(client, django_user_model):
 
 
 @pytest.mark.django_db
+def test_picker_identity_uses_top_chip(client, django_user_model):
+    # The signed-in identity now lives in the shared .auth-id chip (same slot
+    # as the password step), not the old bottom .auth-alt footer.
+    user = django_user_model.objects.create_user(email="chip@x.z", password="pw")
+    client.force_login(user)
+
+    body = client.get("/orgs/").content.decode()
+
+    assert 'class="auth-id"' in body
+    assert "chip@x.z" in body
+    assert 'action="/logout/"' in body
+    assert "auth-alt" not in body
+
+
+@pytest.mark.django_db
 def test_creating_an_org_lands_on_its_home(client, django_user_model):
     user = django_user_model.objects.create_user(email="new@x.z", password="pw")
     client.force_login(user)
