@@ -34,11 +34,12 @@ def test_widget_area_step_posts_to_real_endpoint(client_local, org):
 
 
 @pytest.mark.django_db
-def test_widget_slice_step_links_to_real_area_page(client_local, org):
-    create_area(org, "Backend")
+def test_widget_slice_step_opens_area_scoped_modal(client_local, org):
+    a = create_area(org, "Backend")
     body = client_local.get(f"{_p(org)}/").content.decode()
-    # Slice step deep-links into the real Area page with a focus hint.
-    assert "focus=slice" in body
+    # Slice step opens an in-widget modal that creates a slice in the newest area.
+    assert f"/areas/{a.slug}/slices" in body
+    assert "New slice in Backend" in body
 
 
 @pytest.mark.django_db
@@ -105,7 +106,7 @@ def test_onboarding_step1_has_description_field(client_local, org):
     import re
     body = client_local.get(f"/{org.slug}/triage/").content.decode()
     assert 'id="onboarding-widget"' in body
-    # Scope to the onboarding Step-1 form so we don't match the sidebar create form.
-    m = re.search(r'<form class="ob-form".*?</form>', body, re.S)
+    # Scope to the onboarding Step-1 modal form so we don't match the sidebar create form.
+    m = re.search(r'<form class="[^"]*ob-modal-area[^"]*".*?</form>', body, re.S)
     assert m is not None
     assert 'name="description"' in m.group(0)   # Step 1 exposes description via the shared partial

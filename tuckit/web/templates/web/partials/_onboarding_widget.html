@@ -14,25 +14,52 @@ Slice/Bite steps. `areas` comes from the sidebar_areas context processor.{% endc
   <div id="ob-body" class="ob-body" x-show="open" x-cloak>
     <ol class="ob-steps">
 
-      {# Step 1 — Area: inline create via the REAL area_create endpoint #}
-      <li class="ob-step {% if onboarding.has_area %}done{% endif %} {% if onboarding.current == 1 %}current{% endif %}">
+      {# Step 1 — Area: button opens a modal, posting to the REAL area_create endpoint #}
+      <li class="ob-step {% if onboarding.has_area %}done{% endif %} {% if onboarding.current == 1 %}current{% endif %}"
+          x-data="{ modal: false }">
         <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Create your first Area</span></div>
         {% if not onboarding.has_area %}
         <p class="ob-hint">A long-lived domain of responsibility — e.g. Backend, Marketing.</p>
-        <form class="ob-form" hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
-              hx-on::after-request="this.reset()">
-          {% include "web/partials/_area_fields.html" %}
-          <button class="button button-primary button-small" type="submit">+ Create Area</button>
-        </form>
+        <button type="button" class="button button-primary button-small ob-cta"
+                x-on:click="modal = true; $nextTick(() => $refs.nameInput && $refs.nameInput.focus())">+ Create Area</button>
+        <div class="capture-overlay" x-show="modal" x-cloak
+             x-on:keydown.escape.window="modal = false" x-on:click.self="modal = false">
+          <form class="capture-modal ob-modal-area" hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
+                hx-on::after-request="if (event.detail.successful) { modal = false; this.reset() }">
+            <div class="capture-lbl">Create your first Area</div>
+            {% include "web/partials/_area_fields.html" %}
+            <div class="capture-actions">
+              <button type="button" class="ghost" x-on:click="modal = false">Cancel</button>
+              <button type="submit" class="button">Create Area</button>
+            </div>
+          </form>
+        </div>
         {% endif %}
       </li>
 
-      {# Step 2 — Slice: go to the REAL Area page #}
-      <li class="ob-step {% if onboarding.has_slice %}done{% endif %} {% if onboarding.current == 2 %}current{% endif %}">
+      {# Step 2 — Slice: button opens an area-scoped modal, posting to area_slice_create #}
+      <li class="ob-step {% if onboarding.has_slice %}done{% endif %} {% if onboarding.current == 2 %}current{% endif %}"
+          x-data="{ modal: false, tags: [], tagDraft: '' }">
         <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Add your first Slice</span></div>
         {% if onboarding.has_area and not onboarding.has_slice %}
-        <p class="ob-hint">One chunk of product work. Add it on the Area page.</p>
-        <a class="button button-small ob-cta" href="{% wurl 'web:area' areas.0.slug %}?focus=slice">Open {{ areas.0.name }} →</a>
+        <p class="ob-hint">One chunk of product work in {{ areas.0.name }}.</p>
+        <button type="button" class="button button-small ob-cta"
+                x-on:click="modal = true; $nextTick(() => $refs.obSliceTitle && $refs.obSliceTitle.focus())">+ Add Slice</button>
+        <div class="capture-overlay" x-show="modal" x-cloak
+             x-on:keydown.escape.window="modal = false" x-on:click.self="modal = false">
+          <form class="capture-modal capture-modal--full ob-modal-slice" hx-post="{% wurl 'web:area_slice_create' areas.0.slug %}" hx-swap="none"
+                hx-on::after-request="if (event.detail.successful) { modal = false; this.reset(); tags = []; tagDraft = '' }">
+            <div class="capture-lbl">New slice in {{ areas.0.name }}</div>
+            <input name="title" class="capture-input" x-ref="obSliceTitle" required autocomplete="off"
+                   placeholder="Slice title…  (Enter to save, Esc to close)"
+                   x-on:keydown.escape="modal = false">
+            {% include "web/partials/_slice_fields.html" with selected_area=areas.0 %}
+            <div class="capture-actions">
+              <button type="button" class="ghost" x-on:click="modal = false">Cancel</button>
+              <button type="submit" class="button">Create slice</button>
+            </div>
+          </form>
+        </div>
         {% endif %}
       </li>
 
