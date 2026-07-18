@@ -15,25 +15,28 @@
     {% if not has_any_slice %}<div class="empty muted">No slices yet.</div>{% endif %}
   {% else %}
     <div class="slice-add {% if focus == 'slice' %}ob-focus-slice{% endif %}"
-         x-data="{ add: {% if focus == 'slice' or not has_any_slice %}true{% else %}false{% endif %}, details: {% if not has_any_slice %}true{% else %}false{% endif %}, tags: [], tagDraft: '' }"
-         x-init="if (add) $nextTick(() => $refs.addInput.focus())">
-      <button class="slice-add-toggle" type="button" x-show="!add"
-              x-on:click="add = true; $nextTick(() => $refs.addInput.focus())">+ Add slice</button>
-      <form x-show="add" x-cloak
-            hx-post="{% wurl 'web:area_slice_create' area.slug %}"
-            hx-target="#area-list" hx-swap="outerHTML"
-            hx-on::after-request="if (event.detail.successful) { this.reset(); tags = []; tagDraft = ''; $refs.addInput.focus() }">
-        <input name="title" class="slice-add-input" x-ref="addInput" required
-               placeholder="Add a slice…" autocomplete="off"
-               x-on:keydown.escape="add = false">
-        <button class="ghost slice-details-toggle" type="button" x-show="!details" x-on:click="details = true">＋ Details</button>
-        <div x-show="details" x-cloak>
+         x-data="{ open: {% if focus == 'slice' %}true{% else %}false{% endif %}, tags: [], tagDraft: '' }"
+         x-init="if (open) $nextTick(() => $refs.addTitle.focus())">
+      <button class="button button-small slice-new-btn" type="button"
+              x-on:click="open = true; $nextTick(() => $refs.addTitle.focus())">＋ New slice</button>
+
+      <div class="capture-overlay" x-show="open" x-cloak
+           x-on:keydown.escape.window="open = false" x-on:click.self="open = false">
+        <form class="capture-modal capture-modal--full"
+              hx-post="{% wurl 'web:area_slice_create' area.slug %}"
+              hx-target="#area-list" hx-swap="outerHTML"
+              hx-on::after-request="if (event.detail.successful) { open = false; this.reset(); tags = []; tagDraft = '' }">
+          <div class="capture-lbl">New slice in {{ area.name }}</div>
+          <input name="title" class="capture-input" x-ref="addTitle" required autocomplete="off"
+                 placeholder="Slice title…  (Enter to save, Esc to close)"
+                 x-on:keydown.escape="open = false">
           {% include "web/partials/_slice_fields.html" with selected_area=area %}
-          <div class="slice-add-actions">
-            <button class="button button-small" type="submit">Create slice</button>
+          <div class="capture-actions">
+            <button class="ghost" type="button" x-on:click="open = false">Cancel</button>
+            <button class="button" type="submit">Create slice</button>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
     {% include "web/partials/_area_list.html" %}
   {% endif %}

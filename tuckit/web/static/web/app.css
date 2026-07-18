@@ -472,8 +472,9 @@ body { padding: 0; }
   outline: none;
 }
 
-/* Inline "+ Add slice" on the Area list. */
+/* "+ New slice" opens the area-scoped create modal (reuses .capture-modal). */
 .slice-add { margin: 0 0 18px; }
+.slice-new-btn { display: inline-flex; align-items: center; }
 .slice-add-toggle {
   background: none; border: none; color: var(--ink-faint);
   font: inherit; cursor: pointer; padding: 4px 0;
@@ -1894,6 +1895,18 @@ html.sidebar-collapsed .side-resize { display: none; }
 /* Area header edit affordances + shared area fields */
 .area-head-row { display: flex; align-items: center; gap: var(--space-2); }
 .area-edit-btn, .area-desc-add { font-size: var(--text-sm); }
+.af-name,
+.af-desc-input {
+  width: 100%;
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  color: var(--ink);
+  font: inherit;
+  padding: 8px 10px;
+}
+.af-name:focus,
+.af-desc-input:focus { outline: none; border-color: var(--blue); }
 .af-desc { margin-top: var(--space-2); }
-.af-desc-toggle { font-size: var(--text-xs); }
-.af-desc-input { display: block; width: 100%; margin-top: var(--space-1); }
+.af-desc-toggle { font-size: var(--text-xs); margin-top: var(--space-1); }
+.af-desc-input { resize: vertical; min-height: 2.6em; }
