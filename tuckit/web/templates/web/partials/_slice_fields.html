@@ -25,7 +25,9 @@ The title input is owned by the caller.{% endcomment %}
 
   <div class="capture-field">
     <span class="capture-lbl">Spec</span>
-    <textarea name="spec" class="capture-spec" rows="2" placeholder="What is this slice? (optional)"
+    <span class="capture-hint">The what &amp; why — a brief your agent can act on.</span>
+    <textarea name="spec" class="capture-spec" rows="2"
+              placeholder="e.g. When a webhook delivery fails, retry with exponential backoff, up to 5 attempts. (optional)"
               x-on:input="autosize($event.target)"></textarea>
   </div>
 

@@ -7,6 +7,7 @@ from tuckit.core.services.slices import set_slice_status, update_slice, set_slic
 from tuckit.core.services.bites import create_bite, delete_bite, set_bite_status, update_bite
 from tuckit.core.services.plans import create_plan, delete_plan, update_plan
 from tuckit.web.auth import get_current_org
+from tuckit.web.htmx import widget_oob
 from tuckit.web.panel import slice_panel_context
 
 
@@ -26,10 +27,15 @@ def _plan_or_404(request, plan_id):
 
 def _panel(request, slice_):
     is_panel = request.GET.get("panel") == "1"
-    return render(
+    resp = render(
         request, "web/partials/_slice_panel.html",
         slice_panel_context(slice_, is_panel=is_panel),
     )
+    # Append the onboarding widget OOB so panel-level mutations (add plan/bite,
+    # etc.) tick the matching onboarding step immediately. Empty when the widget
+    # is hidden, so this is a no-op once onboarding is done or dismissed.
+    resp.write(widget_oob(request))
+    return resp
 
 
 def slice_status(request, slice_id):

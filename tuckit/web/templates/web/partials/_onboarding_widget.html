@@ -39,8 +39,9 @@ Slice/Bite steps. `areas` comes from the sidebar_areas context processor.{% endc
           <form class="capture-modal capture-modal--full ob-modal-slice" hx-post="{% wurl 'web:area_slice_create' areas.0.slug %}" hx-swap="none"
                 hx-on::after-request="if (event.detail.successful) { modal = false; this.reset(); tags = []; tagDraft = '' }">
             <div class="capture-lbl">New slice in {{ areas.0.name }}</div>
+            <div class="capture-hint">A slice is one shippable chunk of product work.</div>
             <input name="title" class="capture-input" x-ref="obSliceTitle" required autocomplete="off"
-                   placeholder="Slice title…  (Enter to save, Esc to close)"
+                   placeholder="e.g. Retry failed webhooks  (Enter to save, Esc to close)"
                    x-on:keydown.escape="modal = false">
             {% include "web/partials/_slice_fields.html" with selected_area=areas.0 %}
             <div class="capture-actions">

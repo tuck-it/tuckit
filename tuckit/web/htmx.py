@@ -1,6 +1,16 @@
 from django.http import HttpResponse
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
 from django.urls import reverse
+
+
+def widget_oob(request) -> str:
+    """Render the onboarding widget as an OOB fragment (empty string when the
+    widget is hidden, so callers can safely concatenate it onto any HTMX
+    response). Context processors supply the onboarding state; oob=True adds the
+    hx-swap-oob marker so HTMX re-renders the widget in place — this is how a
+    panel or capture mutation ticks an onboarding step without a full reload."""
+    return render_to_string("web/partials/_onboarding_widget.html", {"oob": True}, request=request)
 
 
 def redirect_response(request, url_name: str, **kwargs):

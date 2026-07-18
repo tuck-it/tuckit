@@ -45,6 +45,20 @@ def test_widget_slice_step_opens_area_scoped_modal(client_local, org):
 
 
 @pytest.mark.django_db
+def test_slice_modal_teaches_what_a_slice_is(client_local, org):
+    # With an Area but no Slice, the widget's slice modal is rendered. It must
+    # explain what a slice is and show an example in the title placeholder —
+    # obvious fields (Area/Status/Tags) stay unadorned.
+    create_area(org, "Backend")
+    body = client_local.get(f"{_p(org)}/").content.decode()
+    assert "A slice is one shippable chunk of product work." in body
+    assert "Retry failed webhooks" in body  # example in the title placeholder
+    # the shared spec field teaches what to write, with an example
+    assert "The what &amp; why" in body
+    assert "exponential backoff" in body
+
+
+@pytest.mark.django_db
 def test_widget_plan_step_links_to_newest_slice(client_local, org):
     area = create_area(org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="idea")

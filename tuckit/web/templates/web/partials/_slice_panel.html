@@ -146,7 +146,7 @@
       {% endif %}
       <form class="bite-add-row" hx-post="{% wurl 'web:bite_create' entry.plan.id %}{{ panel_qs }}"
             hx-target="closest .panel-inner" hx-swap="outerHTML">
-        <input name="title" class="bite-add" placeholder="Add a bite…" autocomplete="off" required
+        <input name="title" class="bite-add" placeholder="Add a step — e.g. &quot;Write the retry unit test&quot;" autocomplete="off" required
                x-init="{% if focus == 'bite' and forloop.last %}$nextTick(() => $el.focus()){% endif %}">
         <button class="ghost" type="submit">＋ Add bite</button>
       </form>
@@ -158,7 +158,7 @@
   <div class="desc-block">
     <form class="plan-add" hx-post="{% wurl 'web:plan_create' slice.id %}{{ panel_qs }}"
           hx-target="closest .panel-inner" hx-swap="outerHTML">
-      <input name="title" placeholder="Plan title…" class="bite-add" autocomplete="off"
+      <input name="title" placeholder="Plan title — e.g. &quot;v1 approach&quot;" class="bite-add" autocomplete="off"
              x-init="{% if focus == 'plan' %}$nextTick(() => $el.focus()){% endif %}">
       <button class="ghost" type="submit">＋ Add plan</button>
     </form>
