@@ -543,9 +543,34 @@ body { padding: 0; }
   width: 420px;
   max-width: 90vw;
 }
-/* Shared Area-create modal is used inside centered containers (the Areas empty
-   state) — pin its own text alignment so it doesn't inherit center. */
-.area-create-form { text-align: left; }
+/* Shared Area-create modal — a deliberate, sectioned "new repository" form.
+   Wider than a quick-capture; header / body / footer own their own padding, so
+   the form itself is padding-0. text-align:left because it's used inside the
+   centered Areas empty state. */
+.area-create-form {
+  width: 520px;
+  max-width: 92vw;
+  padding: 0;
+  text-align: left;
+  overflow: hidden;
+}
+.ac-head { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; }
+.ac-head-icon {
+  display: inline-grid; place-items: center; flex: none;
+  width: 32px; height: 32px;
+  background: var(--paper-raised); border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+}
+.ac-head-icon .icon { width: 16px; height: 16px; color: var(--ink-soft); }
+.ac-title { font-size: var(--text-md); font-weight: 600; color: var(--ink); }
+.ac-sub { margin: 3px 0 0; color: var(--muted); font-size: var(--text-sm); line-height: 1.45; }
+.ac-body {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 16px 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.ac-foot { padding: 12px 18px; }
 
 .capture-input {
   width: 100%;
@@ -1898,8 +1923,12 @@ html.sidebar-collapsed .side-resize { display: none; }
 /* Area header edit affordances + shared area fields */
 .area-head-row { display: flex; align-items: center; gap: var(--space-2); }
 .area-edit-btn, .area-desc-add { font-size: var(--text-sm); }
-.af-name,
-.af-desc-input {
+/* Labeled Area fields (shared by the create modal and the edit modal). */
+.af-field { display: flex; flex-direction: column; gap: 5px; }
+.af-lbl { font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
+.af-req { color: var(--blue); }
+.af-optional { color: var(--ink-faint); font-weight: 400; font-size: var(--text-xs); margin-left: 4px; }
+.af-input {
   width: 100%;
   background: var(--paper-raised);
   border: 1px solid var(--line-strong);
@@ -1908,8 +1937,6 @@ html.sidebar-collapsed .side-resize { display: none; }
   font: inherit;
   padding: 8px 10px;
 }
-.af-name:focus,
-.af-desc-input:focus { outline: none; border-color: var(--blue); }
-.af-desc { margin-top: var(--space-2); }
-.af-desc-toggle { font-size: var(--text-xs); margin-top: var(--space-1); }
-.af-desc-input { resize: vertical; min-height: 2.6em; }
+.af-input:focus { outline: none; border-color: var(--blue); }
+.af-textarea { resize: vertical; min-height: 3.4em; }
+.af-help { font-size: var(--text-xs); color: var(--ink-faint); line-height: 1.4; }

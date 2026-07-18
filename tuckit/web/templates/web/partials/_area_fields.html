@@ -1,14 +1,17 @@
 {% load web_extras %}
-{% comment %}Shared Area create/edit fields. Caller owns the <form>, action and
-submit button. Pass `edit_area` to prefill (edit); create contexts include this
-with no args so nothing leaks from the page's own `area` variable. Pass
-`desc_open=True` to show the description field expanded from the start (skips
-the toggle). Description is otherwise collapsed until requested, and
-auto-expanded when editing an area that has one.{% endcomment %}
-<input name="name" class="af-name" value="{{ edit_area.name|default:'' }}" x-ref="nameInput"
-       placeholder="e.g. Backend" maxlength="200" required autocomplete="off">
-<div class="af-desc" x-data="{show: {% if edit_area.description or desc_open %}true{% else %}false{% endif %}}">
-  <button type="button" class="ghost af-desc-toggle" x-show="!show" x-on:click="show = true">＋ Add description</button>
-  <textarea name="description" class="af-desc-input" rows="2" x-show="show" x-cloak
-            placeholder="What is this area for? (optional)">{{ edit_area.description|default:'' }}</textarea>
-</div>
+{% comment %}Shared Area fields, rendered as a labeled form (GitHub-repo-create
+feel). Pass `edit_area` to prefill (edit); create contexts include with no args
+so nothing leaks from the page's own `area` variable. Add future Area fields
+(linked repo, access, …) as more .af-field blocks below.{% endcomment %}
+<label class="af-field">
+  <span class="af-lbl">Name <span class="af-req">*</span></span>
+  <input name="name" class="af-input" value="{{ edit_area.name|default:'' }}" x-ref="nameInput"
+         placeholder="e.g. Backend" maxlength="200" required autocomplete="off">
+  <span class="af-help">Short and memorable — the domain of work that lives here.</span>
+</label>
+<label class="af-field">
+  <span class="af-lbl">Description <span class="af-optional">optional</span></span>
+  <textarea name="description" class="af-input af-textarea" rows="3"
+            placeholder="What belongs here? Anyone on the team should get it at a glance.">{{ edit_area.description|default:'' }}</textarea>
+  <span class="af-help">Markdown-friendly notes about this area.</span>
+</label>

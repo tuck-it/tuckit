@@ -1,20 +1,28 @@
 {% load web_extras %}
-{% comment %}Shared Area-create modal. Include it inside an element whose x-data
-defines `modal` (bool) and a trigger button that sets `modal = true`. Pass
-reload=True where the surrounding page content isn't refreshed by area_create's
-OOB swaps (e.g. the Areas grid) — the sidebar/onboarding rely on the OOB
-area-nav + widget refresh instead. Rich by design: name + description now, room
-for more Area fields (e.g. a linked repo) later.{% endcomment %}
+{% comment %}Shared Area-create modal — a deliberate, sectioned form (a "new
+repository" feel), not a quick capture. Include it inside an element whose
+x-data defines `modal` (bool) and a trigger button that sets `modal = true`.
+Pass reload=True where the surrounding page content isn't refreshed by
+area_create's OOB swaps (e.g. the Areas grid) — the sidebar/onboarding rely on
+the OOB area-nav + widget refresh instead. Room for more Area fields (linked
+repo, access, …) as labeled blocks in _area_fields.html.{% endcomment %}
 <div class="capture-overlay" x-show="modal" x-cloak
      x-on:keydown.escape.window="modal = false" x-on:click.self="modal = false">
   <form class="capture-modal area-create-form" hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
         hx-on::after-request="if (event.detail.successful) { modal = false; this.reset();{% if reload %} window.location.reload();{% endif %} }">
-    <div class="capture-lbl">Create an Area</div>
-    <p class="capture-hint">A long-lived domain of responsibility — a home for work that never gets “done”. e.g. Backend, Marketing, Mobile.</p>
-    {% include "web/partials/_area_fields.html" with desc_open=True %}
-    <div class="capture-actions">
+    <div class="ac-head">
+      <span class="ac-head-icon">{% icon "area" "icon" %}</span>
+      <div class="ac-head-text">
+        <div class="ac-title">Create a new Area</div>
+        <p class="ac-sub">A long-lived home for related work — it never gets “done”, so nothing floats around unowned.</p>
+      </div>
+    </div>
+    <div class="ac-body">
+      {% include "web/partials/_area_fields.html" %}
+    </div>
+    <div class="capture-actions ac-foot">
       <button type="button" class="ghost" x-on:click="modal = false">Cancel</button>
-      <button type="submit" class="button">Create Area</button>
+      <button type="submit" class="button button-primary">Create Area</button>
     </div>
   </form>
 </div>

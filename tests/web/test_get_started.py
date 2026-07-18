@@ -109,6 +109,7 @@ def test_onboarding_step1_has_description_field(client_local, org):
     # Step 1 opens the shared Area-create modal (also used by the sidebar/areas page).
     m = re.search(r'<form class="[^"]*area-create-form[^"]*".*?</form>', body, re.S)
     assert m is not None
-    assert 'name="description"' in m.group(0)   # exposes description via the shared partial
-    # Description is shown expanded from the start (no "+ Add description" toggle step).
-    assert "{show: true}" in m.group(0)
+    form = m.group(0)
+    assert 'name="name"' in form
+    assert 'name="description"' in form          # description is a first-class labeled field
+    assert "Create a new Area" in form           # deliberate, titled modal (not a bare input)
