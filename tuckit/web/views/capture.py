@@ -24,8 +24,8 @@ def capture(request):
     """Global capture. Title is required; area/status/spec/tags are optional.
     A bare title stays a quick Inbox capture (OOB toast bundle, modal keeps
     capturing); any authored detail creates a full slice and redirects the
-    user into it. Bites are no longer authored here — they live under a
-    Slice's Plan section."""
+    user into it. Bites live under a Slice's Plan section, where a human or an
+    agent can author them."""
     org = get_current_org(request)
 
     title = request.POST.get("title", "").strip()

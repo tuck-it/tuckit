@@ -83,6 +83,36 @@ def test_bite_delete_removes_it(client_local, org):
 
 
 @pytest.mark.django_db
+def test_panel_shows_plan_empty_state_when_no_plan(client_local, org):
+    p = f"/{org.slug}"
+    s = create_slice(create_area(org, "B"), "x")  # no plan
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert "No plan yet" in body            # teaching empty state
+    assert f"/slices/{s.id}/plans" in body  # add-plan form always present
+
+
+@pytest.mark.django_db
+def test_panel_shows_add_bite_form_inside_plan(client_local, org):
+    from tuckit.core.services.plans import create_plan
+    p = f"/{org.slug}"
+    s = create_slice(create_area(org, "B"), "x")
+    plan_ = create_plan(s, title="Plan")
+    body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert f"/plans/{plan_.id}/bites" in body       # add-bite form target
+    assert "let your agent fill these in" in body   # empty-bites copy signals both authors
+
+
+@pytest.mark.django_db
+def test_focus_bite_autofocuses_add_bite_on_full_page(client_local, org):
+    from tuckit.core.services.plans import create_plan
+    p = f"/{org.slug}"
+    s = create_slice(create_area(org, "B"), "x")
+    create_plan(s, title="Plan")
+    body = client_local.get(f"{p}/slices/{s.id}/?focus=bite").content.decode()
+    assert "$el.focus()" in body  # Alpine x-init focus hook rendered for focus=bite
+
+
+@pytest.mark.django_db
 def test_bite_toggle(client_local, org):
     """Bites can be authored from the panel (by a human) or via a Plan (by an
     agent or the plan API); this endpoint only toggles done/todo."""

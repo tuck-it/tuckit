@@ -151,18 +151,17 @@ def test_bites_progress_and_empty_state(client_local, org):
     a = create_area(org, "Design")
     s = create_slice(a, "S")
 
-    # empty: card shown, no count
+    # empty: PLAN empty-state shown, no count
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="bites-empty"' in body
-    assert "No bites yet" in body
+    assert "No plan yet" in body
     assert 'class="row-prog-track"' not in body   # no progress bar when there are no bites
 
-    # with bites: count + progress shown, card gone
+    # with bites: count + progress shown, empty state gone
     plan_ = create_plan(s, title="Plan")
     create_bite(plan_, "a", status="done")
     create_bite(plan_, "b")
     body = client_local.get(f"{p}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="bites-empty"' not in body
+    assert "No plan yet" not in body
     assert "1/2" in body
     assert 'class="row-prog-track"' in body
     assert "width: 50%" in body
