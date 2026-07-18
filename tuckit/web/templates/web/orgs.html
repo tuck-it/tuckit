@@ -6,6 +6,13 @@
     <div class="auth-split">
       {% include "registration/_auth_panel.html" %}
       <div class="auth-formcol">
+      <div class="auth-id">
+        <span>Signed in as <strong>{{ user.email }}</strong></span>
+        <form method="post" action="{% url 'web:logout' %}" class="logout-inline">
+          {% csrf_token %}
+          <button type="submit">Log out</button>
+        </form>
+      </div>
       <h1 class="auth-title">Your organizations</h1>
       {% if orgs %}
         <p class="auth-sub">Pick one to continue, or create another below.</p>
@@ -63,13 +70,6 @@
         </script>
         <button type="submit" class="button button-primary">Create organization</button>
       </form>
-      <div class="auth-alt">
-        Signed in as <strong>{{ user.email }}</strong> &middot;
-        <form method="post" action="{% url 'web:logout' %}" class="logout-inline">
-          {% csrf_token %}
-          <button type="submit">Log out</button>
-        </form>
-      </div>
       </div>
     </div>
   </main>
