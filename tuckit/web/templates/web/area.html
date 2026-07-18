@@ -2,7 +2,7 @@
 {% load web_extras %}
 {% block main %}
   <header class="page-head">
-    <div class="page-head-l"><h1 class="page-title">{{ area.name }}</h1></div>
+    {% include "web/partials/_area_header.html" %}
     <div class="view-toggle">
       <a class="view-toggle-link{% if view == 'list' %} view-toggle-link--active{% endif %}"
          href="?view=list">List</a>
@@ -10,23 +10,29 @@
          href="?view=board">Board</a>
     </div>
   </header>
-  {% if area.description %}<p class="area-desc">{{ area.description }}</p>{% endif %}
   {% if view == "board" %}
     {% include "web/partials/_board.html" %}
     {% if not has_any_slice %}<div class="empty muted">No slices yet.</div>{% endif %}
   {% else %}
     <div class="slice-add {% if focus == 'slice' %}ob-focus-slice{% endif %}"
-         x-data="{ add: {% if focus == 'slice' %}true{% else %}false{% endif %} }"
+         x-data="{ add: {% if focus == 'slice' or not has_any_slice %}true{% else %}false{% endif %}, details: {% if not has_any_slice %}true{% else %}false{% endif %}, tags: [], tagDraft: '' }"
          x-init="if (add) $nextTick(() => $refs.addInput.focus())">
       <button class="slice-add-toggle" type="button" x-show="!add"
               x-on:click="add = true; $nextTick(() => $refs.addInput.focus())">+ Add slice</button>
       <form x-show="add" x-cloak
             hx-post="{% wurl 'web:area_slice_create' area.slug %}"
             hx-target="#area-list" hx-swap="outerHTML"
-            hx-on::after-request="this.reset(); $refs.addInput.focus()">
-        <input name="title" class="slice-add-input" x-ref="addInput"
+            hx-on::after-request="if (event.detail.successful) { this.reset(); tags = []; tagDraft = ''; $refs.addInput.focus() }">
+        <input name="title" class="slice-add-input" x-ref="addInput" required
                placeholder="Add a slice…" autocomplete="off"
                x-on:keydown.escape="add = false">
+        <button class="ghost slice-details-toggle" type="button" x-show="!details" x-on:click="details = true">＋ Details</button>
+        <div x-show="details" x-cloak>
+          {% include "web/partials/_slice_fields.html" with selected_area=area %}
+          <div class="slice-add-actions">
+            <button class="button button-small" type="submit">Create slice</button>
+          </div>
+        </div>
       </form>
     </div>
     {% include "web/partials/_area_list.html" %}

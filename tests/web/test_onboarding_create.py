@@ -1,10 +1,25 @@
 import pytest
 
+from tuckit.core.models import Area
 from tuckit.core.services.areas import create_area
 
 
 def _p(org):
     return f"/{org.slug}"
+
+
+@pytest.mark.django_db
+def test_area_create_persists_description(client_local, org):
+    client_local.post(f"{_p(org)}/areas/new", {"name": "Backend", "description": "APIs and jobs"})
+    a = Area.objects.get(org=org, name="Backend")
+    assert a.description == "APIs and jobs"
+
+
+@pytest.mark.django_db
+def test_area_create_without_description_defaults_empty(client_local, org):
+    client_local.post(f"{_p(org)}/areas/new", {"name": "Marketing"})
+    a = Area.objects.get(org=org, name="Marketing")
+    assert a.description == ""
 
 
 @pytest.mark.django_db

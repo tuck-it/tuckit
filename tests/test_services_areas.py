@@ -1,7 +1,7 @@
 import pytest
 
 from tuckit.core.models import Area, Org
-from tuckit.core.services.areas import create_area, get_or_create_triage, list_areas, rename_area, delete_area, reorder_area
+from tuckit.core.services.areas import create_area, get_or_create_triage, list_areas, update_area, delete_area, reorder_area
 from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.slices import create_slice
 
@@ -64,31 +64,58 @@ def test_triage_sorts_before_existing_areas():
 
 
 @pytest.mark.django_db
-def test_rename_area_changes_name_but_keeps_slug(org):
+def test_update_area_changes_name_but_keeps_slug(org):
     a = create_area(org, "Back End")
     original_slug = a.slug
-    renamed = rename_area(a, "Platform")
+    updated = update_area(a, name="Platform")
     a.refresh_from_db()
     assert a.name == "Platform"
     assert a.slug == original_slug
-    assert renamed.id == a.id
+    assert updated.id == a.id
 
 
 @pytest.mark.django_db
-def test_rename_area_trims_whitespace(org):
+def test_update_area_sets_description(org):
+    a = create_area(org, "Backend")
+    update_area(a, description="APIs and background jobs")
+    a.refresh_from_db()
+    assert a.description == "APIs and background jobs"
+
+
+@pytest.mark.django_db
+def test_update_area_name_and_description_together(org):
+    a = create_area(org, "Old", description="old")
+    update_area(a, name="New", description="new")
+    a.refresh_from_db()
+    assert a.name == "New"
+    assert a.description == "new"
+
+
+@pytest.mark.django_db
+def test_update_area_trims_whitespace(org):
     a = create_area(org, "X")
-    rename_area(a, "  Trimmed  ")
+    update_area(a, name="  Trimmed  ", description="  d  ")
     a.refresh_from_db()
     assert a.name == "Trimmed"
+    assert a.description == "d"
 
 
 @pytest.mark.django_db
-def test_rename_area_rejects_blank(org):
+def test_update_area_rejects_blank_name(org):
     a = create_area(org, "Keep")
     with pytest.raises(InvalidValue):
-        rename_area(a, "   ")
+        update_area(a, name="   ")
     a.refresh_from_db()
     assert a.name == "Keep"
+
+
+@pytest.mark.django_db
+def test_update_area_description_only_keeps_name(org):
+    a = create_area(org, "Keep")
+    update_area(a, description="just a desc")
+    a.refresh_from_db()
+    assert a.name == "Keep"
+    assert a.description == "just a desc"
 
 
 @pytest.mark.django_db

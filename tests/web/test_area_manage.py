@@ -141,3 +141,60 @@ def test_rename_other_area_is_not_active(client_local, org):
         HTTP_HX_CURRENT_URL=f"http://testserver{p}/triage/",
     ).content.decode()
     assert "nav--active" not in body
+
+
+@pytest.mark.django_db
+def test_area_edit_updates_name_and_description(client_local, org):
+    p = f"/{org.slug}"
+    a = create_area(org, "Old", description="old desc")
+    resp = client_local.post(
+        f"{p}/areas/{a.id}/edit", {"name": "New", "description": "new desc"}, HTTP_HX_REQUEST="true"
+    )
+    assert resp.status_code == 200
+    a.refresh_from_db()
+    assert a.name == "New"
+    assert a.description == "new desc"
+    assert "New" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_area_edit_blank_name_returns_400(client_local, org):
+    p = f"/{org.slug}"
+    a = create_area(org, "Keep", description="d")
+    resp = client_local.post(f"{p}/areas/{a.id}/edit", {"name": "  ", "description": "x"}, HTTP_HX_REQUEST="true")
+    assert resp.status_code == 400
+    a.refresh_from_db()
+    assert a.name == "Keep"
+
+
+@pytest.mark.django_db
+def test_area_edit_foreign_area_404s(client_local, org):
+    other = Org.objects.create(name="Other", slug="other")
+    foreign = create_area(other, "Foreign")
+    resp = client_local.post(
+        f"/{org.slug}/areas/{foreign.id}/edit", {"name": "Hax"}, HTTP_HX_REQUEST="true"
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_area_page_exposes_edit_form(client_local, org):
+    a = create_area(org, "Backend")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    assert f"/areas/{a.id}/edit" in body      # edit form target present
+    assert 'name="description"' in body        # description field in the modal
+
+
+@pytest.mark.django_db
+def test_sidebar_create_form_not_prefilled_on_area_page(client_local, org):
+    # The sidebar "+ Area" create form is global; on an area detail page it must
+    # NOT inherit that page's `area` (name/description) — else new-area creation
+    # starts pre-filled with the current area's values.
+    import re
+    a = create_area(org, "Backend", description="APIs and jobs")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    m = re.search(r'<form class="area-add".*?</form>', body, re.S)
+    assert m is not None
+    form = m.group(0)
+    assert 'value="Backend"' not in form      # name not prefilled
+    assert "APIs and jobs" not in form         # description not prefilled

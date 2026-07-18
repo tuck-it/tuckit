@@ -93,3 +93,12 @@ def test_capture_modal_renders_full_form(client_local, org):
     assert 'capture-lbl">Description<' not in body
     assert "Backend" in body            # workspace area offered in the Area select
     assert 'name="bite_titles"' not in body   # capture no longer authors bites
+
+
+@pytest.mark.django_db
+def test_capture_modal_renders_shared_fields(client_local, org):
+    body = client_local.get(f"{P(org)}/triage/").content.decode()
+    # capture modal is always present in the shell; it includes the shared fields
+    assert 'name="area_id"' in body
+    assert 'name="status"' in body
+    assert 'name="spec"' in body

@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
-from tuckit.core.services.areas import get_or_create_triage, create_area, list_areas, rename_area, delete_area, reorder_area
+from tuckit.core.services.areas import get_or_create_triage, create_area, list_areas, update_area, delete_area, reorder_area
 from tuckit.core.services.slices import create_slice, set_slice_area, set_slice_status, list_slices, grouped_slices
 from tuckit.core.services.resolve import get_area, get_slice, get_area_by_slug
 from tuckit.web.auth import get_current_org
@@ -102,7 +102,7 @@ def triage(request, slice_id):
 
 def area_create(request):
     org = get_current_org(request)
-    create_area(org, request.POST["name"])
+    create_area(org, request.POST["name"], description=request.POST.get("description", ""))
     # OOB-swap the sidebar Areas list instead of a full-page reload; the
     # sidebar_areas context processor supplies the refreshed `areas`. Also
     # OOB-refresh the onboarding widget so its Step-1 checkbox ticks live.
@@ -117,7 +117,7 @@ def area_rename(request, area_id):
     except NotFound:
         raise Http404
     try:
-        rename_area(area, request.POST.get("name", ""))
+        update_area(area, name=request.POST.get("name", ""))
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
     # If the user is renaming the area they're currently viewing, keep its
@@ -127,6 +127,25 @@ def area_rename(request, area_id):
     current_path = urlparse(request.headers.get("HX-Current-URL", "")).path
     active = current_path == reverse("web:area", args=[org.slug, area.slug])
     return render(request, "web/partials/_area_row.html", {"a": area, "active": active})
+
+
+def area_edit(request, area_id):
+    org = get_current_org(request)
+    try:
+        area = get_area(org, area_id)
+    except NotFound:
+        raise Http404
+    try:
+        update_area(
+            area,
+            name=request.POST.get("name", ""),
+            description=request.POST.get("description", ""),
+        )
+    except InvalidValue as e:
+        return HttpResponse(str(e), status=400)
+    html = render_to_string("web/partials/_area_header.html", {"area": area}, request=request)
+    nav = render_to_string("web/partials/_area_nav.html", {"oob": True}, request=request)
+    return HttpResponse(html + nav)
 
 
 def area_delete(request, area_id):
@@ -162,7 +181,19 @@ def area_slice_create(request, slug):
         raise Http404
     title = request.POST.get("title", "").strip()
     if title:
-        create_slice(area, title, status="idea", source="human")
+        target = area
+        if request.POST.get("area_id"):
+            try:
+                target = get_area(org, int(request.POST["area_id"]))
+            except (NotFound, ValueError):
+                raise Http404
+        status = request.POST.get("status", "idea") or "idea"
+        spec = request.POST.get("spec", "").strip()
+        tags = [t.strip() for t in request.POST.getlist("tags") if t.strip()]
+        try:
+            create_slice(target, title, spec=spec, status=status, tags=tags, source="human")
+        except InvalidValue as e:
+            return HttpResponse(str(e), status=400)
     groups = grouped_slices(area)
     has_any_slice = any(items for _, items in groups)
     html = render_to_string("web/partials/_area_list.html", {

@@ -120,3 +120,58 @@ def test_add_slice_other_workspace_404(client_local, org):
     resp = client_local.post(f"{p}/areas/{a.slug}/slices", {"title": "x"},
                              HTTP_HX_REQUEST="true")
     assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_area_quick_add_accepts_rich_fields(client_local, org):
+    from tuckit.core.models import Slice
+    a = create_area(org, "Backend")
+    client_local.post(
+        f"/{org.slug}/areas/{a.slug}/slices",
+        {"title": "Retry webhooks", "status": "planned", "spec": "exp backoff", "tags": ["infra"]},
+        HTTP_HX_REQUEST="true",
+    )
+    s = Slice.objects.get(title="Retry webhooks")
+    assert s.area_id == a.id
+    assert s.status == "planned"
+    assert s.spec == "exp backoff"
+    assert {t.name for t in s.tags.all()} == {"infra"}
+
+
+@pytest.mark.django_db
+def test_area_quick_add_title_only_still_works(client_local, org):
+    from tuckit.core.models import Slice
+    a = create_area(org, "Backend")
+    client_local.post(f"/{org.slug}/areas/{a.slug}/slices", {"title": "just this"}, HTTP_HX_REQUEST="true")
+    s = Slice.objects.get(title="just this")
+    assert s.area_id == a.id and s.status == "idea"
+
+
+@pytest.mark.django_db
+def test_area_quick_add_honors_chosen_area(client_local, org):
+    from tuckit.core.models import Slice
+    a = create_area(org, "Backend")
+    b = create_area(org, "Frontend")
+    client_local.post(
+        f"/{org.slug}/areas/{a.slug}/slices",
+        {"title": "moved one", "area_id": b.id},
+        HTTP_HX_REQUEST="true",
+    )
+    assert Slice.objects.get(title="moved one").area_id == b.id
+
+
+@pytest.mark.django_db
+def test_empty_area_shows_expanded_form(client_local, org):
+    a = create_area(org, "Empty")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    # The quick-add form auto-expands its details for an empty area (unique marker
+    # not shared with the always-present capture modal).
+    assert "details: true" in body
+
+
+@pytest.mark.django_db
+def test_nonempty_area_keeps_quick_add_collapsed(client_local, org):
+    a = create_area(org, "Busy")
+    create_slice(a, "existing", status="idea")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    assert "details: false" in body

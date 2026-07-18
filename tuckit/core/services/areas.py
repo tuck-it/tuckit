@@ -48,12 +48,18 @@ def get_or_create_triage(org: Org) -> Area:
     )
 
 
-def rename_area(area: Area, name: str) -> Area:
-    name = (name or "").strip()
-    if not name:
-        raise InvalidValue("이름을 입력해주세요")
-    area.name = name
-    area.save(update_fields=["name", "updated_at"])
+def update_area(area: Area, *, name: str | None = None, description: str | None = None) -> Area:
+    fields = ["updated_at"]
+    if name is not None:
+        name = name.strip()
+        if not name:
+            raise InvalidValue("이름을 입력해주세요")
+        area.name = name
+        fields.append("name")
+    if description is not None:
+        area.description = description.strip()
+        fields.append("description")
+    area.save(update_fields=fields)
     return area
 
 

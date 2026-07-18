@@ -21,7 +21,7 @@ Slice/Bite steps. `areas` comes from the sidebar_areas context processor.{% endc
         <p class="ob-hint">A long-lived domain of responsibility — e.g. Backend, Marketing.</p>
         <form class="ob-form" hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
               hx-on::after-request="this.reset()">
-          <input name="name" placeholder="e.g. Backend" maxlength="200" required>
+          {% include "web/partials/_area_fields.html" %}
           <button class="button button-primary button-small" type="submit">+ Create Area</button>
         </form>
         {% endif %}

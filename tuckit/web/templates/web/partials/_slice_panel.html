@@ -33,6 +33,24 @@
         </div>
       </div>
     </div>
+    <div class="prop-row">
+      <span class="prop-key">Area</span>
+      <div class="prop-val status-select" x-data="{open:false}" x-on:keydown.escape="if (open) { open = false; $event.stopPropagation() }">
+        <button type="button" class="status-pill area-pill" aria-haspopup="menu" x-on:click="open=!open" :aria-expanded="open">
+          {% icon "area" "icon" %}{{ slice.area.name }}{% icon "chevron" "icon" %}
+        </button>
+        <div class="status-menu" role="menu" x-show="open" x-cloak x-on:click.outside="open=false">
+          {% for a in areas %}
+          <button type="button" class="area-opt {% if a.id == slice.area_id %}area-opt--on{% endif %}" role="menuitem"
+                  x-on:click="open=false"
+                  hx-post="{% wurl 'web:slice_reassign' slice.id %}{{ panel_qs }}" hx-vals='{"area_id": "{{ a.id }}"}'
+                  hx-target="closest .panel-inner" hx-swap="outerHTML">
+            {{ a.name }}{% if a.id == slice.area_id %}<span class="status-check">✓</span>{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
     {% if bites_total %}
     <div class="prop-row">
       <span class="prop-key">Progress</span>

@@ -26,11 +26,11 @@
     <a class="area-section-link{% if request.resolver_match.url_name == 'areas' %} area-section-link--active{% endif %}"
        href="{% wurl 'web:areas' %}">Areas</a>
     <button type="button" class="area-add-btn" aria-label="Add area" title="Add area"
-            x-on:click="adding = !adding; $nextTick(() => adding && $refs.areaAddInput && $refs.areaAddInput.focus())">{% icon "plus" %}</button>
+            x-on:click="adding = !adding; $nextTick(() => adding && $refs.nameInput && $refs.nameInput.focus())">{% icon "plus" %}</button>
     <form class="area-add" x-show="adding" x-cloak
           hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
           hx-on::after-request="this.reset(); adding = false">
-      <input name="name" x-ref="areaAddInput" class="area-add-input" placeholder="New area name…" autocomplete="off">
+      {% include "web/partials/_area_fields.html" %}
     </form>
   </div>
   {% include "web/partials/_area_nav.html" %}

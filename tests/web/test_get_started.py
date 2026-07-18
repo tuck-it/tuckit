@@ -97,3 +97,15 @@ def test_step4_shows_poller_when_key_exists(client_local, org):
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert 'id="gs-listen"' in body
     assert "/onboarding/agent-activity" in body
+
+
+@pytest.mark.django_db
+def test_onboarding_step1_has_description_field(client_local, org):
+    # Fresh org (no non-triage areas) => Step 1 is active with the create form rendered.
+    import re
+    body = client_local.get(f"/{org.slug}/triage/").content.decode()
+    assert 'id="onboarding-widget"' in body
+    # Scope to the onboarding Step-1 form so we don't match the sidebar create form.
+    m = re.search(r'<form class="ob-form".*?</form>', body, re.S)
+    assert m is not None
+    assert 'name="description"' in m.group(0)   # Step 1 exposes description via the shared partial

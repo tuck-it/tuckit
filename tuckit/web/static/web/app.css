@@ -1771,6 +1771,10 @@ html.sidebar-collapsed .side-resize { display: none; }
 .status-opt { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; font-size: 12px; color: var(--ink); background: none; border: none; border-radius: var(--radius-small); cursor: pointer; text-align: left; text-transform: capitalize; }
 .status-opt:hover { background: var(--paper-deep); }
 .status-opt--on { font-weight: 600; }
+.area-opt { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; font-size: 12px; color: var(--ink); background: none; border: none; border-radius: var(--radius-small); cursor: pointer; text-align: left; }
+.area-opt:hover { background: var(--paper-deep); }
+.area-opt--on { font-weight: 600; }
+.area-pill { text-transform: none; }
 .status-check { margin-left: auto; color: var(--blue); }
 
 /* Get started — expandable concept steps (four-step onboarding checklist) */
@@ -1886,3 +1890,10 @@ html.sidebar-collapsed .side-resize { display: none; }
 .settings-item:hover { background: var(--paper-raised); }
 .settings-item.on { background: var(--blue-soft); color: var(--blue); font-weight: 600; }
 .settings-item.danger { color: var(--warn); }
+
+/* Area header edit affordances + shared area fields */
+.area-head-row { display: flex; align-items: center; gap: var(--space-2); }
+.area-edit-btn, .area-desc-add { font-size: var(--text-sm); }
+.af-desc { margin-top: var(--space-2); }
+.af-desc-toggle { font-size: var(--text-xs); }
+.af-desc-input { display: block; width: 100%; margin-top: var(--space-1); }

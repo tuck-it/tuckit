@@ -2,8 +2,8 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import render
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
-from tuckit.core.services.resolve import get_slice, get_bite, get_plan as resolve_plan
-from tuckit.core.services.slices import set_slice_status, update_slice
+from tuckit.core.services.resolve import get_slice, get_bite, get_plan as resolve_plan, get_area
+from tuckit.core.services.slices import set_slice_status, update_slice, set_slice_area
 from tuckit.core.services.bites import set_bite_status, update_bite
 from tuckit.core.services.plans import create_plan, delete_plan, update_plan
 from tuckit.web.auth import get_current_org
@@ -47,6 +47,16 @@ def slice_edit(request, slice_id):
     if "title" in request.POST: kwargs["title"] = request.POST["title"]
     if "spec" in request.POST: kwargs["spec"] = request.POST["spec"]
     update_slice(slice_, **kwargs)
+    return _panel(request, slice_)
+
+
+def slice_reassign(request, slice_id):
+    slice_ = _slice_or_404(request, slice_id)
+    try:
+        area = get_area(get_current_org(request), int(request.POST["area_id"]))
+    except (NotFound, ValueError, KeyError):
+        raise Http404
+    set_slice_area(slice_, area)
     return _panel(request, slice_)
 
 

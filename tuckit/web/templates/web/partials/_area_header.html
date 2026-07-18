@@ -1,0 +1,26 @@
+{% load web_extras %}
+<div class="page-head-l" id="area-header" x-data="{edit: false}">
+  <div class="area-head-row">
+    <h1 class="page-title">{{ area.name }}</h1>
+    <button type="button" class="ghost area-edit-btn" x-on:click="edit = true">Edit</button>
+  </div>
+  {% if area.description %}
+    <p class="area-desc">{{ area.description }}</p>
+  {% else %}
+    <button type="button" class="ghost area-desc-add" x-on:click="edit = true">＋ Add description</button>
+  {% endif %}
+
+  <div class="capture-overlay" x-show="edit" x-cloak
+       x-on:keydown.escape.window="edit = false" x-on:click.self="edit = false">
+    <form class="capture-modal" hx-post="{% wurl 'web:area_edit' area.id %}"
+          hx-target="#area-header" hx-swap="outerHTML"
+          hx-on::after-request="if (event.detail.successful) edit = false">
+      <div class="capture-lbl">Edit area</div>
+      {% include "web/partials/_area_fields.html" with edit_area=area %}
+      <div class="capture-actions">
+        <button class="ghost" type="button" x-on:click="edit = false">Cancel</button>
+        <button class="button" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>

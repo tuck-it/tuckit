@@ -8,47 +8,7 @@
     <input name="title" class="capture-input" placeholder="Capture…  (Enter to save, Esc to close)" x-ref="captureInput"
            required autocomplete="off" x-on:keydown.escape="cap=false" autofocus>
 
-    <div class="capture-opts">
-      <div class="capture-optrow">
-        <label class="capture-field capture-field--inline">
-          <span class="capture-lbl">Area</span>
-          <select name="area_id" class="capture-select">
-            <option value="">Inbox</option>
-            {% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="capture-field capture-field--inline">
-          <span class="capture-lbl">Status</span>
-          <select name="status" class="capture-select">
-            <option value="idea">Idea</option>
-            <option value="planned">Planned</option>
-            <option value="building">Building</option>
-            <option value="shipped">Shipped</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="capture-field">
-        <span class="capture-lbl">Spec</span>
-        <textarea name="spec" class="capture-spec" rows="2" placeholder="What is this slice? (optional)"
-                  x-on:input="autosize($event.target)"></textarea>
-      </div>
-
-      <div class="capture-field">
-        <span class="capture-lbl">Tags</span>
-        <div class="capture-tags">
-          <template x-for="(t, i) in tags" :key="i">
-            <span class="tag"><span class="tag-hash">#</span><span x-text="t"></span>
-              <input type="hidden" name="tags" :value="t">
-              <button class="tag-x" type="button" x-on:click="tags.splice(i,1)" aria-label="Remove tag">×</button>
-            </span>
-          </template>
-          <input class="tag-input" placeholder="+ add tag" x-model="tagDraft"
-                 x-on:keydown.enter.prevent="if (tagDraft.trim()) { tags.push(tagDraft.trim()); tagDraft='' }"
-                 x-on:keydown.comma.prevent="if (tagDraft.trim()) { tags.push(tagDraft.trim()); tagDraft='' }">
-        </div>
-      </div>
-    </div>
+    {% include "web/partials/_slice_fields.html" %}
 
     <div class="capture-actions">
       <button class="ghost" type="button" x-on:click="cap=false">Cancel</button>

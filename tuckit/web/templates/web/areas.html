@@ -6,7 +6,7 @@
     {% if not is_empty %}
     <form hx-post="{% wurl 'web:area_create' %}" hx-swap="none" hx-on::after-request="window.location.reload()"
           class="areas-add" x-data>
-      <input name="name" placeholder="New area name…" maxlength="200" required>
+      {% include "web/partials/_area_fields.html" %}
       <button class="button button-small button-primary" type="submit">+ Create Area</button>
     </form>
     {% endif %}
@@ -21,7 +21,7 @@
       Backend, Marketing, Mobile.</p>
     <form hx-post="{% wurl 'web:area_create' %}" hx-swap="none"
           hx-on::after-request="window.location.reload()" class="areas-empty-form" x-data>
-      <input name="name" placeholder="e.g. Backend" maxlength="200" required autofocus>
+      {% include "web/partials/_area_fields.html" %}
       <button class="button button-primary" type="submit">+ Create your first Area</button>
     </form>
   </div>

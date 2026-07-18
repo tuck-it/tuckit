@@ -145,3 +145,38 @@ def test_bite_source_time_renders_korean(client_local, org):
     # timesince now renders in Korean, not "2 hours, 30 minutes"
     assert "hours" not in body and "minutes" not in body
     assert "시간" in body
+
+
+@pytest.mark.django_db
+def test_slice_reassign_moves_area(client_local, org):
+    a = create_area(org, "A")
+    b = create_area(org, "B")
+    s = create_slice(a, "move me", source="human")
+    resp = client_local.post(
+        f"/{org.slug}/slices/{s.id}/reassign", {"area_id": b.id}, HTTP_HX_REQUEST="true"
+    )
+    assert resp.status_code == 200
+    s.refresh_from_db()
+    assert s.area_id == b.id
+
+
+@pytest.mark.django_db
+def test_slice_reassign_foreign_area_404s(client_local, org):
+    from tuckit.core.models import Org
+    a = create_area(org, "A")
+    s = create_slice(a, "s", source="human")
+    other = Org.objects.create(name="Other", slug="other")
+    foreign = create_area(other, "Foreign")
+    resp = client_local.post(
+        f"/{org.slug}/slices/{s.id}/reassign", {"area_id": foreign.id}, HTTP_HX_REQUEST="true"
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_panel_shows_area_reassign_control(client_local, org):
+    a = create_area(org, "A")
+    create_area(org, "B")
+    s = create_slice(a, "s", source="human")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/?panel=1", HTTP_HX_REQUEST="true").content.decode()
+    assert f"/slices/{s.id}/reassign" in body
