@@ -1,6 +1,5 @@
-{% load web_extras %}
-{# Compact client switcher — one snippet visible at a time. Claude Code is
-   confirmed; cursor/codex/antigravity panes are filled in Task 2. #}
+{# Compact client switcher — one snippet visible at a time. All four panes
+   (Claude Code, Cursor, Codex CLI, Antigravity) carry verified connect config. #}
 <div class="agent-clients" x-data="{client:'claude'}">
   <div class="agent-clients-tabs" role="tablist">
     <button type="button" class="agent-tab" :class="{'agent-tab--on': client==='claude'}" x-on:click="client='claude'">Claude Code</button>
@@ -15,12 +14,27 @@
   </div>
 
   <div class="agent-client-pane" x-show="client==='cursor'" x-cloak>
-    <div class="hint muted">Instructions coming — for now use the headless token below.</div>
+    <div class="hint">Add to <code>~/.cursor/mcp.json</code> (or Settings → MCP → Add new MCP server), then click Authorize in the browser tab that opens.</div>
+    <pre class="mcp-snippet"><code>{
+  "mcpServers": {
+    "tuckit": { "url": "{{ mcp_url }}" }
+  }
+}</code></pre>
   </div>
   <div class="agent-client-pane" x-show="client==='codex'" x-cloak>
-    <div class="hint muted">Instructions coming — for now use the headless token below.</div>
+    <div class="hint">Run these, then approve in the browser tab that opens.</div>
+    <pre class="mcp-snippet"><code>codex mcp add tuckit --url {{ mcp_url }}
+codex mcp login tuckit</code></pre>
   </div>
   <div class="agent-client-pane" x-show="client==='antigravity'" x-cloak>
-    <div class="hint muted">Instructions coming — for now use the headless token below.</div>
+    <div class="hint">Antigravity's OAuth handshake for remote MCP servers is unreliable right now, so use a header token instead — create one below (“Headless &amp; CI”), then add it to <code>mcp_config.json</code> (Settings → Customizations → Open MCP Config):</div>
+    <pre class="mcp-snippet"><code>{
+  "mcpServers": {
+    "tuckit": {
+      "serverUrl": "{{ mcp_url }}",
+      "headers": { "Authorization": "Bearer YOUR_TUCKIT_TOKEN" }
+    }
+  }
+}</code></pre>
   </div>
 </div>

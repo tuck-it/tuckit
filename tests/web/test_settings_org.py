@@ -443,3 +443,12 @@ def test_agent_page_has_client_switcher_with_claude_tab(client_local, org):
     assert "x-data=\"{client:'claude'}\"" in body
     for cid in ("claude", "cursor", "codex", "antigravity"):
         assert f"client==='{cid}'" in body
+
+
+@pytest.mark.django_db
+def test_agent_switcher_panes_are_filled(client_local, org):
+    body = client_local.get(f"/{org.slug}/settings/agent").content.decode()
+    # placeholder copy from Task 1 must be gone once panes are filled
+    assert "Instructions coming" not in body
+    # every client pane shows the org-scoped MCP URL somewhere in its config
+    assert body.count("/mcp") >= 4  # claude + cursor + codex + antigravity
