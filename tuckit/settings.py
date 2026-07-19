@@ -109,6 +109,11 @@ TUCKIT_ENTITLEMENTS_HOOK = env("TUCKIT_ENTITLEMENTS_HOOK", default=None) or None
 # public core free of any hardcoded cloud hostname (same rule as TUCKIT_MARKETING_URL).
 TUCKIT_OAUTH_ISSUER = env("TUCKIT_OAUTH_ISSUER", default="") or ""
 
+# Open Dynamic Client Registration (RFC 7591). Core default open — the public
+# MCP client ecosystem (Claude Code, Cursor) relies on runtime self-registration.
+# Cloud may set this false to require pre-registered clients.
+TUCKIT_OAUTH_DCR_OPEN = env_bool("TUCKIT_OAUTH_DCR_OPEN", default=True)
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 # Manifest storage requires collectstatic to have built the manifest — true in

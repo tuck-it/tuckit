@@ -33,6 +33,7 @@ oauth_patterns = [
          login_not_required(oauth.protected_resource_metadata), name="oauth_prm"),
     path(".well-known/oauth-authorization-server",
          login_not_required(oauth.authorization_server_metadata), name="oauth_asm"),
+    path("oauth/register", login_not_required(oauth.register), name="oauth_register"),
 ]
 
 # --- settings shell (org-based URLs; the new IA). Task 2 lays the shell +
