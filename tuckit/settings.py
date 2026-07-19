@@ -114,6 +114,13 @@ TUCKIT_OAUTH_ISSUER = env("TUCKIT_OAUTH_ISSUER", default="") or ""
 # Cloud may set this false to require pre-registered clients.
 TUCKIT_OAUTH_DCR_OPEN = env_bool("TUCKIT_OAUTH_DCR_OPEN", default=True)
 
+# Dotted path to a callable run just before OAuth token issuance, as
+# hook(user=, org=, client=). Core ships None (no-op -> unlimited). Cloud injects
+# plan-entitlement checks (e.g. max connected apps) / audit logging; it raises
+# tuckit.core.services.oauth_hook.TokenDenied to refuse. Mirrors the signup/
+# entitlements hooks. Never billing code in core.
+TUCKIT_OAUTH_TOKEN_HOOK = env("TUCKIT_OAUTH_TOKEN_HOOK", default=None) or None
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 # Manifest storage requires collectstatic to have built the manifest — true in

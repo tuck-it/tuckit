@@ -7,7 +7,11 @@ from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
 from tuckit.core.models import OAuthClient, OrgMember
-from tuckit.core.services.oauth import create_authorization_code, create_client
+from tuckit.core.services.oauth import (
+    consume_authorization_code, create_authorization_code, create_client,
+    issue_tokens, rotate_refresh_token, verify_pkce,
+)
+from tuckit.core.services.oauth_hook import TokenDenied, run_token_hook
 
 
 def issuer(request) -> str:
@@ -117,3 +121,47 @@ def authorize(request):
     if state:
         url += f"&state={quote(state)}"
     return redirect(url)
+
+
+def _token_error(error: str, status: int):
+    return JsonResponse({"error": error}, status=status)
+
+
+@csrf_exempt
+def token(request):
+    """OAuth 2.1 token endpoint. Form-encoded; public clients (no secret)."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    grant = request.POST.get("grant_type", "")
+
+    if grant == "authorization_code":
+        code = request.POST.get("code", "")
+        redirect_uri = request.POST.get("redirect_uri", "")
+        client = OAuthClient.objects.filter(client_id=request.POST.get("client_id", "")).first()
+        verifier = request.POST.get("code_verifier", "")
+        if client is None:
+            return _token_error("invalid_client", 401)
+        rec = consume_authorization_code(code, client, redirect_uri)
+        if rec is None or not verify_pkce(rec.code_challenge, verifier):
+            return _token_error("invalid_grant", 400)
+        try:
+            run_token_hook(user=rec.user, org=rec.org, client=client)
+        except TokenDenied:
+            return _token_error("access_denied", 403)
+        access, refresh, expires_in = issue_tokens(client, rec.user, rec.org, rec.scope)
+        return JsonResponse({
+            "access_token": access, "token_type": "Bearer",
+            "expires_in": expires_in, "refresh_token": refresh, "scope": rec.scope,
+        })
+
+    if grant == "refresh_token":
+        rotated = rotate_refresh_token(request.POST.get("refresh_token", ""))
+        if rotated is None:
+            return _token_error("invalid_grant", 400)
+        access, refresh, expires_in, scope = rotated
+        return JsonResponse({
+            "access_token": access, "token_type": "Bearer",
+            "expires_in": expires_in, "refresh_token": refresh, "scope": scope,
+        })
+
+    return _token_error("unsupported_grant_type", 400)
