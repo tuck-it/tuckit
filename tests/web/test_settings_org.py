@@ -397,3 +397,49 @@ def test_member_cannot_configure_shipped_board(client_local, org):
     org.refresh_from_db()
     assert org.shipped_board_mode == "count"
     assert org.shipped_board_limit == 8
+
+
+# --- OAuth-first connect UX (agent access page) ---
+
+@pytest.mark.django_db
+def test_agent_page_leads_with_tokenless_oauth_command(client_local, org):
+    body = client_local.get(f"/{org.slug}/settings/agent").content.decode()
+    # ① Connect headline shows the tokenless command...
+    assert "claude mcp add --transport http tuckit" in body
+    assert "Connect your agent" in body
+    # ...and the primary connect block carries no raw-token/Bearer instruction.
+    connect = body.split("Access tokens")[0]  # everything above section ③
+    assert "Authorization: Bearer" not in connect
+    assert "&lt;token&gt;" not in connect
+
+
+@pytest.mark.django_db
+def test_agent_page_demotes_token_path_to_headless_section(client_local, org):
+    body = client_local.get(f"/{org.slug}/settings/agent").content.decode()
+    assert "Access tokens · Headless &amp; CI" in body
+    # the Bearer command lives ONLY in the headless section (below ①)
+    assert "Authorization: Bearer" in body
+    assert body.index("Connect your agent") < body.index("Access tokens")
+
+
+@pytest.mark.django_db
+def test_agent_page_section_order_is_1_3_2(client_local, org):
+    body = client_local.get(f"/{org.slug}/settings/agent").content.decode()
+    i_connect = body.index("Connect your agent")
+    i_tokens = body.index("Access tokens")
+    i_apps = body.index("Connected apps")
+    assert i_connect < i_tokens < i_apps  # 1 → 3 → 2
+
+
+@pytest.mark.django_db
+def test_agent_page_uses_tuckit_name_not_tuck_it(client_local, org):
+    body = client_local.get(f"/{org.slug}/settings/agent").content.decode()
+    assert "tuck-it" not in body
+
+
+@pytest.mark.django_db
+def test_agent_page_has_client_switcher_with_claude_tab(client_local, org):
+    body = client_local.get(f"/{org.slug}/settings/agent").content.decode()
+    assert "x-data=\"{client:'claude'}\"" in body
+    for cid in ("claude", "cursor", "codex", "antigravity"):
+        assert f"client==='{cid}'" in body

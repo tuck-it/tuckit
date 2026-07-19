@@ -3,20 +3,32 @@
 {% block settings_title %}Organization · Agent access{% endblock %}
 {% block settings_content %}
 <div class="settings-title">Agent access</div>
+
+{# ① Connect your agent — OAuth browser flow (primary) #}
 <section class="group settings-section">
-  <div class="hint">The token an agent uses to connect to this organization over MCP.</div>
+  <div class="settings-subhead">Connect your agent</div>
+  <div class="hint">Your browser opens — pick a workspace and click Allow. No token to copy.</div>
+  {% include "web/settings/_agent_clients.html" %}
+</section>
+
+{# ③ Access tokens · Headless & CI — ApiToken fallback (demoted) #}
+<section class="group settings-section">
+  <div class="settings-subhead">Access tokens · Headless &amp; CI</div>
+  <div class="hint">For CI, scripts, or clients without a browser. Put the token in an Authorization header.</div>
   <div id="tokens-list" class="panel">
     {% for token in tokens %}{% include "web/partials/_token_row.html" %}{% empty %}<div class="empty muted">No tokens yet</div>{% endfor %}
   </div>
   <form class="token-add" hx-post="{% url 'web:token_create' org.slug %}" hx-target="#tokens-list" hx-swap="afterbegin"
         hx-on::after-request="this.reset()">
-    <input name="name" placeholder="＋ Token name (e.g. Claude Code)">
+    <input name="name" placeholder="＋ Token name (e.g. CI pipeline)">
   </form>
+  <pre class="mcp-snippet"><code>claude mcp add --transport http tuckit {{ mcp_url }} --header "Authorization: Bearer &lt;token&gt;"</code></pre>
+</section>
+
+{# ② Connected apps — OAuth (bottom) #}
+<section class="group settings-section">
   <div class="settings-subhead">Connected apps</div>
   <div class="hint">Agents connected over OAuth. Disconnecting revokes their access immediately.</div>
   {% include "web/settings/_connected_apps.html" %}
-  <div class="settings-subhead">Connect an agent</div>
-  <div class="hint">Register this organization with Claude Code as an MCP server using the command below.</div>
-  <pre class="mcp-snippet"><code>claude mcp add --transport http tuck-it {{ mcp_url }} --header "Authorization: Bearer &lt;token&gt;"</code></pre>
 </section>
 {% endblock %}

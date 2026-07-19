@@ -1940,3 +1940,9 @@ html.sidebar-collapsed .side-resize { display: none; }
 .af-input:focus { outline: none; border-color: var(--blue); }
 .af-textarea { resize: vertical; min-height: 3.4em; }
 .af-help { font-size: var(--text-xs); color: var(--ink-faint); line-height: 1.4; }
+
+/* Agent-access client switcher (settings/org_agent.html) */
+.agent-clients-tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); flex-wrap: wrap; }
+.agent-tab { padding: var(--space-1) var(--space-3); border-radius: var(--radius-small); background: transparent; border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; }
+.agent-tab--on { background: var(--blue); border-color: var(--blue); color: var(--paper); }
+.agent-client-pane { margin-top: var(--space-2); }

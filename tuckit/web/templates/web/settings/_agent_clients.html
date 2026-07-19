@@ -1,0 +1,26 @@
+{% load web_extras %}
+{# Compact client switcher — one snippet visible at a time. Claude Code is
+   confirmed; cursor/codex/antigravity panes are filled in Task 2. #}
+<div class="agent-clients" x-data="{client:'claude'}">
+  <div class="agent-clients-tabs" role="tablist">
+    <button type="button" class="agent-tab" :class="{'agent-tab--on': client==='claude'}" x-on:click="client='claude'">Claude Code</button>
+    <button type="button" class="agent-tab" :class="{'agent-tab--on': client==='cursor'}" x-on:click="client='cursor'">Cursor</button>
+    <button type="button" class="agent-tab" :class="{'agent-tab--on': client==='codex'}" x-on:click="client='codex'">Codex CLI</button>
+    <button type="button" class="agent-tab" :class="{'agent-tab--on': client==='antigravity'}" x-on:click="client='antigravity'">Antigravity</button>
+  </div>
+
+  <div class="agent-client-pane" x-show="client==='claude'" x-cloak>
+    <div class="hint">Run this, then click Allow in the browser tab that opens.</div>
+    <pre class="mcp-snippet"><code>claude mcp add --transport http tuckit {{ mcp_url }}</code></pre>
+  </div>
+
+  <div class="agent-client-pane" x-show="client==='cursor'" x-cloak>
+    <div class="hint muted">Instructions coming — for now use the headless token below.</div>
+  </div>
+  <div class="agent-client-pane" x-show="client==='codex'" x-cloak>
+    <div class="hint muted">Instructions coming — for now use the headless token below.</div>
+  </div>
+  <div class="agent-client-pane" x-show="client==='antigravity'" x-cloak>
+    <div class="hint muted">Instructions coming — for now use the headless token below.</div>
+  </div>
+</div>
