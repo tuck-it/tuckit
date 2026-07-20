@@ -13,9 +13,9 @@
   <nav class="nav-group">
     <a class="nav{% if request.resolver_match.url_name == 'home' %} nav--active{% endif %}"
        href="{% wurl 'web:home' %}">{% icon "home" %}<span class="nav-label">Home</span></a>
-    <a class="nav{% if request.resolver_match.url_name == 'triage' %} nav--active{% endif %}"
-       href="{% wurl 'web:triage' %}">{% icon "triage" %}<span class="nav-label">Inbox</span>
-       {% include "web/partials/_triage_count.html" %}</a>
+    <a class="nav{% if request.resolver_match.url_name == 'inbox' %} nav--active{% endif %}"
+       href="{% wurl 'web:inbox' %}">{% icon "inbox" %}<span class="nav-label">Inbox</span>
+       {% include "web/partials/_inbox_count.html" %}</a>
     <a class="nav{% if request.resolver_match.url_name == 'roadmap' %} nav--active{% endif %}"
        href="{% wurl 'web:roadmap' %}">{% icon "roadmap" %}<span class="nav-label">Board</span></a>
   </nav>

@@ -3,10 +3,10 @@
      x-init="setTimeout(() => show=false, 1800)" x-show="show" x-transition x-cloak>Captured in Inbox.</div>
 
 {# Count badge — always refreshed (context processor supplies inbox_count). #}
-{% include "web/partials/_triage_count.html" with oob=True %}
+{% include "web/partials/_inbox_count.html" with oob=True %}
 
 {# Triage list — OOB re-render of the whole list (matches what a page reload
    shows). Lands only if #triage-list is on-screen; htmx skips it
    (oobErrorNoTarget) on every other page. Re-rendering by id with
    hx-swap-oob="true" is reliable, unlike positional (afterbegin) OOB. #}
-{% include "web/partials/_triage_list.html" with oob=True %}
+{% include "web/partials/_ticket_list.html" with oob=True %}

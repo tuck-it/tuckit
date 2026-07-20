@@ -257,7 +257,7 @@ def test_no_breadcrumb_on_any_page(client_local, org):
 
 @pytest.mark.django_db
 def test_sidebar_area_create_has_description_field(client_local, org):
-    body = client_local.get(f"/{org.slug}/triage/").content.decode()
+    body = client_local.get(f"/{org.slug}/inbox/").content.decode()
     assert 'name="description"' in body   # sidebar "+ Area" create form exposes description
 
 

@@ -78,7 +78,7 @@ def test_sidebar_row_has_rename_and_delete_affordances(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Visible")
     # any authenticated page renders the sidebar
-    body = client_local.get(f"{p}/triage/").content.decode()
+    body = client_local.get(f"{p}/inbox/").content.decode()
     assert f'data-area-id="{a.id}"' in body          # draggable row present
     assert f'{p}/areas/{a.id}/rename' in body         # inline rename form target
     assert f'{p}/areas/{a.id}/delete' in body         # delete button target
@@ -101,7 +101,7 @@ def test_rename_response_is_swappable_row(client_local, org):
 def test_sidebar_loads_reorder_script(client_local, org):
     p = f"/{org.slug}"
     create_area(org, "Any")
-    body = client_local.get(f"{p}/triage/").content.decode()
+    body = client_local.get(f"{p}/inbox/").content.decode()
     assert "area_nav.js" in body
 
 
@@ -127,7 +127,7 @@ def test_rename_other_area_is_not_active(client_local, org):
     body = client_local.post(
         f"{p}/areas/{a.id}/rename", {"name": "Other2"},
         HTTP_HX_REQUEST="true",
-        HTTP_HX_CURRENT_URL=f"http://testserver{p}/triage/",
+        HTTP_HX_CURRENT_URL=f"http://testserver{p}/inbox/",
     ).content.decode()
     assert "nav--active" not in body
 

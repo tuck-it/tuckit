@@ -13,7 +13,7 @@
            x-on:keydown.enter.prevent="choose()">
     <div class="cmdk-list" x-ref="list">
       <a class="cmdk-row" data-label="Home" href="{% wurl 'web:home' %}">{% icon "home" %}<span>Home</span></a>
-      <a class="cmdk-row" data-label="Inbox" href="{% wurl 'web:triage' %}">{% icon "triage" %}<span>Inbox</span></a>
+      <a class="cmdk-row" data-label="Inbox" href="{% wurl 'web:inbox' %}">{% icon "inbox" %}<span>Inbox</span></a>
       <a class="cmdk-row" data-label="Board" href="{% wurl 'web:roadmap' %}">{% icon "roadmap" %}<span>Board</span></a>
       {% for a in areas %}
         <a class="cmdk-row" data-label="{{ a.name }}" href="{% wurl 'web:area' a.slug %}">{% icon "area" %}<span>{{ a.name }}</span></a>

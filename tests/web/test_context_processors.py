@@ -76,7 +76,7 @@ def test_onboarding_hidden_stays_hidden_after_area_deleted(client_local, org):
 @pytest.mark.django_db
 def test_onboarding_context_present_on_non_home_page(client_local, org):
     p = f"/{org.slug}"
-    assert "Get started" in client_local.get(f"{p}/triage/").content.decode()
+    assert "Get started" in client_local.get(f"{p}/inbox/").content.decode()
 
 
 @pytest.mark.django_db

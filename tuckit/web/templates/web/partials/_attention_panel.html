@@ -6,7 +6,7 @@
       {% if it.slice %}
         {% include "web/partials/_slice_row.html" with slice=it.slice reason=lbl %}
       {% else %}
-        <a class="slice-row" href="{% url 'web:triage' current_org.slug %}">
+        <a class="slice-row" href="{% url 'web:inbox' current_org.slug %}">
           {% include "web/partials/_status_dot.html" with status=it.ticket.status %}
           <span class="row-main">
             <span class="row-title">{{ it.ticket.title }}</span>

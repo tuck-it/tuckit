@@ -3,22 +3,22 @@ import pytest
 
 
 @pytest.mark.django_db
-def test_triage_heading_has_count_and_capture(client_local, org):
+def test_inbox_heading_has_count_and_capture(client_local, org):
     from tuckit.core.services.tickets import create_ticket
     p = f"/{org.slug}"
     create_ticket(org, "loose end")
-    body = client_local.get(f"{p}/triage/").content.decode()
+    body = client_local.get(f"{p}/inbox/").content.decode()
     assert 'class="page-head"' in body
     assert 'class="page-count"' in body
     assert "cap = true" in body                     # capture action in heading
 
 
 @pytest.mark.django_db
-def test_triage_row_shows_provenance_and_english_controls(client_local, org):
+def test_ticket_row_shows_provenance_and_english_controls(client_local, org):
     from tuckit.core.services.tickets import create_ticket
     p = f"/{org.slug}"
     create_ticket(org, "loose end")
-    body = client_local.get(f"{p}/triage/").content.decode()
+    body = client_local.get(f"{p}/inbox/").content.decode()
     assert 'class="triage-controls"' in body        # controls grouped for reveal
     assert "Assign area" in body
     assert ">Status" in body

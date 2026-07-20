@@ -3,9 +3,9 @@ import pytest
 
 
 @pytest.mark.django_db
-def test_triage_empty_guides(client_local, org):
+def test_inbox_empty_guides(client_local, org):
     p = f"/{org.slug}"
-    body = client_local.get(f"{p}/triage/").content.decode()
+    body = client_local.get(f"{p}/inbox/").content.decode()
     assert "Nothing to triage" in body
     assert "let your agent add one" in body
 

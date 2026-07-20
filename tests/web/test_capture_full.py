@@ -101,7 +101,7 @@ def test_capture_invalid_status_400_creates_nothing(client_local, org):
 @pytest.mark.django_db
 def test_capture_modal_renders_full_form(client_local, org):
     create_area(org, "Backend")
-    body = client_local.get(f"{P(org)}/triage/").content.decode()
+    body = client_local.get(f"{P(org)}/inbox/").content.decode()
     # required title + the optional authoring controls
     assert 'name="title"' in body
     assert 'name="area_id"' in body
@@ -115,7 +115,7 @@ def test_capture_modal_renders_full_form(client_local, org):
 
 @pytest.mark.django_db
 def test_capture_modal_renders_shared_fields(client_local, org):
-    body = client_local.get(f"{P(org)}/triage/").content.decode()
+    body = client_local.get(f"{P(org)}/inbox/").content.decode()
     # capture modal is always present in the shell; it includes the shared fields
     assert 'name="area_id"' in body
     assert 'name="status"' in body

@@ -131,7 +131,7 @@ def test_step4_shows_poller_when_key_exists(client_local, org):
 def test_onboarding_step1_has_description_field(client_local, org):
     # Fresh org (no non-triage areas) => Step 1 is active with the create form rendered.
     import re
-    body = client_local.get(f"/{org.slug}/triage/").content.decode()
+    body = client_local.get(f"/{org.slug}/inbox/").content.decode()
     assert 'id="onboarding-widget"' in body
     # Step 1 opens the shared Area-create modal (also used by the sidebar/areas page).
     m = re.search(r'<form class="[^"]*area-create-form[^"]*".*?</form>', body, re.S)

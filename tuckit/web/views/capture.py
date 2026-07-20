@@ -67,9 +67,9 @@ def capture(request):
     return redirect_response(request, "web:slice", org_slug=org.slug, slice_id=slice_.id)
 
 
-def triage_list(request):
+def inbox(request):
     org = get_current_org(request)
-    return render(request, "web/triage.html", {
+    return render(request, "web/inbox.html", {
         "tickets": query_tickets(org),
         "areas": list(list_areas(org)),
         "statuses": _SLICE_STATUSES,

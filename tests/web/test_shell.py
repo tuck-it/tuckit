@@ -38,7 +38,7 @@ def test_sidebar_grouped_with_english_labels_and_capture(client_local, org):
     assert 'class="nav-group"' in body        # grouped, not a flat list
     assert 'class="capture-btn"' in body       # Capture promoted to its own button
     assert ">Home<" in body and ">Inbox<" in body and ">Settings<" in body
-    assert f'href="{p}/triage/"' in body            # Inbox anchor keeps the route
+    assert f'href="{p}/inbox/"' in body             # Inbox anchor keeps the route
     assert ">Board<" in body                         # was Roadmap
     assert ">Attention<" not in body and ">In Progress<" not in body
     assert 'class="nav-sep"' in body        # visual group separator present

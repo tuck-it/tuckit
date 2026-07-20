@@ -13,10 +13,10 @@ def test_capture_lands_in_inbox_as_ticket(client_local, org):
     assert t.area is None and t.status == "open" and t.source == "human"
 
 @pytest.mark.django_db
-def test_triage_lists_captures(client_local, org):
+def test_inbox_lists_captures(client_local, org):
     p = f"/{org.slug}"
     create_ticket(org, "To clean up")
-    body = client_local.get(f"{p}/triage/").content.decode()
+    body = client_local.get(f"{p}/inbox/").content.decode()
     assert "To clean up" in body
 
 @pytest.mark.django_db
@@ -83,11 +83,11 @@ def test_ticket_promote_invalid_status_returns_400(client_local, org):
     assert not Slice.objects.filter(ticket=t).exists() and t.status == "open"
 
 @pytest.mark.django_db
-def test_triage_row_has_no_manual_caret_and_area_placeholder(client_local, org):
+def test_ticket_row_has_no_manual_caret_and_area_placeholder(client_local, org):
     from tuckit.core.services.tickets import create_ticket
     p = f"/{org.slug}"
     create_ticket(org, "Uncategorized item")
-    body = client_local.get(f"{p}/triage/").content.decode()
+    body = client_local.get(f"{p}/inbox/").content.decode()
     assert "</select>▾" not in body          # manual caret removed
     assert "Assign area" in body           # placeholder present
 
@@ -120,6 +120,6 @@ def test_inbox_heading_and_agent_source_badge(client_local, org):
     from tuckit.core.services.tickets import create_ticket
     p = f"/{org.slug}"
     create_ticket(org, "Made by agent", source="agent")
-    body = client_local.get(f"{p}/triage/").content.decode()
+    body = client_local.get(f"{p}/inbox/").content.decode()
     assert '<h1 class="page-title">Inbox</h1>' in body       # renamed heading
     assert 'class="source-badge is-agent"' in body           # agent item flagged
