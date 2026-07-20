@@ -107,3 +107,30 @@ def promote_ticket(ticket: Ticket, *, area=None, actor: str = "human") -> "Slice
     record_activity(ticket.org, actor=actor, verb="promoted", target=ticket,
                     to_value=slice_.title)
     return slice_
+
+
+def convert_org_backlog(org: Org) -> None:
+    """One-way migration helper (see migration 0031). idea-Slices with no Plan
+    become Tickets (reusing their number, spec→body); idea-Slices with a Plan are
+    promoted to 'planned'. Triage Areas are demoted to normal 'General' areas."""
+    from tuckit.core.models import ActivityEvent, Area, Slice
+
+    for s in Slice.objects.filter(area__org=org, status="idea"):
+        if s.plans.exists():
+            s.status = "planned"
+            s.save(update_fields=["status", "updated_at"])
+            continue
+        area = None if s.area.is_triage else s.area
+        t = Ticket.objects.create(
+            org=org, area=area, title=s.title, body=s.spec,
+            status="open", number=s.number, source=s.source, rank=s.rank,
+        )
+        Ticket.objects.filter(pk=t.pk).update(created_at=s.created_at)
+        ActivityEvent.objects.filter(target_type="slice", target_id=s.id).delete()
+        s.delete()
+
+    for area in Area.objects.filter(org=org, is_triage=True):
+        area.is_triage = False
+        if area.name == "Triage":
+            area.name = "General"
+        area.save(update_fields=["is_triage", "name", "updated_at"])
