@@ -1299,6 +1299,37 @@ body { padding: 0; }
 .util-btn--active { color: var(--ink); background: var(--blue-soft); font-weight: 600; }
 .util-btn--active .icon { stroke: var(--blue); }
 
+/* --- Signed-in account menu (bottom of util-row) --- */
+.account-menu { position: relative; }
+.account-trigger {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: none; font: inherit; cursor: pointer;
+  color: var(--ink-faint); text-align: left;
+  min-height: 30px; padding: 6px 10px; border-radius: var(--radius-small);
+}
+.account-trigger:hover { background: var(--paper-raised); color: var(--ink); }
+.account-avatar {
+  flex: 0 0 auto; width: 24px; height: 24px;
+  display: grid; place-items: center;
+  background: var(--blue-soft); color: var(--blue);
+  border-radius: 50%;
+  font-size: 12px; font-weight: 600;
+}
+.account-email { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-chev { width: 14px; height: 14px; stroke: var(--ink-faint); transform: rotate(-90deg); transition: transform 0.15s ease; }
+.account-trigger[aria-expanded="true"] .account-chev { transform: rotate(90deg); }
+/* Opens upward: pinned to the bottom of the trigger since it sits at the sidebar floor. */
+.account-pop {
+  position: absolute; bottom: 100%; left: 4px; right: 4px; z-index: 30;
+  margin-bottom: 4px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 28px var(--shadow);
+  min-width: 200px;
+}
+.account-pop-id { color: var(--ink-faint); }
+.account-pop-id .icon { stroke: var(--ink-faint); }
+.account-logout { color: var(--warn); }
+
 .capture-btn {
   display: flex;
   align-items: center;
@@ -1562,12 +1593,14 @@ body { padding: 0; }
   html.sidebar-collapsed .ws-chev,
   html.sidebar-collapsed .search-pill .nav-label,
   html.sidebar-collapsed .area-menu,
+  html.sidebar-collapsed .account-chev,
   html.sidebar-collapsed .util-label { display: none; }
   html.sidebar-collapsed .side-top { flex-direction: column; gap: 6px; }
   html.sidebar-collapsed .side-collapse { order: -1; }
   html.sidebar-collapsed .nav,
   html.sidebar-collapsed .capture-btn,
   html.sidebar-collapsed .search-pill,
+  html.sidebar-collapsed .account-trigger,
   html.sidebar-collapsed .util-btn { justify-content: center; padding-left: 0; padding-right: 0; }
 }
 

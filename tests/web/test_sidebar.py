@@ -259,3 +259,33 @@ def test_no_breadcrumb_on_any_page(client_local, org):
 def test_sidebar_area_create_has_description_field(client_local, org):
     body = client_local.get(f"/{org.slug}/triage/").content.decode()
     assert 'name="description"' in body   # sidebar "+ Area" create form exposes description
+
+
+@pytest.mark.django_db
+def test_sidebar_shows_signed_in_account(client_local, org):
+    body = client_local.get(f"/{org.slug}/").content.decode()
+    # The account menu trigger lives in the util-row and surfaces the user's email.
+    assert 'class="account-menu"' in body
+    assert "local@tuckit.local" in body            # signed-in identity is the email
+    assert 'class="account-avatar"' in body        # first-letter avatar cue
+
+
+@pytest.mark.django_db
+def test_account_menu_has_settings_link_and_logout_post(client_local, org):
+    body = client_local.get(f"/{org.slug}/").content.decode()
+    # Account settings entry points at the account settings root for this org.
+    assert f'href="/{org.slug}/settings/account"' in body
+    # Log out MUST be a POST form (Django LogoutView is POST-only) with CSRF.
+    assert 'action="/logout/"' in body
+    assert re.search(
+        r'<form[^>]*action="/logout/"[^>]*method="post"', body
+    ) or re.search(r'<form[^>]*method="post"[^>]*action="/logout/"', body)
+    assert "csrfmiddlewaretoken" in body
+
+
+def test_account_menu_css_present():
+    css = APP_CSS.read_text(encoding="utf-8")
+    assert ".account-menu" in css
+    assert ".account-avatar" in css
+    # Popup opens upward from the sidebar bottom.
+    assert ".account-pop" in css

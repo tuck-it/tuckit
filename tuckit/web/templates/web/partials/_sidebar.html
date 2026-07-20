@@ -34,6 +34,7 @@
   <div class="nav-spacer"></div>
 
   <div class="util-row">
+    {% include "web/partials/_account_menu.html" %}
     <a class="util-btn util-settings{% if request.resolver_match.url_name == 'settings_org_general' %} util-btn--active{% endif %}"
        href="{% url 'web:settings_root' current_org.slug %}">{% icon "settings" %}<span class="util-label">Settings</span></a>
     <button class="util-btn util-theme" type="button"

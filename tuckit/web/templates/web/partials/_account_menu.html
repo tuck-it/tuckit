@@ -1,0 +1,22 @@
+{% load web_extras %}
+<div class="account-menu" x-data="{open: false}" x-on:keydown.escape="open = false">
+  <button type="button" class="account-trigger" x-on:click="open = !open"
+          :aria-expanded="open.toString()" aria-haspopup="menu"
+          title="{{ request.user.email }}">
+    <span class="account-avatar">{{ request.user.email|slice:":1"|upper }}</span>
+    <span class="account-email util-label">{{ request.user.email }}</span>
+    {% icon "chevron" "icon account-chev" %}
+  </button>
+
+  <div class="account-pop" x-show="open" x-transition.origin.bottom
+       x-on:click.outside="open = false" role="menu" style="display:none">
+    <a class="ws-menu-item account-pop-id" href="{% url 'web:settings_account_root' current_org.slug %}" role="menuitem">
+      {% icon "settings" %}<span class="ws-menu-name">Account settings</span>
+    </a>
+    <div class="ws-menu-sep"></div>
+    <form class="ws-menu-form" method="post" action="{% url 'web:logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="ws-menu-item account-logout" role="menuitem">Log out</button>
+    </form>
+  </div>
+</div>
