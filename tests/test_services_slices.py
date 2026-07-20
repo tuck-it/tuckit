@@ -111,3 +111,23 @@ def test_set_slice_area_moves_and_reranks():
     assert s.area_id == backend.id
     assert list(list_slices(backend)) == [s]
     assert list(list_slices(inbox)) == []
+
+
+@pytest.mark.django_db
+def test_create_slice_allocates_sequential_number_per_org():
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s1 = create_slice(a, "One")
+    s2 = create_slice(a, "Two")
+    assert (s1.number, s2.number) == (1, 2)
+    org.refresh_from_db()
+    assert org.next_slice_number == 3
+
+
+@pytest.mark.django_db
+def test_number_is_per_org_not_global():
+    o1 = Org.objects.create(name="A", slug="a")
+    o2 = Org.objects.create(name="B", slug="b")
+    s1 = create_slice(create_area(o1, "X"), "s")
+    s2 = create_slice(create_area(o2, "Y"), "s")
+    assert s1.number == 1 and s2.number == 1

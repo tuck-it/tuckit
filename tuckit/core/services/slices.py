@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from tuckit.core.models import Area, Slice
+from tuckit.core.models import Area, Org, Slice
 from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.tags import get_or_create_tags
@@ -42,6 +42,10 @@ def create_slice(
     validate_choice(status, Slice.STATUS_CHOICES, "status")
     rank = rank_for(Slice, {"area": area}, before=before, after=after)
     with transaction.atomic():
+        locked = Org.objects.select_for_update().get(pk=area.org_id)
+        number = locked.next_slice_number
+        locked.next_slice_number = number + 1
+        locked.save(update_fields=["next_slice_number"])
         slice_ = Slice.objects.create(
             area=area,
             title=title,
@@ -49,6 +53,7 @@ def create_slice(
             status=status,
             rank=rank,
             source=source,
+            number=number,
             completed_at=timezone.now() if status == "shipped" else None,
         )
         if tags:

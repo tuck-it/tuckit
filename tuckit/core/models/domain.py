@@ -48,6 +48,7 @@ class Slice(models.Model):
     tags = models.ManyToManyField(Tag, blank=True, related_name="slices")
     rank = models.CharField(max_length=255)
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="human")
+    number = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
