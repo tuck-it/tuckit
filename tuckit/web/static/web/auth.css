@@ -241,6 +241,7 @@ a.auth-panel-brand:hover { opacity: 0.85; }
 .auth-sso { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
 .button-social {
   width: 100%;
+  box-sizing: border-box; /* keep padding+border inside 100% so it aligns with the form below (no global reset) */
   background: var(--paper-solid);
   color: var(--ink);
   border-color: var(--line);
