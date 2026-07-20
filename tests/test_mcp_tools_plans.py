@@ -1,7 +1,7 @@
 import pytest
 from asgiref.sync import sync_to_async
 
-from tuckit.core.mcp.server import create_bite, create_plan, get_slice, list_plans, update_plan
+from tuckit.core.mcp.server import add_bites, create_plan, get_slice, list_plans, update_plan
 from tuckit.core.models import Org
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
@@ -32,7 +32,7 @@ async def test_create_plan_list_plans_create_bite_get_slice_roundtrip():
     plans = await list_plans(ctx, slice_id)
     assert [p["title"] for p in plans] == ["Backend plan"]
 
-    bite = await create_bite(ctx, plan["id"], "JWT")
+    (bite,) = await add_bites(ctx, plan["id"], [{"title": "JWT"}])
     assert bite["plan_id"] == plan["id"]
     assert bite["slice_id"] == slice_id
 

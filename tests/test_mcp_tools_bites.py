@@ -3,10 +3,8 @@ import pytest
 from asgiref.sync import sync_to_async
 
 from tuckit.core.mcp.server import (
-    create_bite,
+    add_bites,
     list_bites,
-    reorder_bite,
-    set_bite_status,
     update_bite,
 )
 from tuckit.core.models import Org
@@ -29,41 +27,33 @@ def _seed():
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_create_list_reorder_bites():
+async def test_add_bites_bulk_and_update_reorder():
     raw, plan_id = await _seed()
     ctx = make_ctx(raw)
-    a = await create_bite(ctx, plan_id, "A")
-    b = await create_bite(ctx, plan_id, "B")
-    await reorder_bite(ctx, b["id"], before_id=a["id"])
+    made = await add_bites(ctx, plan_id, [{"title": "A"}, {"title": "B"}])
+    assert [b["title"] for b in made] == ["A", "B"]
+    await update_bite(ctx, made[1]["id"], before_id=made[0]["id"])
     listed = await list_bites(ctx, plan_id)
     assert [x["title"] for x in listed] == ["B", "A"]
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_update_and_status_bite():
+async def test_update_bite_status_and_body():
     raw, plan_id = await _seed()
     ctx = make_ctx(raw)
-    b = await create_bite(ctx, plan_id, "JWT")
+    (b,) = await add_bites(ctx, plan_id, [{"title": "JWT"}])
     await update_bite(ctx, b["id"], body="use RS256")
-    updated = await set_bite_status(ctx, b["id"], "done")
+    updated = await update_bite(ctx, b["id"], status="done")
     assert updated["status"] == "done"
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_list_bites_returns_body():
+async def test_add_bites_returns_body_and_plan_id():
     raw, plan_id = await _seed()
     ctx = make_ctx(raw)
-    await create_bite(ctx, plan_id, "JWT", body="use RS256 keys")
+    made = await add_bites(ctx, plan_id, [{"title": "JWT", "body": "use RS256 keys"}])
     listed = await list_bites(ctx, plan_id)
     assert listed[0]["body"] == "use RS256 keys"
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio
-async def test_create_bite_exposes_plan_id():
-    raw, plan_id = await _seed()
-    ctx = make_ctx(raw)
-    b = await create_bite(ctx, plan_id, "JWT")
-    assert b["plan_id"] == plan_id
+    assert made[0]["plan_id"] == plan_id

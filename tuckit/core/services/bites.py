@@ -35,12 +35,27 @@ def create_bite(
     return b
 
 
+def add_bites(plan_: Plan, items, *, source: str = "human") -> list[Bite]:
+    """Create bites in order under a plan. items: [{title, body?, status?}].
+    Covers both single (a one-item list) and bulk capture."""
+    made = []
+    for item in items:
+        made.append(create_bite(
+            plan_, item["title"],
+            body=item.get("body", ""), status=item.get("status", "todo"),
+            source=source,
+        ))
+    return made
+
+
 def update_bite(
     bite: Bite,
     *,
     title: str | None = None,
     body: str | None = None,
     status: str | None = None,
+    before: Bite | None = None,
+    after: Bite | None = None,
     actor: str = "human",
 ) -> Bite:
     old_status = bite.status
@@ -51,6 +66,8 @@ def update_bite(
     if status is not None:
         validate_choice(status, Bite.STATUS_CHOICES, "status")
         bite.status = status
+    if before is not None or after is not None:
+        bite.rank = rank_for(Bite, {"plan": bite.plan}, before=before, after=after)
     with transaction.atomic():
         bite.save()
         if status is not None and status != old_status:

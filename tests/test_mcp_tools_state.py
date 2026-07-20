@@ -37,6 +37,16 @@ async def test_get_project_state_tool_rejects_bad_token():
         await get_project_state(make_ctx("bogus-token"))
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_project_state_includes_caller_identity_legacy_token():
+    org = await _make_org()
+    _, raw = await _make_token(org)  # legacy ApiToken -> no user
+    result = await get_project_state(make_ctx(raw))
+    assert result["caller"]["org_slug"] == "acme"
+    assert result["caller"]["user_email"] is None
+
+
 # --- async helpers (ORM access wrapped for the async test) ---
 from asgiref.sync import sync_to_async  # noqa: E402
 

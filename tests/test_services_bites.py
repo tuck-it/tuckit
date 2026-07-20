@@ -94,3 +94,13 @@ def test_bite_belongs_to_plan_and_slice_bites_aggregates(slice_):
     create_bite(p2, "b2")
     assert [b.title for b in list_bites(p1)] == ["b1"]
     assert {b.title for b in slice_bites(slice_)} == {"b1", "b2"}
+
+
+@pytest.mark.django_db
+def test_add_bites_bulk_keeps_order(slice_):
+    from tuckit.core.services.bites import add_bites
+
+    p = create_plan(slice_, title="Plan")
+    made = add_bites(p, [{"title": "one"}, {"title": "two"}, {"title": "three"}])
+    assert [b.title for b in made] == ["one", "two", "three"]
+    assert [b.title for b in list_bites(p)] == ["one", "two", "three"]

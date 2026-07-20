@@ -4,15 +4,14 @@ from asgiref.sync import sync_to_async
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
-from tuckit.core.mcp.auth import require_org
-from tuckit.core.mcp.serializers import area_dict, bite_dict, plan_dict, slice_dict
+from tuckit.core.mcp.auth import require_caller, require_org
+from tuckit.core.mcp.serializers import activity_event_dict, area_dict, bite_dict, plan_dict, slice_dict
+from tuckit.core.services.activity import add_note as _add_note
 from tuckit.core.services.areas import create_area as _create_area
 from tuckit.core.services.areas import list_areas as _list_areas
 from tuckit.core.services.bites import (
-    create_bite as _create_bite,
+    add_bites as _add_bites,
     list_bites as _list_bites,
-    reorder_bite as _reorder_bite,
-    set_bite_status as _set_bite_status,
     update_bite as _update_bite,
 )
 from tuckit.core.services.plans import create_plan as _create_plan
@@ -22,14 +21,13 @@ from tuckit.core.services.resolve import get_area
 from tuckit.core.services.resolve import get_bite as _resolve_bite
 from tuckit.core.services.resolve import get_plan as _resolve_plan
 from tuckit.core.services.resolve import get_slice as _resolve_slice
+from tuckit.core.services.resolve import get_slice_flexible as _resolve_slice_flexible
+from tuckit.core.services.members import resolve_member
 from tuckit.core.services.slices import create_slice as _create_slice
-from tuckit.core.services.slices import list_slices as _list_slices
-from tuckit.core.services.slices import reorder_slice as _reorder_slice
-from tuckit.core.services.slices import set_slice_status as _set_slice_status
+from tuckit.core.services.slices import query_slices as _query_slices
 from tuckit.core.services.slices import update_slice as _update_slice
 from tuckit.core.services.state import get_project_state as _get_project_state
 from tuckit.core.services.state import render_slice_markdown
-from tuckit.core.services.tags import list_tags as _list_tags
 
 # FastMCP's Streamable HTTP transport enables DNS-rebinding protection (Host/Origin
 # header allowlisting) by default whenever `host` is unset/loopback (see
@@ -91,17 +89,17 @@ mcp = FastMCP(
 )
 
 
-def _project_state(org, area_id: int | None) -> dict:
-    area = get_area(org, area_id) if area_id is not None else None
-    return _get_project_state(org, area=area)
-
-
 @mcp.tool()
 async def get_project_state(ctx: Context, area_id: int | None = None) -> dict:
-    """Return the current project state (shipped / building / roadmap / ideas / someday),
-    assembled live from the org's slices and bites. Optionally scope to one area by id."""
-    org = await require_org(ctx)
-    return await sync_to_async(_project_state, thread_sensitive=True)(org, area_id)
+    """Current project state (shipped/building/roadmap/ideas/someday) plus the
+    caller's identity (user_email, org). Optionally scope to one area by id."""
+    org, user = await require_caller(ctx)
+
+    def _run():
+        area = get_area(org, area_id) if area_id is not None else None
+        return _get_project_state(org, area=area, caller_user=user)
+
+    return await sync_to_async(_run, thread_sensitive=True)()
 
 
 @mcp.tool()
@@ -127,35 +125,54 @@ async def create_area(ctx: Context, name: str, description: str = "") -> dict:
 
 
 @mcp.tool()
-async def list_tags(ctx: Context) -> list[str]:
-    """List all tag names defined in the org."""
-    org = await require_org(ctx)
+async def list_slices(
+    ctx: Context,
+    area_id: int | None = None,
+    status: str | None = None,
+    tag: str | None = None,
+    query: str | None = None,
+    assignee: str | None = None,
+    limit: int | None = 50,
+) -> list[dict]:
+    """List/search slices. All filters optional; with no area_id it searches the
+    whole org. query = text match on title/spec. assignee = 'me' or an email."""
+    org, user = await require_caller(ctx)
 
     def _run():
-        return [t.name for t in _list_tags(org)]
+        area = get_area(org, area_id) if area_id is not None else None
+        member = resolve_member(org, assignee, caller_user=user) if assignee else None
+        rows = _query_slices(
+            org, area=area, status=status, tag=tag, query=query,
+            assignee_member=member, limit=limit,
+        )
+        return [slice_dict(s) for s in rows]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
 
 @mcp.tool()
-async def list_slices(ctx: Context, area_id: int, status: str | None = None, tag: str | None = None) -> list[dict]:
-    """List slices in an area, optionally filtered by status or tag name."""
+async def get_slice(ctx: Context, slice: int | str, with_activity: bool = False) -> str:
+    """Return a slice rendered as markdown (spec + bite checklist). `slice` may be
+    a numeric id or a ref like 'tuck-it-42'. Set with_activity=true to append the
+    activity/notes thread."""
     org = await require_org(ctx)
 
     def _run():
-        area = get_area(org, area_id)
-        return [slice_dict(s) for s in _list_slices(area, status=status, tag=tag)]
+        s = _resolve_slice_flexible(org, slice)
+        return render_slice_markdown(s, with_activity=with_activity)
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
 
 @mcp.tool()
-async def get_slice(ctx: Context, slice_id: int) -> str:
-    """Return a slice rendered as markdown (its spec plus a bite checklist)."""
+async def add_note(ctx: Context, slice: int | str, body: str) -> dict:
+    """Append a free-text note to a slice's activity thread (what you did, blockers,
+    PR links). `slice` may be an id or a ref."""
     org = await require_org(ctx)
 
     def _run():
-        return render_slice_markdown(_resolve_slice(org, slice_id))
+        s = _resolve_slice_flexible(org, slice)
+        return activity_event_dict(_add_note(s, body, actor="agent"))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -214,20 +231,25 @@ async def create_slice(
     spec: str = "",
     status: str = "idea",
     tags: list[str] | None = None,
+    assignee: str | None = None,
+    external_key: str = "",
     after_id: int | None = None,
     before_id: int | None = None,
 ) -> dict:
-    """Create a slice in an area. Use status='idea' for a quick capture ('do this next session').
-    Optionally position it with after_id/before_id (another slice's id in the same area)."""
-    org = await require_org(ctx)
+    """Create a slice ('idea' = quick capture). external_key makes re-runs idempotent
+    (same key updates instead of duplicating). assignee = 'me' or an email. Optionally
+    position with after_id/before_id (another slice's id in the same area)."""
+    org, user = await require_caller(ctx)
 
     def _run():
         area = get_area(org, area_id)
+        member = resolve_member(org, assignee, caller_user=user) if assignee else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
         s = _create_slice(
             area, title, spec=spec, status=status, tags=tags,
             after=after, before=before, source="agent",
+            assignee_member=member, external_key=external_key,
         )
         return slice_dict(s)
 
@@ -242,38 +264,24 @@ async def update_slice(
     spec: str | None = None,
     status: str | None = None,
     tags: list[str] | None = None,
+    assignee: str | None = None,
+    after_id: int | None = None,
+    before_id: int | None = None,
 ) -> dict:
-    """Update a slice's title, spec, status, and/or tags (tags replace the existing set)."""
-    org = await require_org(ctx)
+    """Update a slice. `status` folds in the old set_slice_status; after_id/before_id
+    fold in reorder. `assignee`: '' clears, 'me' = you, '<email>' = that member."""
+    org, user = await require_caller(ctx)
 
     def _run():
         s = _resolve_slice(org, slice_id)
-        return slice_dict(_update_slice(s, title=title, spec=spec, status=status, tags=tags, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def set_slice_status(ctx: Context, slice_id: int, status: str) -> dict:
-    """Set a slice's status (idea/planned/building/shipped/dropped)."""
-    org = await require_org(ctx)
-
-    def _run():
-        return slice_dict(_set_slice_status(_resolve_slice(org, slice_id), status, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def reorder_slice(ctx: Context, slice_id: int, after_id: int | None = None, before_id: int | None = None) -> dict:
-    """Move a slice to just after (after_id) or just before (before_id) another slice in its area."""
-    org = await require_org(ctx)
-
-    def _run():
-        s = _resolve_slice(org, slice_id)
+        member = resolve_member(org, assignee, caller_user=user) if assignee is not None else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
-        return slice_dict(_reorder_slice(s, after=after, before=before))
+        return slice_dict(_update_slice(
+            s, title=title, spec=spec, status=status, tags=tags,
+            assignee=assignee, assignee_member=member, before=before, after=after,
+            actor="agent",
+        ))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -291,24 +299,14 @@ async def list_bites(ctx: Context, plan_id: int) -> list[dict]:
 
 
 @mcp.tool()
-async def create_bite(
-    ctx: Context,
-    plan_id: int,
-    title: str,
-    body: str = "",
-    status: str = "todo",
-    after_id: int | None = None,
-    before_id: int | None = None,
-) -> dict:
-    """Add a bite (implementation step) to a plan, optionally positioned with after_id/before_id."""
+async def add_bites(ctx: Context, plan_id: int, bites: list[dict]) -> list[dict]:
+    """Add one or more bites (implementation steps) to a plan, in order.
+    Each item: {title, body?, status?}."""
     org = await require_org(ctx)
 
     def _run():
         plan = _resolve_plan(org, plan_id)
-        after = _resolve_bite(org, after_id) if after_id is not None else None
-        before = _resolve_bite(org, before_id) if before_id is not None else None
-        b = _create_bite(plan, title, body=body, status=status, after=after, before=before, source="agent")
-        return bite_dict(b)
+        return [bite_dict(b) for b in _add_bites(plan, bites, source="agent")]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -320,37 +318,18 @@ async def update_bite(
     title: str | None = None,
     body: str | None = None,
     status: str | None = None,
+    after_id: int | None = None,
+    before_id: int | None = None,
 ) -> dict:
-    """Update a bite's title, body, and/or status."""
-    org = await require_org(ctx)
-
-    def _run():
-        b = _resolve_bite(org, bite_id)
-        return bite_dict(_update_bite(b, title=title, body=body, status=status, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def set_bite_status(ctx: Context, bite_id: int, status: str) -> dict:
-    """Set a bite's status (todo/doing/done/dropped)."""
-    org = await require_org(ctx)
-
-    def _run():
-        return bite_dict(_set_bite_status(_resolve_bite(org, bite_id), status, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def reorder_bite(ctx: Context, bite_id: int, after_id: int | None = None, before_id: int | None = None) -> dict:
-    """Move a bite to just after (after_id) or just before (before_id) another bite in its slice."""
+    """Update a bite. status folds in set_bite_status; after_id/before_id fold in reorder."""
     org = await require_org(ctx)
 
     def _run():
         b = _resolve_bite(org, bite_id)
         after = _resolve_bite(org, after_id) if after_id is not None else None
         before = _resolve_bite(org, before_id) if before_id is not None else None
-        return bite_dict(_reorder_bite(b, after=after, before=before))
+        return bite_dict(_update_bite(
+            b, title=title, body=body, status=status, before=before, after=after, actor="agent",
+        ))
 
     return await sync_to_async(_run, thread_sensitive=True)()

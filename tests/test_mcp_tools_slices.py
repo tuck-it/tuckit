@@ -6,8 +6,6 @@ from tuckit.core.mcp.server import (
     create_slice,
     get_slice,
     list_slices,
-    reorder_slice,
-    set_slice_status,
     update_slice,
 )
 from tuckit.core.models import Org
@@ -48,10 +46,10 @@ async def test_status_and_reorder():
     ctx = make_ctx(raw)
     a = await create_slice(ctx, area_id, "A")
     b = await create_slice(ctx, area_id, "B")
-    await reorder_slice(ctx, b["id"], before_id=a["id"])
+    await update_slice(ctx, b["id"], before_id=a["id"])
     listed = await list_slices(ctx, area_id)
     assert [x["title"] for x in listed] == ["B", "A"]
-    await set_slice_status(ctx, a["id"], "shipped")
+    await update_slice(ctx, a["id"], status="shipped")
     await update_slice(ctx, a["id"], title="A2")
     md = await get_slice(ctx, a["id"])
     assert "# A2" in md
@@ -79,3 +77,27 @@ async def test_cross_org_area_rejected():
     raw2 = await other_token()
     with pytest.raises(NotFound):
         await create_slice(make_ctx(raw2), area_id, "X")  # area belongs to org, not other_org
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_get_slice_accepts_ref_and_dict_has_ref():
+    _org, _other, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    s = await create_slice(ctx, area_id, "Auth", spec="x")
+    assert s["ref"].startswith("acme-")
+    md = await get_slice(ctx, s["ref"])
+    assert "# Auth" in md
+    md2 = await get_slice(ctx, s["ref"], with_activity=True)
+    assert "## Activity" in md2
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_list_slices_search_without_area():
+    _org, _other, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    await create_slice(ctx, area_id, "Auth login")
+    await create_slice(ctx, area_id, "Payments")
+    hits = await list_slices(ctx, query="login")   # no area_id -> org-wide
+    assert [s["title"] for s in hits] == ["Auth login"]

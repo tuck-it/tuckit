@@ -111,3 +111,82 @@ def test_set_slice_area_moves_and_reranks():
     assert s.area_id == backend.id
     assert list(list_slices(backend)) == [s]
     assert list(list_slices(inbox)) == []
+
+
+@pytest.mark.django_db
+def test_create_slice_allocates_sequential_number_per_org():
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s1 = create_slice(a, "One")
+    s2 = create_slice(a, "Two")
+    assert (s1.number, s2.number) == (1, 2)
+    org.refresh_from_db()
+    assert org.next_slice_number == 3
+
+
+@pytest.mark.django_db
+def test_number_is_per_org_not_global():
+    o1 = Org.objects.create(name="A", slug="a")
+    o2 = Org.objects.create(name="B", slug="b")
+    s1 = create_slice(create_area(o1, "X"), "s")
+    s2 = create_slice(create_area(o2, "Y"), "s")
+    assert s1.number == 1 and s2.number == 1
+
+
+@pytest.mark.django_db
+def test_update_slice_assign_by_email_and_clear():
+    from django.contrib.auth import get_user_model
+    from tuckit.core.models import OrgMember
+    from tuckit.core.services.members import resolve_member
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    u = get_user_model().objects.create_user(email="a@b.co", password="pw123456")
+    m = OrgMember.objects.create(user=u, org=org, role="member")
+    s = create_slice(create_area(org, "B"), "Auth")
+
+    update_slice(s, assignee="a@b.co", assignee_member=resolve_member(org, "a@b.co"))
+    s.refresh_from_db()
+    assert s.assignee_id == m.id
+
+    update_slice(s, assignee="", assignee_member=resolve_member(org, ""))
+    s.refresh_from_db()
+    assert s.assignee_id is None
+
+
+@pytest.mark.django_db
+def test_query_slices_org_wide_and_text():
+    from tuckit.core.services.slices import query_slices
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    a1, a2 = create_area(org, "OSS"), create_area(org, "Cloud")
+    create_slice(a1, "MCP search endpoint", spec="fuzzy find")
+    create_slice(a2, "Billing webhook")
+    all_ = query_slices(org)
+    assert len(all_) == 2                      # org-wide, no area needed
+    found = query_slices(org, query="webhook")
+    assert [s.title for s in found] == ["Billing webhook"]
+    in_spec = query_slices(org, query="fuzzy")
+    assert [s.title for s in in_spec] == ["MCP search endpoint"]
+
+
+@pytest.mark.django_db
+def test_create_slice_external_key_is_idempotent():
+    from tuckit.core.models import Slice
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "B")
+    s1 = create_slice(area, "Auth", external_key="branch/auth")
+    s2 = create_slice(area, "Auth v2", external_key="branch/auth")
+    assert s1.id == s2.id                 # same key -> update, not duplicate
+    s2.refresh_from_db()
+    assert s2.title == "Auth v2"
+    assert Slice.objects.filter(area__org=org).count() == 1   # no duplicate row
+
+
+@pytest.mark.django_db
+def test_create_slice_external_key_scoped_per_org():
+    o1 = Org.objects.create(name="A", slug="a")
+    o2 = Org.objects.create(name="B", slug="b")
+    s1 = create_slice(create_area(o1, "X"), "one", external_key="k")
+    s2 = create_slice(create_area(o2, "Y"), "two", external_key="k")
+    assert s1.id != s2.id                 # same key in different orgs -> distinct

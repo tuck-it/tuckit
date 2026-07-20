@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from tuckit.core.models import Area, Bite, Org, Slice, OrgStatSnapshot
+from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import list_bites, slice_bites
 from tuckit.core.services.plans import list_plans
 from tuckit.core.services.slices import list_slices
@@ -55,15 +56,20 @@ def _area_state(area: Area) -> dict:
     }
 
 
-def get_project_state(org: Org, area: Area | None = None) -> dict:
+def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> dict:
     areas = [area] if area is not None else list(Area.objects.filter(org=org, archived=False))
     return {
+        "caller": {
+            "user_email": caller_user.email if caller_user is not None else None,
+            "org_slug": org.slug,
+            "org_name": org.name,
+        },
         "org": {"name": org.name, "description": org.description},
         "areas": [_area_state(a) for a in areas],
     }
 
 
-def render_slice_markdown(slice_: Slice) -> str:
+def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     tags = " ".join(f"#{t}" for t in _tag_names(slice_))
     lines = [f"# {slice_.title}", "", f"Status: {slice_.status}"]
     if tags:
@@ -83,7 +89,26 @@ def render_slice_markdown(slice_: Slice) -> str:
             if b.body:
                 lines += [f"      {line}" for line in b.body.splitlines()]
         lines.append("")
-    return "\n".join(lines).rstrip() + "\n"
+    out = "\n".join(lines).rstrip() + "\n"
+    if with_activity:
+        out += _render_activity(slice_)
+    return out
+
+
+def _render_activity(slice_: Slice) -> str:
+    events = slice_activity(slice_)
+    if not events:
+        return ""
+    rows = ["", "## Activity", ""]
+    for e in events:
+        when = e.created_at.date().isoformat()
+        if e.verb == "noted":
+            rows.append(f"- {when} · {e.actor} noted: {e.body}")
+        elif e.from_value or e.to_value:
+            rows.append(f"- {when} · {e.actor} {e.verb} ({e.from_value}→{e.to_value})")
+        else:
+            rows.append(f"- {when} · {e.actor} {e.verb}")
+    return "\n".join(rows) + "\n"
 
 
 def home_state(org: Org) -> dict:

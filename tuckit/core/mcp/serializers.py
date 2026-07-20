@@ -1,3 +1,6 @@
+from tuckit.core.services.refs import slice_ref
+
+
 def tag_names(slice_) -> list[str]:
     return [t.name for t in slice_.tags.all()]
 
@@ -5,10 +8,12 @@ def tag_names(slice_) -> list[str]:
 def slice_dict(slice_) -> dict:
     return {
         "id": slice_.id,
+        "ref": slice_ref(slice_),
         "title": slice_.title,
         "status": slice_.status,
         "tags": tag_names(slice_),
         "area_id": slice_.area_id,
+        "assignee": (slice_.assignee.user.email if slice_.assignee_id else None),
     }
 
 
@@ -35,3 +40,15 @@ def plan_dict(plan) -> dict:
 
 def area_dict(area) -> dict:
     return {"id": area.id, "name": area.name, "slug": area.slug}
+
+
+def activity_event_dict(ev) -> dict:
+    return {
+        "id": ev.id,
+        "actor": ev.actor,
+        "verb": ev.verb,
+        "body": ev.body,
+        "from_value": ev.from_value,
+        "to_value": ev.to_value,
+        "created_at": ev.created_at.isoformat(),
+    }

@@ -96,6 +96,53 @@ def test_mcp_streamable_http_round_trip_returns_real_state(asgi_app):
 
     assert payload["org"]["name"] == "Acme"
     assert payload["org"]["description"] == "demo product"
+    assert payload["caller"]["org_slug"] == "acme"
     [area_state] = payload["areas"]
     assert area_state["name"] == "Backend"
     assert [s["title"] for s in area_state["shipped"]] == ["Auth"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_mcp_ssot_round_trip_ref_note_and_hydrate(asgi_app):
+    """Real HTTP round-trip of the new SSOT path: create a slice, capture its ref,
+    leave a note, then hydrate the slice by ref with activity and see the note."""
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+    _token, raw_token = generate_token(org, "e2e")
+    headers = {**_HEADERS_BASE, "Authorization": f"Bearer {raw_token}"}
+
+    _next_id = [10]
+
+    def call(client, name, arguments):
+        _next_id[0] += 1
+        resp = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": _next_id[0], "method": "tools/call",
+                  "params": {"name": name, "arguments": arguments}},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        result = resp.json()["result"]
+        assert result.get("isError") is not True, result
+        text = result["content"][0]["text"]
+        try:
+            return json.loads(text)
+        except (ValueError, TypeError):
+            return text  # get_slice returns raw markdown, not JSON
+
+    with TestClient(asgi_app) as client:
+        client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                    "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                               "clientInfo": {"name": "e2e", "version": "0.1"}}}, headers=headers)
+        client.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers=headers)
+
+        created = call(client, "create_slice", {"area_id": area.id, "title": "OAuth login"})
+        ref = created["ref"]
+        assert ref.startswith("acme-")
+
+        note = call(client, "add_note", {"slice": ref, "body": "blocked on Neon migration"})
+        assert note["verb"] == "noted"
+
+        md = call(client, "get_slice", {"slice": ref, "with_activity": True})
+        assert "# OAuth login" in md
+        assert "blocked on Neon migration" in md

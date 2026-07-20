@@ -17,6 +17,7 @@ class Org(models.Model):
         max_length=5, choices=SHIPPED_BOARD_MODE_CHOICES, default="count"
     )
     shipped_board_limit = models.PositiveSmallIntegerField(default=8)
+    next_slice_number = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

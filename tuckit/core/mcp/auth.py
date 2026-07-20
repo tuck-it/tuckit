@@ -1,7 +1,7 @@
 from asgiref.sync import sync_to_async
 
 from tuckit.core.services.exceptions import NotFound
-from tuckit.core.services.oauth import resolve_oauth_org
+from tuckit.core.services.oauth import resolve_oauth_caller, resolve_oauth_org
 from tuckit.core.services.tokens import resolve_org
 
 
@@ -60,3 +60,25 @@ async def require_org(ctx):
     if org is None:
         raise NotFound("invalid or unknown API token")
     return org
+
+
+def _resolve_caller(raw: str):
+    """OAuth first (carries a user), then legacy ApiToken (user=None)."""
+    oauth = resolve_oauth_caller(raw)
+    if oauth is not None:
+        return oauth
+    org = resolve_org(raw)
+    return (org, None) if org is not None else None
+
+
+async def require_caller(ctx):
+    """Resolve the caller's bearer token to (org, user|None), or raise NotFound.
+    OAuth tokens carry the acting user; legacy ApiTokens resolve user=None."""
+    request = ctx.request_context.request
+    raw = _bearer(request.headers) if request is not None else None
+    if raw is None:
+        raise NotFound("missing bearer token")
+    result = await sync_to_async(_resolve_caller, thread_sensitive=True)(raw)
+    if result is None:
+        raise NotFound("invalid or unknown API token")
+    return result

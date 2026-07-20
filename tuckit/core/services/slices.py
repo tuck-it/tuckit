@@ -1,8 +1,8 @@
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
-from tuckit.core.models import Area, Slice
+from tuckit.core.models import Area, Org, Slice
 from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.tags import get_or_create_tags
@@ -16,6 +16,27 @@ def list_slices(area: Area, status: str | None = None, tag: str | None = None) -
     if tag:
         qs = qs.filter(tags__name=tag)
     return qs
+
+
+def query_slices(org, *, area=None, status=None, tag=None, query=None,
+                 assignee_member=None, limit=None) -> list[Slice]:
+    """Org-wide slice query used by the MCP list_slices tool. All filters optional;
+    with no `area` it searches the whole org. `query` = icontains on title/spec."""
+    qs = Slice.objects.filter(area__org=org).select_related("area", "assignee__user")
+    if area is not None:
+        qs = qs.filter(area=area)
+    if status:
+        qs = qs.filter(status=status)
+    if tag:
+        qs = qs.filter(tags__name=tag)
+    if query:
+        qs = qs.filter(Q(title__icontains=query) | Q(spec__icontains=query))
+    if assignee_member is not None:
+        qs = qs.filter(assignee=assignee_member)
+    qs = qs.prefetch_related("tags").distinct()
+    if limit:
+        qs = qs[:limit]
+    return list(qs)
 
 
 STATUS_ORDER = ["idea", "planned", "building", "shipped", "dropped"]
@@ -38,10 +59,28 @@ def create_slice(
     before: Slice | None = None,
     after: Slice | None = None,
     source: str = "human",
+    assignee_member=None,
+    external_key: str = "",
 ) -> Slice:
+    if external_key:
+        existing = Slice.objects.filter(area__org=area.org, external_key=external_key).first()
+        if existing is not None:
+            # Idempotent: a re-run with the same key updates in place, no duplicate.
+            # Status is deliberately NOT touched here — create defaults to 'idea' and
+            # would otherwise regress a slice that already progressed; use update_slice
+            # to move status. Empty spec is treated as "unchanged" (spec or None).
+            return update_slice(
+                existing, title=title, spec=spec or None, tags=tags,
+                assignee=(1 if assignee_member is not None else None),
+                assignee_member=assignee_member, actor=source,
+            )
     validate_choice(status, Slice.STATUS_CHOICES, "status")
     rank = rank_for(Slice, {"area": area}, before=before, after=after)
     with transaction.atomic():
+        locked = Org.objects.select_for_update().get(pk=area.org_id)
+        number = locked.next_slice_number
+        locked.next_slice_number = number + 1
+        locked.save(update_fields=["next_slice_number"])
         slice_ = Slice.objects.create(
             area=area,
             title=title,
@@ -49,6 +88,9 @@ def create_slice(
             status=status,
             rank=rank,
             source=source,
+            number=number,
+            external_key=external_key,
+            assignee=assignee_member,
             completed_at=timezone.now() if status == "shipped" else None,
         )
         if tags:
@@ -64,8 +106,16 @@ def update_slice(
     spec: str | None = None,
     status: str | None = None,
     tags: list[str] | None = None,
+    assignee=None,
+    assignee_member=None,
+    before: Slice | None = None,
+    after: Slice | None = None,
     actor: str = "human",
 ) -> Slice:
+    """Update a slice. `status` folds in the old set_slice_status; before/after fold
+    in reorder. `assignee` is a presence flag (non-None means "set assignee") and
+    `assignee_member` is the already-resolved OrgMember (or None to clear) — the
+    caller resolves the email/'me' spec so this service stays request-context-free."""
     old_status = slice_.status
     if title is not None:
         slice_.title = title
@@ -74,6 +124,10 @@ def update_slice(
     if status is not None:
         validate_choice(status, Slice.STATUS_CHOICES, "status")
         _apply_status(slice_, status)
+    if assignee is not None:
+        slice_.assignee = assignee_member
+    if before is not None or after is not None:
+        slice_.rank = rank_for(Slice, {"area": slice_.area}, before=before, after=after)
     with transaction.atomic():
         slice_.save()
         if tags is not None:

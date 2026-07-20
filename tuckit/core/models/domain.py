@@ -48,6 +48,12 @@ class Slice(models.Model):
     tags = models.ManyToManyField(Tag, blank=True, related_name="slices")
     rank = models.CharField(max_length=255)
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="human")
+    number = models.PositiveIntegerField(null=True, blank=True)
+    external_key = models.CharField(max_length=200, blank=True, default="")
+    assignee = models.ForeignKey(
+        "core.OrgMember", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="assigned_slices",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
