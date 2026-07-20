@@ -28,7 +28,11 @@ def _success(request):
 
 
 def _render(request, step, ctx, error=None):
+    from tuckit.core.services.social import enabled_providers
+
     data = {"step": step, "next": _safe_next(request), **ctx}
+    if step == "email":
+        data["social_providers"] = enabled_providers()
     if error:
         data["error"] = error
     return render(request, "registration/login.html", data)

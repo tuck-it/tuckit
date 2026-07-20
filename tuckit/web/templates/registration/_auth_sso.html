@@ -1,2 +1,11 @@
-{% comment %}Slot for future OAuth buttons (GitHub / Google). Intentionally empty
-until the OAuth backend ships; buttons drop in here without touching the flow.{% endcomment %}
+{% if social_providers %}
+<div class="auth-sso">
+  {% for p in social_providers %}
+    <a class="button button-social" href="{% url 'web:social_begin' p.name %}{% if next %}?next={{ next|urlencode }}{% endif %}">
+      {% include "registration/_social_glyph.html" with provider=p.name %}
+      <span>Continue with {{ p.label }}</span>
+    </a>
+  {% endfor %}
+  <div class="auth-sso-divider"><span>or</span></div>
+</div>
+{% endif %}

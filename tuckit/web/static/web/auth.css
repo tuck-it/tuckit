@@ -236,3 +236,29 @@ a.auth-panel-brand:hover { opacity: 0.85; }
   .auth-panel { min-height: 140px; }
   .auth-panel-tag { font-size: 20px; }
 }
+
+/* --- Social sign-in --- */
+.auth-sso { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+.button-social {
+  width: 100%;
+  background: var(--paper-solid);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.button-social:hover { border-color: var(--ink-soft); transform: translateY(-1px); }
+.button-social .social-glyph { flex: 0 0 auto; }
+.auth-sso-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  margin: 6px 0 2px;
+}
+.auth-sso-divider::before,
+.auth-sso-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
