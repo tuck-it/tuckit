@@ -39,3 +39,15 @@ def plan_dict(plan) -> dict:
 
 def area_dict(area) -> dict:
     return {"id": area.id, "name": area.name, "slug": area.slug}
+
+
+def activity_event_dict(ev) -> dict:
+    return {
+        "id": ev.id,
+        "actor": ev.actor,
+        "verb": ev.verb,
+        "body": ev.body,
+        "from_value": ev.from_value,
+        "to_value": ev.to_value,
+        "created_at": ev.created_at.isoformat(),
+    }

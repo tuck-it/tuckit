@@ -5,7 +5,8 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from tuckit.core.mcp.auth import require_org
-from tuckit.core.mcp.serializers import area_dict, bite_dict, plan_dict, slice_dict
+from tuckit.core.mcp.serializers import activity_event_dict, area_dict, bite_dict, plan_dict, slice_dict
+from tuckit.core.services.activity import add_note as _add_note
 from tuckit.core.services.areas import create_area as _create_area
 from tuckit.core.services.areas import list_areas as _list_areas
 from tuckit.core.services.bites import (
@@ -160,6 +161,19 @@ async def get_slice(ctx: Context, slice: int | str, with_activity: bool = False)
     def _run():
         s = _resolve_slice_flexible(org, slice)
         return render_slice_markdown(s, with_activity=with_activity)
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def add_note(ctx: Context, slice: int | str, body: str) -> dict:
+    """Append a free-text note to a slice's activity thread (what you did, blockers,
+    PR links). `slice` may be an id or a ref."""
+    org = await require_org(ctx)
+
+    def _run():
+        s = _resolve_slice_flexible(org, slice)
+        return activity_event_dict(_add_note(s, body, actor="agent"))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 

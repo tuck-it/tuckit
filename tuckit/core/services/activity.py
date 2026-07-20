@@ -3,7 +3,7 @@ from tuckit.core.models import ActivityEvent
 _TARGET_TYPES = {"Slice": "slice", "Bite": "bite", "Area": "area"}
 
 
-def record_activity(org, *, actor, verb, target, from_value="", to_value=""):
+def record_activity(org, *, actor, verb, target, from_value="", to_value="", body=""):
     """Append one immutable activity row. Denormalizes target label so the log
     survives the target being deleted/dropped."""
     label = getattr(target, "title", None) or getattr(target, "name", "")
@@ -11,7 +11,7 @@ def record_activity(org, *, actor, verb, target, from_value="", to_value=""):
         target_type = _TARGET_TYPES[type(target).__name__]
     except KeyError:
         raise ValueError(f"unsupported activity target: {type(target).__name__}") from None
-    ActivityEvent.objects.create(
+    return ActivityEvent.objects.create(
         org=org,
         actor=actor,
         verb=verb,
@@ -20,7 +20,13 @@ def record_activity(org, *, actor, verb, target, from_value="", to_value=""):
         target_label=(label or "")[:300],
         from_value=from_value or "",
         to_value=to_value or "",
+        body=body or "",
     )
+
+
+def add_note(slice_, body: str, *, actor: str = "agent"):
+    """Append a free-text note to a slice's activity thread."""
+    return record_activity(slice_.area.org, actor=actor, verb="noted", target=slice_, body=body)
 
 
 def status_verb(to_status: str) -> str:

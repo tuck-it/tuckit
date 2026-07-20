@@ -41,3 +41,15 @@ def test_status_verb_maps_terminal_states():
     assert status_verb("dropped") == "dropped"
     assert status_verb("building") == "status_changed"
     assert status_verb("done") == "status_changed"
+
+
+@pytest.mark.django_db
+def test_add_note_appends_noted_event_with_body():
+    from tuckit.core.services.activity import add_note, slice_activity
+
+    org = _org("note")
+    s = create_slice(create_area(org, "B"), "Auth")
+    ev = add_note(s, "Shipped behind flag; see PR #12.", actor="agent")
+    assert ev.verb == "noted" and ev.actor == "agent"
+    assert ev.body == "Shipped behind flag; see PR #12."
+    assert [e.id for e in slice_activity(s)][-1] == ev.id
