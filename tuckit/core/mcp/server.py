@@ -5,7 +5,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from tuckit.core.mcp.auth import require_caller, require_org
-from tuckit.core.mcp.serializers import activity_event_dict, area_dict, bite_dict, plan_dict, slice_dict
+from tuckit.core.mcp.serializers import activity_event_dict, area_dict, bite_dict, plan_dict, slice_dict, ticket_dict
 from tuckit.core.services.activity import add_note as _add_note
 from tuckit.core.services.areas import create_area as _create_area
 from tuckit.core.services.areas import list_areas as _list_areas
@@ -22,12 +22,19 @@ from tuckit.core.services.resolve import get_bite as _resolve_bite
 from tuckit.core.services.resolve import get_plan as _resolve_plan
 from tuckit.core.services.resolve import get_slice as _resolve_slice
 from tuckit.core.services.resolve import get_slice_flexible as _resolve_slice_flexible
+from tuckit.core.services.resolve import get_ticket as _resolve_ticket
 from tuckit.core.services.members import resolve_member
 from tuckit.core.services.slices import create_slice as _create_slice
 from tuckit.core.services.slices import query_slices as _query_slices
 from tuckit.core.services.slices import update_slice as _update_slice
 from tuckit.core.services.state import get_project_state as _get_project_state
-from tuckit.core.services.state import render_slice_markdown
+from tuckit.core.services.state import render_slice_markdown, render_ticket_markdown
+from tuckit.core.services.tickets import (
+    create_ticket as _create_ticket,
+    query_tickets as _query_tickets,
+    update_ticket as _update_ticket,
+    promote_ticket as _promote_ticket,
+)
 
 # FastMCP's Streamable HTTP transport enables DNS-rebinding protection (Host/Origin
 # header allowlisting) by default whenever `host` is unset/loopback (see
@@ -282,6 +289,90 @@ async def update_slice(
             assignee=assignee, assignee_member=member, before=before, after=after,
             actor="agent",
         ))
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def list_tickets(
+    ctx: Context,
+    status: str = "open",
+    area_id: int | None = None,
+    query: str | None = None,
+    limit: int | None = 50,
+) -> list[dict]:
+    """List backlog tickets (default: open, not-yet-promoted = the Inbox). A
+    ticket is a lightweight capture upstream of a slice; promote one to start work."""
+    org = await require_org(ctx)
+
+    def _run():
+        area = get_area(org, area_id) if area_id is not None else None
+        rows = _query_tickets(org, status=status, area=area, query=query, limit=limit)
+        return [ticket_dict(t) for t in rows]
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def create_ticket(ctx: Context, title: str, body: str = "", area_id: int | None = None) -> dict:
+    """Capture a backlog ticket (title + optional markdown body). Lands in the
+    Inbox (no area) unless area_id is given. Promote it later to create a slice."""
+    org, user = await require_caller(ctx)
+
+    def _run():
+        area = get_area(org, area_id) if area_id is not None else None
+        member = resolve_member(org, "me", caller_user=user) if user is not None else None
+        t = _create_ticket(org, title, body=body, area=area, source="agent", created_by=member)
+        return ticket_dict(t)
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def get_ticket(ctx: Context, ticket_id: int) -> str:
+    """Return a ticket rendered as markdown (title + body + status)."""
+    org = await require_org(ctx)
+
+    def _run():
+        t = _resolve_ticket(org, ticket_id)
+        return render_ticket_markdown(t)
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def update_ticket(
+    ctx: Context,
+    ticket_id: int,
+    title: str | None = None,
+    body: str | None = None,
+    status: str | None = None,
+    area_id: int | None = None,
+) -> dict:
+    """Update a ticket. status: 'open'/'closed' (closed = won't-do). area_id files
+    it under a project (omit to leave unchanged)."""
+    org = await require_org(ctx)
+
+    def _run():
+        t = _resolve_ticket(org, ticket_id)
+        kwargs = {"title": title, "body": body, "status": status, "actor": "agent"}
+        if area_id is not None:
+            kwargs["area"] = get_area(org, area_id)
+        return ticket_dict(_update_ticket(t, **kwargs))
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def promote_ticket(ctx: Context, ticket_id: int, area_id: int | None = None) -> dict:
+    """Promote a ticket into a planned slice (inherits the ticket's ref). area_id
+    is required only if the ticket has no area yet."""
+    org = await require_org(ctx)
+
+    def _run():
+        t = _resolve_ticket(org, ticket_id)
+        area = get_area(org, area_id) if area_id is not None else None
+        return slice_dict(_promote_ticket(t, area=area, actor="agent"))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 

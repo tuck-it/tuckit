@@ -57,7 +57,9 @@ def _area_state(area: Area) -> dict:
 
 
 def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> dict:
+    from tuckit.core.services.tickets import query_tickets
     areas = [area] if area is not None else list(Area.objects.filter(org=org, archived=False))
+    inbox = query_tickets(org, limit=10)
     return {
         "caller": {
             "user_email": caller_user.email if caller_user is not None else None,
@@ -65,6 +67,10 @@ def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> d
             "org_name": org.name,
         },
         "org": {"name": org.name, "description": org.description},
+        "inbox": {
+            "open_count": len(query_tickets(org)),
+            "recent": [{"id": t.id, "title": t.title} for t in inbox],
+        },
         "areas": [_area_state(a) for a in areas],
     }
 
@@ -93,6 +99,13 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     if with_activity:
         out += _render_activity(slice_)
     return out
+
+
+def render_ticket_markdown(ticket) -> str:
+    lines = [f"# {ticket.title}", "", f"Status: {ticket.status}", ""]
+    if ticket.body:
+        lines += [ticket.body, ""]
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _render_activity(slice_: Slice) -> str:

@@ -1,4 +1,4 @@
-from tuckit.core.services.refs import slice_ref
+from tuckit.core.services.refs import slice_ref, ticket_ref
 
 
 def tag_names(slice_) -> list[str]:
@@ -40,6 +40,18 @@ def plan_dict(plan) -> dict:
 
 def area_dict(area) -> dict:
     return {"id": area.id, "name": area.name, "slug": area.slug}
+
+
+def ticket_dict(ticket) -> dict:
+    return {
+        "id": ticket.id,
+        "ref": ticket_ref(ticket),
+        "title": ticket.title,
+        "status": ticket.status,
+        "area_id": ticket.area_id,
+        "created_by": (ticket.created_by.user.email if ticket.created_by_id else None),
+        "source": ticket.source,
+    }
 
 
 def activity_event_dict(ev) -> dict:
