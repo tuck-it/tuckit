@@ -69,8 +69,16 @@ def update_slice(
     spec: str | None = None,
     status: str | None = None,
     tags: list[str] | None = None,
+    assignee=None,
+    assignee_member=None,
+    before: Slice | None = None,
+    after: Slice | None = None,
     actor: str = "human",
 ) -> Slice:
+    """Update a slice. `status` folds in the old set_slice_status; before/after fold
+    in reorder. `assignee` is a presence flag (non-None means "set assignee") and
+    `assignee_member` is the already-resolved OrgMember (or None to clear) — the
+    caller resolves the email/'me' spec so this service stays request-context-free."""
     old_status = slice_.status
     if title is not None:
         slice_.title = title
@@ -79,6 +87,10 @@ def update_slice(
     if status is not None:
         validate_choice(status, Slice.STATUS_CHOICES, "status")
         _apply_status(slice_, status)
+    if assignee is not None:
+        slice_.assignee = assignee_member
+    if before is not None or after is not None:
+        slice_.rank = rank_for(Slice, {"area": slice_.area}, before=before, after=after)
     with transaction.atomic():
         slice_.save()
         if tags is not None:

@@ -13,6 +13,7 @@ def slice_dict(slice_) -> dict:
         "status": slice_.status,
         "tags": tag_names(slice_),
         "area_id": slice_.area_id,
+        "assignee": (slice_.assignee.user.email if slice_.assignee_id else None),
     }
 
 

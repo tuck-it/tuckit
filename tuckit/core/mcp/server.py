@@ -24,10 +24,9 @@ from tuckit.core.services.resolve import get_bite as _resolve_bite
 from tuckit.core.services.resolve import get_plan as _resolve_plan
 from tuckit.core.services.resolve import get_slice as _resolve_slice
 from tuckit.core.services.resolve import get_slice_flexible as _resolve_slice_flexible
+from tuckit.core.services.members import resolve_member
 from tuckit.core.services.slices import create_slice as _create_slice
 from tuckit.core.services.slices import list_slices as _list_slices
-from tuckit.core.services.slices import reorder_slice as _reorder_slice
-from tuckit.core.services.slices import set_slice_status as _set_slice_status
 from tuckit.core.services.slices import update_slice as _update_slice
 from tuckit.core.services.state import get_project_state as _get_project_state
 from tuckit.core.services.state import render_slice_markdown
@@ -260,38 +259,24 @@ async def update_slice(
     spec: str | None = None,
     status: str | None = None,
     tags: list[str] | None = None,
+    assignee: str | None = None,
+    after_id: int | None = None,
+    before_id: int | None = None,
 ) -> dict:
-    """Update a slice's title, spec, status, and/or tags (tags replace the existing set)."""
-    org = await require_org(ctx)
+    """Update a slice. `status` folds in the old set_slice_status; after_id/before_id
+    fold in reorder. `assignee`: '' clears, 'me' = you, '<email>' = that member."""
+    org, user = await require_caller(ctx)
 
     def _run():
         s = _resolve_slice(org, slice_id)
-        return slice_dict(_update_slice(s, title=title, spec=spec, status=status, tags=tags, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def set_slice_status(ctx: Context, slice_id: int, status: str) -> dict:
-    """Set a slice's status (idea/planned/building/shipped/dropped)."""
-    org = await require_org(ctx)
-
-    def _run():
-        return slice_dict(_set_slice_status(_resolve_slice(org, slice_id), status, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def reorder_slice(ctx: Context, slice_id: int, after_id: int | None = None, before_id: int | None = None) -> dict:
-    """Move a slice to just after (after_id) or just before (before_id) another slice in its area."""
-    org = await require_org(ctx)
-
-    def _run():
-        s = _resolve_slice(org, slice_id)
+        member = resolve_member(org, assignee, caller_user=user) if assignee is not None else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
-        return slice_dict(_reorder_slice(s, after=after, before=before))
+        return slice_dict(_update_slice(
+            s, title=title, spec=spec, status=status, tags=tags,
+            assignee=assignee, assignee_member=member, before=before, after=after,
+            actor="agent",
+        ))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 

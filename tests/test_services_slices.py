@@ -131,3 +131,23 @@ def test_number_is_per_org_not_global():
     s1 = create_slice(create_area(o1, "X"), "s")
     s2 = create_slice(create_area(o2, "Y"), "s")
     assert s1.number == 1 and s2.number == 1
+
+
+@pytest.mark.django_db
+def test_update_slice_assign_by_email_and_clear():
+    from django.contrib.auth import get_user_model
+    from tuckit.core.models import OrgMember
+    from tuckit.core.services.members import resolve_member
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    u = get_user_model().objects.create_user(email="a@b.co", password="pw123456")
+    m = OrgMember.objects.create(user=u, org=org, role="member")
+    s = create_slice(create_area(org, "B"), "Auth")
+
+    update_slice(s, assignee="a@b.co", assignee_member=resolve_member(org, "a@b.co"))
+    s.refresh_from_db()
+    assert s.assignee_id == m.id
+
+    update_slice(s, assignee="", assignee_member=resolve_member(org, ""))
+    s.refresh_from_db()
+    assert s.assignee_id is None

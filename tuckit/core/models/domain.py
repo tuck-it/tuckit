@@ -49,6 +49,10 @@ class Slice(models.Model):
     rank = models.CharField(max_length=255)
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="human")
     number = models.PositiveIntegerField(null=True, blank=True)
+    assignee = models.ForeignKey(
+        "core.OrgMember", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="assigned_slices",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
