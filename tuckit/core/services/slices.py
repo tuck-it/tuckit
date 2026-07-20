@@ -59,7 +59,21 @@ def create_slice(
     before: Slice | None = None,
     after: Slice | None = None,
     source: str = "human",
+    assignee_member=None,
+    external_key: str = "",
 ) -> Slice:
+    if external_key:
+        existing = Slice.objects.filter(area__org=area.org, external_key=external_key).first()
+        if existing is not None:
+            # Idempotent: a re-run with the same key updates in place, no duplicate.
+            # Status is deliberately NOT touched here — create defaults to 'idea' and
+            # would otherwise regress a slice that already progressed; use update_slice
+            # to move status. Empty spec is treated as "unchanged" (spec or None).
+            return update_slice(
+                existing, title=title, spec=spec or None, tags=tags,
+                assignee=(1 if assignee_member is not None else None),
+                assignee_member=assignee_member, actor=source,
+            )
     validate_choice(status, Slice.STATUS_CHOICES, "status")
     rank = rank_for(Slice, {"area": area}, before=before, after=after)
     with transaction.atomic():
@@ -75,6 +89,8 @@ def create_slice(
             rank=rank,
             source=source,
             number=number,
+            external_key=external_key,
+            assignee=assignee_member,
             completed_at=timezone.now() if status == "shipped" else None,
         )
         if tags:

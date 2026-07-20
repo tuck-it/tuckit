@@ -167,3 +167,26 @@ def test_query_slices_org_wide_and_text():
     assert [s.title for s in found] == ["Billing webhook"]
     in_spec = query_slices(org, query="fuzzy")
     assert [s.title for s in in_spec] == ["MCP search endpoint"]
+
+
+@pytest.mark.django_db
+def test_create_slice_external_key_is_idempotent():
+    from tuckit.core.models import Slice
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "B")
+    s1 = create_slice(area, "Auth", external_key="branch/auth")
+    s2 = create_slice(area, "Auth v2", external_key="branch/auth")
+    assert s1.id == s2.id                 # same key -> update, not duplicate
+    s2.refresh_from_db()
+    assert s2.title == "Auth v2"
+    assert Slice.objects.filter(area__org=org).count() == 1   # no duplicate row
+
+
+@pytest.mark.django_db
+def test_create_slice_external_key_scoped_per_org():
+    o1 = Org.objects.create(name="A", slug="a")
+    o2 = Org.objects.create(name="B", slug="b")
+    s1 = create_slice(create_area(o1, "X"), "one", external_key="k")
+    s2 = create_slice(create_area(o2, "Y"), "two", external_key="k")
+    assert s1.id != s2.id                 # same key in different orgs -> distinct

@@ -245,20 +245,25 @@ async def create_slice(
     spec: str = "",
     status: str = "idea",
     tags: list[str] | None = None,
+    assignee: str | None = None,
+    external_key: str = "",
     after_id: int | None = None,
     before_id: int | None = None,
 ) -> dict:
-    """Create a slice in an area. Use status='idea' for a quick capture ('do this next session').
-    Optionally position it with after_id/before_id (another slice's id in the same area)."""
-    org = await require_org(ctx)
+    """Create a slice ('idea' = quick capture). external_key makes re-runs idempotent
+    (same key updates instead of duplicating). assignee = 'me' or an email. Optionally
+    position with after_id/before_id (another slice's id in the same area)."""
+    org, user = await require_caller(ctx)
 
     def _run():
         area = get_area(org, area_id)
+        member = resolve_member(org, assignee, caller_user=user) if assignee else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
         s = _create_slice(
             area, title, spec=spec, status=status, tags=tags,
             after=after, before=before, source="agent",
+            assignee_member=member, external_key=external_key,
         )
         return slice_dict(s)
 
