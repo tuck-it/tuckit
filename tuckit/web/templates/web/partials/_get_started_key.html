@@ -15,7 +15,7 @@
 </div>
 <div class="gs-snip" x-data>
   <label>Claude Code</label>
-  <pre class="gs-code" x-ref="cc">claude mcp add tuckit --transport http {{ mcp_url }} --header "Authorization: Bearer {{ raw_token }}"</pre>
+  <pre class="gs-code" x-ref="cc">claude mcp add --transport http tuckit {{ mcp_url }} --header "Authorization: Bearer {{ raw_token }}"</pre>
   <button type="button" class="gs-mini" x-on:click="navigator.clipboard.writeText($refs.cc.textContent)">Copy</button>
 </div>
 {% include "web/partials/_get_started_listen.html" %}

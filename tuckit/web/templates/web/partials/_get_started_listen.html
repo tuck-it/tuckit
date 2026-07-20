@@ -1,7 +1,9 @@
 {% load web_extras %}
-<div id="{{ listen_id|default:'gs-listen' }}" class="gs-listen"
-     hx-get="{% wurl 'web:onboarding_agent_check' %}?since={{ agent_baseline }}&lid={{ listen_id|default:'gs-listen' }}"
-     hx-trigger="every 3s" hx-target="#{{ listen_id|default:'gs-listen' }}" hx-swap="outerHTML">
+{% with lid=listen_id|default:'gs-listen' %}
+<div id="{{ lid }}" class="gs-listen"
+     hx-get="{% wurl 'web:onboarding_agent_check' %}?since={{ agent_baseline }}&lid={{ lid }}"
+     hx-trigger="every 3s" hx-target="#{{ lid }}" hx-swap="outerHTML">
   <span class="gs-radar" aria-hidden="true"></span>
   <span><b>Listening for your agent…</b> ask it to capture or create something.</span>
 </div>
+{% endwith %}
