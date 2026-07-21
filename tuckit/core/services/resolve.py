@@ -70,12 +70,15 @@ def get_ticket_by_ref(org: Org, ref: str) -> Ticket:
 
 def resolve_ref(org: Org, ref: str):
     """Resolve a '<slug>-<n>' ref to its current form: the Slice with that number
-    if one exists (i.e. the Ticket was promoted), otherwise the Ticket."""
+    if one exists (i.e. the Ticket was promoted), the Slice that absorbed the
+    Ticket if it was folded into other work, otherwise the Ticket itself."""
     number = parse_slice_ref(org, ref)
-    s = Slice.objects.filter(number=number, area__org=org).first()
+    s = Slice.objects.filter(number=number, org=org).first()
     if s is not None:
         return s
     t = Ticket.objects.filter(number=number, org=org).first()
     if t is not None:
-        return t
+        # An absorbed ticket's work lives under another ref. Follow the explicit
+        # link rather than the number, which only ever finds origins.
+        return t.slice or t
     raise NotFound(f"ref {ref} not found for org {org.slug!r}")

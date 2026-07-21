@@ -67,3 +67,45 @@ def test_get_slice_by_ref_and_flexible():
     assert get_slice_by_ref(org, f"acme-{s.number}").id == s.id
     assert get_slice_flexible(org, f"acme-{s.number}").id == s.id
     assert get_slice_flexible(org, s.id).id == s.id
+
+
+@pytest.mark.django_db
+def test_absorbed_ticket_ref_resolves_to_the_owning_slice():
+    """A ref names a piece of work and resolves to its current form. After an
+    absorb the work lives on the slice, so the absorbed ticket's ref must lead
+    there too — otherwise the invariant holds for promotion but not for merges."""
+    from tuckit.core.models import Org
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.refs import ticket_ref
+    from tuckit.core.services.resolve import resolve_ref
+    from tuckit.core.services.tickets import absorb_ticket, create_ticket, promote_ticket
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+    s = promote_ticket(create_ticket(org, "Origin", area=area))
+    extra = create_ticket(org, "Extra", area=area)
+    extra_ref = ticket_ref(extra)
+    absorb_ticket(extra, s)
+
+    assert resolve_ref(org, extra_ref) == s
+
+
+@pytest.mark.django_db
+def test_released_ticket_ref_goes_back_to_the_ticket():
+    from tuckit.core.models import Org
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.refs import ticket_ref
+    from tuckit.core.services.resolve import resolve_ref
+    from tuckit.core.services.tickets import (
+        absorb_ticket, create_ticket, promote_ticket, release_ticket,
+    )
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+    s = promote_ticket(create_ticket(org, "Origin", area=area))
+    extra = create_ticket(org, "Extra", area=area)
+    absorb_ticket(extra, s)
+    release_ticket(extra)
+    extra.refresh_from_db()
+
+    assert resolve_ref(org, ticket_ref(extra)) == extra
