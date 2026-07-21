@@ -113,6 +113,17 @@ def resolve_ticket(ticket: Ticket, resolution: str, *, actor: str = "human") -> 
     return _apply_status(ticket, resolution, actor=actor)
 
 
+def reopen_ticket(ticket: Ticket, *, actor: str = "human") -> Ticket:
+    """Send a dismissed/duplicate ticket back to the Inbox — triage decisions are
+    revisable. A promoted ticket is NOT reopenable: a Slice already exists and
+    owns the work, so undoing that is a demote, not a reopen."""
+    if ticket.status == "open":
+        return ticket
+    if ticket.status == "promoted":
+        raise InvalidValue("a promoted ticket already has a slice — it cannot be reopened")
+    return _apply_status(ticket, "open", actor=actor)
+
+
 def _apply_status(ticket: Ticket, status: str, *, actor: str, to_value: str = "") -> Ticket:
     old = ticket.status
     ticket.status = status

@@ -1,0 +1,7 @@
+{% load web_extras %}
+{% comment %}
+  The other side of the dismiss door: what we decided not to build stays
+  readable instead of vanishing. The wrapper renders even when there is nothing
+  dismissed, so it remains an OOB target once the first dismissal happens.
+{% endcomment %}
+<span id="inbox-dismissed-link"{% if oob %} hx-swap-oob="true"{% endif %}>{% if dismissed_count %}<a class="group-more" href="{% wurl 'web:inbox' %}?status=dismissed">{{ dismissed_count }} dismissed →</a>{% endif %}</span>

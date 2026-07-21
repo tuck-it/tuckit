@@ -1,12 +1,22 @@
 {# Toast — always shown, auto-dismisses. Replaces the persistent #toast region. #}
 <div id="toast" hx-swap-oob="true" class="toast" x-data="{show:true}"
-     x-init="setTimeout(() => show=false, 1800)" x-show="show" x-transition x-cloak>Captured in Inbox.</div>
+     x-init="setTimeout(() => show=false, 1800)" x-show="show" x-transition x-cloak>{{ toast_message|default:"Captured in Inbox." }}</div>
 
 {# Count badge — always refreshed (context processor supplies inbox_count). #}
 {% include "web/partials/_inbox_count.html" with oob=True %}
 
-{# Triage list — OOB re-render of the whole list (matches what a page reload
-   shows). Lands only if #triage-list is on-screen; htmx skips it
-   (oobErrorNoTarget) on every other page. Re-rendering by id with
-   hx-swap-oob="true" is reliable, unlike positional (afterbegin) OOB. #}
+{% comment %}
+  Triage list — OOB re-render of the whole list (matches what a page reload
+  shows). Lands only if #triage-list is on-screen; htmx skips it
+  (oobErrorNoTarget) on every other page. Re-rendering by id with
+  hx-swap-oob="true" is reliable, unlike positional (afterbegin) OOB.
+{% endcomment %}
 {% include "web/partials/_ticket_list.html" with oob=True %}
+
+{% comment %}
+  Inbox page-head bits — the sidebar badge above is not the only count on
+  screen, and a header left at the old number contradicts it. Like the list,
+  these land only when the Inbox page is open.
+{% endcomment %}
+{% include "web/partials/_inbox_head_count.html" with oob=True %}
+{% include "web/partials/_inbox_dismissed_link.html" with oob=True %}

@@ -1,0 +1,5 @@
+{% comment %}
+  Page-head count. Always rendered (even at zero) so it stays present as an OOB
+  target — an element that disappears can never be swapped back in.
+{% endcomment %}
+<span class="page-count" id="inbox-head-count"{% if oob %} hx-swap-oob="true"{% endif %}>{{ tickets|length }}</span>

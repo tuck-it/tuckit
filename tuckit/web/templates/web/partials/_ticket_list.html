@@ -1,4 +1,4 @@
 <div class="panel" id="triage-list"{% if oob %} hx-swap-oob="true"{% endif %}>
   {% for ticket in tickets %}{% include "web/partials/_ticket_row.html" %}{% endfor %}
-  {% if not tickets %}<div class="empty muted" id="triage-empty">Nothing to triage. Capture a note (press C) — or let your agent add one.</div>{% endif %}
+  {% if not tickets %}<div class="empty muted" id="triage-empty">{% if resolved_view %}Nothing dismissed yet.{% else %}Nothing to triage. Capture a note (press C) — or let your agent add one.{% endif %}</div>{% endif %}
 </div>

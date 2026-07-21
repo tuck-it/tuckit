@@ -123,3 +123,106 @@ def test_inbox_heading_and_agent_source_badge(client_local, org):
     body = client_local.get(f"{p}/inbox/").content.decode()
     assert '<h1 class="page-title">Inbox</h1>' in body       # renamed heading
     assert 'class="source-badge is-agent"' in body           # agent item flagged
+
+@pytest.mark.django_db
+def test_ticket_dismiss_leaves_inbox_and_refreshes_count(client_local, org):
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Not doing this")
+    create_ticket(org, "Keeping this")
+    resp = client_local.post(f"{p}/tickets/{t.id}/dismiss", HTTP_HX_REQUEST="true")
+    assert resp.status_code == 200
+    t.refresh_from_db()
+    assert t.status == "dismissed" and t.resolved_at is not None
+    body = resp.content.decode()
+    # OOB list without the dismissed row, OOB count, and a toast
+    assert 'id="triage-list"' in body and "Not doing this" not in body
+    assert "Keeping this" in body
+    assert 'id="triage-count"' in body and ">1<" in body
+    assert "Dismissed." in body
+
+@pytest.mark.django_db
+def test_dismissing_the_last_ticket_restores_the_empty_state(client_local, org):
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Only one")
+    body = client_local.post(f"{p}/tickets/{t.id}/dismiss", HTTP_HX_REQUEST="true").content.decode()
+    assert 'id="triage-empty"' in body
+
+@pytest.mark.django_db
+def test_dismissed_tickets_are_reviewable_and_restorable(client_local, org):
+    """A dismissal must not be a one-way door — the whole point of splitting
+    'decided against' out of the old `closed`."""
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Changed my mind")
+    client_local.post(f"{p}/tickets/{t.id}/dismiss", HTTP_HX_REQUEST="true")
+
+    inbox = client_local.get(f"{p}/inbox/").content.decode()
+    assert "Changed my mind" not in inbox          # gone from the Inbox
+    assert "1 dismissed" in inbox                   # but the door is visible
+
+    review = client_local.get(f"{p}/inbox/?status=dismissed").content.decode()
+    assert "Changed my mind" in review
+    assert "Restore" in review
+    assert "Assign area" not in review              # review list is read-only
+
+    resp = client_local.post(f"{p}/tickets/{t.id}/reopen", HTTP_HX_REQUEST="true")
+    assert resp.status_code == 200
+    t.refresh_from_db()
+    assert t.status == "open" and t.resolved_at is None
+    # restoring from the dismissed view re-renders THAT list, not the open one
+    assert "Changed my mind" not in resp.content.decode()
+    assert "Changed my mind" in client_local.get(f"{p}/inbox/").content.decode()
+
+@pytest.mark.django_db
+def test_promoted_ticket_cannot_be_reopened(client_local, org):
+    """Reopen is a triage undo, not a demote — a slice already owns the work."""
+    p = f"/{org.slug}"
+    area = create_area(org, "Backend")
+    t = create_ticket(org, "Already building", area=area)
+    client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "planned"},
+                      HTTP_HX_REQUEST="true")
+    resp = client_local.post(f"{p}/tickets/{t.id}/reopen", HTTP_HX_REQUEST="true")
+    assert resp.status_code == 400
+    t.refresh_from_db()
+    assert t.status == "promoted"
+
+@pytest.mark.django_db
+def test_promote_refreshes_the_sidebar_count(client_local, org):
+    p = f"/{org.slug}"
+    area = create_area(org, "Backend")
+    t = create_ticket(org, "To promote")
+    resp = client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "planned"},
+                             HTTP_HX_REQUEST="true")
+    body = resp.content.decode()
+    assert 'id="triage-count"' in body      # count followed the row out of the inbox
+    assert "To promote" not in body
+
+@pytest.mark.django_db
+def test_bogus_status_filter_falls_back_to_the_inbox(client_local, org):
+    p = f"/{org.slug}"
+    create_ticket(org, "Open item")
+    body = client_local.get(f"{p}/inbox/?status=nonsense").content.decode()
+    assert "Open item" in body
+    assert '<h1 class="page-title">Inbox</h1>' in body
+
+@pytest.mark.django_db
+def test_dismiss_refreshes_the_page_head_not_just_the_sidebar(client_local, org):
+    """Two counts are on screen at once; leaving the header stale makes the page
+    contradict itself (sidebar 3, heading 4)."""
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Going away")
+    create_ticket(org, "Staying")
+    body = client_local.post(f"{p}/tickets/{t.id}/dismiss", HTTP_HX_REQUEST="true").content.decode()
+    assert 'id="inbox-head-count"' in body          # page heading count
+    assert 'id="triage-count"' in body              # sidebar badge
+    assert 'id="inbox-dismissed-link"' in body      # and the review-surface link
+    assert "1 dismissed" in body
+
+@pytest.mark.django_db
+def test_inbox_head_targets_exist_even_when_empty(client_local, org):
+    """OOB targets must be on the page before the first dismissal, or the swap
+    has nowhere to land."""
+    p = f"/{org.slug}"
+    body = client_local.get(f"{p}/inbox/").content.decode()
+    assert 'id="inbox-head-count"' in body
+    assert 'id="inbox-dismissed-link"' in body
+    assert "dismissed →" not in body                # present but empty

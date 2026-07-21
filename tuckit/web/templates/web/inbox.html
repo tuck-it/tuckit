@@ -3,12 +3,19 @@
 {% block main %}
   <header class="page-head">
     <div class="page-head-l">
-      <h1 class="page-title">Inbox</h1>
-      <span class="page-count">{{ tickets|length }}</span>
+      <h1 class="page-title">{% if resolved_view %}Dismissed{% else %}Inbox{% endif %}</h1>
+      {% include "web/partials/_inbox_head_count.html" %}
     </div>
-    <button class="button button-small" type="button"
-            x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
-      {% icon "plus" %}<span>Capture</span></button>
+    {% if resolved_view %}
+      <a class="button button-small" href="{% wurl 'web:inbox' %}">Back to Inbox</a>
+    {% else %}
+      <div class="page-head-r">
+        {% include "web/partials/_inbox_dismissed_link.html" %}
+        <button class="button button-small" type="button"
+                x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
+          {% icon "plus" %}<span>Capture</span></button>
+      </div>
+    {% endif %}
   </header>
   <section class="group group--inbox">
     {% include "web/partials/_ticket_list.html" %}

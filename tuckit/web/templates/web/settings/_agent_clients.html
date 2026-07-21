@@ -1,5 +1,7 @@
-{# Compact client switcher — one snippet visible at a time. All four panes
-   (Claude Code, Cursor, Codex CLI, Antigravity) carry verified connect config. #}
+{% comment %}
+  Compact client switcher — one snippet visible at a time. All four panes
+  (Claude Code, Cursor, Codex CLI, Antigravity) carry verified connect config.
+{% endcomment %}
 <div class="agent-clients" x-data="{client:'claude'}">
   <div class="agent-clients-tabs" role="tablist">
     <button type="button" class="agent-tab" :class="{'agent-tab--on': client==='claude'}" x-on:click="client='claude'">Claude Code</button>

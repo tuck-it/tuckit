@@ -8,7 +8,10 @@ from django.urls import reverse
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.areas import create_area, list_areas, update_area, delete_area, reorder_area
 from tuckit.core.services.slices import create_slice, set_slice_status, grouped_slices
-from tuckit.core.services.tickets import create_ticket, query_tickets, promote_ticket
+from tuckit.core.services.tickets import (
+    create_ticket, query_tickets, ticket_queryset, promote_ticket, reopen_ticket,
+    resolve_ticket,
+)
 from tuckit.core.services.resolve import get_area, get_ticket, get_area_by_slug
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import redirect_response, widget_oob
@@ -49,11 +52,7 @@ def capture(request):
         # Inbox list (lands only if that page is open; htmx ignores OOB targets
         # absent from the current page, so one response fits every page).
         create_ticket(org, title, source="human")
-        return render(request, "web/partials/_capture_result.html", {
-            "tickets": query_tickets(org),
-            "areas": list(list_areas(org)),
-            "statuses": _SLICE_STATUSES,
-        })
+        return _inbox_result(request, org, "Captured in Inbox.")
 
     if area is None:
         return HttpResponse("Choose an area to save more than a quick note.", status=400)
@@ -67,13 +66,69 @@ def capture(request):
     return redirect_response(request, "web:slice", org_slug=org.slug, slice_id=slice_.id)
 
 
+_REVIEWABLE_TICKET_STATUSES = {"dismissed", "duplicate"}
+
+
 def inbox(request):
+    """The Inbox (open tickets), plus a ?status= review surface for tickets that
+    were triaged away — same URL, same list, mirroring the Board's shipped
+    archive. Without it a dismissal is a one-way door with nothing on the
+    other side."""
     org = get_current_org(request)
+    status = request.GET.get("status")
+    resolved_view = status if status in _REVIEWABLE_TICKET_STATUSES else ""
     return render(request, "web/inbox.html", {
-        "tickets": query_tickets(org),
+        "tickets": query_tickets(org, status=resolved_view or "open"),
         "areas": list(list_areas(org)),
         "statuses": _SLICE_STATUSES,
+        "resolved_view": resolved_view,
+        "dismissed_count": ticket_queryset(org, status="dismissed").count(),
     })
+
+
+def _inbox_result(request, org, message, *, resolved_view=""):
+    """Response for an action that moves a ticket out of (or back into) the
+    Inbox: OOB-swap the whole list — so the empty state reappears — plus the
+    sidebar count and a toast. The row itself needs no target; the caller uses
+    hx-swap="none".
+
+    `resolved_view` names the list the user is looking at, so restoring from
+    ?status=dismissed re-renders the dismissed list rather than swapping the
+    open one in under a "Dismissed" heading."""
+    return render(request, "web/partials/_capture_result.html", {
+        "tickets": query_tickets(org, status=resolved_view or "open"),
+        "areas": list(list_areas(org)),
+        "statuses": _SLICE_STATUSES,
+        "resolved_view": resolved_view,
+        "dismissed_count": ticket_queryset(org, status="dismissed").count(),
+        "toast_message": message,
+    })
+
+
+def ticket_dismiss(request, ticket_id):
+    """Triage a ticket away without building it. Recoverable: it stays readable
+    under ?status=dismissed and can be restored from there."""
+    org = get_current_org(request)
+    try:
+        ticket = get_ticket(org, ticket_id)
+    except NotFound:
+        raise Http404
+    resolve_ticket(ticket, "dismissed", actor="human")
+    return _inbox_result(request, org, "Dismissed.")
+
+
+def ticket_reopen(request, ticket_id):
+    org = get_current_org(request)
+    try:
+        ticket = get_ticket(org, ticket_id)
+    except NotFound:
+        raise Http404
+    try:
+        reopen_ticket(ticket, actor="human")
+    except InvalidValue as e:
+        return HttpResponse(str(e), status=400)
+    # Restore is only reachable from the dismissed review list — stay on it.
+    return _inbox_result(request, org, "Back in the Inbox.", resolved_view="dismissed")
 
 
 def ticket_promote(request, ticket_id):
@@ -107,7 +162,7 @@ def ticket_promote(request, ticket_id):
         return HttpResponse(str(e), status=400)
     if status and status != slice_.status:
         set_slice_status(slice_, status, actor="human")
-    return HttpResponse(status=204)  # htmx removes the row via hx-swap
+    return _inbox_result(request, org, "Promoted to a slice.")
 
 
 def area_create(request):

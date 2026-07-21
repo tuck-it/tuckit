@@ -524,6 +524,21 @@ body { padding: 0; }
   padding: 3px 6px;
 }
 .triage-select:focus { outline: none; border-color: var(--blue); }
+/* Dismiss — quiet icon action; rides the same hover-reveal as the selects. */
+.triage-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: var(--space-2);
+}
+.triage-dismiss:hover { border-color: var(--line); }
+.triage-dismiss:hover .icon { stroke: var(--ink); }
+.triage-dismiss .icon { width: 14px; height: 14px; }
 
 /* Capture modal — plain centered overlay, no gradient/shadow. */
 .capture-overlay {
@@ -851,6 +866,9 @@ body { padding: 0; }
 }
 .page-title { margin: 0; font-size: var(--text-title); font-weight: 670; letter-spacing: -0.03em; }
 .page-head-l { display: flex; align-items: baseline; gap: 10px; }
+/* Right-hand header cluster (quiet link + primary action). */
+.page-head-r { display: flex; align-items: center; gap: var(--space-6); }
+.page-head-r .group-more { margin-top: 0; }
 .page-count { color: var(--ink-faint); font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
 
 .area-desc {
