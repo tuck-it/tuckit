@@ -6,10 +6,16 @@
       {% if it.slice %}
         {% include "web/partials/_slice_row.html" with slice=it.slice reason=lbl %}
       {% else %}
-        <a class="slice-row" href="{% url 'web:inbox' current_org.slug %}">
+        {% comment %}
+          Deep-links to the ticket itself, not just "the Inbox": ?ticket=<id>
+          lands on the Inbox with that ticket's modal open, so the item you were
+          nudged about is the one in front of you.
+        {% endcomment %}
+        <a class="slice-row" href="{% url 'web:inbox' current_org.slug %}?ticket={{ it.ticket.id }}">
           {% include "web/partials/_status_dot.html" with status=it.ticket.status %}
           <span class="row-main">
             <span class="row-title">{{ it.ticket.title }}</span>
+            {% if it.ticket.body %}<span class="row-desc">{{ it.ticket.body|spec_summary }}</span>{% endif %}
           </span>
           {% if lbl %}<span class="row-reason">{{ lbl }}</span>{% endif %}
           <span class="row-arrow" aria-hidden="true">{% icon "chevron" "icon" %}</span>

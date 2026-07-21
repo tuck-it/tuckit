@@ -75,7 +75,12 @@
   <div id="member-modal" class="modal-overlay" role="dialog" aria-modal="true"
        x-on:click.self="closeMemberModal()"
        x-on:keydown.escape="$el.innerHTML.trim() && closeMemberModal()"
-       x-on:keydown.tab="trapMemberModal($event, $el)"></div>
+       x-on:keydown.tab="trapOverlay($event, $el)"></div>
+  <div id="ticket-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title"
+       {% with tid=request.GET.ticket|ascii_int %}{% if tid %}hx-get="{% wurl 'web:ticket' tid %}" hx-trigger="load" hx-target="#ticket-modal"{% endif %}{% endwith %}
+       x-on:click.self="closeTicketModal()"
+       x-on:keydown.escape="$el.innerHTML.trim() && closeTicketModal()"
+       x-on:keydown.tab="trapOverlay($event, $el)"></div>
   <script>
     /* Settings-form save confirmation. Independent of the capture toast's
        OOB/Alpine mechanism above — replaces #toast with a plain element so it
@@ -96,68 +101,66 @@
       var on = document.documentElement.classList.toggle("sidebar-collapsed");
       localStorage.setItem("sidebar-collapsed", on ? "1" : "0");
     }
-    /* Slide-over focus management. #panel persists; htmx swaps its innerHTML.
-       Capture the opener before the swap, move focus in after it, restore on close.
-       Also strips a `slice` query param from the URL on close (replaceState, not
-       pushState, so the back button doesn't reopen a just-closed panel). */
-    function closePanel(el) {
+    /* Overlay focus management, shared by #panel (slide-over), #ticket-modal and
+       #member-modal (centered). Each persists as an empty div; htmx swaps its
+       innerHTML in. Capture the opener before the swap, move focus in after it,
+       restore it on close. `param` (if given) is the deep-link query key to strip
+       on close — replaceState, not pushState, so Back doesn't reopen what was
+       just closed. */
+    var OVERLAY_IDS = ["panel", "ticket-modal", "member-modal"];
+    function closeOverlay(el, param) {
+      if (!el) return;
       el.innerHTML = "";
-      if (window.__panelOpener) { window.__panelOpener.focus(); window.__panelOpener = null; }
+      var opener = window.__overlayOpeners && window.__overlayOpeners[el.id];
+      if (opener) { opener.focus(); window.__overlayOpeners[el.id] = null; }
+      if (!param) return;
       var u = new URL(window.location.href);
-      if (u.searchParams.has("slice")) {
-        u.searchParams.delete("slice");
+      if (u.searchParams.has(param)) {
+        u.searchParams.delete(param);
         history.replaceState({}, "", u.pathname + u.search + u.hash);
       }
     }
+    function closePanel(el) { closeOverlay(el, "slice"); }
+    function closeTicketModal() { closeOverlay(document.getElementById("ticket-modal"), "ticket"); }
     /* Grow a textarea to fit its content — used by the seamless description editor
        so entering edit mode never jumps to a fixed-height box. */
     function autosize(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
-    function trapPanel(e, el) {
-      if (!el.innerHTML.trim()) return;
-      var f = Array.prototype.slice.call(
+    /* Enter an inline editor with the caret at the end. focus() alone leaves it
+       at offset 0 in Chrome, so typing silently PREPENDS to existing text. */
+    function focusEnd(el) {
+      el.focus();
+      var n = el.value.length;
+      if (el.setSelectionRange) el.setSelectionRange(n, n);
+    }
+    function closeMemberModal() { closeOverlay(document.getElementById("member-modal"), null); }
+    function overlayFocusables(el) {
+      return Array.prototype.slice.call(
         el.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')
       ).filter(function (x) { return x.offsetParent !== null; });
+    }
+    function trapOverlay(e, el) {
+      if (!el.innerHTML.trim()) return;
+      var f = overlayFocusables(el);
       if (!f.length) return;
       var first = f[0], last = f[f.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
-    /* Member/invite "Manage" modal — same opener-tracking/focus-trap shape as
-       #panel above, kept separate (own opener var, own element) since a row
-       action and a slice-detail panel could in principle both be mid-flow. */
-    function closeMemberModal() {
-      var el = document.getElementById("member-modal");
-      el.innerHTML = "";
-      if (window.__memberModalOpener) { window.__memberModalOpener.focus(); window.__memberModalOpener = null; }
-    }
-    function trapMemberModal(e, el) {
-      if (!el.innerHTML.trim()) return;
-      var f = Array.prototype.slice.call(
-        el.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')
-      ).filter(function (x) { return x.offsetParent !== null; });
-      if (!f.length) return;
-      var first = f[0], last = f[f.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    }
+    function trapPanel(e, el) { trapOverlay(e, el); }
     document.body.addEventListener("htmx:beforeRequest", function (e) {
-      if (e.detail.target && e.detail.target.id === "panel") { window.__panelOpener = e.detail.elt; }
-      if (e.detail.target && e.detail.target.id === "member-modal") { window.__memberModalOpener = e.detail.elt; }
+      var t = e.detail.target;
+      if (t && OVERLAY_IDS.indexOf(t.id) !== -1) {
+        window.__overlayOpeners = window.__overlayOpeners || {};
+        window.__overlayOpeners[t.id] = e.detail.elt;
+      }
     });
     document.body.addEventListener("htmx:afterSwap", function (e) {
-      if (e.target && e.target.id === "panel" && e.target.innerHTML.trim()) {
-        var focusables = Array.prototype.slice.call(
-          e.target.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')
-        ).filter(function (x) { return x.offsetParent !== null; });
-        var target = e.target.querySelector('[aria-label="Close panel"]') || focusables[0];
-        if (target) target.focus();
-      }
-      if (e.target && e.target.id === "member-modal" && e.target.innerHTML.trim()) {
-        var mFocusables = Array.prototype.slice.call(
-          e.target.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')
-        ).filter(function (x) { return x.offsetParent !== null; });
-        if (mFocusables[0]) mFocusables[0].focus();
-      }
+      var t = e.target;
+      if (!t || OVERLAY_IDS.indexOf(t.id) === -1 || !t.innerHTML.trim()) return;
+      /* Prefer the close control so Esc/Tab start somewhere predictable. */
+      var target = t.querySelector('[aria-label="Close panel"], [aria-label="Close"]')
+        || overlayFocusables(t)[0];
+      if (target) target.focus();
     });
   </script>
 </body>

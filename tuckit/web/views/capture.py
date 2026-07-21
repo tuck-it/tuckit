@@ -10,8 +10,9 @@ from tuckit.core.services.areas import create_area, list_areas, update_area, del
 from tuckit.core.services.slices import create_slice, set_slice_status, grouped_slices
 from tuckit.core.services.tickets import (
     create_ticket, query_tickets, ticket_queryset, promote_ticket, reopen_ticket,
-    resolve_ticket,
+    resolve_ticket, update_ticket,
 )
+from tuckit.web.panel import render_markdown_html
 from tuckit.core.services.resolve import get_area, get_ticket, get_area_by_slug
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import redirect_response, widget_oob
@@ -20,12 +21,16 @@ _SLICE_STATUSES = ["planned", "building", "shipped"]
 
 
 def capture(request):
-    """Global capture. Title is required; area/status/spec/tags are optional.
-    A bare title stays a quick, unfiled Inbox capture — it becomes a Ticket, not
-    a Slice, since there's no "Inbox area" to place a Slice in. Any authored
-    detail (an area, a spec, tags, or a non-default status) requires an area and
-    creates a full Slice, redirecting the user into it. Bites live under a
-    Slice's Plan section, where a human or an agent can author them."""
+    """Global capture. The Area select IS the fork, and nothing else:
+
+        no area  -> Ticket  (title + note; the Inbox decides later)
+        an area  -> Slice   (title + spec + status + tags; committed work)
+
+    That mirrors the model exactly — a Ticket has no status and no tags, and a
+    Slice cannot exist without an area — so the form only ever offers fields the
+    destination actually has. It replaces an earlier rule where writing a note
+    silently upgraded the capture to a Slice and then demanded an area, which
+    left `ticket.body` unreachable from the browser entirely."""
     org = get_current_org(request)
 
     title = request.POST.get("title", "").strip()
@@ -43,19 +48,21 @@ def capture(request):
         except (NotFound, ValueError):
             raise Http404
 
-    # "Rich" = the user authored beyond a bare title-into-Inbox capture.
-    rich = bool(spec or tags or area is not None or status != "planned")
-
-    if not rich:
-        # Quick path: an unfiled Ticket — bundle out-of-band swaps: a
-        # confirmation toast, the live inbox count, and an OOB re-render of the
-        # Inbox list (lands only if that page is open; htmx ignores OOB targets
-        # absent from the current page, so one response fits every page).
-        create_ticket(org, title, source="human")
-        return _inbox_result(request, org, "Captured in Inbox.")
-
     if area is None:
-        return HttpResponse("Choose an area to save more than a quick note.", status=400)
+        if tags or status != "planned":
+            # A Ticket has neither field, and the form hides both when no area is
+            # picked — so this is a stale/hand-rolled POST. Refuse rather than
+            # drop authored detail on the floor.
+            return HttpResponse(
+                "Tickets have no status or tags — choose an area to author those.",
+                status=400,
+            )
+        # Unfiled Ticket. The note rides along in `body` — the whole point of
+        # the Inbox is deciding, and you cannot decide on a bare title.
+        # Responds with out-of-band swaps (toast, live count, Inbox list) so one
+        # response works from any page; htmx drops OOB targets not on screen.
+        create_ticket(org, title, body=spec, source="human")
+        return _inbox_result(request, org, "Captured in Inbox.")
 
     try:
         slice_ = create_slice(area, title, spec=spec, status=status, tags=tags, source="human")
@@ -105,26 +112,72 @@ def _inbox_result(request, org, message, *, resolved_view=""):
     })
 
 
+def _ticket_or_404(org, ticket_id):
+    try:
+        return get_ticket(org, ticket_id)
+    except NotFound:
+        raise Http404
+
+
+def _ticket_modal(request, org, ticket):
+    """The one place a Ticket's full body is readable and editable. Rendered
+    into #ticket-modal by htmx, and reachable directly via ?ticket=<id> so
+    Attention rows and refreshes can land on a specific ticket."""
+    return render(request, "web/partials/_ticket_modal.html", {
+        "ticket": ticket,
+        "areas": list(list_areas(org)),
+        "body_html": render_markdown_html(ticket.body),
+        "promoted_slice": getattr(ticket, "slice", None),
+    })
+
+
+def ticket_detail(request, ticket_id):
+    org = get_current_org(request)
+    return _ticket_modal(request, org, _ticket_or_404(org, ticket_id))
+
+
+def ticket_edit(request, ticket_id):
+    """Autosaved title/body edits from the modal — humans author tickets too,
+    not just agents (the same reversal Bites got)."""
+    org = get_current_org(request)
+    ticket = _ticket_or_404(org, ticket_id)
+    kwargs = {}
+    if "title" in request.POST:
+        title = request.POST["title"].strip()
+        if not title:
+            return HttpResponse("Title is required", status=400)
+        kwargs["title"] = title
+    if "body" in request.POST:
+        kwargs["body"] = request.POST["body"]
+    if kwargs:
+        ticket = update_ticket(ticket, actor="human", **kwargs)
+    html = render_to_string("web/partials/_ticket_modal.html", {
+        "ticket": ticket,
+        "areas": list(list_areas(org)),
+        "body_html": render_markdown_html(ticket.body),
+        "promoted_slice": getattr(ticket, "slice", None),
+    }, request=request)
+    # The row behind the modal shows title and a body preview — keep it in step.
+    return HttpResponse(html + render_to_string(
+        "web/partials/_ticket_list.html",
+        {"tickets": query_tickets(org), "areas": list(list_areas(org)),
+         "statuses": _SLICE_STATUSES, "oob": True},
+        request=request,
+    ))
+
+
 def ticket_dismiss(request, ticket_id):
     """Triage a ticket away without building it. Recoverable: it stays readable
     under ?status=dismissed and can be restored from there."""
     org = get_current_org(request)
-    try:
-        ticket = get_ticket(org, ticket_id)
-    except NotFound:
-        raise Http404
-    resolve_ticket(ticket, "dismissed", actor="human")
+    resolve_ticket(_ticket_or_404(org, ticket_id), "dismissed", actor="human")
     return _inbox_result(request, org, "Dismissed.")
 
 
 def ticket_reopen(request, ticket_id):
     org = get_current_org(request)
     try:
-        ticket = get_ticket(org, ticket_id)
-    except NotFound:
-        raise Http404
-    try:
-        reopen_ticket(ticket, actor="human")
+        reopen_ticket(_ticket_or_404(org, ticket_id), actor="human")
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
     # Restore is only reachable from the dismissed review list — stay on it.

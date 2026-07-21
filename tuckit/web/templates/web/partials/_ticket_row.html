@@ -1,30 +1,49 @@
 {% load web_extras %}
+{% comment %}
+  Inbox row. The title opens the ticket modal (the only place the full body is
+  readable/editable); the controls on the right stay inline so triaging a run of
+  tickets never costs a round trip through the modal.
+{% endcomment %}
 {% if resolved_view %}
-  {# Review surface for triaged-away tickets: read-only, with one way back. #}
-  <div class="triage-row">
-    <span class="row-title">{{ ticket.title }}</span>
+  <div class="ticket-row">
+    <button class="ticket-open" type="button"
+            hx-get="{% wurl 'web:ticket' ticket.id %}" hx-target="#ticket-modal"
+            hx-swap="innerHTML">
+      <span class="row-title">{{ ticket.title }}</span>
+      {% if ticket.body %}<span class="row-desc">{{ ticket.body|spec_summary }}</span>{% endif %}
+    </button>
     <span class="source-badge{% if ticket.source == 'agent' %} is-agent{% endif %}">{% if ticket.source == 'agent' %}agent{% else %}you{% endif %}</span>
     <span class="row-meta">{{ ticket.resolved_at|timesince }} ago</span>
-    <div class="triage-controls">
+    <div class="ticket-controls">
       <button class="button button-small" type="button"
               hx-post="{% wurl 'web:ticket_reopen' ticket.id %}" hx-swap="none">Restore</button>
     </div>
   </div>
 {% else %}
-  <form class="triage-row" hx-post="{% wurl 'web:ticket_promote' ticket.id %}"
+  <form class="ticket-row" hx-post="{% wurl 'web:ticket_promote' ticket.id %}"
         hx-trigger="change" hx-swap="none">
-    <span class="row-title">{{ ticket.title }}</span>
+    {% comment %}
+      hx-swap is explicit because htmx INHERITS it: the enclosing promote form
+      says hx-swap="none", which would otherwise make this GET fire and then
+      throw the modal away.
+    {% endcomment %}
+    <button class="ticket-open" type="button"
+            hx-get="{% wurl 'web:ticket' ticket.id %}" hx-target="#ticket-modal"
+            hx-swap="innerHTML">
+      <span class="row-title">{{ ticket.title }}</span>
+      {% if ticket.body %}<span class="row-desc">{{ ticket.body|spec_summary }}</span>{% endif %}
+    </button>
     <span class="source-badge{% if ticket.source == 'agent' %} is-agent{% endif %}">{% if ticket.source == 'agent' %}agent{% else %}you{% endif %}</span>
     <span class="row-meta">{{ ticket.created_at|timesince }}</span>
-    <div class="triage-controls">
-      <label class="triage-field">Area
-        <select name="area_id" class="triage-select">
+    <div class="ticket-controls">
+      <label class="ticket-field">Area
+        <select name="area_id" class="ticket-select">
           <option value="" selected disabled>Assign area</option>
           {% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
         </select>
       </label>
-      <label class="triage-field">Status
-        <select name="status" class="triage-select">
+      <label class="ticket-field">Status
+        <select name="status" class="ticket-select">
           {% for st in statuses %}<option value="{{ st }}">{{ st }}</option>{% endfor %}
         </select>
       </label>
@@ -32,7 +51,7 @@
         type="button" so it never submits the promote form and never raises the
         change event that form listens for — the two actions stay independent.
       {% endcomment %}
-      <button class="triage-dismiss" type="button"
+      <button class="ticket-dismiss" type="button"
               hx-post="{% wurl 'web:ticket_dismiss' ticket.id %}" hx-swap="none"
               title="Dismiss — not doing this"
               aria-label="Dismiss {{ ticket.title }}">{% icon "close" "icon" %}</button>

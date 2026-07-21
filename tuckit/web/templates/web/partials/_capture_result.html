@@ -7,7 +7,7 @@
 
 {% comment %}
   Triage list — OOB re-render of the whole list (matches what a page reload
-  shows). Lands only if #triage-list is on-screen; htmx skips it
+  shows). Lands only if #ticket-list is on-screen; htmx skips it
   (oobErrorNoTarget) on every other page. Re-rendering by id with
   hx-swap-oob="true" is reliable, unlike positional (afterbegin) OOB.
 {% endcomment %}
@@ -20,3 +20,10 @@
 {% endcomment %}
 {% include "web/partials/_inbox_head_count.html" with oob=True %}
 {% include "web/partials/_inbox_dismissed_link.html" with oob=True %}
+
+{% comment %}
+  Close the ticket modal if it happens to be open — promote/dismiss/restore can
+  all be fired from inside it, and the ticket it was showing has just left the
+  list. innerHTML (not outerHTML) so the container keeps its Alpine handlers.
+{% endcomment %}
+<div hx-swap-oob="innerHTML:#ticket-modal"></div>

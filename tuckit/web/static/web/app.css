@@ -491,30 +491,30 @@ body { padding: 0; }
 
 /* Triage row — bare flex row inside .panel (which supplies surface + dividers);
    the Area/Status selects are quiet until the row is hovered/focused. */
-.triage-row {
+.ticket-row {
   line-height: 1.5;
   padding: 9px 14px;
   display: flex;
   align-items: center;
   gap: 11px;
 }
-.triage-controls {
+.ticket-controls {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   opacity: 0.7;
   transition: opacity 0.15s var(--ease);
 }
-.triage-row:hover .triage-controls,
-.triage-row:focus-within .triage-controls { opacity: 1; }
-.triage-field {
+.ticket-row:hover .ticket-controls,
+.ticket-row:focus-within .ticket-controls { opacity: 1; }
+.ticket-field {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--ink-faint);
   font-size: 12px;
 }
-.triage-select {
+.ticket-select {
   background: var(--paper-raised);
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
@@ -523,9 +523,9 @@ body { padding: 0; }
   font-size: 12px;
   padding: 3px 6px;
 }
-.triage-select:focus { outline: none; border-color: var(--blue); }
+.ticket-select:focus { outline: none; border-color: var(--blue); }
 /* Dismiss — quiet icon action; rides the same hover-reveal as the selects. */
-.triage-dismiss {
+.ticket-dismiss {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -536,9 +536,69 @@ body { padding: 0; }
   cursor: pointer;
   padding: var(--space-2);
 }
-.triage-dismiss:hover { border-color: var(--line); }
-.triage-dismiss:hover .icon { stroke: var(--ink); }
-.triage-dismiss .icon { width: 14px; height: 14px; }
+.ticket-dismiss:hover { border-color: var(--line); }
+.ticket-dismiss:hover .icon { stroke: var(--ink); }
+.ticket-dismiss .icon { width: 14px; height: 14px; }
+
+/* Title + body preview: the row's click target for opening the ticket modal.
+   Reset to read as text, not a control — it carries .row-title/.row-desc. */
+.ticket-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ticket-open:hover .row-title { color: var(--blue); }
+
+/* Ticket modal — centered (a decision), unlike the slice slide-over (work you
+   keep open beside the board). Wider than .modal-card since it holds a body. */
+.ticket-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-8);
+  width: 560px;
+  max-width: 92vw;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.ticket-card-head { display: flex; align-items: center; gap: var(--space-5); }
+.ticket-ref { color: var(--ink-faint); font-family: var(--mono); font-size: 12px; }
+.ticket-status {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  color: var(--ink-faint);
+  font-size: 12px;
+  padding: 1px 7px;
+}
+.ticket-status--promoted { color: var(--blue); border-color: var(--blue); }
+.ticket-close { margin-left: auto; }
+.ticket-body .spec { min-height: 60px; }
+.ticket-actions { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
+.ticket-actions .ghost { margin-left: auto; }
+.ticket-slice-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: var(--space-5) var(--space-6);
+  text-decoration: none;
+}
+.ticket-slice-link:hover { border-color: var(--blue); color: var(--ink); }
+.ticket-slice-link .row-arrow { margin-left: auto; }
+
 
 /* Capture modal — plain centered overlay, no gradient/shadow. */
 .capture-overlay {
@@ -1092,20 +1152,20 @@ body { padding: 0; }
   overflow: hidden;
 }
 .panel .slice-row,
-.panel .triage-row {
+.panel .ticket-row {
   border-bottom: 1px solid var(--line);
   border-radius: 0;
 }
 .panel .slice-row:last-child,
-.panel .triage-row:last-child { border-bottom: 0; }
+.panel .ticket-row:last-child { border-bottom: 0; }
 
 /* Inbox is an operation queue. Preserve the row scanline while making each
    assignment control feel like an intentional decision, not stray metadata. */
 .group--inbox .panel { box-shadow: 0 1px 2px var(--shadow); }
-.triage-row { min-height: 62px; }
-.triage-row:hover { background: var(--paper-deep); }
-.triage-controls { margin-left: auto; }
-.triage-select { min-height: 30px; padding: 4px 8px; }
+.ticket-row { min-height: 62px; }
+.ticket-row:hover { background: var(--paper-deep); }
+.ticket-controls { margin-left: auto; }
+.ticket-select { min-height: 30px; padding: 4px 8px; }
 
 /* Attention reason: plain warm text, never a badge. */
 .row-reason {

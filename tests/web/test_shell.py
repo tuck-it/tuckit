@@ -70,6 +70,6 @@ def test_sidebar_inbox_count_and_no_lens_tabs(client_local, org):
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/").content.decode()
     assert ">Inbox<" in body
-    assert 'id="triage-count"' in body                       # inbox count badge kept
+    assert 'id="ticket-count"' in body                       # inbox count badge kept
     assert f'href="{p}/attention/"' not in body               # lens tabs gone from nav
     assert f'href="{p}/in-progress/"' not in body

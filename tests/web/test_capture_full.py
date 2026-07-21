@@ -69,9 +69,9 @@ def test_capture_status_change_alone_is_rich(client_local, org):
 
 @pytest.mark.django_db
 def test_capture_rich_without_area_requires_one(client_local, org):
-    """Spec/tags/status alone (no area) can't create a Slice — there's no more
-    magic Inbox area to fall back into — so it's rejected rather than silently
-    dropping the authored detail."""
+    """A Ticket has no status and no tags, so those fields without an area are
+    refused rather than silently dropped. (A note IS accepted without an area —
+    it becomes the ticket's body; see test_capture_note_without_area_makes_a_ticket.)"""
     resp = client_local.post(
         f"{P(org)}/capture", {"title": "no area", "status": "building"}, HTTP_HX_REQUEST="true"
     )
@@ -107,7 +107,10 @@ def test_capture_modal_renders_full_form(client_local, org):
     assert 'name="area_id"' in body
     assert 'name="status"' in body
     assert 'name="spec"' in body
-    assert 'capture-lbl">Spec<' in body        # field labelled Spec, not Description
+    # The Area select forks the form: server-rendered default is the Inbox
+    # (Ticket) shape, and Alpine relabels the same textarea Spec once an area
+    # is picked. Status/Tags are x-if'd out entirely until then.
+    assert '''x-text="area ? 'Spec' : 'Note'"''' in body
     assert 'capture-lbl">Description<' not in body
     assert "Backend" in body            # workspace area offered in the Area select
     assert 'name="bite_titles"' not in body   # capture no longer authors bites
@@ -120,3 +123,34 @@ def test_capture_modal_renders_shared_fields(client_local, org):
     assert 'name="area_id"' in body
     assert 'name="status"' in body
     assert 'name="spec"' in body
+
+
+@pytest.mark.django_db
+def test_capture_note_without_area_makes_a_ticket_with_a_body(client_local, org):
+    """The Area select is the fork. With no area the note is the ticket's body —
+    without this, `ticket.body` is writable only by agents over MCP, and a human
+    triaging the Inbox has nothing but a title to decide on."""
+    resp = client_local.post(
+        f"{P(org)}/capture",
+        {"title": "OAuth screen is ugly", "spec": "buttons misaligned on mobile"},
+        HTTP_HX_REQUEST="true",
+    )
+    assert resp.status_code == 200
+    t = Ticket.objects.get(org=org, title="OAuth screen is ugly")
+    assert t.body == "buttons misaligned on mobile"
+    assert t.area is None and t.status == "open"
+    assert not Slice.objects.filter(title="OAuth screen is ugly").exists()
+
+
+@pytest.mark.django_db
+def test_capture_note_with_an_area_still_makes_a_slice(client_local, org):
+    area = create_area(org, "Backend")
+    resp = client_local.post(
+        f"{P(org)}/capture",
+        {"title": "Retry webhooks", "spec": "exponential backoff", "area_id": area.id},
+        HTTP_HX_REQUEST="true",
+    )
+    assert resp.status_code in (200, 204)
+    s = Slice.objects.get(title="Retry webhooks")
+    assert s.spec == "exponential backoff" and s.area_id == area.id
+    assert not Ticket.objects.filter(title="Retry webhooks").exists()

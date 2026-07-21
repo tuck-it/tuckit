@@ -19,7 +19,7 @@ def test_ticket_row_shows_provenance_and_english_controls(client_local, org):
     p = f"/{org.slug}"
     create_ticket(org, "loose end")
     body = client_local.get(f"{p}/inbox/").content.decode()
-    assert 'class="triage-controls"' in body        # controls grouped for reveal
+    assert 'class="ticket-controls"' in body        # controls grouped for reveal
     assert "Assign area" in body
     assert ">Status" in body
     assert "— Choose an area —" not in body
@@ -65,4 +65,4 @@ def test_slide_over_container_is_labelled_dialog(client_local, org):
     # focus-management wiring present
     assert "closePanel" in body
     assert "trapPanel" in body
-    assert "__panelOpener" in body
+    assert "__overlayOpeners" in body   # shared by #panel/#ticket-modal/#member-modal

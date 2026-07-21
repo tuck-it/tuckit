@@ -43,20 +43,20 @@ def test_capture_returns_toast_count_and_row(client_local, org):
     assert resp.status_code == 200
     body = resp.content.decode()
     # count badge
-    assert 'id="triage-count"' in body
+    assert 'id="ticket-count"' in body
     assert ">1<" in body
     # toast
     assert 'id="toast"' in body
     assert "Captured" in body
     # The Inbox list is OOB re-rendered (id-matched, reliable) with the new row;
     # it lands only if that page is open. Three elements carry hx-swap-oob="true";
-    # #toast, #triage-count, and #triage-list. The form is hx-swap="none", so
+    # #toast, #ticket-count, and #ticket-list. The form is hx-swap="none", so
     # anything without hx-swap-oob would be silently dropped in the browser.
-    assert 'id="triage-list"' in body
+    assert 'id="ticket-list"' in body
     assert body.count('hx-swap-oob="true"') >= 3
     assert "Quick note" in body
     # list is non-empty now, so the "Triage clean" placeholder must be gone
-    assert 'id="triage-empty"' not in body
+    assert 'id="ticket-empty"' not in body
 
 @pytest.mark.django_db
 def test_area_create_returns_oob_area_nav(client_local, org):
@@ -135,9 +135,9 @@ def test_ticket_dismiss_leaves_inbox_and_refreshes_count(client_local, org):
     assert t.status == "dismissed" and t.resolved_at is not None
     body = resp.content.decode()
     # OOB list without the dismissed row, OOB count, and a toast
-    assert 'id="triage-list"' in body and "Not doing this" not in body
+    assert 'id="ticket-list"' in body and "Not doing this" not in body
     assert "Keeping this" in body
-    assert 'id="triage-count"' in body and ">1<" in body
+    assert 'id="ticket-count"' in body and ">1<" in body
     assert "Dismissed." in body
 
 @pytest.mark.django_db
@@ -145,7 +145,7 @@ def test_dismissing_the_last_ticket_restores_the_empty_state(client_local, org):
     p = f"/{org.slug}"
     t = create_ticket(org, "Only one")
     body = client_local.post(f"{p}/tickets/{t.id}/dismiss", HTTP_HX_REQUEST="true").content.decode()
-    assert 'id="triage-empty"' in body
+    assert 'id="ticket-empty"' in body
 
 @pytest.mark.django_db
 def test_dismissed_tickets_are_reviewable_and_restorable(client_local, org):
@@ -193,7 +193,7 @@ def test_promote_refreshes_the_sidebar_count(client_local, org):
     resp = client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "planned"},
                              HTTP_HX_REQUEST="true")
     body = resp.content.decode()
-    assert 'id="triage-count"' in body      # count followed the row out of the inbox
+    assert 'id="ticket-count"' in body      # count followed the row out of the inbox
     assert "To promote" not in body
 
 @pytest.mark.django_db
@@ -213,7 +213,7 @@ def test_dismiss_refreshes_the_page_head_not_just_the_sidebar(client_local, org)
     create_ticket(org, "Staying")
     body = client_local.post(f"{p}/tickets/{t.id}/dismiss", HTTP_HX_REQUEST="true").content.decode()
     assert 'id="inbox-head-count"' in body          # page heading count
-    assert 'id="triage-count"' in body              # sidebar badge
+    assert 'id="ticket-count"' in body              # sidebar badge
     assert 'id="inbox-dismissed-link"' in body      # and the review-surface link
     assert "1 dismissed" in body
 
@@ -226,3 +226,90 @@ def test_inbox_head_targets_exist_even_when_empty(client_local, org):
     assert 'id="inbox-head-count"' in body
     assert 'id="inbox-dismissed-link"' in body
     assert "dismissed →" not in body                # present but empty
+
+@pytest.mark.django_db
+def test_inbox_row_shows_a_body_preview_and_opens_the_modal(client_local, org):
+    """Agents capture tickets with real bodies; triaging blind on a title alone
+    is the gap this closes."""
+    p = f"/{org.slug}"
+    t = create_ticket(org, "OAuth screen is ugly", body="buttons misaligned on mobile")
+    body = client_local.get(f"{p}/inbox/").content.decode()
+    assert "buttons misaligned on mobile" in body          # preview on the row
+    assert f"/tickets/{t.id}/" in body                     # row opens the modal
+
+@pytest.mark.django_db
+def test_ticket_modal_renders_body_and_actions(client_local, org):
+    p = f"/{org.slug}"
+    create_area(org, "Backend")
+    t = create_ticket(org, "OAuth screen is ugly", body="## Details\n\nbuttons misaligned")
+    body = client_local.get(f"{p}/tickets/{t.id}/").content.decode()
+    assert "<h2>Details</h2>" in body                      # markdown rendered
+    assert "buttons misaligned" in body
+    assert f"/tickets/{t.id}/edit" in body                 # title/body editable
+    assert f"/tickets/{t.id}/promote" in body
+    assert f"/tickets/{t.id}/dismiss" in body
+    assert "Backend" in body                               # area choices for promote
+
+@pytest.mark.django_db
+def test_ticket_modal_deep_link_opens_from_the_inbox_url(client_local, org):
+    """Attention rows link here — ?ticket=<id> must arm the modal on load."""
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Old capture")
+    body = client_local.get(f"{p}/inbox/?ticket={t.id}").content.decode()
+    assert f'hx-get="/{org.slug}/tickets/{t.id}/"' in body
+    assert 'hx-trigger="load"' in body
+
+@pytest.mark.django_db
+def test_attention_row_deep_links_to_the_ticket(client_local, org):
+    from datetime import timedelta
+    from django.utils import timezone
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Stale one")
+    Ticket.objects.filter(pk=t.pk).update(created_at=timezone.now() - timedelta(days=30))
+    body = client_local.get(f"{p}/attention/").content.decode()
+    assert f"?ticket={t.id}" in body
+
+@pytest.mark.django_db
+def test_ticket_edit_autosaves_title_and_body(client_local, org):
+    """Humans author tickets too — not just agents over MCP."""
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Vague", body="")
+    resp = client_local.post(f"{p}/tickets/{t.id}/edit",
+                             {"title": "Precise", "body": "with context"}, HTTP_HX_REQUEST="true")
+    assert resp.status_code == 200
+    t.refresh_from_db()
+    assert t.title == "Precise" and t.body == "with context"
+    # the row behind the modal is re-rendered so it cannot show the old title
+    out = resp.content.decode()
+    assert 'id="ticket-list"' in out and "Precise" in out and "Vague" not in out
+
+@pytest.mark.django_db
+def test_ticket_edit_rejects_an_empty_title(client_local, org):
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Keep me")
+    assert client_local.post(f"{p}/tickets/{t.id}/edit", {"title": "   "},
+                             HTTP_HX_REQUEST="true").status_code == 400
+    t.refresh_from_db()
+    assert t.title == "Keep me"
+
+@pytest.mark.django_db
+def test_promoted_ticket_modal_reads_status_off_the_slice(client_local, org):
+    p = f"/{org.slug}"
+    area = create_area(org, "Backend")
+    t = create_ticket(org, "Ship it", area=area)
+    from tuckit.core.services.tickets import promote_ticket
+    from tuckit.core.services.slices import set_slice_status
+    s = promote_ticket(t)
+    set_slice_status(s, "building")
+    body = client_local.get(f"{p}/tickets/{t.id}/").content.decode()
+    assert "Promoted → Backend · building" in body        # derived, never stored
+    assert f"/tickets/{t.id}/promote" not in body         # no re-promote affordance
+
+@pytest.mark.django_db
+def test_ticket_actions_close_the_modal(client_local, org):
+    """Promote/dismiss can be fired from inside the modal, so the response has
+    to clear it — the ticket it was showing just left the list."""
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Going")
+    out = client_local.post(f"{p}/tickets/{t.id}/dismiss", HTTP_HX_REQUEST="true").content.decode()
+    assert 'hx-swap-oob="innerHTML:#ticket-modal"' in out
