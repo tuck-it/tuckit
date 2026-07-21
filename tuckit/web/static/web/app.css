@@ -2058,3 +2058,20 @@ html.sidebar-collapsed .side-resize { display: none; }
 .agent-tab { padding: var(--space-1) var(--space-3); border-radius: var(--radius-small); background: transparent; border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; }
 .agent-tab--on { background: var(--blue); border-color: var(--blue); color: var(--paper); }
 .agent-client-pane { margin-top: var(--space-2); }
+
+/* Provenance: which tickets a slice was built from. The capture bodies live on
+   the tickets rather than copied into spec, so these links are the way back to
+   the original text. */
+.provenance {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+.provenance-label { color: var(--ink-faint); }
+.provenance-ref { color: var(--ink-soft); text-decoration: none; }
+.provenance-ref:hover { text-decoration: underline; }
+/* Weight, not colour alone — the word "(origin)" carries the distinction for
+   anyone who cannot perceive the weight change. */
+.provenance-origin { font-weight: 600; }

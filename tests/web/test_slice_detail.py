@@ -287,3 +287,64 @@ def test_plan_delete_removes_plan_and_its_bites(client_local, org):
     assert resp.status_code == 200
     assert not Plan.objects.filter(pk=plan.id).exists()
     assert not Bite.objects.filter(title="will vanish").exists()
+
+
+# --- provenance: slice -> ticket, the mirror of the link the ticket modal has ---
+
+
+@pytest.mark.django_db
+def test_panel_shows_origin_and_absorbed_refs(client_local, org):
+    from tuckit.core.services.tickets import absorb_ticket, create_ticket, promote_ticket
+
+    area = create_area(org, "Backend")
+    origin = create_ticket(org, "Origin", area=area)
+    s = promote_ticket(origin)
+    extra = create_ticket(org, "Extra", area=area)
+    absorb_ticket(extra, s)
+
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "From:" in body
+    assert f"{org.slug}-{origin.number}" in body
+    assert f"{org.slug}-{extra.number}" in body
+    assert "(origin)" in body
+    # the link lands on the ticket modal via the existing deep-link
+    assert f"?ticket={origin.id}" in body
+
+
+@pytest.mark.django_db
+def test_promoted_slice_empty_spec_points_at_the_capture(client_local, org):
+    """After promote stops copying the body, this is the default state of every
+    promoted slice — a bare prompt here reads as 'my text vanished'."""
+    from tuckit.core.services.tickets import create_ticket, promote_ticket
+
+    area = create_area(org, "Backend")
+    t = create_ticket(org, "Origin", body="the capture", area=area)
+    s = promote_ticket(t)
+
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "No design doc yet" in body
+    assert f"{org.slug}-{t.number}" in body
+    assert "Click to add a spec" not in body
+
+
+@pytest.mark.django_db
+def test_unlinked_slice_keeps_the_generic_prompt(client_local, org):
+    s = create_slice(create_area(org, "Backend"), "Direct")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "Click to add a spec" in body
+    assert "No design doc yet" not in body
+
+
+@pytest.mark.django_db
+def test_slice_with_a_spec_shows_no_empty_state(client_local, org):
+    from tuckit.core.services.tickets import create_ticket, promote_ticket
+    from tuckit.core.services.slices import update_slice
+
+    area = create_area(org, "Backend")
+    s = promote_ticket(create_ticket(org, "Origin", area=area))
+    update_slice(s, spec="## Design\nreal content")
+
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "No design doc yet" not in body
+    assert "Click to add a spec" not in body
+    assert "From:" in body      # provenance stays regardless

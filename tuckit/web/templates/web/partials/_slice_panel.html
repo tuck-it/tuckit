@@ -74,10 +74,30 @@
     </div>
   </div>
 
+  {% if origin_ticket or absorbed_tickets %}
+    {% comment %}
+      Slice -> ticket, mirroring the link _ticket_modal.html renders the other
+      way. Promotion no longer copies the capture into spec, so this row is how
+      the original text stays reachable. ?ticket=<id> is already handled by
+      base.html, so no new route is involved.
+    {% endcomment %}
+    <div class="provenance meta">
+      <span class="provenance-label">From:</span>
+      {% if origin_ticket %}
+        <a class="provenance-ref" href="{% url 'web:inbox' current_org.slug %}?ticket={{ origin_ticket.id }}"
+           title="{{ origin_ticket.title }}">{{ org_slug_ref }}{{ origin_ticket.number }} <span class="provenance-origin">(origin)</span></a>
+      {% endif %}
+      {% for t in absorbed_tickets %}
+        <a class="provenance-ref" href="{% url 'web:inbox' current_org.slug %}?ticket={{ t.id }}"
+           title="{{ t.title }}">{{ org_slug_ref }}{{ t.number }}</a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   <div class="desc-block">
     <div class="section-label">Spec</div>
     <div class="spec" x-show="!editSpec"
-         x-on:click="editSpec=true; $nextTick(()=>{ $refs.specEdit.focus(); autosize($refs.specEdit); })">{% if slice.spec %}{{ spec_html|safe }}{% else %}<span class="muted">Click to add a spec…</span>{% endif %}</div>
+         x-on:click="editSpec=true; $nextTick(()=>{ $refs.specEdit.focus(); autosize($refs.specEdit); })">{% if slice.spec %}{{ spec_html|safe }}{% elif origin_ticket %}<span class="muted">No design doc yet. The original capture is in {{ org_slug_ref }}{{ origin_ticket.number }}.</span>{% else %}<span class="muted">Click to add a spec…</span>{% endif %}</div>
     <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}{{ panel_qs }}"
           hx-target="closest .panel-inner" hx-swap="outerHTML">
       <textarea name="spec" class="spec-edit" x-ref="specEdit" rows="2"
