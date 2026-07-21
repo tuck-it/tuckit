@@ -201,3 +201,39 @@ def set_slice_area(
                 target=slice_, from_value=old_area.name, to_value=area.name,
             )
     return slice_
+
+
+# Workflow order: what a slice needs next, from undesigned to done. Derived on
+# read and never stored — a column would need updating on every spec edit, plan
+# creation and bite transition, and would be wrong the first time anything wrote
+# around it.
+SLICE_STAGES = (
+    "needs_design", "needs_plan", "needs_bites", "executing", "ready_to_ship",
+    "shipped", "dropped",
+)
+
+
+def slice_stage(status: str, spec: str, plan_count: int,
+                bites_done: int, bites_total: int) -> str:
+    """What to do next on this slice.
+
+    Pure: every argument is a primitive, so the rules can be tested without a
+    database. `bites_done`/`bites_total` must carry bite_progress() semantics —
+    dropped bites excluded from both — or a slice whose last outstanding step
+    was dropped never leaves 'executing'."""
+    if status in ("shipped", "dropped"):
+        # A finished slice has no next step. Deriving anyway would tell you to
+        # brainstorm something already deployed.
+        return status
+    if not spec:
+        return "needs_design"
+    if plan_count == 0:
+        return "needs_plan"
+    if bites_total == 0:
+        # NOT ready_to_ship: `done == total` is vacuously true at zero, and an
+        # empty plan means no work has been defined. Distinct from needs_plan so
+        # a caller fills the existing plan instead of creating a second one.
+        return "needs_bites"
+    if bites_done < bites_total:
+        return "executing"
+    return "ready_to_ship"
