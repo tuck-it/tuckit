@@ -7,7 +7,7 @@ from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import list_bites, slice_bites
 from tuckit.core.services.plans import list_plans
 from tuckit.core.services.refs import ticket_ref
-from tuckit.core.services.slices import list_slices
+from tuckit.core.services.slices import list_slices, stage_of
 from tuckit.core.services.tickets import origin_ticket
 
 _OPEN_BITE_STATUSES = ["todo", "doing"]
@@ -81,6 +81,10 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     lines = [f"# {slice_.title}", "", f"Status: {slice_.status}"]
     if tags:
         lines[-1] += f" · {tags}"
+    # What to do next, derived from spec/plan/bite state — the first thing a
+    # caller needs, and the reason get_slice is worth calling before anything
+    # else. Never stored; see slice_stage().
+    lines.append(f"Stage: {stage_of(slice_)}")
     # Where this work came from. The captured bodies live on the tickets, not
     # copied into spec, so this line is how an agent reaches the original text.
     linked = list(slice_.tickets.all())

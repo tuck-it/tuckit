@@ -393,3 +393,35 @@ def test_slice_markdown_omits_provenance_when_unlinked():
     org = Org.objects.create(name="Acme", slug="acme")
     s = create_slice(create_area(org, "Backend"), "Direct")
     assert "From:" not in render_slice_markdown(s)
+
+
+@pytest.mark.django_db
+def test_slice_markdown_reports_the_stage_under_status():
+    from tuckit.core.models import Org
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.state import render_slice_markdown
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    s = create_slice(create_area(org, "Backend"), "Blank")
+
+    lines = render_slice_markdown(s).splitlines()
+    assert "Stage: needs_design" in lines
+    # directly under Status, where the actionable fact belongs
+    status_line = next(l for l in lines if l.startswith("Status:"))
+    assert lines.index("Stage: needs_design") == lines.index(status_line) + 1
+
+
+@pytest.mark.django_db
+def test_shipped_slice_markdown_does_not_ask_for_a_design_doc():
+    from tuckit.core.models import Org
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    from tuckit.core.services.state import render_slice_markdown
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    s = create_slice(create_area(org, "Backend"), "Done", status="shipped")
+
+    md = render_slice_markdown(s)
+    assert "Stage: shipped" in md
+    assert "needs_design" not in md
