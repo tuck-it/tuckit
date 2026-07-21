@@ -26,6 +26,7 @@ from tuckit.core.services.resolve import get_ticket as _resolve_ticket
 from tuckit.core.services.members import resolve_member
 from tuckit.core.services.slices import create_slice as _create_slice
 from tuckit.core.services.slices import query_slices as _query_slices
+from tuckit.core.services.slices import stage_of
 from tuckit.core.services.slices import update_slice as _update_slice
 from tuckit.core.services.state import get_project_state as _get_project_state
 from tuckit.core.services.state import render_slice_markdown, render_ticket_markdown
@@ -144,7 +145,12 @@ async def list_slices(
     limit: int | None = 50,
 ) -> list[dict]:
     """List/search slices. All filters optional; with no area_id it searches the
-    whole org. query = text match on title/spec. assignee = 'me' or an email."""
+    whole org. query = text match on title/spec. assignee = 'me' or an email.
+
+    Each row carries `stage` — what that slice needs next, derived from its own
+    state: needs_design (spec is empty — brainstorm and write the design doc into
+    it), needs_plan, needs_bites (a plan exists but has no steps), executing,
+    ready_to_ship, or shipped/dropped for finished work."""
     org, user = await require_caller(ctx)
 
     def _run():
@@ -154,7 +160,9 @@ async def list_slices(
             org, area=area, status=status, tag=tag, query=query,
             assignee_member=member, limit=limit,
         )
-        return [slice_dict(s) for s in rows]
+        # Merged here rather than inside slice_dict(): that serializer is shared
+        # with create/update/promote, which already know what they just wrote.
+        return [{**slice_dict(s), "stage": stage_of(s)} for s in rows]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -163,7 +171,11 @@ async def list_slices(
 async def get_slice(ctx: Context, slice: int | str, with_activity: bool = False) -> str:
     """Return a slice rendered as markdown (spec + bite checklist). `slice` may be
     a numeric id or a ref like 'tuck-it-42'. Set with_activity=true to append the
-    activity/notes thread."""
+    activity/notes thread.
+
+    The `Stage:` line says what to do next: needs_design (spec is empty —
+    brainstorm and write the design doc into it), needs_plan, needs_bites (a plan
+    exists but has no steps), executing, ready_to_ship, or shipped/dropped."""
     org = await require_org(ctx)
 
     def _run():

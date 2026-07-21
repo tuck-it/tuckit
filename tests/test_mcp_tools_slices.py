@@ -101,3 +101,33 @@ async def test_list_slices_search_without_area():
     await create_slice(ctx, area_id, "Payments")
     hits = await list_slices(ctx, query="login")   # no area_id -> org-wide
     assert [s["title"] for s in hits] == ["Auth login"]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_list_slices_rows_carry_stage():
+    """The complaint this answers: an agent could not tell from the list which
+    slice it was able to act on, and had to open every one."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    await create_slice(ctx, area_id, "Blank")
+    await create_slice(ctx, area_id, "Designed", spec="a real design doc")
+
+    rows = {r["title"]: r for r in await list_slices(ctx)}
+    assert rows["Blank"]["stage"] == "needs_design"
+    assert rows["Designed"]["stage"] == "needs_plan"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_write_paths_do_not_report_stage():
+    """Deliberate omission (design D3): create/update already know what they
+    just wrote, and re-deriving costs two queries to say so. Pinned so it cannot
+    come back by accident through slice_dict."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, area_id, "New")
+    updated = await update_slice(ctx, created["id"], title="Renamed")
+
+    assert "stage" not in created
+    assert "stage" not in updated
