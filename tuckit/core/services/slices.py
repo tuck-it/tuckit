@@ -1,9 +1,10 @@
 from django.db import transaction
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
-from tuckit.core.models import Area, Org, Slice
+from tuckit.core.models import Area, Org, Plan, Slice
 from tuckit.core.services.activity import record_activity, status_verb
+from tuckit.core.services.bites import bite_progress
 from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.tags import get_or_create_tags
@@ -23,7 +24,12 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
                  assignee_member=None, limit=None) -> list[Slice]:
     """Org-wide slice query used by the MCP list_slices tool. All filters optional;
     with no `area` it searches the whole org. `query` = icontains on title/spec."""
-    qs = Slice.objects.filter(area__org=org).select_related("area", "assignee__user")
+    # Annotated here so list_slices can report each row's stage without two
+    # queries per row. Must precede the .distinct() and the slice below —
+    # annotating an already-sliced queryset raises.
+    qs = annotate_stage_counts(
+        Slice.objects.filter(area__org=org).select_related("area", "assignee__user")
+    )
     if area is not None:
         qs = qs.filter(area=area)
     if status:
@@ -34,7 +40,10 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
         qs = qs.filter(Q(title__icontains=query) | Q(spec__icontains=query))
     if assignee_member is not None:
         qs = qs.filter(assignee=assignee_member)
-    qs = qs.prefetch_related("tags").distinct()
+    # order_by is explicit because the stage annotation adds a GROUP BY, and
+    # Django does not apply Meta.ordering to aggregate queries — without this the
+    # rank order silently disappears and the board comes back in table order.
+    qs = qs.prefetch_related("tags").distinct().order_by("rank")
     if limit:
         qs = qs[:limit]
     return list(qs)
@@ -237,3 +246,43 @@ def slice_stage(status: str, spec: str, plan_count: int,
     if bites_done < bites_total:
         return "executing"
     return "ready_to_ship"
+
+
+def stage_counts(slice_) -> tuple[int, int, int]:
+    """(plan_count, bites_done, bites_total) for one slice — two queries.
+
+    Reuses bite_progress() so the dropped-bite exclusion is stated once on the
+    Python side."""
+    done, total = bite_progress(slice_)
+    return Plan.objects.filter(slice=slice_).count(), done, total
+
+
+def annotate_stage_counts(qs):
+    """The same three numbers, computed in the database, so a list of slices
+    costs no extra queries.
+
+    distinct=True on every Count is load-bearing: plans__bites is a nested
+    multi-valued join, so the rows fan out to one per (plan, bite) pair and the
+    counts multiply each other without it. The failure is silent — the numbers
+    stay plausible."""
+    return qs.annotate(
+        _plan_count=Count("plans", distinct=True),
+        _bites_total=Count(
+            "plans__bites", distinct=True,
+            filter=~Q(plans__bites__status="dropped"),
+        ),
+        _bites_done=Count(
+            "plans__bites", distinct=True,
+            filter=Q(plans__bites__status="done"),
+        ),
+    )
+
+
+def stage_of(slice_) -> str:
+    """Stage for one slice. Uses annotate_stage_counts() output when present so
+    list callers pay nothing, and falls back to querying for a bare instance."""
+    if hasattr(slice_, "_plan_count"):
+        counts = (slice_._plan_count, slice_._bites_done, slice_._bites_total)
+    else:
+        counts = stage_counts(slice_)
+    return slice_stage(slice_.status, slice_.spec, *counts)

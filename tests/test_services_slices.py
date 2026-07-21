@@ -241,3 +241,124 @@ def test_set_slice_area_still_refuses_cross_org_move():
     s = create_slice(create_area(o1, "X"), "S")
     with pytest.raises(InvalidValue):
         set_slice_area(s, create_area(o2, "Y"))
+
+
+# --- stage feeders ---
+
+
+@pytest.mark.django_db
+def test_stage_counts_matches_annotation_on_the_same_slices():
+    """The dropped-bite rule exists twice — once in Python via bite_progress,
+    once as an ORM filter= in the annotation. Nothing but this test keeps the
+    two from drifting apart."""
+    from tuckit.core.models import Slice
+    from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
+    from tuckit.core.services.slices import annotate_stage_counts, stage_counts
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+
+    bare = create_slice(area, "No plan", spec="design")
+    empty_plan = create_slice(area, "Empty plan", spec="design")
+    create_plan(empty_plan, title="P")
+    mixed = create_slice(area, "Mixed", spec="design")
+    p = create_plan(mixed, title="P")
+    create_bite(p, "done one", status="done")
+    create_bite(p, "todo one")
+    create_bite(p, "dropped one", status="dropped")
+
+    annotated = {s.id: s for s in annotate_stage_counts(Slice.objects.filter(area=area))}
+    for s in (bare, empty_plan, mixed):
+        a = annotated[s.id]
+        assert stage_counts(s) == (a._plan_count, a._bites_done, a._bites_total), s.title
+
+
+@pytest.mark.django_db
+def test_two_plans_one_empty_counts_plans_and_bites_correctly():
+    """plans__bites is a nested join: without distinct=True on every Count the
+    fan-out multiplies the numbers by each other, and the result is plausible
+    enough to pass unnoticed."""
+    from tuckit.core.models import Slice
+    from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
+    from tuckit.core.services.slices import annotate_stage_counts
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+    s = create_slice(area, "Two plans", spec="design")
+    p1 = create_plan(s, title="First")
+    create_plan(s, title="Second (empty)")
+    create_bite(p1, "a")
+    create_bite(p1, "b", status="done")
+
+    a = annotate_stage_counts(Slice.objects.filter(pk=s.pk))[0]
+    assert (a._plan_count, a._bites_done, a._bites_total) == (2, 1, 2)
+
+
+@pytest.mark.django_db
+def test_stage_of_reports_the_workflow_position():
+    from tuckit.core.services.bites import create_bite
+    from tuckit.core.services.plans import create_plan
+    from tuckit.core.services.slices import stage_of
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+
+    assert stage_of(create_slice(area, "Blank")) == "needs_design"
+    assert stage_of(create_slice(area, "Designed", spec="design")) == "needs_plan"
+
+    with_plan = create_slice(area, "Planned", spec="design")
+    plan = create_plan(with_plan, title="P")
+    assert stage_of(with_plan) == "needs_bites"
+
+    create_bite(plan, "step")
+    assert stage_of(with_plan) == "executing"
+
+
+@pytest.mark.django_db
+def test_stage_of_uses_the_annotation_without_extra_queries(django_assert_num_queries):
+    """The whole reason annotate_stage_counts exists: a 50-row list must not
+    issue two queries per row."""
+    from tuckit.core.models import Slice
+    from tuckit.core.services.slices import annotate_stage_counts, stage_of
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+    for i in range(5):
+        create_slice(area, f"S{i}", spec="design")
+
+    rows = list(annotate_stage_counts(Slice.objects.filter(area=area)))
+    with django_assert_num_queries(0):
+        assert [stage_of(s) for s in rows] == ["needs_plan"] * 5
+
+
+@pytest.mark.django_db
+def test_query_slices_rows_carry_the_annotation():
+    """list_slices reads stage off query_slices output, so the annotation has to
+    survive that function's .distinct() and slicing."""
+    from tuckit.core.services.slices import query_slices, stage_of
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+    create_slice(area, "One", spec="design")
+
+    rows = query_slices(org)
+    assert hasattr(rows[0], "_plan_count")
+    assert stage_of(rows[0]) == "needs_plan"
+
+
+@pytest.mark.django_db
+def test_query_slices_keeps_rank_order_despite_the_annotation():
+    """The stage annotation adds a GROUP BY, and Django does not apply
+    Meta.ordering to aggregate queries — so rank order has to be asked for
+    explicitly or it vanishes without any error."""
+    from tuckit.core.services.slices import query_slices, update_slice
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    area = create_area(org, "Backend")
+    a = create_slice(area, "A")
+    b = create_slice(area, "B")
+    update_slice(b, before=a)
+
+    assert [s.title for s in query_slices(org)] == ["B", "A"]
