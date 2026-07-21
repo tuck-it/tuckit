@@ -41,7 +41,8 @@ def test_widget_slice_step_opens_area_scoped_modal(client_local, org):
     body = client_local.get(f"{_p(org)}/").content.decode()
     # Slice step opens an in-widget modal that creates a slice in the newest area.
     assert f"/areas/{a.slug}/slices" in body
-    assert "New slice in Backend" in body
+    assert "Create a new Slice" in body
+    assert "in <strong>Backend</strong>" in body
 
 
 @pytest.mark.django_db
@@ -51,7 +52,7 @@ def test_slice_modal_teaches_what_a_slice_is(client_local, org):
     # obvious fields (Area/Status/Tags) stay unadorned.
     create_area(org, "Backend")
     body = client_local.get(f"{_p(org)}/").content.decode()
-    assert "A slice is one shippable chunk of product work." in body
+    assert "One shippable chunk of product work in <strong>Backend</strong>" in body
     assert "Retry failed webhooks" in body  # example in the title placeholder
     # the shared spec field teaches what to write, with an example
     assert "The what &amp; why" in body

@@ -21,6 +21,11 @@
       if (localStorage.getItem("sidebar-collapsed") === "1") {
         document.documentElement.classList.add("sidebar-collapsed");
       }
+      /* The onboarding guide reserves a gutter in .main rather than floating
+         over it; set the class before paint so the page doesn't jump. */
+      if (localStorage.getItem("ob-open") !== "0") {
+        document.documentElement.classList.add("ob-open");
+      }
       var sw = parseInt(localStorage.getItem("sidebar-width"), 10);
       if (sw >= 180 && sw <= 420) {
         document.documentElement.style.setProperty("--sidebar-w", sw + "px");
@@ -44,16 +49,17 @@
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
       x-data="{cap: false, menu: false, pal: false, trapFocus(e){ if(!this.menu) return; const f=[...this.$refs.sidebarWrap.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')].filter(el=>el.offsetParent!==null); if(!f.length) return; const first=f[0], last=f[f.length-1]; if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); } else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); } }}"
-      x-on:keydown.window="if (!cap && $event.key === 'c' && !$event.metaKey && !$event.ctrlKey && !$event.altKey && !['INPUT','TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) { cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus()) }"
+      x-on:keydown.window="if (!cap && $event.key === 'c' && !$event.metaKey && !$event.ctrlKey && !$event.altKey && !['INPUT','TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) { cap = true }"
       x-on:keydown.cmd.k.window.prevent="if (!cap) pal = true"
       x-on:keydown.ctrl.k.window.prevent="if (!cap) pal = true">
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="topbar-mobile">
     <button class="topbar-btn" type="button" aria-label="Open navigation menu" :aria-expanded="menu" aria-controls="app-sidebar"
             x-ref="menuToggle"
             x-on:click="menu = true; $nextTick(() => $refs.sidebarWrap.querySelector('a[href],button')?.focus())">{% icon "menu" %}</button>
     <span class="topbar-brand">tuckit</span>
     <button class="topbar-btn" type="button" aria-label="Quick capture"
-            x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">{% icon "plus" %}</button>
+            x-on:click="cap = true">{% icon "plus" %}</button>
   </header>
   <div class="app">
     <div class="menu-scrim" x-show="menu" x-cloak x-on:click="menu = false; $refs.menuToggle.focus()"></div>
@@ -62,13 +68,15 @@
          x-on:keydown.tab="trapFocus($event)">
       {% block sidebar %}{% include "web/partials/_sidebar.html" %}{% endblock %}
     </div>
-    <main class="main">{% block main %}{% endblock %}</main>
+    <main class="main" id="main-content" tabindex="-1">{% block main %}{% endblock %}</main>
   </div>
   <div id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title"
        {% with sid=request.GET.slice|ascii_int %}{% if sid %}hx-get="{% wurl 'web:slice' sid %}?panel=1" hx-trigger="load" hx-target="#panel"{% endif %}{% endwith %}
        x-on:keydown.escape="$el.innerHTML.trim() && closePanel($el)"
        x-on:keydown.tab="trapPanel($event, $el)"></div>
-  <div id="toast" class="toast" x-cloak></div>
+  {% comment %} Status messages must reach assistive tech, not just the screen (WCAG 4.1.3).
+     polite + atomic: announce the whole message once, without interrupting. {% endcomment %}
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true" x-cloak></div>
   {% include "web/partials/_onboarding_widget.html" %}
   {% include "web/partials/_capture_modal.html" %}
   {% include "web/partials/_command_palette.html" %}
@@ -85,15 +93,108 @@
     /* Settings-form save confirmation. Independent of the capture toast's
        OOB/Alpine mechanism above — replaces #toast with a plain element so it
        can't be left stuck mid-animation by that flow's `show` state. */
-    function showToast(message, tone) {
+    /* `undo` (optional): {label, url} renders a button that POSTs to url. An
+       error toast holds longer than a success one — you have to read it. */
+    function showToast(message, tone, undo) {
       var old = document.getElementById("toast");
       var el = document.createElement("div");
       el.id = "toast";
       el.className = tone === "err" ? "toast toast-err" : "toast";
-      el.textContent = message;
+      el.setAttribute("role", tone === "err" ? "alert" : "status");
+      el.setAttribute("aria-live", tone === "err" ? "assertive" : "polite");
+      el.setAttribute("aria-atomic", "true");
+      el.appendChild(document.createTextNode(message));
+      if (undo && undo.url) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "toast-undo";
+        b.textContent = undo.label || "Undo";
+        b.addEventListener("click", function () {
+          htmx.ajax("POST", undo.url, {source: b, swap: "none"});
+          el.textContent = "";
+        });
+        el.appendChild(b);
+      }
       old.replaceWith(el);
       clearTimeout(window.__toastTimer);
-      window.__toastTimer = setTimeout(function () { el.textContent = ""; }, 1800);
+      window.__toastTimer = setTimeout(function () {
+        el.textContent = "";
+      }, tone === "err" ? 6000 : (undo ? 8000 : 1800));
+    }
+
+    /* Every 4xx/5xx used to vanish silently: htmx does not swap error responses,
+       and the views answer with a plain-text reason ("Choose an area", "Title is
+       required"). Surface that text — it is already written for a human. */
+    document.body.addEventListener("htmx:responseError", function (e) {
+      var xhr = e.detail.xhr;
+      var body = (xhr.responseText || "").trim();
+      /* Only trust a short plain-text body; an HTML error page is not a message. */
+      var msg = (body && body.length < 200 && body[0] !== "<")
+        ? body
+        : "Something went wrong (" + xhr.status + "). Nothing was saved.";
+      showToast(msg, "err");
+    });
+    document.body.addEventListener("htmx:sendError", function () {
+      showToast("Can't reach the server. Check your connection — nothing was saved.", "err");
+    });
+    document.body.addEventListener("htmx:timeout", function () {
+      showToast("That took too long and was cancelled. Nothing was saved.", "err");
+    });
+    /* Responses may ask for a toast (with an optional Undo) via a trigger header. */
+    document.body.addEventListener("tuckit:toast", function (e) {
+      var d = e.detail || {};
+      showToast(d.message || "Done.", d.tone, d.undo);
+    });
+
+    /* Dialog bookkeeping for the Alpine-driven .capture-overlay family (quick
+       capture, new slice, new area). The htmx-swapped overlays (#panel,
+       #ticket-modal, #member-modal) are handled by the block below; these are
+       shown/hidden by an Alpine flag, so they need their own open/close hook.
+       Without this they had no focus trap and no focus restore — four Tabs from
+       an open capture dialog landed on a button behind the scrim. */
+    window.__dlgOpener = new WeakMap();
+    function dialogSync(el, open) {
+      if (open) {
+        if (!window.__dlgOpener.has(el)) {
+          window.__dlgOpener.set(el, document.activeElement);
+        }
+        /* Move focus into the dialog ourselves. The triggers all did
+           `$nextTick(() => $refs.captureInput.focus())` from the <body> scope,
+           but that ref lives inside the form's own x-data — Alpine's $refs only
+           walks UP, so it resolved to undefined and the guard silently skipped
+           the focus. Opening quick capture left the caret on the button, and
+           anything typed went nowhere. Focusing the dialog's first field here
+           fixes every .capture-overlay at once and drops the fragile ref. */
+        /* x-effect fires while the overlay is still display:none, and focus()
+           on a hidden element silently does nothing — so poll briefly until
+           x-show has applied. setTimeout, not requestAnimationFrame: rAF is
+           paused in a background tab, which would leave the dialog open with
+           focus stranded outside it. */
+        (function focusWhenVisible(tries) {
+          setTimeout(function () {
+            if (el.contains(document.activeElement)) return;
+            var target = el.querySelector(
+              'input:not([type="hidden"]):not([disabled]), textarea, select, button'
+            );
+            if (target && target.getBoundingClientRect().width > 0) { target.focus(); return; }
+            if (tries > 0) focusWhenVisible(tries - 1);
+          }, 16);
+        })(20);
+      } else if (window.__dlgOpener.has(el)) {
+        var opener = window.__dlgOpener.get(el);
+        window.__dlgOpener.delete(el);
+        if (opener && document.contains(opener)) { opener.focus(); return; }
+        /* The opener can legitimately vanish: completing an onboarding step
+           re-renders the widget without the CTA that opened the dialog, and
+           `document.contains` is then false. Landing on <body> would send the
+           next Tab back to the top of the document, so fall back to the
+           nearest meaningful anchor instead. */
+        var inWidget = opener && opener.closest && opener.closest(".ob-widget");
+        var fallback = inWidget
+          ? document.querySelector(".ob-widget .ob-toggle")
+          : document.getElementById("main-content");
+        if (fallback) fallback.focus();
+      }
     }
     /* Sidebar collapse: desktop-only icon rail, persisted. The class lives on
        <html> so the head script can restore it before paint (no flash). */
@@ -125,6 +226,21 @@
     /* Grow a textarea to fit its content — used by the seamless description editor
        so entering edit mode never jumps to a fixed-height box. */
     function autosize(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+    /* Clipboard writes fail on an insecure origin or a denied permission. The
+       callers used to flip to "Copied" unconditionally, i.e. claim success on
+       failure; resolve false instead so they can say what actually happened. */
+    function copyText(text) {
+      if (!navigator.clipboard) {
+        showToast("Copying needs a secure (https) connection. Select the text and copy manually.", "err");
+        return Promise.resolve(false);
+      }
+      return navigator.clipboard.writeText(text).then(function () {
+        return true;
+      }).catch(function () {
+        showToast("Couldn't copy to the clipboard. Select the text and copy manually.", "err");
+        return false;
+      });
+    }
     /* Enter an inline editor with the caret at the end. focus() alone leaves it
        at offset 0 in Chrome, so typing silently PREPENDS to existing text. */
     function focusEnd(el) {

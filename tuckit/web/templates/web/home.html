@@ -7,7 +7,7 @@
       {% if org %}<span class="page-count">Today's progress and what to focus on next</span>{% endif %}
     </div>
     <button class="button button-small" type="button"
-            x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
+            x-on:click="cap = true">
       {% icon "plus" %}<span>Capture</span></button>
   </header>
 
@@ -66,7 +66,7 @@
           <div class="home-col-empty">
             <span>No bites in progress.</span>
             <button class="button button-small" type="button"
-                    x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
+                    x-on:click="cap = true">
               {% icon "plus" %}<span>Start something</span></button>
           </div>
         {% endfor %}

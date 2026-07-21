@@ -1,7 +1,38 @@
+from urllib.parse import urlparse
+
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
-from django.urls import reverse
+from django.urls import resolve, reverse
+from django.urls.exceptions import Resolver404
+
+# Pages whose body is a computed roll-up (counts, status columns, stat cards)
+# rather than a list we OOB-swap. A mutation elsewhere leaves them showing
+# yesterday's numbers, so they get a real refresh instead.
+_ROLLUP_VIEWS = {"home", "roadmap", "areas", "area", "attention", "in_progress"}
+
+
+def refresh_rollup(request, response):
+    """Ask htmx to reload the page when the user is standing on a roll-up view.
+
+    Creating the first slice from Home used to leave the dashboard reading
+    "Backlog 0 / No planned work queued" while the onboarding widget ticked
+    "Add your first Slice" — the OOB swaps covered the sidebar and the widget
+    but not the numbers, so the page contradicted itself. Rather than OOB-swap
+    every derived figure on every page, refresh the ones that are entirely
+    derived. Mutations made from a list page (Inbox, slice panel) are unaffected:
+    those already swap the thing that changed.
+    """
+    current = request.headers.get("HX-Current-URL")
+    if not current:
+        return response
+    try:
+        match = resolve(urlparse(current).path)
+    except Resolver404:
+        return response
+    if match.url_name in _ROLLUP_VIEWS:
+        response["HX-Refresh"] = "true"
+    return response
 
 
 def widget_oob(request) -> str:

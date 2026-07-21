@@ -1,6 +1,11 @@
 /* Cmd+K palette. Rows are rendered server-side with data-label; this filters
    them client-side, supports up/down/enter, and clicks the active row.
-   No backend — every row is a link or a local action. */
+   No backend — every row is a link or a local action.
+
+   The active row is published to assistive tech via aria-activedescendant plus
+   a live result count. Without them the palette was silent to a screen reader:
+   typing changed which rows were display:none and which one was highlighted,
+   and none of that is observable without ARIA (WCAG 4.1.2 / 4.1.3). */
 function commandPalette() {
   return {
     q: "",
@@ -33,8 +38,27 @@ function commandPalette() {
     },
     highlight(vis) {
       var list = vis || this.visible();
-      this.rows().forEach(function (r) { r.classList.remove("cmdk-row--active"); });
-      if (list[this.active]) list[this.active].classList.add("cmdk-row--active");
+      this.rows().forEach(function (r) {
+        r.classList.remove("cmdk-row--active");
+        r.setAttribute("aria-selected", "false");
+      });
+      var cur = list[this.active];
+      if (cur) {
+        cur.classList.add("cmdk-row--active");
+        cur.setAttribute("aria-selected", "true");
+        if (!cur.id) cur.id = "cmdk-opt-" + Math.abs(this.rows().indexOf(cur));
+        this.$refs.search.setAttribute("aria-activedescendant", cur.id);
+      } else {
+        this.$refs.search.removeAttribute("aria-activedescendant");
+      }
+      this.announce(list.length);
+    },
+    /* Announced politely so it does not interrupt each keystroke's echo. */
+    announce(n) {
+      if (!this.$refs.status) return;
+      this.$refs.status.textContent = n
+        ? n + (n === 1 ? " result" : " results")
+        : "No results";
     },
     move(d) {
       var vis = this.visible();

@@ -11,6 +11,11 @@ how `ticket.body` ended up unreachable from the browser in the first place.
 {% endcomment %}
 <div class="capture-opts" x-data="{ area: '{{ selected_area.id|default_if_none:"" }}' }">
   <div class="capture-optrow">
+    {% if hide_area %}
+      {% comment %} Area-scoped dialog: the destination is already stated in the header, so
+         the picker would be a control with exactly one correct answer. {% endcomment %}
+      <input type="hidden" name="area_id" value="{{ selected_area.id }}">
+    {% else %}
     <label class="capture-field capture-field--inline">
       <span class="capture-lbl">Area</span>
       <select name="area_id" class="capture-select" x-model="area">
@@ -18,6 +23,7 @@ how `ticket.body` ended up unreachable from the browser in the first place.
         {% for a in areas %}<option value="{{ a.id }}"{% if selected_area and selected_area.id == a.id %} selected{% endif %}>{{ a.name }}</option>{% endfor %}
       </select>
     </label>
+    {% endif %}
     {% comment %}
       x-if, not x-show: an x-show'd field is merely invisible and still POSTs,
       which would send a Slice status along with a Ticket capture.
@@ -34,7 +40,9 @@ how `ticket.body` ended up unreachable from the browser in the first place.
     </template>
   </div>
 
-  <div class="capture-field">
+  {% comment %} A <label> wrapper, not a <div>: the textarea previously had no accessible
+     name at all (WCAG 1.3.1 / 3.3.2). {% endcomment %}
+  <label class="capture-field">
     <span class="capture-lbl" x-text="area ? 'Spec' : 'Note'">Note</span>
     <span class="capture-hint"
           x-text="area ? 'The what &amp; why — a brief your agent can act on.'
@@ -43,7 +51,7 @@ how `ticket.body` ended up unreachable from the browser in the first place.
               :placeholder="area ? 'e.g. When a webhook delivery fails, retry with exponential backoff, up to 5 attempts. (optional)'
                                  : 'e.g. The OAuth consent screen buttons are misaligned on mobile. (optional)'"
               x-on:input="autosize($event.target)"></textarea>
-  </div>
+  </label>
 
   <template x-if="area">
   <div class="capture-field">

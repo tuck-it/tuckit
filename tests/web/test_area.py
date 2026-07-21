@@ -165,7 +165,8 @@ def test_area_page_has_new_slice_modal(client_local, org):
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
     assert "＋ New slice" in body                     # the modal trigger button
     assert f"/areas/{a.slug}/slices" in body          # modal posts a full slice to this area
-    assert "New slice in Backend" in body             # modal is a distinct, titled surface
+    assert "Create a new Slice" in body               # modal is a distinct, titled surface
+    assert "in <strong>Backend</strong>" in body      # ...and it names the target area
 
 
 @pytest.mark.django_db
@@ -173,7 +174,7 @@ def test_focus_slice_opens_modal(client_local, org):
     # Onboarding Step 2 deep-links ?focus=slice — the create modal auto-opens.
     a = create_area(org, "Empty")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/?focus=slice").content.decode()
-    assert "open: true" in body
+    assert "modal: true" in body
 
 
 @pytest.mark.django_db

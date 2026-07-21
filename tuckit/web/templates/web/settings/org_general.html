@@ -13,11 +13,20 @@
     </div>
     <div class="settings-row-control">
       <div class="settings-name">
-        <span class="settings-name-display" x-show="!editing" {% if can_admin %}x-on:click="editing = true"{% endif %}>
-          <span x-text="name"></span>{% if can_admin %}{% icon "edit" %}{% endif %}
-        </span>
         {% if can_admin %}
-        <input name="name" class="title-edit" x-show="editing" x-cloak x-model="name"
+        {% comment %} A <button>: as a <span> with x-on:click this was mouse-only, so an
+           admin using the keyboard could not rename their own organisation. {% endcomment %}
+        <button type="button" class="settings-name-display edit-surface" x-show="!editing"
+                aria-label="Edit organization name"
+                x-on:click="editing = true; $nextTick(() => focusEnd($refs.nameInput))">
+          <span x-text="name"></span>{% icon "edit" %}
+        </button>
+        {% else %}
+        <span class="settings-name-display" x-show="!editing"><span x-text="name"></span></span>
+        {% endif %}
+        {% if can_admin %}
+        <input name="name" class="title-edit" x-ref="nameInput" aria-label="Organization name"
+               x-show="editing" x-cloak x-model="name"
                hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur, keydown[key=='Enter']"
                hx-vals="js:{name: name, description: description}" hx-swap="none"
                hx-on::after-request="if(event.detail.successful){saved=name}else{name=saved; showToast(event.detail.xhr.responseText,'err')}"

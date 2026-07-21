@@ -128,9 +128,18 @@ def attention_label(item):
 
 @register.simple_tag
 def icon(name, cls="icon"):
+    """A decorative inline SVG.
+
+    aria-hidden + focusable="false" are unconditional: every icon in this app
+    sits inside a control that carries its own accessible name (aria-label or
+    visible text), so exposing the graphic only adds a second, meaningless stop
+    for screen-reader and keyboard users. If an icon ever becomes the sole
+    carrier of meaning, give its container a name — do not un-hide this.
+    """
     paths = _ICON_PATHS.get(name, "")
     return mark_safe(
         f'<svg class="{cls}" viewBox="0 0 24 24" fill="none" '
+        f'aria-hidden="true" focusable="false" '
         f'stroke="currentColor" stroke-width="1.6" '
         f'stroke-linecap="round" stroke-linejoin="round">{paths}</svg>'
     )
@@ -139,3 +148,25 @@ def icon(name, cls="icon"):
 @register.simple_tag
 def render_bite_body(bite):
     return mark_safe(render_markdown_html(bite.body))
+
+
+@register.simple_tag
+def status_move_targets(status):
+    """Neighbouring board columns for `status`, as {"prev":…, "next":…}.
+
+    Powers the Board's non-drag alternative: dragging a card between columns was
+    the only way to change its status, which excludes keyboard users outright
+    and fails WCAG 2.5.7 (Dragging Movements). "dropped" is not a board column,
+    so it is never offered as a neighbour.
+    """
+    from tuckit.core.services.slices import STATUS_ORDER
+
+    columns = [s for s in STATUS_ORDER if s != "dropped"]
+    try:
+        i = columns.index(status)
+    except ValueError:
+        return {"prev": None, "next": None}
+    return {
+        "prev": columns[i - 1] if i > 0 else None,
+        "next": columns[i + 1] if i < len(columns) - 1 else None,
+    }

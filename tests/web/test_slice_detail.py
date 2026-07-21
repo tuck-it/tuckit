@@ -48,7 +48,7 @@ def test_spec_html_is_sanitized(client_local, org):
     # base.html legitimately ships vendor <script> tags, and the edit form
     # intentionally shows the raw (auto-escaped) spec text in a <textarea>
     # for editing, so checking the whole page would collide with both.
-    spec_section = re.search(r'<div class="spec".*?</div>', body, re.S).group(0)
+    spec_section = re.search(r'<button[^>]*class="spec[^"]*".*?</button>', body, re.S).group(0)
     assert "<script>" not in spec_section
     assert "onerror" not in spec_section
     assert "<h2" in spec_section
@@ -331,7 +331,7 @@ def test_promoted_slice_empty_spec_points_at_the_capture(client_local, org):
 def test_unlinked_slice_keeps_the_generic_prompt(client_local, org):
     s = create_slice(create_area(org, "Backend"), "Direct")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-    assert "Click to add a spec" in body
+    assert "Add a spec" in body
     assert "No design doc yet" not in body
 
 

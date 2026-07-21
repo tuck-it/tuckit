@@ -90,7 +90,7 @@ def test_ticket_row_has_no_manual_caret_and_area_placeholder(client_local, org):
     create_ticket(org, "Uncategorized item")
     body = client_local.get(f"{p}/inbox/").content.decode()
     assert "</select>▾" not in body          # manual caret removed
-    assert "Assign area" in body           # placeholder present
+    assert "Choose area" in body           # placeholder present (same wording as the ticket modal)
 
 @pytest.mark.django_db
 def test_ticket_promote_status_only_keeps_area(client_local, org):

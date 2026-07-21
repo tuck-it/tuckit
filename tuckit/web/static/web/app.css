@@ -470,7 +470,7 @@ body { padding: 0; }
 
 .area-add-input:focus {
   color: var(--ink);
-  outline: none;
+  outline: 2px solid var(--blue); outline-offset: 1px;
 }
 
 /* "+ New slice" opens the area-scoped create modal (reuses .capture-modal). */
@@ -483,11 +483,11 @@ body { padding: 0; }
 .slice-add-toggle:hover { color: var(--ink-soft); }
 .slice-add-input {
   width: 100%; max-width: 420px;
-  background: var(--paper-raised); border: 1px solid var(--line);
+  background: var(--paper-raised); border: 1px solid var(--line-control);
   border-radius: var(--radius-small); color: var(--ink);
   font: inherit; padding: 8px 10px;
 }
-.slice-add-input:focus { border-color: var(--blue); outline: none; }
+.slice-add-input:focus { border-color: var(--blue); outline: 2px solid var(--blue); outline-offset: 1px; }
 
 /* Triage row — bare flex row inside .panel (which supplies surface + dividers);
    the Area/Status selects are quiet until the row is hovered/focused. */
@@ -516,14 +516,14 @@ body { padding: 0; }
 }
 .ticket-select {
   background: var(--paper-raised);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--ink);
   font: inherit;
   font-size: 12px;
   padding: 3px 6px;
 }
-.ticket-select:focus { outline: none; border-color: var(--blue); }
+.ticket-select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 /* Dismiss — quiet icon action; rides the same hover-reveal as the selects. */
 .ticket-dismiss {
   display: inline-flex;
@@ -655,7 +655,6 @@ body { padding: 0; }
   color: var(--text);
   font: inherit;
   font-size: 15px;
-  outline: none;
 }
 
 /* Full capture modal — quiet optional authoring block beneath the title. */
@@ -677,7 +676,7 @@ body { padding: 0; }
 .capture-bite-input {
   width: 100%;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--text);
   font: inherit;
@@ -687,7 +686,7 @@ body { padding: 0; }
 .capture-spec { font-size: 13px; padding: 6px 8px; resize: none; }
 .capture-select:focus,
 .capture-spec:focus,
-.capture-bite-input:focus { outline: none; border-color: var(--accent); }
+.capture-bite-input:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--accent); }
 .capture-tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .capture-bites { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .capture-bite { display: flex; align-items: center; gap: 4px; width: 100%; }
@@ -748,7 +747,7 @@ body { padding: 0; }
 .settings-page input:not([type="checkbox"]):not(.title-edit) {
   min-height: 28px;
   background: var(--paper-deep);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--ink);
   font: inherit;
@@ -756,7 +755,7 @@ body { padding: 0; }
   padding: 0 10px;
 }
 .settings-page input:not([type="checkbox"]):not(.title-edit)::placeholder { color: var(--ink-faint); }
-.settings-page input:not([type="checkbox"]):not(.title-edit):focus { outline: none; border-color: var(--blue); }
+.settings-page input:not([type="checkbox"]):not(.title-edit):focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 .settings-select { position: relative; display: inline-flex; align-items: center; }
 .settings-select::after {
   content: "⌄";
@@ -774,14 +773,14 @@ body { padding: 0; }
   cursor: pointer;
   min-height: 28px;
   background: var(--paper-deep);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--ink);
   font: inherit;
   font-size: 13px;
   padding: 0 30px 0 10px;
 }
-.settings-select select:focus { outline: none; border-color: var(--blue); }
+.settings-select select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 .shipped-board-prefs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .shipped-board-prefs input { width: 76px; padding: 7px 10px; }
 @media (max-width: 560px) {
@@ -845,7 +844,7 @@ body { padding: 0; }
 .settings-value { font-size: 15px; color: var(--ink); }
 
 .title-edit { background: none; border: none; border-bottom: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 18px; padding: 2px 0; width: 320px; max-width: 100%; }
-.title-edit:focus { outline: none; border-bottom-color: var(--blue); }
+.title-edit:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-bottom-color: var(--blue); }
 
 .token-row {
   padding: 8px 12px;
@@ -897,13 +896,13 @@ body { padding: 0; }
 .token-add input {
   flex: 1 1 auto;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--text);
   font: inherit;
   padding: 7px 10px;
 }
-.token-add input:focus { outline: none; border-color: var(--blue); }
+.token-add input:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 
 .mcp-snippet { background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--radius-small); padding: 10px 12px; overflow-x: auto; font-family: var(--mono); font-size: 12px; color: var(--ink); }
 
@@ -1033,7 +1032,7 @@ body { padding: 0; }
 .spec code { font-family: var(--mono); font-size: 12px; }
 .spec-edit { width: 100%; color: var(--ink);
   font: inherit; line-height: 1.6; resize: none; overflow: hidden; }
-.spec-edit:focus { outline: none; border-color: var(--accent); }
+.spec-edit:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--accent); }
 
 /* Markdown headings inside a field (Spec, plan overview/constraints, bite body)
    must not use the page h1-h3 scale (28/22/18px) — they'd dwarf the 13px body.
@@ -1116,7 +1115,7 @@ body { padding: 0; }
   width: 16px; height: 16px;
   padding: 0;
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   cursor: pointer;
   display: inline-flex;
@@ -1179,9 +1178,9 @@ body { padding: 0; }
 .icon-chev { width: 14px; height: 14px; transition: transform 0.15s; }
 
 /* Always-ready add input (Bite, Capture) — visible field, blue focus ring. */
-.bite-add { width: 100%; background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius-small); color: var(--ink); font: inherit; padding: 7px 10px; margin-top: 8px; }
+.bite-add { width: 100%; background: var(--paper-raised); border: 1px solid var(--line-control); border-radius: var(--radius-small); color: var(--ink); font: inherit; padding: 7px 10px; margin-top: 8px; }
 .bite-add::placeholder { color: var(--ink-faint); }
-.bite-add:focus { outline: none; border-color: var(--blue); }
+.bite-add:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 
 /* Ghost add (＋Area) — quiet until focus. */
 .area-add-input:focus { border: none; }
@@ -1216,14 +1215,14 @@ body { padding: 0; }
 .addtag:hover { color: var(--text); border-color: var(--accent); }
 .tag-input {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--text);
   font: inherit;
   font-size: 12px;
   padding: 2px 6px;
 }
-.tag-input:focus { outline: none; border-color: var(--accent); }
+.tag-input:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--accent); }
 
 .dropped-tag { color: var(--ink-faint); font-size: 12px; }
 
@@ -1457,7 +1456,7 @@ body { padding: 0; }
   padding: 14px 16px; border: none; border-bottom: 1px solid var(--line);
   background: none; color: var(--ink);
 }
-.cmdk-input:focus { outline: none; }
+.cmdk-input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; outline-offset: -3px; }
 .cmdk-list { max-height: 50vh; overflow-y: auto; padding: 6px; }
 .cmdk-row {
   display: flex; align-items: center; gap: 10px; width: 100%;
@@ -1612,7 +1611,7 @@ body { padding: 0; }
 }
 .org-add-input:focus {
   color: var(--text);
-  outline: none;
+  outline: 2px solid var(--blue); outline-offset: 1px;
 }
 .rm-shipped { color: var(--muted); }
 
@@ -1690,8 +1689,8 @@ body { padding: 0; }
   cursor: col-resize; background: none;
   touch-action: none;              /* let pointer events drive resize on touch */
 }
-.side-resize:hover,
-.side-resize:focus-visible { background: var(--blue-soft); outline: none; }
+.side-resize:hover { background: var(--blue-soft); }
+.side-resize:focus-visible { background: var(--blue-soft); outline: 2px solid var(--blue); outline-offset: -1px; }
 html.resizing { cursor: col-resize; user-select: none; }
 html.resizing .sidebar { transition: none; }   /* track the cursor 1:1 while dragging */
 html.sidebar-collapsed .side-resize { display: none; }
@@ -2043,13 +2042,13 @@ html.sidebar-collapsed .side-resize { display: none; }
 .af-input {
   width: 100%;
   background: var(--paper-raised);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--ink);
   font: inherit;
   padding: 8px 10px;
 }
-.af-input:focus { outline: none; border-color: var(--blue); }
+.af-input:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 .af-textarea { resize: vertical; min-height: 3.4em; }
 .af-help { font-size: var(--text-xs); color: var(--ink-faint); line-height: 1.4; }
 
@@ -2075,3 +2074,145 @@ html.sidebar-collapsed .side-resize { display: none; }
 /* Weight, not colour alone — the word "(origin)" carries the distinction for
    anyone who cannot perceive the weight change. */
 .provenance-origin { font-weight: 600; }
+
+/* ===================================================================
+   Accessibility & first-run corrections (persona walkthrough 2026-07-22)
+   =================================================================== */
+
+/* --- Target size: WCAG 2.5.8 wants 24x24 CSS px. These controls are visually
+   small on purpose (a dense list should stay dense), so grow the HIT AREA with
+   a pseudo-element instead of the painted box — nothing moves, everything
+   becomes hittable. The bite checkbox is the most-pressed control in the
+   product and was the smallest at 16x16. --- */
+.checkbox, .bite-chev, .ticket-dismiss, .area-act, .tag-x, .crumb-close, .gs-dismiss {
+  position: relative;
+}
+.checkbox::after, .bite-chev::after, .ticket-dismiss::after,
+.area-act::after, .tag-x::after, .crumb-close::after, .gs-dismiss::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 24px);
+  height: max(100%, 24px);
+  transform: translate(-50%, -50%);
+}
+
+/* The bite checkbox reads as a checkbox to AT (role=checkbox + aria-checked on
+   the button); mirror the checked state visually from that attribute so the
+   markup stays the single source of truth. */
+.checkbox[aria-checked="true"] { border-color: var(--dot-shipped); }
+
+/* --- Onboarding widget: it is position:fixed over the page, and during first
+   run it covered the Home NEXT/LATER columns, the Inbox row controls and the
+   slice page's own "Add plan" button — i.e. it hid the very controls it was
+   telling the user to press. Reserve real space for it instead of floating on
+   top, and stand down entirely while a dialog is open. --- */
+@media (min-width: 1024px) {
+  html.ob-open .main { padding-right: calc(320px + 40px); }
+}
+@media (max-width: 1023px) {
+  html.ob-open .main { padding-bottom: 280px; }
+}
+/* An open dialog must sit ABOVE the guide, scrim included — the widget used to
+   float over the capture scrim and stayed clickable while a dialog was open, so
+   the dialog was not actually modal. Solve it by stacking, NOT by hiding the
+   widget: the Area dialog is rendered INSIDE the widget (Alpine scope), so a
+   rule that hides .ob-widget hides that dialog along with it. Raising the
+   overlay covers a sibling widget, and inside the widget's own stacking context
+   the overlay still paints above the widget's content. */
+.capture-overlay { z-index: 70; }
+/* Never taller than the viewport allows; scroll inside instead of running off. */
+.ob-widget { max-height: calc(100dvh - 40px); display: flex; flex-direction: column; }
+.ob-body { overflow-y: auto; }
+
+/* --- Board card: the box is the wrapper, the link fills it. The move buttons
+   are siblings of the link (an <a> may not contain interactive content). --- */
+.slice-card { display: flex; flex-direction: column; }
+.slice-card-link {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  color: inherit;
+  text-decoration: none;
+}
+.slice-card .card-title { display: block; }
+.slice-card .card-meta { display: flex; align-items: baseline; justify-content: space-between; margin-top: 5px; }
+
+/* --- Keyboard/pointer alternative to dragging (WCAG 2.5.7). The sidebar area
+   order and the board column were drag-only; these are the menu items that do
+   the same thing without a drag. --- */
+.move-group { display: flex; gap: var(--space-2); }
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.slice-card:hover .card-actions,
+.slice-card:focus-within .card-actions,
+.slice-card:focus-visible .card-actions { opacity: 1; }
+.card-move {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 var(--space-3);
+  background: var(--paper);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-small);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.card-move:hover { border-color: var(--blue); color: var(--ink); }
+.card-move[disabled] { opacity: .35; cursor: default; }
+
+/* --- Inline "click to edit" surfaces are <button> now. Strip the control
+   chrome so they still read as prose, but keep them focusable and ringed. --- */
+.edit-surface {
+  display: block;
+  width: 100%;
+  margin: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+}
+.edit-surface.panel-title { cursor: text; }
+.spec.edit-surface { cursor: text; }
+/* Hovering an editable field hints that it is editable before the click. */
+.edit-surface:hover .edit-hint { opacity: 1; }
+.edit-hint {
+  opacity: 0;
+  margin-left: var(--space-3);
+  color: var(--ink-faint);
+  font-size: var(--text-xs);
+  transition: opacity .12s ease;
+}
+
+/* --- Toast: now a live region, and it can carry an Undo control. --- */
+.toast { display: flex; align-items: center; gap: var(--space-6); }
+.toast:empty { display: none; }
+.toast-undo {
+  background: none;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-small);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+.toast-undo:hover { border-color: var(--blue); color: var(--blue); }
+
+/* --- Request feedback: htmx marks the in-flight element .htmx-request. --- */
+.htmx-request, .htmx-request * { cursor: progress; }
+button.htmx-request, a.htmx-request { opacity: .6; }

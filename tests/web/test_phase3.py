@@ -20,7 +20,7 @@ def test_ticket_row_shows_provenance_and_english_controls(client_local, org):
     create_ticket(org, "loose end")
     body = client_local.get(f"{p}/inbox/").content.decode()
     assert 'class="ticket-controls"' in body        # controls grouped for reveal
-    assert "Assign area" in body
+    assert "Choose area" in body
     assert ">Status" in body
     assert "— Choose an area —" not in body
 

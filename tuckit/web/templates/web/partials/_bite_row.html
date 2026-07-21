@@ -1,29 +1,45 @@
 {% load web_extras %}
+{% comment %}
+  A bite row. Two accessibility corrections over the original:
+  1. The toggle is a real checkbox to assistive tech (role + aria-checked). It
+     was a plain <button aria-label="Toggle done"> — state was conveyed only by
+     a drawn tick, so a screen reader could not tell done from not-done.
+  2. The title and the note body are <button>s. As <span>/<div> with x-on:click
+     they were unreachable by keyboard, so a bite's note could be read but never
+     opened or written without a mouse.
+{% endcomment %}
 <div class="bite {% if bite.status == 'done' %}bite--done{% endif %}" x-data="{open:false, edit:false, editTitle:false}">
   <div class="bite-line">
     <button class="checkbox {% if bite.status == 'done' %}checkbox--on{% endif %}" type="button"
+            role="checkbox" aria-checked="{% if bite.status == 'done' %}true{% else %}false{% endif %}"
             hx-post="{% wurl 'web:bite_toggle' bite.id %}" hx-target="closest .bite" hx-swap="outerHTML"
-            aria-label="Toggle done">{% if bite.status == 'done' %}{% icon "check" "icon icon-check" %}{% endif %}</button>
-    <span class="bite-title" x-show="!editTitle" x-on:click="open=!open">{{ bite.title }}</span>
+            aria-label="{{ bite.title }}">{% if bite.status == 'done' %}{% icon "check" "icon icon-check" %}{% endif %}</button>
+    <button type="button" class="bite-title edit-surface" x-show="!editTitle"
+            :aria-expanded="open.toString()"
+            x-on:click="open=!open">{{ bite.title }}</button>
     <input x-show="editTitle" x-cloak name="title" value="{{ bite.title }}" x-ref="titleInput" class="title-edit"
+           aria-label="Bite title"
            hx-post="{% wurl 'web:bite_edit' bite.id %}{{ panel_qs }}" hx-trigger="blur, keydown[key=='Enter']"
            hx-target="closest .panel-inner" hx-swap="outerHTML"
-           x-on:keydown.escape.stop="editTitle=false">
+           x-on:keydown.escape.stop="editTitle=false; $el.value = $el.defaultValue">
 
     {% if bite.body %}{% icon "note" "icon bite-note" %}{% endif %}
     <span class="bite-status muted">{{ bite.status }}</span>
-    <button class="bite-chev" type="button" x-on:click="open=!open" :class="open && 'bite-chev--open'">
+    <button class="bite-chev" type="button" x-on:click="open=!open" :class="open && 'bite-chev--open'"
+            :aria-expanded="open.toString()" aria-label="Toggle details for {{ bite.title }}">
       {% icon "chevron" "icon icon-chev" %}</button>
     <div class="bite-menu status-select" x-data="{menu:false}"
          x-on:keydown.escape="if(menu){menu=false;$event.stopPropagation()}">
-      <button type="button" class="ghost bite-menu-btn" aria-haspopup="menu" aria-label="Bite actions"
-              x-on:click="menu=!menu" :aria-expanded="menu">⋯</button>
+      <button type="button" class="ghost bite-menu-btn" aria-haspopup="menu" aria-label="Actions for {{ bite.title }}"
+              x-on:click="menu=!menu" :aria-expanded="menu.toString()">⋯</button>
       <div class="status-menu" role="menu" x-show="menu" x-cloak x-on:click.outside="menu=false">
         <button type="button" class="status-opt" role="menuitem"
-                x-on:click="menu=false; editTitle=true; $nextTick(()=>$refs.titleInput.focus())">Rename</button>
-        <button type="button" class="status-opt" role="menuitem"
+                x-on:click="menu=false; editTitle=true; $nextTick(()=>focusEnd($refs.titleInput))">Rename</button>
+        <button type="button" class="status-opt status-opt--danger" role="menuitem"
                 hx-post="{% wurl 'web:bite_delete' bite.id %}" hx-target="closest .panel-inner" hx-swap="outerHTML"
-                hx-confirm="Delete this bite?" x-on:click="menu=false">Delete</button>
+                hx-disabled-elt="this"
+                hx-confirm="Delete the bite &quot;{{ bite.title }}&quot;? This cannot be undone."
+                x-on:click="menu=false">Delete</button>
       </div>
     </div>
   </div>
@@ -31,12 +47,15 @@
     <div class="bite-body-src muted">
       {% if bite.source == 'agent' %}Written by agent{% else %}Written by you{% endif %} · updated {{ bite.updated_at|timesince }} ago
     </div>
-    <div class="bite-body-md" x-show="!edit" x-on:click="edit=true">
-      {% if bite.body %}{% render_bite_body bite %}{% else %}<span class="muted">No note — click to add</span>{% endif %}
-    </div>
+    <button type="button" class="bite-body-md edit-surface" x-show="!edit" aria-label="Edit note for {{ bite.title }}"
+            x-on:click="edit=true; $nextTick(()=>$refs.bodyEdit && $refs.bodyEdit.focus())">
+      {% if bite.body %}{% render_bite_body bite %}{% else %}<span class="muted">No note — add one</span>{% endif %}
+    </button>
     <form x-show="edit" x-cloak hx-post="{% wurl 'web:bite_body' bite.id %}"
           hx-target="closest .bite" hx-swap="outerHTML">
-      <textarea name="body" class="spec-edit" rows="4">{{ bite.body }}</textarea>
+      <textarea name="body" class="spec-edit" rows="4" x-ref="bodyEdit"
+                aria-label="Note for {{ bite.title }}"
+                x-on:keydown.escape.stop="edit=false">{{ bite.body }}</textarea>
       <button class="ghost" type="submit">Save</button>
     </form>
   </div>

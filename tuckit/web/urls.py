@@ -95,6 +95,7 @@ app_patterns = [
     path(f"{P}areas/<int:area_id>/edit", capture.area_edit, name="area_edit"),
     path(f"{P}areas/<int:area_id>/delete", capture.area_delete, name="area_delete"),
     path(f"{P}areas/<int:area_id>/reorder", capture.area_reorder, name="area_reorder"),
+    path(f"{P}areas/<int:area_id>/move", capture.area_move, name="area_move"),
     path(f"{P}slices/<int:slice_id>/", slices.slice_detail, name="slice"),
     path(f"{P}slices/<int:slice_id>/status", mutations.slice_status, name="slice_status"),
     path(f"{P}slices/<int:slice_id>/edit", mutations.slice_edit, name="slice_edit"),

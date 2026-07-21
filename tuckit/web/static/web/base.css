@@ -102,7 +102,29 @@ h3 { font-size: 18px; }
 /* --- Form-control focus primitive --- */
 /* Text-entry controls hold a 14px readability floor above the dense 13px body. */
 input, textarea, select { font: inherit; font-size: var(--text-md); }
+/* A border-colour swap alone is NOT a focus indicator: on a 1px edge it is easy
+   to miss and disappears entirely for anyone who cannot resolve the hue change.
+   Keep the ring (WCAG 2.4.7) and let the border tint ride along with it. */
 input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: none;
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
   border-color: var(--blue);
 }
+
+/* --- Skip link: 13 of 18 focusable elements on a page are sidebar chrome, so
+   without this every keyboard user re-tabs the whole nav on every page. --- */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -100px;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  border: 1px solid var(--blue);
+  border-radius: var(--radius-small);
+  font-weight: 620;
+  text-decoration: none;
+  transition: top .15s var(--ease);
+}
+.skip-link:focus { top: 8px; }

@@ -1,18 +1,32 @@
 {% load web_extras %}
+{% comment %}
+  Quick capture — the product's most-opened dialog (C, the sidebar button, every
+  page header). It is shown/hidden by Alpine rather than swapped in by htmx, so
+  it needs its own dialog semantics and focus handling: role/aria-modal so it is
+  announced as a dialog at all, a Tab trap so focus cannot land on a control
+  behind the scrim, and dialogSync to hand focus back to whatever opened it.
+{% endcomment %}
 <div class="capture-overlay" x-show="cap" x-cloak
+     role="dialog" aria-modal="true" aria-label="Quick capture"
+     x-effect="dialogSync($el, cap)"
      x-on:keydown.escape.window="cap=false"
+     x-on:keydown.tab="trapOverlay($event, $el)"
      x-on:click.self="cap=false">
   <form class="capture-modal capture-modal--full" hx-post="{% wurl 'web:capture' %}" hx-swap="none"
         x-data="{ tags: [], tagDraft: '' }"
-        hx-on::after-request="if (event.detail.successful && !event.detail.xhr.getResponseHeader('HX-Redirect')) { this.reset(); tags=[]; tagDraft=''; $refs.captureInput.focus() }">
-    <input name="title" class="capture-input" placeholder="Capture…  (Enter to save, Esc to close)" x-ref="captureInput"
+        hx-on::after-request="if (event.detail.successful && !event.detail.xhr.getResponseHeader('HX-Redirect')) { this.reset(); tags=[]; tagDraft=''; this.querySelector('.capture-input').focus() }">
+    <input name="title" class="capture-input" placeholder="What happened, or what needs doing?"
+           aria-label="Capture title" x-ref="captureInput"
            required autocomplete="off" x-on:keydown.escape="cap=false" autofocus>
+    {% comment %} Keyboard affordances live outside the placeholder: a placeholder vanishes
+       the moment you type, i.e. exactly when you might reach for the shortcut. {% endcomment %}
+    <p class="capture-keys"><kbd class="nav-kbd">Enter</kbd> save · <kbd class="nav-kbd">Esc</kbd> close</p>
 
     {% include "web/partials/_slice_fields.html" %}
 
     <div class="capture-actions">
       <button class="ghost" type="button" x-on:click="cap=false">Cancel</button>
-      <button class="button" type="submit">Create</button>
+      <button class="button button-primary" type="submit">Create</button>
     </div>
   </form>
 </div>

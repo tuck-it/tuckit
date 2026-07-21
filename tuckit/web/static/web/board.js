@@ -45,6 +45,10 @@
           if (before) body.set("before_id", before.getAttribute("data-slice-id"));
           if (after) body.set("after_id", after.getAttribute("data-slice-id"));
 
+          // The response used to be dropped entirely: if the server rejected
+          // the move the card stayed where it was dropped, so the UI claimed a
+          // change that never persisted and the next page load silently undid
+          // it. Say so, and put the board back in sync.
           fetch(moveUrl(sliceId), {
             method: "POST",
             headers: {
@@ -52,6 +56,16 @@
               "Content-Type": "application/x-www-form-urlencoded",
             },
             body: body.toString(),
+          }).then(function (res) {
+            if (res.ok) return;
+            return res.text().then(function (text) {
+              var msg = (text && text.length < 200 && text[0] !== "<")
+                ? text : "Couldn't move that slice.";
+              window.showToast(msg + " Reloading the board.", "err");
+              setTimeout(function () { window.location.reload(); }, 1200);
+            });
+          }).catch(function () {
+            window.showToast("Couldn't reach the server — the board may be out of date.", "err");
           });
         },
       });

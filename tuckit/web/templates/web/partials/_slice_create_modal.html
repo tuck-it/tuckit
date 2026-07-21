@@ -1,0 +1,45 @@
+{% load web_extras %}
+{% comment %}
+  Shared "new Slice" dialog. Deliberately mirrors _area_create_modal.html —
+  icon head, explanatory sub, sectioned body, footer with a filled primary — so
+  creating the two core objects reads as one product. Previously the Area dialog
+  and the Slice dialog were built independently and looked it: different header
+  treatment, different field labelling, and the Slice one hid its keyboard hints
+  inside a placeholder that vanished as soon as you typed.
+
+  Include inside an element whose x-data defines `modal` (bool), `tags` and
+  `tagDraft`. Pass `area` (target Area). Pass `list_target` where the caller
+  wants the refreshed slice list swapped in.
+{% endcomment %}
+<div class="capture-overlay" x-show="modal" x-cloak
+     role="dialog" aria-modal="true" aria-label="Create a new Slice"
+     x-effect="dialogSync($el, modal)"
+     x-on:keydown.tab="trapOverlay($event, $el)"
+     x-on:keydown.escape.window="modal = false" x-on:click.self="modal = false">
+  <form class="capture-modal area-create-form" hx-post="{% wurl 'web:area_slice_create' area.slug %}"
+        {% if list_target %}hx-target="{{ list_target }}" hx-swap="outerHTML"{% else %}hx-swap="none"{% endif %}
+        hx-on::after-request="if (event.detail.successful) { modal = false; this.reset(); tags = []; tagDraft = '' }">
+    <div class="ac-head">
+      <span class="ac-head-icon">{% icon "roadmap" "icon" %}</span>
+      <div class="ac-head-text">
+        <div class="ac-title">Create a new Slice</div>
+        <p class="ac-sub">One shippable chunk of product work in <strong>{{ area.name }}</strong> — small enough to finish, big enough to matter.</p>
+      </div>
+    </div>
+    <div class="ac-body">
+      <div class="af-field">
+        <label class="af-lbl" for="slice-title-{{ area.slug }}">Title <span class="af-req">*</span></label>
+        <input id="slice-title-{{ area.slug }}" name="title" class="af-input" x-ref="obSliceTitle"
+               required autocomplete="off"
+               placeholder="e.g. Retry failed webhooks"
+               x-on:keydown.escape="modal = false">
+        <p class="af-help">What you'd say in standup. <kbd class="nav-kbd">Enter</kbd> saves, <kbd class="nav-kbd">Esc</kbd> closes.</p>
+      </div>
+      {% include "web/partials/_slice_fields.html" with selected_area=area hide_area=True %}
+    </div>
+    <div class="capture-actions ac-foot">
+      <button type="button" class="ghost" x-on:click="modal = false">Cancel</button>
+      <button type="submit" class="button button-primary">Create Slice</button>
+    </div>
+  </form>
+</div>

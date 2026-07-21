@@ -1,3 +1,5 @@
+from django.db.models import Count, Q
+
 from tuckit.core.services.areas import list_areas
 from tuckit.core.services.orgs import accessible_orgs
 from tuckit.web.auth import current_org_or_fallback
@@ -6,11 +8,20 @@ from tuckit.web.auth import current_org_or_fallback
 def sidebar_areas(request):
     """Make the org's areas available to every template so the sidebar's Areas
     list (and active-nav highlighting) is consistent across all pages, not
-    just the ones whose view happens to pass `areas` itself."""
+    just the ones whose view happens to pass `areas` itself.
+
+    `slice_count` is annotated (one extra GROUP BY, no N+1) so the delete
+    confirmation can say how much is about to be destroyed rather than the
+    unquantified "and all items in it". Dropped slices are excluded to match
+    what the Areas overview already calls an area's slice count — a confirm
+    saying "3 slices" next to a card saying "2 slices" is its own bug.
+    """
     org = current_org_or_fallback(request)
     if not org:
         return {}
-    return {"areas": list(list_areas(org))}
+    return {"areas": list(list_areas(org).annotate(
+        slice_count=Count("slices", filter=~Q(slices__status="dropped"))
+    ))}
 
 
 def inbox_count(request):
@@ -101,8 +112,20 @@ def onboarding(request):
         ActivityEvent.objects.filter(org=org).order_by("-id")
         .values_list("id", flat=True).first() or 0
     )
+    # Is the user already looking at the slice the Plan/Bite steps link to? If
+    # so the "Open the Slice →" button is a no-op that reloads the current page,
+    # so the widget points at the field on this page instead. Computed here
+    # rather than on OnboardingState, which is frozen and request-independent.
+    match = getattr(request, "resolver_match", None)
+    on_newest = bool(
+        state.newest_slice_id
+        and match
+        and match.url_name == "slice"
+        and str(match.kwargs.get("slice_id")) == str(state.newest_slice_id)
+    )
     return {
         "onboarding": state,
+        "onboarding_on_newest_slice": on_newest,
         "show_get_started": show,
         "onboarding_mcp_url": request.build_absolute_uri("/mcp"),
         "onboarding_agent_baseline": baseline,

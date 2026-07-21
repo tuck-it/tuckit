@@ -33,6 +33,8 @@
           body.set("after_id", after.getAttribute("data-area-id"));
         }
 
+        // As in board.js: an ignored response meant a rejected reorder still
+        // looked like it worked until the next load.
         fetch("/areas/" + areaId + "/reorder", {
           method: "POST",
           headers: {
@@ -40,6 +42,12 @@
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
+        }).then(function (res) {
+          if (res.ok) return;
+          window.showToast("Couldn't save the new order. Reloading.", "err");
+          setTimeout(function () { window.location.reload(); }, 1200);
+        }).catch(function () {
+          window.showToast("Couldn't reach the server — the order may be out of date.", "err");
         });
       },
     });

@@ -1,14 +1,27 @@
 {% load web_extras %}
 {% if show_get_started %}
 {% comment %}Newest non-triage area/slice are the deep-link targets for the
-Slice/Bite steps. `areas` comes from the sidebar_areas context processor.{% endcomment %}
+Slice/Bite steps. `areas` comes from the sidebar_areas context processor.
+
+The widget is position:fixed. It used to float ON TOP of the page, which meant
+during first run — the only time it is shown — it covered the Home NEXT/LATER
+columns, the Inbox row controls, and, worst, the slice page's own "Add plan"
+button: the guide physically blocked the control it was telling you to press.
+It now toggles `ob-open` on <html>, and app.css reserves a matching gutter in
+.main so page content is never underneath it.
+
+Completion is announced, not just drawn: `.ob-box` is decorative (aria-hidden),
+so each step carries an .sr-only status word — colour/opacity alone fails 1.4.1.
+{% endcomment %}
 <div id="onboarding-widget"{% if oob %} hx-swap-oob="true"{% endif %}
-     class="ob-widget" x-data="{open: localStorage.getItem('ob-open') !== '0'}">
+     class="ob-widget" role="complementary" aria-label="Get started checklist"
+     x-data="{open: localStorage.getItem('ob-open') !== '0'}"
+     x-effect="document.documentElement.classList.toggle('ob-open', open)">
   <button type="button" class="ob-toggle" x-on:click="open = !open; localStorage.setItem('ob-open', open ? '1' : '0')"
-          :aria-expanded="open" aria-controls="ob-body">
+          :aria-expanded="open.toString()" aria-controls="ob-body">
     <span class="ob-title">Get started</span>
-    <span class="ob-count">{{ onboarding.completed }}/5</span>
-    <span class="ob-chev" :class="{'ob-chev--up': open}">{% icon "chevron" "icon" %}</span>
+    <span class="ob-count">{{ onboarding.completed }}/5 done</span>
+    <span class="ob-chev" :class="{'ob-chev--up': open}" aria-hidden="true">{% icon "chevron" "icon" %}</span>
   </button>
 
   <div id="ob-body" class="ob-body" x-show="open" x-cloak>
@@ -17,76 +30,93 @@ Slice/Bite steps. `areas` comes from the sidebar_areas context processor.{% endc
       {# Step 1 — Area: button opens a modal, posting to the REAL area_create endpoint #}
       <li class="ob-step {% if onboarding.has_area %}done{% endif %} {% if onboarding.current == 1 %}current{% endif %}"
           x-data="{ modal: false }">
-        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Create your first Area</span></div>
+        <div class="ob-step-head">
+          <span class="ob-box" aria-hidden="true">✓</span>
+          <span>Create your first Area</span>
+          <span class="sr-only">{% if onboarding.has_area %}— completed{% else %}— not completed{% endif %}</span>
+        </div>
         {% if not onboarding.has_area %}
         <p class="ob-hint">A long-lived domain of responsibility — e.g. Backend, Marketing.</p>
         <button type="button" class="button button-primary button-small ob-cta"
-                x-on:click="modal = true; $nextTick(() => $refs.nameInput && $refs.nameInput.focus())">+ Create Area</button>
+                x-on:click="modal = true; $nextTick(() => $refs.nameInput && $refs.nameInput.focus())">＋ Create Area</button>
         {% include "web/partials/_area_create_modal.html" %}
         {% endif %}
       </li>
 
-      {# Step 2 — Slice: button opens an area-scoped modal, posting to area_slice_create #}
+      {# Step 2 — Slice: shared slice dialog, scoped to the newest area #}
       <li class="ob-step {% if onboarding.has_slice %}done{% endif %} {% if onboarding.current == 2 %}current{% endif %}"
           x-data="{ modal: false, tags: [], tagDraft: '' }">
-        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Add your first Slice</span></div>
+        <div class="ob-step-head">
+          <span class="ob-box" aria-hidden="true">✓</span>
+          <span>Add your first Slice</span>
+          <span class="sr-only">{% if onboarding.has_slice %}— completed{% else %}— not completed{% endif %}</span>
+        </div>
         {% if onboarding.has_area and not onboarding.has_slice %}
         <p class="ob-hint">One chunk of product work in {{ areas.0.name }}.</p>
-        <button type="button" class="button button-small ob-cta"
-                x-on:click="modal = true; $nextTick(() => $refs.obSliceTitle && $refs.obSliceTitle.focus())">+ Add Slice</button>
-        <div class="capture-overlay" x-show="modal" x-cloak
-             x-on:keydown.escape.window="modal = false" x-on:click.self="modal = false">
-          <form class="capture-modal capture-modal--full ob-modal-slice" hx-post="{% wurl 'web:area_slice_create' areas.0.slug %}" hx-swap="none"
-                hx-on::after-request="if (event.detail.successful) { modal = false; this.reset(); tags = []; tagDraft = '' }">
-            <div class="capture-lbl">New slice in {{ areas.0.name }}</div>
-            <div class="capture-hint">A slice is one shippable chunk of product work.</div>
-            <input name="title" class="capture-input" x-ref="obSliceTitle" required autocomplete="off"
-                   placeholder="e.g. Retry failed webhooks  (Enter to save, Esc to close)"
-                   x-on:keydown.escape="modal = false">
-            {% include "web/partials/_slice_fields.html" with selected_area=areas.0 %}
-            <div class="capture-actions">
-              <button type="button" class="ghost" x-on:click="modal = false">Cancel</button>
-              <button type="submit" class="button">Create slice</button>
-            </div>
-          </form>
-        </div>
+        <button type="button" class="button button-primary button-small ob-cta"
+                x-on:click="modal = true; $nextTick(() => $refs.obSliceTitle && $refs.obSliceTitle.focus())">＋ Add Slice</button>
+        {% include "web/partials/_slice_create_modal.html" with area=areas.0 %}
         {% endif %}
       </li>
 
-      {# Step 3 — Plan: go to the newest Slice's panel, focus the add-plan form #}
+      {% comment %} Step 3 — Plan. If the user is ALREADY on the target slice the link is a
+         no-op, so point at the field on this page instead of sending them to
+         the page they are standing on. {% endcomment %}
       <li class="ob-step {% if onboarding.has_plan %}done{% endif %} {% if onboarding.current == 3 %}current{% endif %}">
-        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Add a Plan</span></div>
+        <div class="ob-step-head">
+          <span class="ob-box" aria-hidden="true">✓</span>
+          <span>Add a Plan</span>
+          <span class="sr-only">{% if onboarding.has_plan %}— completed{% else %}— not completed{% endif %}</span>
+        </div>
         {% if onboarding.has_slice and not onboarding.has_plan and onboarding.newest_slice_id %}
         <p class="ob-hint">A plan holds this slice's work steps. Add one, then break it into bites.</p>
-        <a class="button button-small ob-cta" href="{% wurl 'web:slice' onboarding.newest_slice_id %}?focus=plan">Open the Slice →</a>
+        {% if onboarding_on_newest_slice %}
+          <p class="ob-hint ob-hint--here">You're on it — use the <strong>Plan</strong> field on this page.</p>
+        {% else %}
+          <a class="button button-primary button-small ob-cta" href="{% wurl 'web:slice' onboarding.newest_slice_id %}?focus=plan">Open the Slice →</a>
+        {% endif %}
         {% endif %}
       </li>
 
-      {# Step 4 — Bite: go to the REAL Slice panel, focus the add-bite form #}
+      {# Step 4 — Bite: same location-awareness as step 3 #}
       <li class="ob-step {% if onboarding.has_bite %}done{% endif %} {% if onboarding.current == 4 %}current{% endif %}">
-        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Break it into Bites</span></div>
+        <div class="ob-step-head">
+          <span class="ob-box" aria-hidden="true">✓</span>
+          <span>Break it into Bites</span>
+          <span class="sr-only">{% if onboarding.has_bite %}— completed{% else %}— not completed{% endif %}</span>
+        </div>
         {% if onboarding.has_plan and not onboarding.has_bite and onboarding.newest_slice_id %}
         <p class="ob-hint">One implementation step of a Slice. Add it in the Slice.</p>
-        <a class="button button-small ob-cta" href="{% wurl 'web:slice' onboarding.newest_slice_id %}?focus=bite">Open the Slice →</a>
+        {% if onboarding_on_newest_slice %}
+          <p class="ob-hint ob-hint--here">You're on it — use the <strong>Bites</strong> field on this page.</p>
+        {% else %}
+          <a class="button button-primary button-small ob-cta" href="{% wurl 'web:slice' onboarding.newest_slice_id %}?focus=bite">Open the Slice →</a>
+        {% endif %}
         {% endif %}
       </li>
 
       {# Step 5 — Connect: OAuth browser flow is primary; key-gen is a headless fallback #}
       <li class="ob-step {% if onboarding.connected %}done{% endif %} {% if onboarding.current == 5 %}current{% endif %}">
-        <div class="ob-step-head"><span class="ob-box" aria-hidden="true">✓</span><span>Connect your agent</span></div>
+        <div class="ob-step-head">
+          <span class="ob-box" aria-hidden="true">✓</span>
+          <span>Connect your agent</span>
+          <span class="sr-only">{% if onboarding.connected %}— completed{% else %}— not completed{% endif %}</span>
+        </div>
         {% if onboarding.current == 5 %}
         <div id="ob-connect">
           <div class="gs-field">
-            <label>MCP endpoint</label>
-            <div class="gs-copyrow" x-data>
-              <input class="gs-mono" value="{{ onboarding_mcp_url }}" readonly x-ref="v">
-              <button type="button" class="gs-mini" x-on:click="navigator.clipboard.writeText($refs.v.value)">Copy</button>
+            <label for="ob-mcp-url">MCP endpoint</label>
+            <div class="gs-copyrow" x-data="{copied:false}">
+              <input id="ob-mcp-url" class="gs-mono" value="{{ onboarding_mcp_url }}" readonly x-ref="v">
+              <button type="button" class="gs-mini" x-text="copied ? 'Copied' : 'Copy'"
+                      x-on:click="copyText($refs.v.value).then(ok => { copied = ok; setTimeout(() => copied = false, 1500) })">Copy</button>
             </div>
           </div>
-          <div class="gs-snip" x-data>
-            <label>Claude Code — run this, then click Allow in your browser</label>
-            <pre class="gs-code" x-ref="cc">claude mcp add --transport http tuckit {{ onboarding_mcp_url }}</pre>
-            <button type="button" class="gs-mini" x-on:click="navigator.clipboard.writeText($refs.cc.textContent)">Copy</button>
+          <div class="gs-snip" x-data="{copied:false}">
+            <label for="ob-cc-cmd">Claude Code — run this, then click Allow in your browser</label>
+            <pre id="ob-cc-cmd" class="gs-code" x-ref="cc">claude mcp add --transport http tuckit {{ onboarding_mcp_url }}</pre>
+            <button type="button" class="gs-mini" x-text="copied ? 'Copied' : 'Copy'"
+                    x-on:click="copyText($refs.cc.textContent).then(ok => { copied = ok; setTimeout(() => copied = false, 1500) })">Copy</button>
           </div>
           <p class="ob-hint">Your browser opens — pick this workspace, click Allow. No token to copy.</p>
           {% include "web/partials/_get_started_listen.html" with agent_baseline=onboarding_agent_baseline listen_id="ob-listen" %}

@@ -5,6 +5,7 @@ from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.resolve import get_slice
 from tuckit.core.services.slices import set_slice_status, reorder_slice
 from tuckit.web.auth import get_current_org
+from tuckit.web.htmx import refresh_rollup
 
 
 def slice_move(request, slice_id):
@@ -33,6 +34,9 @@ def slice_move(request, slice_id):
         if before is not None or after is not None:
             reorder_slice(slice_, before=before, after=after)
 
-    # Drag-drop is the only caller: SortableJS updates the DOM optimistically
-    # and ignores this response, so there is nothing to re-render.
-    return HttpResponse(status=204)
+    # Two callers now. SortableJS updates the DOM optimistically and ignores the
+    # body, so 204 is still right for a drag. The card's status buttons (the
+    # non-drag alternative, WCAG 2.5.7) come in via htmx from the Board itself,
+    # which is a derived roll-up — refresh_rollup re-renders the columns so the
+    # card visibly lands in its new one.
+    return refresh_rollup(request, HttpResponse(status=204))

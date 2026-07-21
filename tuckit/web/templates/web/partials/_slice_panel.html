@@ -8,11 +8,20 @@
     {% endif %}
   </div>
 
+  {% comment %} Every click-to-edit surface below is a <button>, not a <span>/<div>. As
+     spans they were unreachable by keyboard, which meant a keyboard user could
+     Drop the slice and Delete its plan but could not edit the title, spec,
+     overview or constraints — every destructive action reachable, every
+     authoring action not (WCAG 2.1.1). {% endcomment %}
   <div class="panel-titlebar">
-    <span class="panel-title" id="panel-title" x-show="!editTitle" x-on:click="editTitle=true">{{ slice.title }}</span>
-    <input name="title" value="{{ slice.title }}" class="title-edit" x-show="editTitle" x-cloak
+    <button type="button" class="panel-title edit-surface" id="panel-title" x-show="!editTitle"
+            x-on:click="editTitle=true; $nextTick(() => focusEnd($refs.titleInput))">{{ slice.title }}<span class="edit-hint">Edit</span></button>
+    <input name="title" value="{{ slice.title }}" class="title-edit" x-ref="titleInput" x-show="editTitle" x-cloak
            hx-post="{% wurl 'web:slice_edit' slice.id %}{{ panel_qs }}" hx-trigger="blur, keydown[key=='Enter']"
-           hx-target="closest .panel-inner" hx-swap="outerHTML">
+           hx-target="closest .panel-inner" hx-swap="outerHTML"
+           aria-label="Slice title"
+           {# Esc cancels the edit instead of bubbling up and closing the whole panel. #}
+           x-on:keydown.escape.stop="editTitle=false; $el.value = $el.defaultValue">
   </div>
   <div class="props">
     <div class="prop-row">
@@ -96,8 +105,8 @@
 
   <div class="desc-block">
     <div class="section-label">Spec</div>
-    <div class="spec" x-show="!editSpec"
-         x-on:click="editSpec=true; $nextTick(()=>{ $refs.specEdit.focus(); autosize($refs.specEdit); })">{% if slice.spec %}{{ spec_html|safe }}{% elif origin_ticket %}<span class="muted">No design doc yet. The original capture is in {{ org_slug_ref }}{{ origin_ticket.number }}.</span>{% else %}<span class="muted">Click to add a spec…</span>{% endif %}</div>
+    <button type="button" class="spec edit-surface" x-show="!editSpec" aria-label="Edit spec"
+         x-on:click="editSpec=true; $nextTick(()=>{ $refs.specEdit.focus(); autosize($refs.specEdit); })">{% if slice.spec %}{{ spec_html|safe }}{% elif origin_ticket %}<span class="muted">No design doc yet. The original capture is in {{ org_slug_ref }}{{ origin_ticket.number }}.</span>{% else %}<span class="muted">Add a spec…</span>{% endif %}</button>
     <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}{{ panel_qs }}"
           hx-target="closest .panel-inner" hx-swap="outerHTML">
       <textarea name="spec" class="spec-edit" x-ref="specEdit" rows="2"
@@ -125,14 +134,15 @@
       <button class="ghost plan-del" type="button"
               hx-post="{% wurl 'web:plan_delete' entry.plan.id %}{{ panel_qs }}"
               hx-target="closest .panel-inner" hx-swap="outerHTML"
-              hx-confirm="Delete this plan and its bites?">Delete</button>
+              hx-disabled-elt="this"
+              hx-confirm="Delete the plan &quot;{{ entry.plan.title|default:'Untitled plan' }}&quot; and its {{ entry.bites|length }} bite{{ entry.bites|length|pluralize }}? This cannot be undone.">Delete plan</button>
     </div>
     <div class="plan-card" x-data="{editBody:false, editCons:false}">
 
     <div class="plan-field">
       <div class="section-label">Overview</div>
-      <div class="spec" x-show="!editBody"
-           x-on:click="editBody=true; $nextTick(()=>{ $refs.body.focus(); autosize($refs.body); })">{% if entry.plan.body %}{{ entry.plan_html|safe }}{% else %}<span class="muted">Click to add an overview…</span>{% endif %}</div>
+      <button type="button" class="spec edit-surface" x-show="!editBody" aria-label="Edit plan overview"
+           x-on:click="editBody=true; $nextTick(()=>{ $refs.body.focus(); autosize($refs.body); })">{% if entry.plan.body %}{{ entry.plan_html|safe }}{% else %}<span class="muted">Add an overview…</span>{% endif %}</button>
       <form x-show="editBody" x-cloak hx-post="{% wurl 'web:plan_edit' entry.plan.id %}{{ panel_qs }}"
             hx-target="closest .panel-inner" hx-swap="outerHTML">
         <textarea name="body" class="spec-edit" x-ref="body" rows="2"
@@ -146,8 +156,8 @@
 
     <div class="plan-field">
       <div class="section-label">Constraints</div>
-      <div class="spec" x-show="!editCons"
-           x-on:click="editCons=true; $nextTick(()=>{ $refs.cons.focus(); autosize($refs.cons); })">{% if entry.plan.constraints %}{{ entry.constraints_html|safe }}{% else %}<span class="muted">Click to add constraints…</span>{% endif %}</div>
+      <button type="button" class="spec edit-surface" x-show="!editCons" aria-label="Edit plan constraints"
+           x-on:click="editCons=true; $nextTick(()=>{ $refs.cons.focus(); autosize($refs.cons); })">{% if entry.plan.constraints %}{{ entry.constraints_html|safe }}{% else %}<span class="muted">Add constraints…</span>{% endif %}</button>
       <form x-show="editCons" x-cloak hx-post="{% wurl 'web:plan_edit' entry.plan.id %}{{ panel_qs }}"
             hx-target="closest .panel-inner" hx-swap="outerHTML">
         <textarea name="constraints" class="spec-edit" x-ref="cons" rows="2"
@@ -208,7 +218,7 @@
     {% endif %}
     <span class="action-spacer"></span>
     <button class="ghost" type="button" x-data="{copied:false}"
-            x-on:click="navigator.clipboard.writeText(window.location.origin + '{% wurl 'web:slice' slice.id %}'); copied=true; setTimeout(()=>copied=false,1500)"
+            x-on:click="copyText(window.location.origin + '{% wurl 'web:slice' slice.id %}').then(ok => { copied = ok; setTimeout(()=>copied=false,1500) })"
             x-text="copied ? 'Copied' : 'Copy link'">Copy link</button>
     {% if is_panel %}
     <a class="ghost" href="{% wurl 'web:slice' slice.id %}">Open full page →</a>

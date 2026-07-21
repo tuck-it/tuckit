@@ -7,12 +7,18 @@
       that use it migrate to canonical names; delete this block when none remain. */
 
 :root {
-  --dot-open: #8f948f;
+  --dot-open: #878c87;
   --dot-planned: #5f86a0;
-  --dot-building: #a0683b;
+  --dot-building: #966137;
   --dot-shipped: #52745f;
   --dot-someday: #8a7f97;
   --overlay: rgba(35, 40, 42, 0.38);
+
+  /* Boundary of an INTERACTIVE control (input, select, textarea, checkbox).
+     Distinct from --line, which is a decorative hairline between surfaces:
+     WCAG 1.4.11 requires 3:1 for the former and exempts the latter. --line is
+     1.30:1 on paper, so a control drawn with it has no perceivable edge. */
+  --line-control: #858480;
 
   /* One monospace stack for the whole product (self-hosted IBM Plex Mono,
      system fallbacks). Use var(--mono) everywhere — never inline the stack. */
@@ -61,6 +67,7 @@
     --dot-shipped: #85aa8f;
     --dot-someday: #a596b0;
     --overlay: rgba(0, 0, 0, 0.55);
+    --line-control: #6d7576;
   }
 }
 
@@ -71,4 +78,5 @@
   --dot-shipped: #85aa8f;
   --dot-someday: #a596b0;
   --overlay: rgba(0, 0, 0, 0.55);
+  --line-control: #6d7576;
 }

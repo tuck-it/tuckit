@@ -49,7 +49,7 @@
   </div>
 
   <button class="capture-btn" type="button"
-          x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
+          x-on:click="cap = true">
     {% icon "plus" %}<span class="nav-label">Capture</span><kbd class="nav-kbd">C</kbd></button>
 
   <div class="side-resize" role="separator" aria-orientation="vertical"

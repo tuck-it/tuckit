@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -17,7 +18,7 @@ from tuckit.core.services.resolve import get_area, get_ticket, get_area_by_slug,
 from tuckit.core.services.slices import query_slices
 from tuckit.core.services.tickets import absorb_ticket, origin_ticket, release_ticket
 from tuckit.web.auth import get_current_org
-from tuckit.web.htmx import redirect_response, widget_oob
+from tuckit.web.htmx import redirect_response, refresh_rollup, widget_oob
 
 _SLICE_STATUSES = ["planned", "building", "shipped"]
 
@@ -95,7 +96,7 @@ def inbox(request):
     })
 
 
-def _inbox_result(request, org, message, *, resolved_view=""):
+def _inbox_result(request, org, message, *, resolved_view="", undo_url="", undo_label="Undo"):
     """Response for an action that moves a ticket out of (or back into) the
     Inbox: OOB-swap the whole list — so the empty state reappears — plus the
     sidebar count and a toast. The row itself needs no target; the caller uses
@@ -104,14 +105,18 @@ def _inbox_result(request, org, message, *, resolved_view=""):
     `resolved_view` names the list the user is looking at, so restoring from
     ?status=dismissed re-renders the dismissed list rather than swapping the
     open one in under a "Dismissed" heading."""
-    return render(request, "web/partials/_capture_result.html", {
+    resp = render(request, "web/partials/_capture_result.html", {
         "tickets": query_tickets(org, status=resolved_view or "open"),
         "areas": list(list_areas(org)),
         "statuses": _SLICE_STATUSES,
         "resolved_view": resolved_view,
         "dismissed_count": ticket_queryset(org, status="dismissed").count(),
         "toast_message": message,
+        "undo_url": undo_url,
+        "undo_label": undo_label,
     })
+    # Home/Board show derived counts that these OOB swaps do not touch.
+    return refresh_rollup(request, resp)
 
 
 def _ticket_or_404(org, ticket_id):
@@ -178,8 +183,12 @@ def ticket_dismiss(request, ticket_id):
     """Triage a ticket away without building it. Recoverable: it stays readable
     under ?status=dismissed and can be restored from there."""
     org = get_current_org(request)
-    resolve_ticket(_ticket_or_404(org, ticket_id), "dismissed", actor="human")
-    return _inbox_result(request, org, "Dismissed.")
+    ticket = _ticket_or_404(org, ticket_id)
+    resolve_ticket(ticket, "dismissed", actor="human")
+    return _inbox_result(
+        request, org, "Dismissed.",
+        undo_url=reverse("web:ticket_reopen", args=[org.slug, ticket.id]),
+    )
 
 
 def ticket_reopen(request, ticket_id):
@@ -233,7 +242,7 @@ def area_create(request):
     # sidebar_areas context processor supplies the refreshed `areas`. Also
     # OOB-refresh the onboarding widget so its Step-1 checkbox ticks live.
     html = render_to_string("web/partials/_area_nav.html", {"oob": True}, request=request)
-    return HttpResponse(html + widget_oob(request))
+    return refresh_rollup(request, HttpResponse(html + widget_oob(request)))
 
 
 def area_rename(request, area_id):
@@ -252,6 +261,12 @@ def area_rename(request, area_id):
     # browser's current URL (htmx sends it as HX-Current-URL).
     current_path = urlparse(request.headers.get("HX-Current-URL", "")).path
     active = current_path == reverse("web:area", args=[org.slug, area.slug])
+    # Re-read with the slice_count annotation the row's delete confirmation
+    # needs; `area` above came back from update_area() unannotated, which would
+    # render "and its  slices" with the number silently missing.
+    area = list_areas(org).annotate(
+        slice_count=Count("slices", filter=~Q(slices__status="dropped"))
+    ).get(pk=area.pk)
     return render(request, "web/partials/_area_row.html", {"a": area, "active": active})
 
 
@@ -285,6 +300,44 @@ def area_delete(request, area_id):
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
     return HttpResponse(status=204)  # htmx empties the row via hx-swap="outerHTML"
+
+
+def area_move(request, area_id):
+    """Move an Area one place up or down in the sidebar.
+
+    The pointer/keyboard equivalent of dragging the row. Reordering was
+    drag-only, which fails WCAG 2.5.7 (Dragging Movements) — SortableJS has no
+    keyboard affordance and the row menu offered only Rename/Delete. Neighbours
+    are resolved on the server so the caller just says "up" or "down".
+    """
+    org = get_current_org(request)
+    try:
+        area = get_area(org, area_id)
+    except NotFound:
+        raise Http404
+    direction = request.POST.get("direction")
+    if direction not in ("up", "down"):
+        return HttpResponse("Direction must be 'up' or 'down'.", status=400)
+
+    siblings = list(list_areas(org))
+    try:
+        i = next(n for n, a in enumerate(siblings) if a.id == area.id)
+    except StopIteration:
+        raise Http404
+    # rank_for() prefers `after` and ignores `before` when both are given, so
+    # pass exactly one: it finds the real neighbour on the other side itself.
+    if direction == "up":
+        if i == 0:
+            return HttpResponse("That area is already first.", status=400)
+        reorder_area(area, before=siblings[i - 1])
+    else:
+        if i == len(siblings) - 1:
+            return HttpResponse("That area is already last.", status=400)
+        reorder_area(area, after=siblings[i + 1])
+    # `areas` comes from the sidebar_areas context processor (already annotated
+    # with slice_count for the delete confirmation), so the re-rendered nav is
+    # identical to a fresh page load's.
+    return render(request, "web/partials/_area_nav.html", {})
 
 
 def area_reorder(request, area_id):
@@ -327,7 +380,7 @@ def area_slice_create(request, slug):
         "groups": groups,
         "has_any_slice": has_any_slice,
     }, request=request)
-    return HttpResponse(html + widget_oob(request))
+    return refresh_rollup(request, HttpResponse(html + widget_oob(request)))
 
 
 def ticket_slice_options(request):

@@ -1,6 +1,12 @@
-{# Toast — always shown, auto-dismisses. Replaces the persistent #toast region. #}
-<div id="toast" hx-swap-oob="true" class="toast" x-data="{show:true}"
-     x-init="setTimeout(() => show=false, 1800)" x-show="show" x-transition x-cloak>{{ toast_message|default:"Captured in Inbox." }}</div>
+{% comment %} Toast — a live region so the outcome reaches assistive tech, not just the
+   screen. An `undo_url` renders the reversal inline (dismissal is revisable);
+   the toast then lingers long enough to actually use it. {% endcomment %}
+<div id="toast" hx-swap-oob="true" class="toast" role="status" aria-live="polite" aria-atomic="true"
+     x-data="{show:true}"
+     x-init="setTimeout(() => show=false, {% if undo_url %}8000{% else %}1800{% endif %})"
+     x-show="show" x-transition x-cloak>{{ toast_message|default:"Captured in Inbox." }}{% if undo_url %}
+  <button type="button" class="toast-undo" hx-post="{{ undo_url }}" hx-swap="none"
+          x-on:click="show=false">{{ undo_label|default:"Undo" }}</button>{% endif %}</div>
 
 {# Count badge — always refreshed (context processor supplies inbox_count). #}
 {% include "web/partials/_inbox_count.html" with oob=True %}

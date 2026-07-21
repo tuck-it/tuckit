@@ -15,20 +15,24 @@
   </div>
 
   <div class="panel-titlebar">
-    <span class="panel-title" id="ticket-modal-title" x-show="!editTitle"
-          x-on:click="editTitle=true; $nextTick(() => focusEnd($refs.t))">{{ ticket.title }}</span>
+    <button type="button" class="panel-title edit-surface" id="ticket-modal-title" x-show="!editTitle"
+          x-on:click="editTitle=true; $nextTick(() => focusEnd($refs.t))">{{ ticket.title }}<span class="edit-hint">Edit</span></button>
     <input name="title" value="{{ ticket.title }}" class="title-edit" x-ref="t" x-show="editTitle" x-cloak
+           aria-label="Ticket title"
            hx-post="{% wurl 'web:ticket_edit' ticket.id %}" hx-trigger="blur, keydown[key=='Enter']"
-           hx-target="closest .ticket-card" hx-swap="outerHTML">
+           hx-target="closest .ticket-card" hx-swap="outerHTML"
+           x-on:keydown.escape.stop="editTitle=false; $el.value = $el.defaultValue">
   </div>
 
   <div class="ticket-body">
-    <div class="spec" x-show="!editBody"
+    <button type="button" class="spec edit-surface" x-show="!editBody" aria-label="Edit note"
          x-on:click="editBody=true; $nextTick(() => { focusEnd($refs.b); autosize($refs.b) })">
       {% if ticket.body %}{{ body_html|safe }}{% else %}<span class="muted">Add a note — what you saw, and why it matters.</span>{% endif %}
-    </div>
+    </button>
     <textarea name="body" class="spec-edit" x-ref="b" x-show="editBody" x-cloak
+              aria-label="Ticket note"
               x-on:input="autosize($event.target)"
+              x-on:keydown.escape.stop="editBody=false"
               hx-post="{% wurl 'web:ticket_edit' ticket.id %}" hx-trigger="blur"
               hx-target="closest .ticket-card" hx-swap="outerHTML">{{ ticket.body }}</textarea>
   </div>
@@ -51,11 +55,11 @@
       {% endcomment %}
       <div class="ticket-actions">
         <button class="ghost" type="button"
-                hx-post="{% wurl 'web:ticket_release' ticket.id %}" hx-swap="none">Release to Inbox</button>
+                hx-post="{% wurl 'web:ticket_release' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">Release to Inbox</button>
       </div>
     {% endif %}
   {% elif ticket.status == "open" %}
-    <form class="ticket-actions" hx-post="{% wurl 'web:ticket_promote' ticket.id %}" hx-swap="none">
+    <form class="ticket-actions" hx-post="{% wurl 'web:ticket_promote' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">
       <label class="ticket-field">Promote to
         <select name="area_id" class="ticket-select" required>
           <option value="" selected disabled>Choose area</option>
@@ -64,7 +68,7 @@
       </label>
       <button class="button button-small" type="submit">Promote</button>
       <button class="ghost" type="button"
-              hx-post="{% wurl 'web:ticket_dismiss' ticket.id %}" hx-swap="none">Dismiss</button>
+              hx-post="{% wurl 'web:ticket_dismiss' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">Dismiss</button>
     </form>
     {% comment %}
       Merge folds this capture into work already planned instead of minting a
@@ -75,7 +79,7 @@
       The area field is `merge_area_id`, not `area_id` — htmx serializes the
       whole form on hx-get, so reusing the Promote form's name would collide.
     {% endcomment %}
-    <form class="ticket-actions" hx-post="{% wurl 'web:ticket_merge' ticket.id %}" hx-swap="none">
+    <form class="ticket-actions" hx-post="{% wurl 'web:ticket_merge' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">
       <label class="ticket-field">Merge into
         {% comment %}
           hx-swap is declared here on purpose. htmx INHERITS attributes from
@@ -99,7 +103,7 @@
   {% else %}
     <div class="ticket-actions">
       <button class="button button-small" type="button"
-              hx-post="{% wurl 'web:ticket_reopen' ticket.id %}" hx-swap="none">Restore to Inbox</button>
+              hx-post="{% wurl 'web:ticket_reopen' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">Restore to Inbox</button>
     </div>
   {% endif %}
 

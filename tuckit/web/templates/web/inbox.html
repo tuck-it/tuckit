@@ -12,7 +12,7 @@
       <div class="page-head-r">
         {% include "web/partials/_inbox_dismissed_link.html" %}
         <button class="button button-small" type="button"
-                x-on:click="cap = true; $nextTick(() => $refs.captureInput && $refs.captureInput.focus())">
+                x-on:click="cap = true">
           {% icon "plus" %}<span>Capture</span></button>
       </div>
     {% endif %}
