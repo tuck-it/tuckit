@@ -567,6 +567,7 @@ body { padding: 0; }
   padding: var(--space-8);
   width: 560px;
   max-width: 92vw;
+  max-height: var(--modal-room);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -582,6 +583,11 @@ body { padding: 0; }
 }
 .ticket-status--promoted { color: var(--blue); border-color: var(--blue); }
 .ticket-close { margin-left: auto; }
+/* The note is the one part that grows without bound, so it takes the scroll
+   and the head, actions and meta stay put. min-height:0 is what lets a flex
+   child shrink below its content — without it the card would just overflow
+   its own max-height again. */
+.ticket-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
 .ticket-body .spec { min-height: 60px; }
 .ticket-actions { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
 .ticket-actions .ghost { margin-left: auto; }
@@ -1008,8 +1014,15 @@ body { padding: 0; }
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 20vh;
+  /* Cards cap themselves to --modal-room, so this only catches a viewport too
+     short for even a capped card. Without it the overflow is unreachable: the
+     overlay is fixed, so the document behind it never grows to scroll. */
+  padding: 20vh var(--space-6) var(--space-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+/* What is left for a card after the overlay's own padding. */
+.modal-overlay { --modal-room: calc(100vh - 20vh - var(--space-6)); }
 .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; width: 360px; max-width: 90vw; }
 .modal-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .modal-card-title { font-size: 15px; font-weight: 600; color: var(--ink); }

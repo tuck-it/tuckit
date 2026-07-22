@@ -352,3 +352,31 @@ def test_org_general_never_reads_alpine_state_from_htmx_attributes(client_local,
         "use x-on:htmx:… so the handler runs inside the Alpine scope"
     assert 'hx-include="closest .settings-section"' in section, \
         "the description save must carry the name, which rename_org requires"
+
+
+# --- Overlays that outgrow the screen --------------------------------------
+
+def test_a_long_ticket_modal_can_be_scrolled_to_its_actions():
+    """.modal-overlay is fixed and inset:0, and it carried no overflow rule
+    while .ticket-card had no height cap. An agent-written body of a few screens
+    pushed Promote/Dismiss/Merge past the fold with nothing on the page able
+    to scroll — a fixed overlay does not grow the document behind it — so the
+    decision the modal exists to make was unreachable (WCAG 2.1.1).
+
+    The card is capped to the viewport and the body scrolls inside it, which
+    keeps the actions on screen instead of a full screen-height below the
+    note; the overlay scrolls too, as a floor for viewports too short even for
+    the head and actions.
+    """
+    app = (STATIC / "app.css").read_text(encoding="utf-8")
+    overlay = re.search(r"\.modal-overlay:not\(:empty\)\s*\{(.*?)\}", app, re.S).group(1)
+    assert "overflow-y: auto" in overlay, "a fixed overlay must scroll its own content"
+
+    card = re.search(r"\.ticket-card\s*\{(.*?)\}", app, re.S).group(1)
+    assert "max-height:" in card, "the card must not be allowed to exceed the viewport"
+
+    body = re.search(r"\.ticket-body\s*\{(.*?)\}", app, re.S)
+    assert body is not None, ".ticket-body needs a rule of its own to take the scroll"
+    assert "overflow-y: auto" in body.group(1), "the note is what scrolls, not the actions"
+    assert "min-height: 0" in body.group(1), \
+        "a flex child will not shrink below its content without this"
