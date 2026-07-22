@@ -19,31 +19,31 @@ from tuckit.core.services.resolve import get_area, get_ticket, get_area_by_slug,
 from tuckit.core.services.slices import query_slices
 from tuckit.core.services.tickets import absorb_ticket, origin_ticket, release_ticket
 from tuckit.web.auth import get_current_org
-from tuckit.web.htmx import redirect_response, refresh_rollup, widget_oob
+from tuckit.web.htmx import refresh_rollup, widget_oob
 
 _SLICE_STATUSES = ["planned", "building", "shipped"]
 
 
 def capture(request):
-    """Global capture. The Area select IS the fork, and nothing else:
+    """Capture always creates a Ticket.
 
-        no area  -> Ticket  (title + note; the Inbox decides later)
-        an area  -> Slice   (title + spec + status + tags; committed work)
+    Area answers "which part of the product", not "are we doing this" — two
+    different axes. So picking one files the ticket without committing to it:
+    the ticket stays `open` in the Inbox either way. The Area select used to BE
+    the Ticket/Slice fork, which meant an idea you had already filed became a
+    `planned` Slice the moment you said where it belonged, and there was no way
+    to just park it.
 
-    That mirrors the model exactly — a Ticket has no status and no tags, and a
-    Slice cannot exist without an area — so the form only ever offers fields the
-    destination actually has. It replaces an earlier rule where writing a note
-    silently upgraded the capture to a Slice and then demanded an area, which
-    left `ticket.body` unreachable from the browser entirely."""
+    status/tags are not read here. A Ticket has neither, so the form no longer
+    offers them; a stale or hand-rolled POST carrying them is ignored rather
+    than refused — there is nowhere to put them, but that is no reason to throw
+    the capture away. Slices are authored from an Area's "+ New slice" or by
+    promoting a ticket."""
     org = get_current_org(request)
 
     title = request.POST.get("title", "").strip()
     if not title:
         return HttpResponse("Title is required", status=400)
-
-    status = request.POST.get("status", "planned") or "planned"
-    spec = request.POST.get("spec", "").strip()
-    tags = [t.strip() for t in request.POST.getlist("tags") if t.strip()]
 
     area = None
     if request.POST.get("area_id"):
@@ -52,29 +52,14 @@ def capture(request):
         except (NotFound, ValueError):
             raise Http404
 
-    if area is None:
-        if tags or status != "planned":
-            # A Ticket has neither field, and the form hides both when no area is
-            # picked — so this is a stale/hand-rolled POST. Refuse rather than
-            # drop authored detail on the floor.
-            return HttpResponse(
-                "Tickets have no status or tags — choose an area to author those.",
-                status=400,
-            )
-        # Unfiled Ticket. The note rides along in `body` — the whole point of
-        # the Inbox is deciding, and you cannot decide on a bare title.
-        # Responds with out-of-band swaps (toast, live count, Inbox list) so one
-        # response works from any page; htmx drops OOB targets not on screen.
-        create_ticket(org, title, body=spec, source="human")
-        return _inbox_result(request, org, "Captured in Inbox.")
-
-    try:
-        slice_ = create_slice(area, title, spec=spec, status=status, tags=tags, source="human")
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-
-    # Land in the freshly authored slice to keep working (full navigation).
-    return redirect_response(request, "web:slice", org_slug=org.slug, slice_id=slice_.id)
+    # The note rides along in `body` — the whole point of the Inbox is deciding,
+    # and you cannot decide on a bare title. The response is a bundle of
+    # out-of-band swaps (toast, live count, Inbox list) so one response works
+    # from any page; htmx drops OOB targets that are not on screen.
+    create_ticket(org, title, body=request.POST.get("spec", "").strip(),
+                  area=area, source="human")
+    return _inbox_result(request, org,
+                         f"Captured in {area.name if area else 'Inbox'}.")
 
 
 _REVIEWABLE_TICKET_STATUSES = {"dismissed", "duplicate"}
