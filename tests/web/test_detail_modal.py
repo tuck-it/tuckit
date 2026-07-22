@@ -103,9 +103,12 @@ def test_slice_full_page_is_not_a_dialog(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a, "Payment integration")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-    main = body.split('id="main-content"', 1)[1]
+    # Only <main>. The skeleton <template> further down the page legitimately
+    # contains .detail-card markup that is never rendered.
+    main = body.split('id="main-content"', 1)[1].split("</main>", 1)[0]
     assert 'data-url-param="slice"' not in main
     assert "detail-card" not in main
+    assert "detail-body" in main, "sanity: the slice partial did render here"
 
 
 @pytest.mark.django_db
@@ -116,3 +119,34 @@ def test_ticket_modal_card_declares_its_dialog_contract(client_local, org):
     assert 'data-url-param="ticket"' in body
     assert 'aria-labelledby="detail-title"' in body
     assert "detail-card" in body
+
+
+def test_skeleton_templates_exist_and_are_closable():
+    """The skeleton must ship a Close control: a modal that cannot be dismissed
+    while it loads is worse than a cursor spinner."""
+    html = _read("templates/web/base.html")
+    assert '<template id="skeleton-detail">' in html
+    assert '<template id="skeleton-small">' in html
+    detail = html.split('<template id="skeleton-detail">', 1)[1].split("</template>", 1)[0]
+    assert "closeDetail()" in detail
+    assert 'data-skeleton="1"' in detail
+
+
+def test_skeleton_is_painted_before_the_request_and_cleaned_up_on_failure():
+    html = _read("templates/web/base.html")
+    assert "function openSkeleton(" in html
+    # painted synchronously inside the click handler, not on afterSwap
+    before = html.split('addEventListener("htmx:beforeRequest"', 1)[1].split("});", 1)[0]
+    assert "openSkeleton(" in before
+    # a failed open must not leave the skeleton sitting there forever
+    after = html.split('addEventListener("htmx:afterRequest"', 1)[1].split("});", 1)[0]
+    assert "[data-skeleton]" in after
+    assert "closeDetail()" in after
+
+
+def test_modal_openers_do_not_get_the_progress_cursor():
+    """The skeleton is the feedback now. cursor:progress stays on mutation
+    buttons, where it is still the only immediate signal."""
+    css = _read("static/web/app.css")
+    assert '[hx-target="#detail-modal"].htmx-request' in css
+    assert ".htmx-request, .htmx-request * { cursor: progress; }" in css

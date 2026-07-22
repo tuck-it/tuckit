@@ -1031,6 +1031,40 @@ body { padding: 0; }
 /* Without this the page behind the scrim scrolls under the wheel. */
 body.modal-open { overflow: hidden; }
 
+/* Loading skeleton. Shape only — no copy, no spinner: the point is that the
+   frame and the close control exist from the very first frame, so a click
+   never looks like nothing happened. */
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-8);
+}
+.skel {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-small);
+  background: var(--paper-deep);
+}
+.skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--paper-raised), transparent);
+  animation: skel-shimmer 1.2s infinite;
+}
+@keyframes skel-shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .skel::after { animation: none; } }
+.skel-head { display: flex; align-items: center; gap: var(--space-5); }
+.skel-close { margin-left: auto; }
+.skel-chip { height: 14px; width: 96px; }
+.skel-title { height: 22px; width: 55%; }
+.skel-row { height: 14px; width: 40%; }
+.skel-line { height: 12px; }
+.skel-line--short { width: 70%; }
+
 /* Member/invite "Manage" — an action dialog for one row, not a detail view,
    so it stays small while slices and tickets go to .detail-card. */
 .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; width: 360px; max-width: 90vw; }
@@ -2278,3 +2312,10 @@ html.sidebar-collapsed .side-resize { display: none; }
 /* --- Request feedback: htmx marks the in-flight element .htmx-request. --- */
 .htmx-request, .htmx-request * { cursor: progress; }
 button.htmx-request, a.htmx-request { opacity: .6; }
+/* ...except for anything that opens the detail modal. There the skeleton is
+   the feedback, and a progress cursor layered on top of it reads as "still
+   nothing is happening". Mutation buttons keep it: for them it is the only
+   immediate signal, paired with hx-disabled-elt. */
+[hx-target="#detail-modal"].htmx-request,
+[hx-target="#detail-modal"].htmx-request * { cursor: auto; }
+[hx-target="#detail-modal"].htmx-request { opacity: 1; }

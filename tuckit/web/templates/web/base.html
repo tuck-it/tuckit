@@ -96,6 +96,43 @@
        x-on:click.self="closeDetail()"
        x-on:keydown.escape.window="$el.innerHTML.trim() && closeDetail()"
        x-on:keydown.tab="trapOverlay($event, $el)"></div>
+  {% comment %}
+    Loading skeletons. Kept as markup, not as a JS string, so they follow the
+    same token rules as everything else. Cloned in synchronously from
+    htmx:beforeRequest, which fires inside the click handler — so the frame is
+    painted regardless of how long the round trip takes.
+
+    Plain onclick (not x-on/hx-on): a cloned <template> is not guaranteed to be
+    walked by Alpine before the user reaches for the close button.
+  {% endcomment %}
+  <template id="skeleton-detail">
+    <div class="detail-card skeleton-card" data-skeleton="1"
+         role="dialog" aria-modal="true" aria-label="Loading" aria-busy="true">
+      <div class="skel-head">
+        <span class="skel skel-chip"></span>
+        <button class="ghost skel-close" type="button" aria-label="Close"
+                onclick="closeDetail()">{% icon "close" "icon" %}</button>
+      </div>
+      <span class="skel skel-title"></span>
+      <span class="skel skel-row"></span>
+      <span class="skel skel-row"></span>
+      <span class="skel skel-line"></span>
+      <span class="skel skel-line"></span>
+      <span class="skel skel-line skel-line--short"></span>
+    </div>
+  </template>
+  <template id="skeleton-small">
+    <div class="modal-card skeleton-card" data-skeleton="1"
+         role="dialog" aria-modal="true" aria-label="Loading" aria-busy="true">
+      <div class="skel-head">
+        <span class="skel skel-chip"></span>
+        <button class="ghost skel-close" type="button" aria-label="Close"
+                onclick="closeDetail()">{% icon "close" "icon" %}</button>
+      </div>
+      <span class="skel skel-line"></span>
+      <span class="skel skel-line skel-line--short"></span>
+    </div>
+  </template>
   {% comment %} Status messages must reach assistive tech, not just the screen (WCAG 4.1.3).
      polite + atomic: announce the whole message once, without interrupting. {% endcomment %}
   <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true" x-cloak></div>
@@ -237,6 +274,18 @@
         history.replaceState({}, "", u.pathname + u.search + u.hash);
       }
     }
+    /* Paint the modal frame before the response exists. Called from
+       htmx:beforeRequest, which runs synchronously inside the click handler,
+       so the first frame after the click already has the card and its close
+       control — the round trip then swaps content into a box that is already
+       on screen. */
+    function openSkeleton(el, opener) {
+      var small = opener && opener.closest && opener.closest('[data-modal="small"]');
+      var tpl = document.getElementById(small ? "skeleton-small" : "skeleton-detail");
+      if (!tpl) return;
+      el.innerHTML = "";
+      el.appendChild(tpl.content.cloneNode(true));
+    }
     /* Grow a textarea to fit its content — used by the seamless description editor
        so entering edit mode never jumps to a fixed-height box. */
     function autosize(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
@@ -283,6 +332,15 @@
          not focusable — recording it would strand focus on close. */
       if (e.detail.elt !== t) window.__overlayOpeners[DETAIL_ID] = e.detail.elt;
       document.body.classList.add("modal-open");
+      openSkeleton(t, e.detail.elt);
+    });
+    document.body.addEventListener("htmx:afterRequest", function (e) {
+      var t = e.detail.target;
+      if (!t || t.id !== DETAIL_ID || e.detail.successful) return;
+      /* htmx does not swap a failed response, so the skeleton would sit there
+         forever and the modal would be a locked grey box. The error text is
+         already handled by the global htmx:responseError toast above. */
+      if (t.querySelector("[data-skeleton]")) closeDetail();
     });
     document.body.addEventListener("htmx:afterSwap", function (e) {
       var t = e.target;
