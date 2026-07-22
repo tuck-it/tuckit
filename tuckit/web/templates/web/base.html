@@ -356,6 +356,26 @@
          already handled by the global htmx:responseError toast above. */
       if (t.querySelector("[data-skeleton]")) closeDetail();
     });
+    /* htmx snapshots the CURRENT page for history AFTER the response arrives
+       but BEFORE the swap — by which time openSkeleton has already painted a
+       card into the container. So the LIST url's snapshot carries a skeleton,
+       and Back restored a phantom grey box over the list with the background
+       still scroll-locked. Reconcile against the url instead of trusting the
+       snapshot: a restored card survives only if the param that reopens it is
+       actually present, and the scroll lock follows the same answer so Forward
+       into a modal url cannot restore a modal over a scrolling page. */
+    document.body.addEventListener("htmx:historyRestore", function () {
+      var el = document.getElementById(DETAIL_ID);
+      var card = el && el.firstElementChild;
+      if (!card) return;
+      var param = card.dataset ? card.dataset.urlParam : null;
+      if (param && new URL(window.location.href).searchParams.has(param)) {
+        document.body.classList.add("modal-open");
+        return;
+      }
+      el.innerHTML = "";
+      document.body.classList.remove("modal-open");
+    });
     document.body.addEventListener("htmx:afterSwap", function (e) {
       var t = e.target;
       if (!t || t.id !== DETAIL_ID || !t.innerHTML.trim()) return;

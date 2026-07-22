@@ -179,3 +179,24 @@ def test_the_sticky_action_bar_reaches_the_bottom_of_the_modal_card():
     # the unscoped rule must stay at 0 for the full page
     base = re.search(r"\n\.action-bar\s*\{(.*?)\}", css, re.S).group(1)
     assert "bottom: 0" in base
+
+
+def test_history_restore_reconciles_the_modal_against_the_url():
+    """htmx saves the CURRENT page to its history cache after the response
+    arrives but BEFORE the swap — and openSkeleton has already painted a card
+    by then, so the LIST url's snapshot carries a skeleton. Restoring it put a
+    phantom grey box over the list with the background still scroll-locked.
+
+    Found in a browser; no endpoint test can see it, because the bug lives
+    entirely in what htmx stored and replayed. What we can pin is that the
+    reconciliation exists and keys off the url rather than the snapshot.
+    """
+    html = _read("templates/web/base.html")
+    assert "htmx:historyRestore" in html, "nothing reconciles a restored snapshot"
+    handler = html.split("htmx:historyRestore", 1)[1].split("});", 1)[0]
+    # The decision must come from the url, not from what was restored.
+    assert "searchParams.has" in handler
+    # Both halves of the modal state have to follow that decision.
+    assert 'classList.remove("modal-open")' in handler
+    assert 'classList.add("modal-open")' in handler
+    assert 'innerHTML = ""' in handler
