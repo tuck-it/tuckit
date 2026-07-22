@@ -287,3 +287,68 @@ def test_form_controls_keep_a_visible_focus_ring():
     assert "outline: none" not in base
     assert "outline: none" not in app, "a focus indicator must never be removed outright"
     assert "input:focus-visible" in base and "outline: 2px solid var(--blue)" in base
+
+
+# --- Feedback that can actually be seen ------------------------------------
+
+def test_toast_outranks_every_overlay():
+    """The toast sat at z-index 50 while overlays are 60 and the capture dialog
+    is 70. Both are body-level siblings, so an error raised from inside a modal
+    rendered behind that modal's scrim: the silent failure the toast exists to
+    end survived in exactly the place it mattered (WCAG 4.1.3)."""
+    app = (STATIC / "app.css").read_text(encoding="utf-8")
+    toast = re.search(r"\.toast\s*\{(.*?)\}", app, re.S).group(1)
+    toast_z = int(re.search(r"z-index:\s*(\d+)", toast).group(1))
+
+    others = [int(m) for m in re.findall(r"z-index:\s*(\d+)", app)]
+    others.remove(toast_z)
+    assert toast_z > max(others), (
+        f"toast is z-{toast_z} but something else reaches z-{max(others)}"
+    )
+
+
+def test_disabled_buttons_do_not_look_enabled():
+    """Promote is disabled until an area is chosen, and Save until the
+    description changes. With no :disabled rule anywhere in the stylesheets
+    both were pixel-identical to a live button, so they read as broken rather
+    than as waiting for input."""
+    base = (STATIC / "base.css").read_text(encoding="utf-8")
+    app = (STATIC / "app.css").read_text(encoding="utf-8")
+    assert ".button:disabled" in base, "the .button primitive needs a disabled state"
+    assert ".btn:disabled" in app, "the settings .btn needs one too"
+
+
+@pytest.mark.django_db
+def test_org_description_has_an_explicit_save(client_local, org):
+    """The description textarea saved on blur with no button and no success
+    message, so the only way to learn whether it had stored was to reload
+    (Nielsen 1). A failed save also reverted what had been typed."""
+    body = client_local.get(f"{_p(org)}/settings/general").content.decode()
+    row = body[body.index('aria-label="Organization description"'):]
+
+    assert "hx-trigger=\"blur\"" not in row, "blur must not be the only way to save"
+    assert "showToast('Saved.', 'ok')" in row, "a successful save must say so"
+    # The old handler did `description = savedDescription` on failure.
+    assert "description=savedDescription" not in row, \
+        "a failed save must keep what the user typed"
+
+@pytest.mark.django_db
+def test_org_general_never_reads_alpine_state_from_htmx_attributes(client_local, org):
+    """htmx evaluates hx-vals="js:{…}" and hx-on:: in the global scope, where
+    an x-data name does not exist. Both fields here referenced `description`
+    that way, so every save threw "description is not defined" before the
+    request was built: the org name silently posted nothing, and the
+    description's own success bookkeeping and error toast never ran.
+
+    This is the same shape as the Alpine $refs bug in the walkthrough — an
+    expression that looks scoped, resolves to nothing, and fails silently."""
+    body = client_local.get(f"{_p(org)}/settings/general").content.decode()
+    start = body.index('class="group settings-section"')
+    section = body[start:body.index("</section>", start)]
+
+    assert "hx-vals=\"js:" not in section, \
+        "htmx cannot see x-data; send the real fields with hx-include instead"
+    assert "hx-on::" not in section, \
+        "use x-on:htmx:… so the handler runs inside the Alpine scope"
+    assert 'hx-include="closest .settings-section"' in section, \
+        "the description save must carry the name, which rename_org requires"
