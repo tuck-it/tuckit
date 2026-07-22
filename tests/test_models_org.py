@@ -48,3 +48,15 @@ def test_org_updated_at_advances_on_save():
     org.save(update_fields=["name", "updated_at"])
     org.refresh_from_db()
     assert org.updated_at > before
+
+
+@pytest.mark.django_db
+def test_org_member_starts_with_no_home_watermark():
+    """home_seen_at is the only state behind "new since you last looked". It
+    starts null so a first-ever visit badges nothing — a fresh account seeing
+    "10 new" would be noise, not news."""
+    org = Org.objects.create(name="Acme", slug="acme")
+    user = User.objects.create_user(email="a@example.com", password="x")
+    m = OrgMember.objects.create(user=user, org=org, role="owner")
+
+    assert m.home_seen_at is None

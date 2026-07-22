@@ -11,15 +11,16 @@ from tuckit.core.services.tickets import create_ticket
 from tuckit.core.services.state import (
     AREA_STATUS_KEYS,
     area_board_view,
-    attention_items,
     cap_shipped,
     home_state,
-    in_progress_state,
     roadmap_board_view,
     roadmap_state,
     STALE_DAYS,
     get_project_state,
+    mark_home_seen,
     render_slice_markdown,
+    since_last_visit,
+    your_turn,
 )
 
 
@@ -118,55 +119,35 @@ def test_counts_and_dropped_bite_excluded(product_org):
 
 
 @pytest.mark.django_db
-def test_attention_flags_stale_ticket_and_stalled_building():
+def test_home_state_keeps_every_building_slice_visible():
+    """The old Home silently dropped a building slice from its Focus column
+    once it also landed in the attention list, and dropped `someday`-tagged
+    ones outright. A slice whose status says building but which is missing from
+    the building list is the bug this replaces."""
     org = Org.objects.create(name="Acme", slug="acme")
-    backend = create_area(org, "Backend")
-    stale_ticket = create_ticket(org, "old capture")
-    fresh_ticket = create_ticket(org, "new capture")
-    stalled = create_slice(backend, "in flight", status="building")
-    old = timezone.now() - timedelta(days=STALE_DAYS + 1)
-    Ticket.objects.filter(pk=stale_ticket.pk).update(created_at=old)
-    Slice.objects.filter(pk=stalled.pk).update(updated_at=old)
-    items = attention_items(org)
-    got = {
-        ((it["ticket"].id if "ticket" in it else it["slice"].id), it["reason"])
-        for it in items
-    }
-    assert (stale_ticket.id, "ticket_stale") in got
-    assert (stalled.id, "building_stalled") in got
-    ticket_ids = {it["ticket"].id for it in items if "ticket" in it}
-    assert fresh_ticket.id not in ticket_ids
+    a = create_area(org, "Backend")
+    stalled = create_slice(a, "stalled", status="building")
+    create_slice(a, "parked", status="building", tags=["someday"])
+    create_slice(a, "fresh", status="building")
+    Slice.objects.filter(pk=stalled.pk).update(
+        updated_at=timezone.now() - timedelta(days=30)
+    )
+
+    titles = [s.title for s in home_state(org)["building"]]
+    assert set(titles) == {"stalled", "parked", "fresh"}
+    assert titles[0] == "stalled", "stalled sorts first — sort key, not filter"
 
 
 @pytest.mark.django_db
-def test_home_state_buckets_across_areas_someday_excluded():
+def test_home_state_counts_backlog_without_listing_it():
     org = Org.objects.create(name="Acme", slug="acme")
-    a1 = create_area(org, "Backend"); a2 = create_area(org, "Frontend")
-    create_slice(a1, "pay", status="building")
-    create_slice(a2, "ui", status="building")
-    create_slice(a1, "next", status="planned")
-    create_slice(a2, "later", status="planned", tags=["someday"])
+    a = create_area(org, "Backend")
+    create_slice(a, "queued", status="planned")
+    create_slice(a, "someday one", status="planned", tags=["someday"])
     st = home_state(org)
-    assert {s.title for s in st["building"]} == {"pay", "ui"}
-    assert {s.title for s in st["planned"]} == {"next"}
-    assert {s.title for s in st["someday"]} == {"later"}
-    assert "ideas" not in st  # the 'idea' status/bucket is retired
-
-
-@pytest.mark.django_db
-def test_attention_items_include_reason_and_days():
-    from tuckit.core.management.commands.bootstrap import ensure_bootstrap
-
-    org, _ = ensure_bootstrap()
-    t = create_ticket(org, "Old capture")
-    old = timezone.now() - timedelta(days=11)
-    Ticket.objects.filter(pk=t.pk).update(created_at=old)
-
-    items = attention_items(org)
-    hit = [it for it in items if it.get("ticket") and it["ticket"].id == t.id]
-    assert hit, "stale ticket should surface"
-    assert hit[0]["reason"] == "ticket_stale"
-    assert hit[0]["days"] == 11
+    assert st["planned_ct"] == 2
+    assert st["someday_ct"] == 1
+    assert "planned" not in st, "the backlog is Board's job — Home links to it"
 
 
 @pytest.mark.django_db
@@ -186,44 +167,15 @@ def test_roadmap_state_buckets_by_status():
 
 
 @pytest.mark.django_db
-def test_in_progress_state_has_building_slices_and_doing_bites():
-    org = Org.objects.create(name="Acme", slug="acme")
-    a = create_area(org, "Backend")
-    s = create_slice(a, "building slice", status="building")
-    create_slice(a, "planned slice", status="planned")
-    p = create_plan(s, title="Plan")
-    create_bite(p, "doing bite", status="doing")
-    create_bite(p, "todo bite", status="todo")
-    st = in_progress_state(org)
-    assert [x.title for x in st["slices"]] == ["building slice"]
-    assert [x.title for x in st["bites"]] == ["doing bite"]
-
-
-@pytest.mark.django_db
-def test_roadmap_and_in_progress_sort_by_area_name():
+def test_roadmap_sorts_by_area_name():
     org = Org.objects.create(name="Acme", slug="acme")
     zeta = create_area(org, "Zeta")
     alpha = create_area(org, "Alpha")
-    # Created Zeta-first, but both functions must return them Alpha-first (sort
-    # key is (area name, rank)). Guards against the sort key being dropped/reversed.
+    # Created Zeta-first, but must come back Alpha-first (sort key is
+    # (area name, rank)). Guards against the sort key being dropped/reversed.
     create_slice(zeta, "z build", status="building")
     create_slice(alpha, "a build", status="building")
     assert [s.title for s in roadmap_state(org)["building"]] == ["a build", "z build"]
-    assert [s.title for s in in_progress_state(org)["slices"]] == ["a build", "z build"]
-
-
-@pytest.mark.django_db
-def test_home_state_excludes_attention_from_building():
-    from tuckit.core.management.commands.bootstrap import ensure_bootstrap
-
-    org, _ = ensure_bootstrap()
-    a = create_area(org, "Product")
-    s = create_slice(a, "Stalled work", status="building")
-    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
-
-    state = home_state(org)
-    assert any(it["slice"].id == s.id for it in state["attention"])
-    assert all(b.id != s.id for b in state["building"]), "stalled building must not double-appear"
 
 
 @pytest.mark.django_db
@@ -280,45 +232,20 @@ def test_roadmap_board_view_reports_overflow(product_org):
     assert len(shipped_group) == 1
 
 
-def test_snapshot_today_first_day_has_no_deltas(product_org):
+def test_snapshot_today_still_accrues_history(product_org):
+    """Nothing renders these numbers now. The row is still written so the daily
+    history keeps accruing for a future metrics screen — a gap no backfill can
+    fill."""
     from tuckit.core.services.state import snapshot_today
     from tuckit.core.models import OrgStatSnapshot
-    area = create_area(product_org, "Backend")
-    create_slice(area, "A", status="building")
-    create_slice(area, "B", status="planned")
-    out = snapshot_today(product_org, home_state(product_org))
-    assert out["building"] == {"value": 1, "delta": None}
-    assert out["backlog"]["value"] == 1
-    assert out["backlog"]["delta"] is None
-    # exactly one row was written for today
+
+    a = create_area(product_org, "A")
+    create_slice(a, "b", status="building")
+    snapshot_today(product_org, home_state(product_org), 0)
+    snapshot_today(product_org, home_state(product_org), 0)
+
     assert OrgStatSnapshot.objects.filter(org=product_org).count() == 1
-
-
-def test_snapshot_today_is_idempotent_per_day(product_org):
-    from tuckit.core.services.state import snapshot_today
-    from tuckit.core.models import OrgStatSnapshot
-    area = create_area(product_org, "Backend")
-    create_slice(area, "A", status="building")
-    snapshot_today(product_org, home_state(product_org))
-    snapshot_today(product_org, home_state(product_org))
-    assert OrgStatSnapshot.objects.filter(org=product_org).count() == 1
-
-
-def test_snapshot_today_delta_vs_prior_day(product_org):
-    from datetime import timedelta as _td
-    from django.utils import timezone as _tz
-    from tuckit.core.services.state import snapshot_today
-    from tuckit.core.models import OrgStatSnapshot
-    area = create_area(product_org, "Backend")
-    create_slice(area, "A", status="building")
-    # simulate yesterday's snapshot: 3 building
-    yesterday = _tz.localdate() - _td(days=1)
-    OrgStatSnapshot.objects.create(
-        org=product_org, date=yesterday, building_ct=3, backlog_ct=0,
-        shipped_week_ct=0, attention_ct=0,
-    )
-    out = snapshot_today(product_org, home_state(product_org))
-    assert out["building"] == {"value": 1, "delta": -2}  # 1 today vs 3 yesterday
+    assert OrgStatSnapshot.objects.get(org=product_org).building_ct == 1
 
 
 @pytest.mark.django_db
@@ -484,3 +411,162 @@ def test_area_board_view_has_any_slice_counts_capped_and_dropped(product_org):
 @pytest.mark.django_db
 def test_area_status_keys_include_dropped(product_org):
     assert AREA_STATUS_KEYS == {"planned", "building", "shipped", "dropped"}
+
+
+@pytest.mark.django_db
+def test_your_turn_includes_specless_building_slice():
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "started but undesigned", status="building")  # spec=""
+    items = your_turn(org)
+    hit = [it for it in items if it.get("slice") and it["slice"].id == s.id]
+    assert hit, "a building slice with no spec is blocked on a human"
+    assert hit[0]["action"] == "write the spec"
+
+
+@pytest.mark.django_db
+def test_your_turn_includes_slice_whose_bites_are_all_done():
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "finished work", status="building", spec="designed")
+    p = create_plan(s, title="Plan")
+    create_bite(p, "one", status="done")
+    items = your_turn(org)
+    hit = [it for it in items if it.get("slice") and it["slice"].id == s.id]
+    assert hit
+    assert hit[0]["action"] == "verify and ship"
+
+
+@pytest.mark.django_db
+def test_your_turn_excludes_stages_an_agent_can_do():
+    """needs_plan and needs_bites are agent work — create_plan and add_bites
+    exist for exactly that. Listing them here would nag daily."""
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    needs_plan = create_slice(a, "designed, unplanned", status="building", spec="designed")
+    needs_bites = create_slice(a, "planned, unbitten", status="building", spec="designed")
+    create_plan(needs_bites, title="Empty plan")
+    ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
+    assert needs_plan.id not in ids
+    assert needs_bites.id not in ids
+
+
+@pytest.mark.django_db
+def test_your_turn_excludes_specless_planned_slices():
+    """promote never copies the ticket body, so EVERY freshly promoted slice is
+    specless. Including planned ones would dump the whole backlog here."""
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    p = create_slice(a, "just captured", status="planned")
+    ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
+    assert p.id not in ids
+
+
+@pytest.mark.django_db
+def test_your_turn_aggregates_open_tickets_into_one_row():
+    org = Org.objects.create(name="Acme", slug="acme")
+    for i in range(3):
+        create_ticket(org, f"capture {i}")
+    rows = [it for it in your_turn(org) if "tickets" in it]
+    assert len(rows) == 1, "the Inbox already lists tickets individually"
+    assert rows[0]["tickets"] == 3
+    assert rows[0]["action"] == "3 waiting for triage"
+    assert "tickets" in your_turn(org)[-1], "the aggregate row sorts last"
+
+
+@pytest.mark.django_db
+def test_your_turn_sorts_longest_blocked_first():
+    """Staleness is the sort key, never an inclusion rule — a 'stale' section
+    would be a guilt list that only ever grows."""
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    recent = create_slice(a, "recent", status="building")
+    old = create_slice(a, "old", status="building")
+    Slice.objects.filter(pk=old.pk).update(updated_at=timezone.now() - timedelta(days=30))
+    titles = [it["slice"].title for it in your_turn(org) if it.get("slice")]
+    assert titles == ["old", "recent"]
+    assert recent.id  # referenced so the fixture reads as intentional
+
+
+@pytest.mark.django_db
+def test_your_turn_is_empty_when_nothing_is_blocked():
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "moving along", status="building", spec="designed")
+    create_bite(create_plan(s, title="Plan"), "in flight", status="todo")
+    assert your_turn(org) == []
+
+
+def _member(org):
+    from tuckit.core.models import OrgMember, User
+    user = User.objects.create_user(email=f"m{org.pk}@example.com", password="x")
+    return OrgMember.objects.create(user=user, org=org, role="owner")
+
+
+@pytest.mark.django_db
+def test_since_last_visit_badges_nothing_on_a_first_visit():
+    from tuckit.core.services.activity import record_activity
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "work", status="building")
+    record_activity(org, actor="agent", verb="created", target=s)
+
+    out = since_last_visit(org, _member(org))
+    assert out["new_count"] == 0
+    assert all(not e.is_new for e in out["events"])
+    assert len(out["events"]) >= 1, "the log still renders — only the badge is empty"
+
+
+@pytest.mark.django_db
+def test_since_last_visit_counts_only_agent_events_as_new():
+    """In a solo org every 'human' event is the viewer's own. Badging your own
+    work as news is noise, so it renders for context but never counts."""
+    from tuckit.core.services.activity import record_activity
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "work", status="building")
+    m = _member(org)
+    mark_home_seen(m)
+
+    record_activity(org, actor="agent", verb="shipped", target=s)
+    record_activity(org, actor="human", verb="noted", target=s, body="mine")
+
+    out = since_last_visit(org, m)
+    assert out["new_count"] == 1
+    assert sum(1 for e in out["events"] if e.is_new) == 2, "both are new..."
+    assert [e.actor for e in out["events"] if e.is_new].count("human") == 1, \
+        "...but the human one is not counted"
+
+
+@pytest.mark.django_db
+def test_mark_home_seen_advances_the_watermark():
+    org = Org.objects.create(name="Acme", slug="acme")
+    m = _member(org)
+    assert m.home_seen_at is None
+
+    mark_home_seen(m)
+    m.refresh_from_db()
+    first = m.home_seen_at
+    assert first is not None
+
+    mark_home_seen(m)
+    m.refresh_from_db()
+    assert m.home_seen_at > first
+
+
+@pytest.mark.django_db
+def test_since_last_visit_is_capped_and_newest_first():
+    from tuckit.core.services.activity import record_activity
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "work", status="building")
+    for i in range(15):
+        record_activity(org, actor="agent", verb="noted", target=s, body=f"n{i}")
+
+    out = since_last_visit(org, _member(org), limit=10)
+    assert len(out["events"]) == 10
+    stamps = [e.created_at for e in out["events"]]
+    assert stamps == sorted(stamps, reverse=True)

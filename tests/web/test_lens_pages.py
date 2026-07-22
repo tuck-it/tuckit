@@ -1,41 +1,21 @@
 import pytest
-from datetime import timedelta
-from django.utils import timezone
-from tuckit.core.models import Slice
+
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
-from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import create_plan
 
 
 @pytest.mark.django_db
-def test_attention_page_lists_stale_items(client_local, org):
-    a = create_area(org, "Backend")
-    s = create_slice(a, "Stalled work", status="building")
-    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
-    p = f"/{org.slug}"
-    body = client_local.get(f"{p}/attention/").content.decode()
-    assert "Stalled work" in body
-    assert "9d idle" in body
+def test_lens_routes_are_gone(client_local, org):
+    """Both pages were orphans — the only link to either was a Home column that
+    the band redesign removes. your turn / in progress replace them."""
+    from django.urls import NoReverseMatch, reverse
 
+    assert client_local.get(f"/{org.slug}/attention/").status_code == 404
+    assert client_local.get(f"/{org.slug}/in-progress/").status_code == 404
 
-@pytest.mark.django_db
-def test_attention_page_all_clear_when_empty(client_local, org):
-    p = f"/{org.slug}"
-    body = client_local.get(f"{p}/attention/").content.decode()
-    assert "all-clear" in body
-    assert 'class="panel"' in body   # empty state is carded, not floating bare text
-
-
-@pytest.mark.django_db
-def test_in_progress_page_shows_building_and_doing(client_local, org):
-    a = create_area(org, "Backend")
-    s = create_slice(a, "Building slice", status="building")
-    create_bite(create_plan(s, title="Plan"), "Doing bite", status="doing")
-    p = f"/{org.slug}"
-    body = client_local.get(f"{p}/in-progress/").content.decode()
-    assert "Building slice" in body
-    assert "Doing bite" in body
+    for name in ("web:attention", "web:in_progress"):
+        with pytest.raises(NoReverseMatch):
+            reverse(name, args=[org.slug])
 
 
 @pytest.mark.django_db

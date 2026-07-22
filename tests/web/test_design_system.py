@@ -73,3 +73,29 @@ def test_brand_tokens_match_landing_when_sibling_present():
         "tokens.brand.css drifted between repos. "
         "Run: node tuckit-landing/scripts/sync-tokens.mjs"
     )
+
+
+def test_home_band_primitives_exist_and_use_tokens_only():
+    """Components use var(--token) only — no literal hex, no hardcoded radius."""
+    import re
+
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+
+    for cls in (".band {", ".band-head", ".band-title", ".band-count",
+                ".band-sub", ".band-more", ".activity-row.is-new"):
+        assert cls in css, f"missing band primitive: {cls}"
+
+    # The retired Home vocabulary must not linger.
+    for dead in (".stat-cards", ".stat-card", ".stat-delta",
+                 ".home-cols", ".home-col-head", ".home-section"):
+        assert dead not in css, f"dead Home class still present: {dead}"
+
+    start = css.index("/* Home bands")
+    end = css.index("/* Recently shipped")
+    block = css[start:end]
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", block), "literal hex in band CSS"
+    # The shape rule is specifically about surfaces (14px) and controls (9px):
+    # those must come from --radius / --radius-small. Circles (50%) and pills
+    # are a different thing and are used verbatim throughout app.css.
+    assert not re.search(r"border-radius:\s*(14|9)px", block), \
+        "surface/control radius must use var(--radius) / var(--radius-small)"

@@ -9,7 +9,7 @@ from django.urls.exceptions import Resolver404
 # Pages whose body is a computed roll-up (counts, status columns, stat cards)
 # rather than a list we OOB-swap. A mutation elsewhere leaves them showing
 # yesterday's numbers, so they get a real refresh instead.
-_ROLLUP_VIEWS = {"home", "roadmap", "areas", "area", "attention", "in_progress"}
+_ROLLUP_VIEWS = {"home", "roadmap", "areas", "area"}
 
 
 def refresh_rollup(request, response):

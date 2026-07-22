@@ -262,16 +262,6 @@ def test_ticket_modal_deep_link_opens_from_the_inbox_url(client_local, org):
     assert 'hx-trigger="load"' in body
 
 @pytest.mark.django_db
-def test_attention_row_deep_links_to_the_ticket(client_local, org):
-    from datetime import timedelta
-    from django.utils import timezone
-    p = f"/{org.slug}"
-    t = create_ticket(org, "Stale one")
-    Ticket.objects.filter(pk=t.pk).update(created_at=timezone.now() - timedelta(days=30))
-    body = client_local.get(f"{p}/attention/").content.decode()
-    assert f"?ticket={t.id}" in body
-
-@pytest.mark.django_db
 def test_ticket_edit_autosaves_title_and_body(client_local, org):
     """Humans author tickets too — not just agents over MCP."""
     p = f"/{org.slug}"

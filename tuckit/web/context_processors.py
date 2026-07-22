@@ -41,32 +41,6 @@ def inbox_count(request):
     return {"inbox_count": ticket_queryset(org).count()}
 
 
-def attention_count(request):
-    """Count of items needing attention (stale triage + stalled building), for
-    the sidebar Attention badge."""
-    from tuckit.core.services.state import attention_items
-
-    org = current_org_or_fallback(request)
-    if not org:
-        return {}
-    return {"attention_count": len(attention_items(org))}
-
-
-def in_progress_count(request):
-    """Count of actively-worked items (building slices + doing bites), for the
-    sidebar In Progress badge."""
-    from tuckit.core.models import Bite, Slice
-
-    org = current_org_or_fallback(request)
-    if not org:
-        return {}
-    n = (
-        Slice.objects.filter(area__org=org, status="building").count()
-        + Bite.objects.filter(plan__slice__area__org=org, status="doing").count()
-    )
-    return {"in_progress_count": n}
-
-
 def switchable_orgs(request):
     """Expose the user's accessible orgs to every template so the sidebar
     switcher can list them, regardless of whether the current view happens to

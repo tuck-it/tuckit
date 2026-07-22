@@ -125,3 +125,19 @@ def test_sidebar_areas_keep_rank_order_despite_annotation(client_local, org):
     body = client_local.get(f"/{org.slug}/").content.decode()
     positions = [body.index(name) for name in ("Gamma", "Alpha", "Beta")]
     assert positions == sorted(positions), "sidebar areas are not in rank order"
+
+
+@pytest.mark.django_db
+def test_dead_lens_count_processors_are_gone(client_local, org):
+    """attention_count / in_progress_count ran on every request and no template
+    ever read them — in_progress_count cost two COUNT queries per request. Their
+    absence is the deliverable, so assert they cannot creep back."""
+    from tuckit.web import context_processors as cp
+
+    assert not hasattr(cp, "attention_count")
+    assert not hasattr(cp, "in_progress_count")
+
+    resp = client_local.get(f"/{org.slug}/")
+    assert resp.status_code == 200
+    assert "attention_count" not in resp.context
+    assert "in_progress_count" not in resp.context

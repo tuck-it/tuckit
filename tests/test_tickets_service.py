@@ -207,7 +207,7 @@ def test_slice_status_never_writes_back_to_the_ticket():
 
 from datetime import timedelta
 from django.utils import timezone
-from tuckit.core.services.state import attention_items
+from tuckit.core.services.state import your_turn
 
 
 @pytest.mark.django_db
@@ -219,34 +219,27 @@ def test_slice_default_status_is_planned():
     assert s.status == "planned"
 
 
+def _triage_rows(org):
+    return [it for it in your_turn(org) if "tickets" in it]
+
+
 @pytest.mark.django_db
-def test_attention_flags_stale_open_tickets():
+def test_an_open_ticket_is_your_turn_regardless_of_age():
+    """Triage is a human decision from the moment of capture. The old rule only
+    spoke up after seven days, i.e. once the backlog had already festered."""
     org = Org.objects.create(name="Acme", slug="acme")
-    t = create_ticket(org, "Old idea")
-    Ticket.objects.filter(pk=t.pk).update(created_at=timezone.now() - timedelta(days=10))
-    reasons = [it["reason"] for it in attention_items(org)]
-    assert "ticket_stale" in reasons
+    create_ticket(org, "Fresh idea")
+    assert _triage_rows(org) == [{"tickets": 1, "action": "1 waiting for triage"}]
 
 
 @pytest.mark.django_db
-def test_editing_a_stale_ticket_does_not_reset_the_timer():
-    """Staleness is measured from capture, not last touch — renaming or
-    reordering an untriaged ticket is not triage."""
-    org = Org.objects.create(name="Acme", slug="acme")
-    t = create_ticket(org, "Old idea")
-    Ticket.objects.filter(pk=t.pk).update(created_at=timezone.now() - timedelta(days=10))
-    update_ticket(t.__class__.objects.get(pk=t.pk), title="Old idea, reworded")
-    assert "ticket_stale" in [it["reason"] for it in attention_items(org)]
-
-
-@pytest.mark.django_db
-def test_promoted_ticket_leaves_the_inbox_attention_list():
+def test_promoted_ticket_leaves_the_triage_count():
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
     t = create_ticket(org, "Old idea", area=area)
     Ticket.objects.filter(pk=t.pk).update(created_at=timezone.now() - timedelta(days=10))
     promote_ticket(Ticket.objects.get(pk=t.pk))
-    assert "ticket_stale" not in [it["reason"] for it in attention_items(org)]
+    assert _triage_rows(org) == []
 
 
 @pytest.mark.django_db

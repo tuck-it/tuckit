@@ -45,25 +45,6 @@ def test_sidebar_grouped_with_english_labels_and_capture(client_local, org):
 
 
 @pytest.mark.django_db
-def test_lens_count_context_processors(client_local, org):
-    from datetime import timedelta
-    from django.utils import timezone
-    from tuckit.core.models import Slice
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
-    a = create_area(org, "Backend")
-    s = create_slice(a, "Stalled", status="building")        # building -> in_progress
-    create_bite(create_plan(s, title="Plan"), "doing bite", status="doing")             # doing bite -> in_progress
-    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))  # -> attention
-    p = f"/{org.slug}"
-    resp = client_local.get(f"{p}/")
-    assert resp.context["attention_count"] == 1              # the stalled building slice
-    assert resp.context["in_progress_count"] == 2             # building slice + doing bite
-
-
-@pytest.mark.django_db
 def test_sidebar_inbox_count_and_no_lens_tabs(client_local, org):
     from tuckit.core.services.tickets import create_ticket
     create_ticket(org, "Uncategorized")

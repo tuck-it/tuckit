@@ -32,6 +32,11 @@ class OrgMember(models.Model):
     org = models.ForeignKey(Org, on_delete=models.CASCADE, related_name="members")
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="member")
     created_at = models.DateTimeField(auto_now_add=True)
+    # Watermark for Home's "since you were away" band. Null until the member's
+    # first Home load: a first-ever visit must badge nothing, because every
+    # event predates the member's involvement. Advanced on every Home render
+    # AFTER the new-count has been computed — see mark_home_seen().
+    home_seen_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = [("user", "org")]
