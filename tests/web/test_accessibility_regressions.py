@@ -117,7 +117,7 @@ def test_capture_overlays_are_real_dialogs(client_local, org):
     dialog landed on a control behind the scrim."""
     create_area(org, "Backend")
     body = client_local.get(f"{_p(org)}/").content.decode()
-    overlays = re.findall(r'<div class="capture-overlay"[^>]*>', body, re.S)
+    overlays = re.findall(r'<div class="overlay capture-overlay"[^>]*>', body, re.S)
     assert overlays, "sanity: at least the quick-capture overlay renders"
     for tag in overlays:
         assert 'role="dialog"' in tag

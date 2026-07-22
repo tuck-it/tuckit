@@ -6,7 +6,7 @@
   any way for a screen reader to know that typing had changed the results, or
   which row the arrow keys had landed on.
 {% endcomment %}
-<div id="command-palette" class="cmdk-overlay" x-show="pal" x-cloak
+<div id="command-palette" class="overlay cmdk-overlay" x-show="pal" x-cloak
      x-data="commandPalette()" x-effect="if (pal) open()"
      x-on:click.self="pal = false; $nextTick(() => opener && opener.focus())"
      x-on:keydown.escape="pal = false; $nextTick(() => opener && opener.focus())">

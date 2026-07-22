@@ -6,7 +6,7 @@
   announced as a dialog at all, a Tab trap so focus cannot land on a control
   behind the scrim, and dialogSync to hand focus back to whatever opened it.
 {% endcomment %}
-<div class="capture-overlay" x-show="cap" x-cloak
+<div class="overlay capture-overlay" x-show="cap" x-cloak
      role="dialog" aria-modal="true" aria-label="Quick capture"
      x-effect="dialogSync($el, cap)"
      x-on:keydown.escape.window="cap=false"

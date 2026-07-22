@@ -6,7 +6,7 @@ Pass reload=True where the surrounding page content isn't refreshed by
 area_create's OOB swaps (e.g. the Areas grid) — the sidebar/onboarding rely on
 the OOB area-nav + widget refresh instead. Room for more Area fields (linked
 repo, access, …) as labeled blocks in _area_fields.html.{% endcomment %}
-<div class="capture-overlay" x-show="modal" x-cloak
+<div class="overlay capture-overlay" x-show="modal" x-cloak
      role="dialog" aria-modal="true" aria-label="Create a new Area"
      x-effect="dialogSync($el, modal)"
      x-on:keydown.tab="trapOverlay($event, $el)"

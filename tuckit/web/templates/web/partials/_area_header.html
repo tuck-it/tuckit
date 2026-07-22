@@ -10,7 +10,7 @@
     <button type="button" class="ghost area-desc-add" x-on:click="edit = true">＋ Add description</button>
   {% endif %}
 
-  <div class="capture-overlay" x-show="edit" x-cloak
+  <div class="overlay capture-overlay" x-show="edit" x-cloak
        x-on:keydown.escape.window="edit = false" x-on:click.self="edit = false">
     <form class="capture-modal" hx-post="{% wurl 'web:area_edit' area.id %}"
           hx-target="#area-header" hx-swap="outerHTML"

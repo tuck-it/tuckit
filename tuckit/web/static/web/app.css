@@ -607,16 +607,34 @@ body { padding: 0; }
 .ticket-slice-link .row-arrow { margin-left: auto; }
 
 
-/* Capture modal — plain centered overlay, no gradient/shadow. */
-.capture-overlay {
+/* --- Overlay layer -------------------------------------------------------
+   Every dimming overlay (quick capture, command palette, detail modal, the
+   create dialogs) shares this. Before it existed the six of them copy-pasted
+   position/inset/background/display/justify, and .capture-overlay simply
+   forgot z-index — leaving it at auto, i.e. under the onboarding widget.
+
+   Vertical placement is the one real difference, so it is a variable: the
+   launchers sit high (you are about to type into them), the detail modal
+   centres. Card WIDTH stays with each card class. */
+.overlay {
   position: fixed;
   inset: 0;
+  z-index: 60;
   background: var(--overlay);
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 20vh;
+  padding-top: var(--overlay-top, 20vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+/* htmx-swapped overlays live in the DOM as an empty div until there is
+   something to show. Alpine-driven ones are never empty, so this is a no-op
+   for them. */
+.overlay:empty { display: none; }
+
+/* Capture modal — plain overlay, no gradient/shadow. Placement from .overlay. */
+.capture-overlay { --overlay-top: 20vh; }
 
 .capture-modal {
   background: var(--surface);
@@ -1493,11 +1511,9 @@ body { padding: 0; }
 }
 
 /* --- Cmd+K command palette --- */
-.cmdk-overlay {
-  position: fixed; inset: 0; z-index: 60;
-  display: flex; align-items: flex-start; justify-content: center;
-  padding-top: 12vh; background: var(--overlay);
-}
+/* The palette sits higher than the rest: it is a launcher, and the result
+   list grows downward from the input. */
+.cmdk-overlay { --overlay-top: 12vh; }
 .cmdk-box {
   width: min(560px, 92vw);
   background: var(--surface); border: 1px solid var(--line);
