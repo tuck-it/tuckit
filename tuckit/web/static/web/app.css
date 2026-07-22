@@ -647,7 +647,7 @@ body { padding: 0; }
    the form itself is padding-0. text-align:left because it's used inside the
    centered Areas empty state. */
 .area-create-form {
-  width: 520px;
+  width: 720px;
   max-width: 92vw;
   padding: 0;
   text-align: left;
@@ -698,7 +698,6 @@ body { padding: 0; }
 .capture-lbl { color: var(--muted); font-size: 11px; }
 .capture-hint { color: var(--ink-faint); font-size: 11px; margin: -2px 0 2px; }
 .capture-select,
-.capture-spec,
 .capture-bite-input {
   width: 100%;
   background: var(--surface);
@@ -709,11 +708,7 @@ body { padding: 0; }
   font-size: var(--text-sm);
   padding: 4px 6px;
 }
-/* Last user is _slice_fields.html; it moves to .spec-edit in the next commit,
-   and this rule goes with it. */
-.capture-spec { font-size: var(--text-base); padding: 6px 8px; resize: none; }
 .capture-select:focus,
-.capture-spec:focus,
 .capture-bite-input:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--accent); }
 .capture-tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .capture-bites { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }

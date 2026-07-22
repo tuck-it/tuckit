@@ -1,15 +1,17 @@
 {% load web_extras %}
-{% comment %}Shared optional fields for the capture modal and the area-page
-quick-add. The ENCLOSING <form> must define x-data="{ tags: [], tagDraft: '' }".
-Pass `selected_area` to preselect an area. The title input is owned by the caller.
+{% comment %}Shared optional fields for the Slice dialogs — the "+ New slice"
+modal and the area-page quick-add. The ENCLOSING <form> must define
+x-data="{ tags: [], tagDraft: '' }". Pass `selected_area` to preselect an area,
+`hide_area=True` when the destination is already stated in the header. The
+title input is owned by the caller.
 
-The Area select is the fork, matching the model: with no area this capture
-becomes a Ticket (title + note), so Status and Tags — which a Ticket does not
-have — are hidden, and the note lands in `ticket.body`. Pick an area and the
-same textarea becomes the Slice's spec. Offering fields the destination lacks is
-how `ticket.body` ended up unreachable from the browser in the first place.
+This file used to be shared with the global capture modal, where the Area
+select doubled as a Ticket/Slice fork: no area meant a Ticket, so Status and
+Tags — which a Ticket does not have — were x-if'd away behind `area`. Capture
+now always creates a Ticket and no longer includes this file, so a Slice always
+has an area and those branches are gone. There is nothing left to hide.
 {% endcomment %}
-<div class="capture-opts" x-data="{ area: '{{ selected_area.id|default_if_none:"" }}' }">
+<div class="capture-opts">
   <div class="capture-optrow">
     {% if hide_area %}
       {% comment %} Area-scoped dialog: the destination is already stated in the header, so
@@ -18,42 +20,31 @@ how `ticket.body` ended up unreachable from the browser in the first place.
     {% else %}
     <label class="capture-field capture-field--inline">
       <span class="capture-lbl">Area</span>
-      <select name="area_id" class="capture-select" x-model="area">
-        <option value="">Inbox</option>
+      <select name="area_id" class="capture-select">
         {% for a in areas %}<option value="{{ a.id }}"{% if selected_area and selected_area.id == a.id %} selected{% endif %}>{{ a.name }}</option>{% endfor %}
       </select>
     </label>
     {% endif %}
-    {% comment %}
-      x-if, not x-show: an x-show'd field is merely invisible and still POSTs,
-      which would send a Slice status along with a Ticket capture.
-    {% endcomment %}
-    <template x-if="area">
-      <label class="capture-field capture-field--inline">
-        <span class="capture-lbl">Status</span>
-        <select name="status" class="capture-select">
-          <option value="planned">Planned</option>
-          <option value="building">Building</option>
-          <option value="shipped">Shipped</option>
-        </select>
-      </label>
-    </template>
+    <label class="capture-field capture-field--inline">
+      <span class="capture-lbl">Status</span>
+      <select name="status" class="capture-select">
+        <option value="planned">Planned</option>
+        <option value="building">Building</option>
+        <option value="shipped">Shipped</option>
+      </select>
+    </label>
   </div>
 
   {% comment %} A <label> wrapper, not a <div>: the textarea previously had no accessible
      name at all (WCAG 1.3.1 / 3.3.2). {% endcomment %}
   <label class="capture-field">
-    <span class="capture-lbl" x-text="area ? 'Spec' : 'Note'">Note</span>
-    <span class="capture-hint"
-          x-text="area ? 'The what &amp; why — a brief your agent can act on.'
-                       : 'What you saw and why it matters — enough to decide on later.'">What you saw and why it matters — enough to decide on later.</span>
-    <textarea name="spec" class="capture-spec" rows="2"
-              :placeholder="area ? 'e.g. When a webhook delivery fails, retry with exponential backoff, up to 5 attempts. (optional)'
-                                 : 'e.g. The OAuth consent screen buttons are misaligned on mobile. (optional)'"
+    <span class="capture-lbl">Spec</span>
+    <span class="capture-hint">The what &amp; why — a brief your agent can act on.</span>
+    <textarea name="spec" class="spec-edit spec-edit--tall"
+              placeholder="e.g. When a webhook delivery fails, retry with exponential backoff, up to 5 attempts. (optional)"
               x-on:input="autosize($event.target)"></textarea>
   </label>
 
-  <template x-if="area">
   <div class="capture-field">
     <span class="capture-lbl">Tags</span>
     <div class="capture-tags">
@@ -68,5 +59,4 @@ how `ticket.body` ended up unreachable from the browser in the first place.
              x-on:keydown.comma.prevent="if (tagDraft.trim()) { tags.push(tagDraft.trim()); tagDraft='' }">
     </div>
   </div>
-  </template>
 </div>

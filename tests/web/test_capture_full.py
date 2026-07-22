@@ -133,3 +133,19 @@ def test_capture_modal_offers_no_slice_only_fields(client_local, org):
     assert ">Unfiled<" in form
     assert ">Inbox<" not in form
     assert "Backend" in form
+
+
+@pytest.mark.django_db
+def test_slice_dialog_always_offers_status_and_tags(client_local, org):
+    """Slice에 area는 항상 있으므로 Status/Tags를 숨길 조건이 없다. 예전에는
+    x-if="area"로 가려져 있었는데, 그 분기는 이 파일을 캡처 모달과 공유하던
+    시절의 잔재다."""
+    area = create_area(org, "Backend")
+    body = client_local.get(f"{P(org)}/areas/{area.slug}/").content.decode()
+    assert 'name="status"' in body
+    assert 'name="tags"' in body
+    # 분기의 흔적이 남아 있으면 안 된다. Inbox는 옵션이 아니라 사이드바
+    # 목적지이므로, 지워졌는지 볼 것은 그 <option> 마크업이지 단어가 아니다.
+    assert 'x-if="area"' not in body
+    assert '<option value="">Inbox</option>' not in body
+    assert "spec-edit--tall" in body
