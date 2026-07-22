@@ -95,6 +95,12 @@ h3 { font-size: 18px; }
   transition: transform .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease);
 }
 .button:active { transform: translateY(1px) scale(.985); }
+/* A disabled button used to be pixel-identical to a live one, so "Promote"
+   (disabled until an area is picked) read as broken rather than as waiting.
+   Dimming alone would drop it under 4.5:1, so the cursor and the dropped hover
+   carry the message too — and :disabled is exposed to assistive tech anyway. */
+.button:disabled { opacity: .55; cursor: not-allowed; }
+.button:disabled:hover { transform: none; }
 .button-small { min-height: 34px; padding: 0 12px; font-size: 14px; }
 .button-primary { background: var(--blue-strong); color: var(--paper-solid); border-color: var(--blue-strong); }
 .button-primary:hover { background: var(--blue); border-color: var(--blue); transform: translateY(-1px); }

@@ -4,7 +4,7 @@
 {% block settings_content %}
 <div class="settings-title">General</div>
 <section class="group settings-section"
-         x-data="{editing:false, name:'{{ org.name|escapejs }}', saved:'{{ org.name|escapejs }}',
+         x-data="{editing:false, saving:false, name:'{{ org.name|escapejs }}', saved:'{{ org.name|escapejs }}',
                   description:'{{ org.description|escapejs }}', savedDescription:'{{ org.description|escapejs }}'}">
   <div class="settings-row">
     <div class="settings-row-text">
@@ -27,9 +27,15 @@
         {% if can_admin %}
         <input name="name" class="title-edit" x-ref="nameInput" aria-label="Organization name"
                x-show="editing" x-cloak x-model="name"
+               {% comment %} No hx-vals="js:{…}": htmx evaluates that in the global
+                  scope, where the x-data names do not exist, so it threw
+                  "description is not defined" and the request never carried its
+                  values. htmx already sends this input's own name/value, and
+                  omitting description leaves the stored one untouched. {% endcomment %}
                hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur, keydown[key=='Enter']"
-               hx-vals="js:{name: name, description: description}" hx-swap="none"
-               hx-on::after-request="if(event.detail.successful){saved=name}else{name=saved; showToast(event.detail.xhr.responseText,'err')}"
+               hx-swap="none"
+               x-on:htmx:after-request="if ($event.detail.successful) { saved = name }
+                 else { name = saved; showToast($event.detail.xhr.responseText || 'Could not rename. Nothing changed.', 'err') }"
                x-on:keydown.enter="editing=false" x-on:blur="editing=false">
         {% endif %}
       </div>
@@ -41,12 +47,32 @@
       <div class="settings-row-label">Description</div>
       <div class="settings-row-desc">A short note about this organization, shown to agents and members.</div>
     </div>
-    <div class="settings-row-control">
+    {% comment %} The textarea used to save on blur with no button and no
+       confirmation, so the only way to learn whether a description had been
+       stored was to reload the page. An explicit Save matches the Shipped
+       board settings row, and a failure now keeps what was typed instead of
+       silently reverting it. {% endcomment %}
+    <div class="settings-row-control settings-row-stack">
       <textarea name="description" class="spec-edit" rows="3" x-model="description"
-                placeholder="What is this organization for?"
-                hx-post="{% url 'web:org_rename' org.slug %}" hx-trigger="blur"
-                hx-vals="js:{name: name, description: description}" hx-swap="none"
-                hx-on::after-request="if(event.detail.successful){savedDescription=description}else{description=savedDescription; showToast(event.detail.xhr.responseText,'err')}"></textarea>
+                aria-label="Organization description"
+                placeholder="What is this organization for?"></textarea>
+      <div class="settings-row-actions">
+        <span class="settings-dirty" x-show="description !== savedDescription" x-cloak>Unsaved changes</span>
+        <button type="button" class="btn"
+                x-bind:disabled="saving || description === savedDescription"
+                hx-post="{% url 'web:org_rename' org.slug %}" hx-swap="none"
+                {% comment %} The real fields, not JS: rename_org rejects a blank
+                   name, so the description save has to carry the name too. {% endcomment %}
+                hx-include="closest .settings-section"
+                {% comment %} x-on:, not hx-on:: — an hx-on handler runs in the global
+                   scope and cannot see x-data, so the handler this replaced threw
+                   "description is not defined" on every save. {% endcomment %}
+                x-on:htmx:before-request="saving = true"
+                x-on:htmx:after-request="saving = false;
+                  if ($event.detail.successful) { savedDescription = description; showToast('Saved.', 'ok') }
+                  else { showToast($event.detail.xhr.responseText || 'Could not save. Nothing changed.', 'err') }"
+                x-text="saving ? 'Saving…' : 'Save'">Save</button>
+      </div>
     </div>
   </div>
   {% endif %}
