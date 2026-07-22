@@ -3,11 +3,12 @@ from django.views.decorators.http import require_POST
 
 from tuckit.core.services.state import (
     home_state,
-    attention_items,
+    your_turn,
+    since_last_visit,
+    mark_home_seen,
     roadmap_state,
     roadmap_board_view,
     ROADMAP_STATUS_KEYS,
-    in_progress_state,
     cap_shipped,
     snapshot_today,
 )
@@ -15,47 +16,37 @@ from tuckit.web.auth import get_current_org
 
 
 def home(request):
+    """Four stacked bands: what needs you, what changed while you were away,
+    what's in flight, what shipped. No stat cards — every number they carried
+    was the length of a list further down the same page."""
     org = get_current_org(request)
-    state = home_state(org) if org else {}
-    metrics = []
-    if org:
-        snap = snapshot_today(org, state)
-        _defs = [
-            ("Building", "building"),
-            ("Backlog", "backlog"),
-            ("Shipped this week", "shipped_week"),
-            ("Needs attention", "attention"),
-        ]
-        for label, key in _defs:
-            d = snap[key]["delta"]
-            metrics.append({
-                "label": label,
-                "value": snap[key]["value"],
-                "delta": d,
-                "abs": abs(d) if d is not None else None,
-                "dir": None if d is None else ("up" if d > 0 else "down" if d < 0 else "flat"),
-            })
-    shipped_total = shipped_hidden = 0
-    if org:
-        visible, shipped_total = cap_shipped(org, state.get("shipped", []))
-        shipped_hidden = shipped_total - len(visible)
-        state = {**state, "shipped": visible}
-    building_ct = len(state.get("building", []))
-    later_items = state.get("someday", [])
-    later_ct = len(later_items)
-    queued_ct = len(state.get("planned", [])) + later_ct
+    if org is None:
+        return render(request, "web/home.html", {"org": None})
+
+    state = home_state(org)
+    turn = your_turn(org)
+    # Written for history only; nothing on this page reads it back.
+    snapshot_today(org, state, len(turn))
+
+    member = (
+        org.members.filter(user=request.user).first()
+        if request.user.is_authenticated else None
+    )
+    # Order is load-bearing: compute what's new against the old watermark, THEN
+    # advance it. Reversed, the band would badge zero forever.
+    activity = since_last_visit(org, member)
+    mark_home_seen(member)
+
+    visible, shipped_total = cap_shipped(org, state["shipped"])
+
     return render(request, "web/home.html", {
         "org": org,
-        "state": state,
-        "building_ct": building_ct,
-        "later_items": later_items,
-        "later_ct": later_ct,
-        "queued_ct": queued_ct,
-        "in_progress": in_progress_state(org) if org else {"slices": [], "bites": []},
-        "roadmap": roadmap_state(org) if org else {},
+        "state": {**state, "shipped": visible},
+        "your_turn": turn,
+        "activity": activity["events"],
+        "activity_new": activity["new_count"],
         "shipped_total": shipped_total,
-        "shipped_hidden": shipped_hidden,
-        "metrics": metrics,
+        "shipped_hidden": shipped_total - len(visible),
     })
 
 

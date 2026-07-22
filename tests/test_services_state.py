@@ -11,10 +11,8 @@ from tuckit.core.services.tickets import create_ticket
 from tuckit.core.services.state import (
     AREA_STATUS_KEYS,
     area_board_view,
-    attention_items,
     cap_shipped,
     home_state,
-    in_progress_state,
     roadmap_board_view,
     roadmap_state,
     STALE_DAYS,
@@ -121,55 +119,35 @@ def test_counts_and_dropped_bite_excluded(product_org):
 
 
 @pytest.mark.django_db
-def test_attention_flags_stale_ticket_and_stalled_building():
+def test_home_state_keeps_every_building_slice_visible():
+    """The old Home silently dropped a building slice from its Focus column
+    once it also landed in the attention list, and dropped `someday`-tagged
+    ones outright. A slice whose status says building but which is missing from
+    the building list is the bug this replaces."""
     org = Org.objects.create(name="Acme", slug="acme")
-    backend = create_area(org, "Backend")
-    stale_ticket = create_ticket(org, "old capture")
-    fresh_ticket = create_ticket(org, "new capture")
-    stalled = create_slice(backend, "in flight", status="building")
-    old = timezone.now() - timedelta(days=STALE_DAYS + 1)
-    Ticket.objects.filter(pk=stale_ticket.pk).update(created_at=old)
-    Slice.objects.filter(pk=stalled.pk).update(updated_at=old)
-    items = attention_items(org)
-    got = {
-        ((it["ticket"].id if "ticket" in it else it["slice"].id), it["reason"])
-        for it in items
-    }
-    assert (stale_ticket.id, "ticket_stale") in got
-    assert (stalled.id, "building_stalled") in got
-    ticket_ids = {it["ticket"].id for it in items if "ticket" in it}
-    assert fresh_ticket.id not in ticket_ids
+    a = create_area(org, "Backend")
+    stalled = create_slice(a, "stalled", status="building")
+    create_slice(a, "parked", status="building", tags=["someday"])
+    create_slice(a, "fresh", status="building")
+    Slice.objects.filter(pk=stalled.pk).update(
+        updated_at=timezone.now() - timedelta(days=30)
+    )
+
+    titles = [s.title for s in home_state(org)["building"]]
+    assert set(titles) == {"stalled", "parked", "fresh"}
+    assert titles[0] == "stalled", "stalled sorts first — sort key, not filter"
 
 
 @pytest.mark.django_db
-def test_home_state_buckets_across_areas_someday_excluded():
+def test_home_state_counts_backlog_without_listing_it():
     org = Org.objects.create(name="Acme", slug="acme")
-    a1 = create_area(org, "Backend"); a2 = create_area(org, "Frontend")
-    create_slice(a1, "pay", status="building")
-    create_slice(a2, "ui", status="building")
-    create_slice(a1, "next", status="planned")
-    create_slice(a2, "later", status="planned", tags=["someday"])
+    a = create_area(org, "Backend")
+    create_slice(a, "queued", status="planned")
+    create_slice(a, "someday one", status="planned", tags=["someday"])
     st = home_state(org)
-    assert {s.title for s in st["building"]} == {"pay", "ui"}
-    assert {s.title for s in st["planned"]} == {"next"}
-    assert {s.title for s in st["someday"]} == {"later"}
-    assert "ideas" not in st  # the 'idea' status/bucket is retired
-
-
-@pytest.mark.django_db
-def test_attention_items_include_reason_and_days():
-    from tuckit.core.management.commands.bootstrap import ensure_bootstrap
-
-    org, _ = ensure_bootstrap()
-    t = create_ticket(org, "Old capture")
-    old = timezone.now() - timedelta(days=11)
-    Ticket.objects.filter(pk=t.pk).update(created_at=old)
-
-    items = attention_items(org)
-    hit = [it for it in items if it.get("ticket") and it["ticket"].id == t.id]
-    assert hit, "stale ticket should surface"
-    assert hit[0]["reason"] == "ticket_stale"
-    assert hit[0]["days"] == 11
+    assert st["planned_ct"] == 2
+    assert st["someday_ct"] == 1
+    assert "planned" not in st, "the backlog is Board's job — Home links to it"
 
 
 @pytest.mark.django_db
@@ -189,44 +167,15 @@ def test_roadmap_state_buckets_by_status():
 
 
 @pytest.mark.django_db
-def test_in_progress_state_has_building_slices_and_doing_bites():
-    org = Org.objects.create(name="Acme", slug="acme")
-    a = create_area(org, "Backend")
-    s = create_slice(a, "building slice", status="building")
-    create_slice(a, "planned slice", status="planned")
-    p = create_plan(s, title="Plan")
-    create_bite(p, "doing bite", status="doing")
-    create_bite(p, "todo bite", status="todo")
-    st = in_progress_state(org)
-    assert [x.title for x in st["slices"]] == ["building slice"]
-    assert [x.title for x in st["bites"]] == ["doing bite"]
-
-
-@pytest.mark.django_db
-def test_roadmap_and_in_progress_sort_by_area_name():
+def test_roadmap_sorts_by_area_name():
     org = Org.objects.create(name="Acme", slug="acme")
     zeta = create_area(org, "Zeta")
     alpha = create_area(org, "Alpha")
-    # Created Zeta-first, but both functions must return them Alpha-first (sort
-    # key is (area name, rank)). Guards against the sort key being dropped/reversed.
+    # Created Zeta-first, but must come back Alpha-first (sort key is
+    # (area name, rank)). Guards against the sort key being dropped/reversed.
     create_slice(zeta, "z build", status="building")
     create_slice(alpha, "a build", status="building")
     assert [s.title for s in roadmap_state(org)["building"]] == ["a build", "z build"]
-    assert [s.title for s in in_progress_state(org)["slices"]] == ["a build", "z build"]
-
-
-@pytest.mark.django_db
-def test_home_state_excludes_attention_from_building():
-    from tuckit.core.management.commands.bootstrap import ensure_bootstrap
-
-    org, _ = ensure_bootstrap()
-    a = create_area(org, "Product")
-    s = create_slice(a, "Stalled work", status="building")
-    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
-
-    state = home_state(org)
-    assert any(it["slice"].id == s.id for it in state["attention"])
-    assert all(b.id != s.id for b in state["building"]), "stalled building must not double-appear"
 
 
 @pytest.mark.django_db
@@ -283,45 +232,20 @@ def test_roadmap_board_view_reports_overflow(product_org):
     assert len(shipped_group) == 1
 
 
-def test_snapshot_today_first_day_has_no_deltas(product_org):
+def test_snapshot_today_still_accrues_history(product_org):
+    """Nothing renders these numbers now. The row is still written so the daily
+    history keeps accruing for a future metrics screen — a gap no backfill can
+    fill."""
     from tuckit.core.services.state import snapshot_today
     from tuckit.core.models import OrgStatSnapshot
-    area = create_area(product_org, "Backend")
-    create_slice(area, "A", status="building")
-    create_slice(area, "B", status="planned")
-    out = snapshot_today(product_org, home_state(product_org))
-    assert out["building"] == {"value": 1, "delta": None}
-    assert out["backlog"]["value"] == 1
-    assert out["backlog"]["delta"] is None
-    # exactly one row was written for today
+
+    a = create_area(product_org, "A")
+    create_slice(a, "b", status="building")
+    snapshot_today(product_org, home_state(product_org), 0)
+    snapshot_today(product_org, home_state(product_org), 0)
+
     assert OrgStatSnapshot.objects.filter(org=product_org).count() == 1
-
-
-def test_snapshot_today_is_idempotent_per_day(product_org):
-    from tuckit.core.services.state import snapshot_today
-    from tuckit.core.models import OrgStatSnapshot
-    area = create_area(product_org, "Backend")
-    create_slice(area, "A", status="building")
-    snapshot_today(product_org, home_state(product_org))
-    snapshot_today(product_org, home_state(product_org))
-    assert OrgStatSnapshot.objects.filter(org=product_org).count() == 1
-
-
-def test_snapshot_today_delta_vs_prior_day(product_org):
-    from datetime import timedelta as _td
-    from django.utils import timezone as _tz
-    from tuckit.core.services.state import snapshot_today
-    from tuckit.core.models import OrgStatSnapshot
-    area = create_area(product_org, "Backend")
-    create_slice(area, "A", status="building")
-    # simulate yesterday's snapshot: 3 building
-    yesterday = _tz.localdate() - _td(days=1)
-    OrgStatSnapshot.objects.create(
-        org=product_org, date=yesterday, building_ct=3, backlog_ct=0,
-        shipped_week_ct=0, attention_ct=0,
-    )
-    out = snapshot_today(product_org, home_state(product_org))
-    assert out["building"] == {"value": 1, "delta": -2}  # 1 today vs 3 yesterday
+    assert OrgStatSnapshot.objects.get(org=product_org).building_ct == 1
 
 
 @pytest.mark.django_db

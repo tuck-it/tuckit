@@ -1,262 +1,184 @@
 import pytest
+from datetime import timedelta
+
+from django.utils import timezone
+
+from tuckit.core.models import Slice
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.bites import create_bite
+from tuckit.core.services.plans import create_plan
+from tuckit.core.services.slices import create_slice
+from tuckit.core.services.tickets import create_ticket
 
 
-@pytest.mark.django_db
-def test_home_ok_with_stale_open_ticket(client_local, org):
-    """A stale open Ticket surfaces as a ticket-keyed row (no `slice` key). The
-    panel must render it without reversing web:slice on a null id — otherwise
-    Home 500s (NoReverseMatch).
+def _body(client, org):
+    resp = client.get(f"/{org.slug}/")
+    assert resp.status_code == 200
+    return resp.content.decode()
+
+
+def _band(body, name):
+    """The HTML of one band. Assertions about what a band does NOT contain must
+    be scoped this way: the `since you were away` band echoes every event's
+    target_label, so a slice title legitimately appears elsewhere on the page.
     """
-    from datetime import timedelta
-    from django.utils import timezone
-    from tuckit.core.models import Ticket
-    from tuckit.core.services.tickets import create_ticket
-
-    t = create_ticket(org, "Stale ticket")   # open, unpromoted, area-less
-    stale = timezone.now() - timedelta(days=30)
-    Ticket.objects.filter(pk=t.pk).update(created_at=stale)
-
-    home = client_local.get(f"/{org.slug}/")
-    assert home.status_code == 200
-    assert "Stale ticket" in home.content.decode()
+    marker = f"<span>{name}</span>"
+    start = body.rindex('<section class="band">', 0, body.index(marker))
+    end = body.index("</section>", start)
+    return body[start:end]
 
 
 @pytest.mark.django_db
-def test_home_lists_building_and_attention(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    backend = create_area(org, "Backend")
-    create_slice(backend, "Payments work", status="building")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert "Payments work" in body
-    assert "<span>focus</span>" in body   # building slices now live in the Focus column
+def test_home_renders_four_bands_in_order(client_local, org):
+    body = _body(client_local, org)
+    order = [body.index(f"<span>{name}</span>") for name in
+             ("your turn", "since you were away", "in progress", "shipped")]
+    assert order == sorted(order), "bands must read act → read → watch → proof"
+    assert body.count('class="band"') == 4
 
 
 @pytest.mark.django_db
-def test_home_sidebar_excludes_triage_area(client_local, org):
-    from tuckit.core.services.areas import create_area
-    create_area(org, "Backend")
-    resp = client_local.get(f"/{org.slug}/")
-    body = resp.content.decode()
-    assert "/areas/backend/" in body
-    assert "/areas/triage/" not in body
+def test_home_bands_carry_their_one_line_explanations(client_local, org):
+    body = _body(client_local, org)
+    assert "Nothing moves on these until you decide" in body
+    assert "What changed since you last looked" in body
+    assert "Slices you're building right now" in body
+    assert "What you've finished lately" in body
 
 
 @pytest.mark.django_db
-def test_tags_render_with_hash_span(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    a = create_area(org, "Product")
-    create_slice(a, "Tagged slice", status="building", tags=["billing"])
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert 'class="tag-hash"' in body
+def test_home_has_no_stat_cards(client_local, org):
+    """Every card repeated the length of a list further down the page."""
+    body = _body(client_local, org)
+    assert "stat-card" not in body
+    assert "Shipped this week" not in body
+    assert "since yesterday" not in body
 
 
 @pytest.mark.django_db
-def test_home_attention_shows_reason_label(client_local, org):
-    from datetime import timedelta
-    from django.utils import timezone
-    from tuckit.core.models import Slice
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    a = create_area(org, "Product")
-    s = create_slice(a, "Stalled work", status="building")
-    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert "9d idle" in body
-    assert 'class="panel"' in body           # rows are in a unified panel
+def test_home_has_no_column_grid(client_local, org):
+    body = _body(client_local, org)
+    assert "home-cols" not in body
+    assert "<span>focus</span>" not in body
+    assert "<span>doing</span>" not in body
 
 
 @pytest.mark.django_db
-def test_home_stale_building_slice_not_duplicated_in_now(client_local, org):
-    from datetime import timedelta
-    from django.utils import timezone
-    from tuckit.core.models import Slice
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    a = create_area(org, "Product")
-    s = create_slice(a, "Stalled building slice", status="building")
-    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=9))
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert "9d idle" in body                       # confirms it landed in Needs you/Attention
-    assert body.count("Stalled building slice") == 1   # must not also repeat in the Now group
+def test_specless_building_slice_is_your_turn(client_local, org):
+    a = create_area(org, "Backend")
+    create_slice(a, "Undesigned work", status="building")
+    body = _body(client_local, org)
+    assert "Undesigned work" in body
+    assert "write the spec" in body
 
 
 @pytest.mark.django_db
-def test_home_all_clear_when_no_attention(client_local, org):
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert "Nothing needs your attention right now." in body       # confident done signal
+def test_open_tickets_collapse_to_one_row_linking_to_inbox(client_local, org):
+    for i in range(3):
+        create_ticket(org, f"capture {i}")
+    body = _body(client_local, org)
+    turn = _band(body, "your turn")
+    assert "3 waiting for triage" in turn
+    assert f'href="/{org.slug}/inbox/"' in turn
+    assert "capture 0" not in turn, "the Inbox lists tickets; Home only counts them"
+
+
+@pytest.mark.django_db
+def test_your_turn_empty_state_reads_as_good_news(client_local, org):
+    body = _body(client_local, org)
+    assert "Nothing is waiting on you — agents can keep going." in body
     assert "all-clear" in body
 
 
 @pytest.mark.django_db
-def test_home_omits_roadmap_strip_and_recent_activity(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice, set_slice_status
+def test_building_slice_appears_in_progress_even_when_it_is_your_turn(client_local, org):
+    """Intentional duplication. Removing it from `in progress` is exactly the
+    hidden filter this redesign exists to kill."""
     a = create_area(org, "Backend")
-    s = create_slice(a, "Building", status="planned")
-    set_slice_status(s, "building")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert 'class="roadmap-strip"' not in body        # moved off Home
-    assert "Recent activity" not in body              # moved off Home
-    assert f'href="/{org.slug}/roadmap/"' in body                 # Board still reachable via sidebar
+    create_slice(a, "Undesigned work", status="building")
+    body = _body(client_local, org)
+    assert "Undesigned work" in _band(body, "your turn")
+    assert "Undesigned work" in _band(body, "in progress")
 
 
 @pytest.mark.django_db
-def test_home_has_heading_and_capture(client_local, org):
-    body = client_local.get(f"/{org.slug}/").content.decode()
+def test_someday_tagged_building_slice_is_not_hidden(client_local, org):
+    a = create_area(org, "Backend")
+    create_slice(a, "Parked but building", status="building",
+                 spec="designed", tags=["someday"])
+    body = _body(client_local, org)
+    assert "Parked but building" in body
+
+
+@pytest.mark.django_db
+def test_stalled_building_slice_stays_listed(client_local, org):
+    a = create_area(org, "Backend")
+    s = create_slice(a, "Stalled work", status="building", spec="designed")
+    create_bite(create_plan(s, title="Plan"), "todo", status="todo")
+    Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=30))
+    body = _body(client_local, org)
+    assert "Stalled work" in body
+
+
+@pytest.mark.django_db
+def test_backlog_is_a_link_not_a_column(client_local, org):
+    a = create_area(org, "Backend")
+    create_slice(a, "Queued work", status="planned")
+    body = _body(client_local, org)
+    flight = _band(body, "in progress")
+    assert "Queued work" not in flight, "the backlog belongs to Board"
+    assert "1 planned" in flight
+    assert "status=planned" in flight
+
+
+@pytest.mark.django_db
+def test_agent_activity_badges_new_on_a_second_visit(client_local, org):
+    from tuckit.core.services.activity import record_activity
+
+    a = create_area(org, "Backend")
+    s = create_slice(a, "Work", status="building", spec="designed")
+
+    _body(client_local, org)                       # first visit sets the watermark
+    record_activity(org, actor="agent", verb="shipped", target=s)
+    body = _body(client_local, org)
+
+    assert "1 new" in body
+    assert "is-new" in body
+    assert "is-agent" in body
+
+
+@pytest.mark.django_db
+def test_first_visit_badges_nothing(client_local, org):
+    from tuckit.core.services.activity import record_activity
+
+    a = create_area(org, "Backend")
+    s = create_slice(a, "Distinctive title", status="building", spec="designed")
+    record_activity(org, actor="agent", verb="shipped", target=s)
+
+    body = _body(client_local, org)
+    assert "band-count--new" not in body, "a first-ever visit has nothing to catch up on"
+    assert "is-new" not in body
+    assert 'class="activity-row' in body, "the log still renders — only the badge is empty"
+
+
+@pytest.mark.django_db
+def test_home_ok_with_stale_open_ticket(client_local, org):
+    """A stale open Ticket collapses into the aggregate triage row. The panel
+    must render it without reversing web:slice on a null id — otherwise Home
+    500s (NoReverseMatch)."""
+    from tuckit.core.models import Ticket
+
+    t = create_ticket(org, "Stale ticket")
+    Ticket.objects.filter(pk=t.pk).update(
+        created_at=timezone.now() - timedelta(days=30)
+    )
+    body = _body(client_local, org)
+    assert "1 waiting for triage" in body
+
+
+@pytest.mark.django_db
+def test_home_page_head_and_capture_button(client_local, org):
+    body = _body(client_local, org)
     assert 'class="page-head"' in body
-    assert "<span>needs_you</span>" in body
-    assert "<span>focus</span>" in body and "<span>doing</span>" in body and "<span>next</span>" in body
-    assert 'class="button button-small"' in body   # page-head Capture button
-
-
-@pytest.mark.django_db
-def test_home_shows_doing_bites_and_planned_in_next(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
-    a = create_area(org, "Backend")
-    s = create_slice(a, "Building slice", status="building")
-    create_bite(create_plan(s, title="Plan"), "Active bite", status="doing")
-    create_slice(a, "Planned next", status="planned")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert "Active bite" in body           # doing bite in the Doing column
-    assert "Planned next" in body          # planned slice in the Next column
-    assert "<span>next</span>" in body
-
-
-@pytest.mark.django_db
-def test_home_now_row_shows_spec_summary(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    a = create_area(org, "Backend")
-    create_slice(a, "Payment integration", status="building",
-                 spec="---\nname: billing\n---\n# One-line summary caption\nbody continues")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert 'class="row-desc"' in body      # one-line caption slot rendered
-    assert "One-line summary caption" in body        # first meaningful spec line, markdown stripped
-
-
-@pytest.mark.django_db
-def test_home_active_headers_present(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
-    a = create_area(org, "Backend")
-    s = create_slice(a, "Building slice", status="building")
-    create_bite(create_plan(s, title="Plan"), "Doing bite", status="doing")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    # needs_you / Overview / recently_shipped are titled section boxes; the
-    # Focus/Doing/Next columns live inside the Overview box.
-    assert 'class="home-section"' in body
-    assert 'class="home-cols"' in body
-    assert "<span>doing</span>" in body
-
-
-@pytest.mark.django_db
-def test_home_columns_have_subtitles(client_local, org):
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert "slices you're building" in body   # Focus
-    assert "sub-tasks in progress" in body     # Doing
-    assert "queued slices" in body             # Next
-    assert "parked ideas" in body              # Later
-
-
-@pytest.mark.django_db
-def test_home_focus_column_previews_five_then_view_all(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    a = create_area(org, "Backend")
-    for i in range(1, 7):
-        create_slice(a, f"buildslice{i}", status="building")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert "buildslice1" in body                  # first preview item shown
-    assert "buildslice6" not in body              # 6th is beyond the 5-item preview
-    assert "View all (6)" in body                 # overflow link with true total
-    assert "status=building" in body
-
-
-@pytest.mark.django_db
-def test_home_sections_are_titled_boxes(client_local, org):
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    # Three titled boxes: needs_you, Overview (the columns), recently_shipped.
-    assert body.count('class="home-section"') >= 3
-    assert "<span>Overview</span>" in body
-    assert "<span>needs_you</span>" in body
-    assert "<span>recently_shipped</span>" in body
-
-
-@pytest.mark.django_db
-def test_home_building_row_shows_progress_bar(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
-    a = create_area(org, "Backend")
-    s = create_slice(a, "Payment integration", status="building")
-    p = create_plan(s, title="Plan")
-    create_bite(p, "Completed one", status="done")
-    create_bite(p, "Remaining one", status="todo")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert 'class="row-prog-track"' in body   # thin bar on the building row
-    assert "width:50%" in body                # 1 of 2 bites done
-    assert "1/2" in body
-
-
-@pytest.mark.django_db
-def test_slice_row_has_status_dot_and_arrow(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    create_slice(create_area(org, "Backend"), "row look", status="building")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert 'class="status-dot' in body     # status indicator kept
-    assert 'class="row-arrow"' in body     # quiet trailing affordance
-
-
-@pytest.mark.django_db
-def test_home_shows_summary_cards(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    a = create_area(org, "Backend")
-    create_slice(a, "Building one", status="building")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert 'class="stat-cards"' in body
-    assert "Building" in body and "Backlog" in body
-    assert "Shipped this week" in body and "Needs attention" in body
-
-
-@pytest.mark.django_db
-def test_home_header_has_subtitle_not_count(client_local, org):
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert "Today's progress and what to focus on next" in body
-
-
-@pytest.mark.django_db
-def test_home_recently_shipped_strip_shows_items(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    a = create_area(org, "Design")
-    create_slice(a, "Shipped feature", status="shipped")
-    body = client_local.get(f"/{org.slug}/").content.decode()
-    assert 'class="shipped-strip"' in body
-    assert "Shipped feature" in body
-    assert "<span>recently_shipped</span>" in body
-
-
-@pytest.mark.django_db
-def test_home_recently_shipped_caps_and_links(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    org.shipped_board_mode = "count"
-    org.shipped_board_limit = 1
-    org.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
-    p = f"/{org.slug}"
-    a = create_area(org, "Design")
-    create_slice(a, "shipped one", status="shipped")
-    create_slice(a, "shipped two", status="shipped")
-    body = client_local.get(f"{p}/").content.decode()
-    assert "View all (2)" in body                 # true total in the overflow link
-    assert "status=shipped" in body               # unified view-all link
+    assert "What needs you, and what moved while you were away" in body
+    assert 'class="button button-small"' in body

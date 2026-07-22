@@ -4,120 +4,76 @@
   <header class="page-head">
     <div class="page-head-l">
       <h1 class="page-title">Home</h1>
-      {% if org %}<span class="page-count">Today's progress and what to focus on next</span>{% endif %}
+      {% if org %}<span class="page-count">What needs you, and what moved while you were away</span>{% endif %}
     </div>
     <button class="button button-small" type="button"
             x-on:click="cap = true">
       {% icon "plus" %}<span>Capture</span></button>
   </header>
 
-  {% include "web/partials/_stat_cards.html" %}
-
-  <section class="home-section">
-    <div class="home-section-head">
-      <span class="home-section-title"><span>needs_you</span></span>
-      <span class="home-section-count">{{ state.attention|length }}</span>
+  {% comment %}
+    1 — your turn. Blocked-on-a-human only; staleness is the sort key, never a
+    filter. Empty here means agents are unblocked, not that nothing happened.
+  {% endcomment %}
+  <section class="band">
+    <div class="band-head">
+      <span class="band-title"><span>your turn</span></span>
+      <span class="band-count">{{ your_turn|length }}</span>
     </div>
-    {% include "web/partials/_attention_panel.html" with items=state.attention %}
+    <p class="band-sub">Nothing moves on these until you decide</p>
+    {% include "web/partials/_your_turn_panel.html" with items=your_turn %}
   </section>
 
-  <section class="home-section">
-    <div class="home-section-head">
-      <span class="home-section-title"><span>Overview</span></span>
+  {# 2 — since you were away. Event surface: it clears to zero on purpose. #}
+  <section class="band">
+    <div class="band-head">
+      <span class="band-title"><span>since you were away</span></span>
+      {% if activity_new %}<span class="band-count band-count--new">{{ activity_new }} new</span>{% endif %}
     </div>
-    <div class="home-cols">
-    {# Focus — building slices, with progress #}
-    <section class="board-col">
-      <div class="home-col-head">
-        <div class="home-col-head-row">
-          <span class="board-col-label"><span>focus</span></span>
-          <span class="board-col-count">{{ state.building|length }}</span>
-        </div>
-        <div class="home-col-sub">slices you're building</div>
+    <p class="band-sub">What changed since you last looked</p>
+    {% if activity %}
+      <div class="panel">
+        {% for event in activity %}{% include "web/partials/_activity_row.html" %}{% endfor %}
       </div>
-      <div class="home-col-body">
-        {% for slice in state.building|slice:":5" %}
+    {% else %}
+      <div class="panel"><div class="all-clear"><span>No activity yet. Connect an agent and it will show up here.</span></div></div>
+    {% endif %}
+  </section>
+
+  {% comment %}
+    3 — in progress. Slice granularity only; bite progress is a badge on the
+    row, not a column of its own.
+  {% endcomment %}
+  <section class="band">
+    <div class="band-head">
+      <span class="band-title"><span>in progress</span></span>
+      <span class="band-count">{{ state.building|length }}</span>
+    </div>
+    <p class="band-sub">Slices you're building right now</p>
+    {% if state.building %}
+      <div class="panel">
+        {% for slice in state.building %}
           {% include "web/partials/_slice_row.html" with show_area=True show_desc=True %}
-        {% empty %}
-          <div class="home-col-empty"><span>Nothing in focus yet. Move a slice to building.</span></div>
         {% endfor %}
       </div>
-      {% if state.building|length > 5 %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=building">View all ({{ state.building|length }}) &rarr;</a>{% endif %}
-    </section>
-
-    {# Doing — bites actively in progress #}
-    <section class="board-col">
-      <div class="home-col-head">
-        <div class="home-col-head-row">
-          <span class="board-col-label"><span>doing</span></span>
-          <span class="board-col-count">{{ in_progress.bites|length }}</span>
-        </div>
-        <div class="home-col-sub">sub-tasks in progress</div>
+    {% else %}
+      <div class="panel">
+        <div class="all-clear"><span>Nothing in progress. Pick something from the Board.</span></div>
       </div>
-      <div class="home-col-body">
-        {% for bite in in_progress.bites|slice:":5" %}
-          <a class="slice-row" href="{% wurl 'web:slice' bite.plan.slice.id %}"
-             hx-get="{% wurl 'web:slice' bite.plan.slice.id %}?panel=1" hx-target="#panel" hx-push-url="true">
-            {% include "web/partials/_status_dot.html" with status=bite.status %}
-            <span class="row-title">{{ bite.title }}</span>
-            <span class="row-meta">{{ bite.plan.slice.title }}</span>
-          </a>
-        {% empty %}
-          <div class="home-col-empty">
-            <span>No bites in progress.</span>
-            <button class="button button-small" type="button"
-                    x-on:click="cap = true">
-              {% icon "plus" %}<span>Start something</span></button>
-          </div>
-        {% endfor %}
-      </div>
-    </section>
-
-    {# Next + Later stacked #}
-    <div class="home-col-stack">
-      <section class="board-col">
-        <div class="home-col-head">
-          <div class="home-col-head-row">
-            <span class="board-col-label"><span>next</span></span>
-            <span class="board-col-count">{{ state.planned|length }}</span>
-          </div>
-          <div class="home-col-sub">queued slices</div>
-        </div>
-        <div class="home-col-body">
-          {% for slice in state.planned|slice:":5" %}
-            {% include "web/partials/_slice_row.html" with show_area=True %}
-          {% empty %}
-            <div class="home-col-empty"><span>No planned work queued.</span></div>
-          {% endfor %}
-        </div>
-        {% if state.planned|length > 5 %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=planned">View all ({{ state.planned|length }}) &rarr;</a>{% endif %}
-      </section>
-
-      <section class="board-col">
-        <div class="home-col-head">
-          <div class="home-col-head-row">
-            <span class="board-col-label"><span>later</span></span>
-            <span class="board-col-count">{{ later_ct }}</span>
-          </div>
-          <div class="home-col-sub">parked ideas</div>
-        </div>
-        <div class="home-col-body">
-          {% for slice in later_items|slice:":5" %}{% include "web/partials/_slice_row.html" with show_area=True %}{% endfor %}
-          {% if not later_items %}
-            <div class="home-col-empty"><span>Nothing parked for later.</span></div>
-          {% endif %}
-        </div>
-        {% if later_ct > 5 %}<a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list">View all ({{ later_ct }}) &rarr;</a>{% endif %}
-      </section>
-    </div>
-  </div>
+    {% endif %}
+    <a class="band-more" href="{% wurl 'web:roadmap' %}?status=planned">{{ state.planned_ct }} planned &middot; {{ state.someday_ct }} someday &rarr; Board</a>
   </section>
 
-  <section class="home-section">
-    <div class="home-section-head">
-      <span class="home-section-title"><span>recently_shipped</span></span>
-      <span class="home-section-count">{{ shipped_total }}</span>
+  {% comment %}
+    4 — shipped. The momentum number the stat cards used to carry, next to the
+    work it describes.
+  {% endcomment %}
+  <section class="band">
+    <div class="band-head">
+      <span class="band-title"><span>shipped</span></span>
+      <span class="band-count">{{ state.shipped_week_ct }} this week</span>
     </div>
+    <p class="band-sub">What you've finished lately</p>
     {% if state.shipped %}
       <div class="shipped-strip">
         {% for slice in state.shipped %}
@@ -129,7 +85,7 @@
           </a>
         {% endfor %}
         {% if shipped_hidden %}
-          <a class="home-col-more" href="{% wurl 'web:roadmap' %}?view=list&status=shipped">View all ({{ shipped_total }}) &rarr;</a>
+          <a class="band-more" href="{% wurl 'web:roadmap' %}?status=shipped">View all ({{ shipped_total }}) &rarr;</a>
         {% endif %}
       </div>
     {% else %}

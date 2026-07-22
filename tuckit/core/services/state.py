@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from tuckit.core.models import Area, Bite, Org, Slice, OrgStatSnapshot
+from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
 from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import list_bites, slice_bites
 from tuckit.core.services.plans import list_plans
@@ -150,82 +150,70 @@ def _render_activity(slice_: Slice) -> str:
 
 
 def home_state(org: Org) -> dict:
+    """Slice data for Home's `in progress` and `shipped` bands, plus the two
+    backlog counts the footer link needs.
+
+    No hidden filters. Every `building` slice is in `building` — including ones
+    that also appear in your_turn() and ones tagged `someday`. The old version
+    removed both, so a slice could read `building` everywhere else in the app
+    and simply not be on Home.
+
+    The backlog is returned as counts, not rows: listing planned work here would
+    duplicate the Board, which is the surface for it.
+    """
     slices = list(
         Slice.objects.filter(area__org=org)
         .select_related("area").prefetch_related("tags")
     )
-    someday = [s for s in slices if "someday" in _tag_names(s) and s.status != "shipped"]
-    someday_ids = {s.id for s in someday}
-    attention = attention_items(org)
-    attention_ids = {it["slice"].id for it in attention if "slice" in it}
-    hidden_ids = someday_ids | attention_ids
-
-    def bucket(status):
-        return sorted(
-            [s for s in slices if s.status == status and s.id not in hidden_ids],
-            key=lambda s: (s.area.name, s.rank),
-        )
-
+    now = timezone.now()
+    stale_cutoff = now - timedelta(days=STALE_DAYS)
+    building = sorted(
+        [s for s in slices if s.status == "building"],
+        # False sorts before True, so stalled slices come first. Staleness is a
+        # sort key here and nowhere a filter.
+        key=lambda s: (s.updated_at >= stale_cutoff, s.area.name, s.rank),
+    )
     shipped = sorted(
         [s for s in slices if s.status == "shipped"],
         key=lambda s: s.completed_at or s.updated_at, reverse=True,
     )
+    week_ago = now - timedelta(days=7)
     return {
-        "attention": attention,
-        "building": bucket("building"),
-        "planned": bucket("planned"),
-        "someday": someday,
+        "building": building,
         "shipped": shipped,
+        "planned_ct": sum(1 for s in slices if s.status == "planned"),
+        "someday_ct": sum(
+            1 for s in slices
+            if s.status != "shipped" and "someday" in _tag_names(s)
+        ),
+        "shipped_week_ct": sum(
+            1 for s in shipped if s.completed_at and s.completed_at >= week_ago
+        ),
     }
 
 
-def snapshot_today(org: Org, state: dict) -> dict:
-    """Upsert today's count row for `org` and return each metric's value
-    plus its delta vs the most recent prior-day snapshot. Counts are derived
-    from the passed-in home_state so they match the Home buckets exactly
-    (e.g. stalled building slices count only toward Needs attention, not
-    Building). Lazy — called on Home load, so history accrues without a
-    scheduler. delta is None on the first day (no prior row) so the UI shows
-    a value with no movement line.
+def snapshot_today(org: Org, state: dict, your_turn_ct: int) -> None:
+    """Upsert today's count row for `org`.
+
+    Nothing renders these numbers any more — the four stat cards that did were
+    showing the same values as the lists directly below them. The write stays
+    because the daily history is the one thing that cannot be reconstructed
+    later; a future metrics screen will want it. Lazy (called on Home load), so
+    no scheduler is needed.
 
     Org-scoped: OrgStatSnapshot is keyed by (org, date) via
-    uniq_org_snapshot_per_day."""
-    today = timezone.localdate()
-    building_ct = len(state["building"])
-    backlog_ct = len(state["planned"]) + len(state["someday"])
-    week_ago = timezone.now() - timedelta(days=7)
-    shipped_week_ct = sum(
-        1 for s in state["shipped"] if s.completed_at and s.completed_at >= week_ago
-    )
-    attention_ct = len(state["attention"])
-
+    uniq_org_snapshot_per_day.
+    """
     OrgStatSnapshot.objects.update_or_create(
         org=org,
-        date=today,
+        date=timezone.localdate(),
         defaults={
-            "building_ct": building_ct,
-            "backlog_ct": backlog_ct,
-            "shipped_week_ct": shipped_week_ct,
-            "attention_ct": attention_ct,
+            "building_ct": len(state["building"]),
+            "backlog_ct": state["planned_ct"] + state["someday_ct"],
+            "shipped_week_ct": state["shipped_week_ct"],
+            "attention_ct": your_turn_ct,
         },
     )
-    prior = (
-        OrgStatSnapshot.objects
-        .filter(org=org, date__lt=today)
-        .order_by("-date")
-        .first()
-    )
-
-    def entry(value: int, field: str) -> dict:
-        p = getattr(prior, field) if prior else None
-        return {"value": value, "delta": None if p is None else value - p}
-
-    return {
-        "building": entry(building_ct, "building_ct"),
-        "backlog": entry(backlog_ct, "backlog_ct"),
-        "shipped_week": entry(shipped_week_ct, "shipped_week_ct"),
-        "attention": entry(attention_ct, "attention_ct"),
-    }
 
 
 def your_turn(org: Org) -> list[dict]:
@@ -283,25 +271,6 @@ def your_turn(org: Org) -> list[dict]:
             "tickets": open_tickets,
             "action": f"{open_tickets} waiting for triage",
         })
-    return items
-
-
-def attention_items(org: Org) -> list[dict]:
-    """Open tickets left untriaged too long, plus building slices that stopped
-    moving. Ticket staleness is measured from `created_at`, not `updated_at`:
-    editing a ticket's title or dragging it in the list is not triage, and
-    letting either reset the timer hides the backlog it is meant to surface."""
-    from tuckit.core.services.tickets import ticket_queryset
-    now = timezone.now()
-    cutoff = now - timedelta(days=STALE_DAYS)
-    items: list[dict] = []
-    for t in ticket_queryset(org).filter(created_at__lt=cutoff):
-        items.append({"ticket": t, "reason": "ticket_stale",
-                      "days": (now - t.created_at).days, "since": t.created_at})
-    for s in Slice.objects.filter(area__org=org, status="building", updated_at__lt=cutoff).prefetch_related("tags"):
-        items.append({"slice": s, "reason": "building_stalled",
-                      "days": (now - s.updated_at).days, "since": s.updated_at})
-    items.sort(key=lambda it: it["since"])
     return items
 
 
@@ -436,19 +405,3 @@ def mark_home_seen(member) -> None:
         return
     member.home_seen_at = timezone.now()
     member.save(update_fields=["home_seen_at"])
-
-
-def in_progress_state(org: Org) -> dict:
-    """What's actively being worked right now: building slices + doing bites."""
-    slices = list(
-        Slice.objects.filter(area__org=org, status="building")
-        .select_related("area")
-        .prefetch_related("tags")
-        .order_by("area__name", "rank")
-    )
-    bites = list(
-        Bite.objects.filter(plan__slice__area__org=org, status="doing")
-        .select_related("plan__slice", "plan__slice__area")
-        .order_by("plan__slice__area__name", "rank")
-    )
-    return {"slices": slices, "bites": bites}

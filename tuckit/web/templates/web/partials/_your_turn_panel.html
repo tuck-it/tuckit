@@ -1,0 +1,23 @@
+{% load web_extras %}
+<div class="panel">
+  {% for it in items %}
+    {% if it.slice %}
+      {% include "web/partials/_slice_row.html" with slice=it.slice reason=it.action show_area=True %}
+    {% else %}
+      {% comment %}
+        Tickets collapse to one row. The Inbox lists them individually and
+        carries its own badge; repeating twelve rows here would duplicate it
+        and read as accusation.
+      {% endcomment %}
+      <a class="slice-row" href="{% url 'web:inbox' current_org.slug %}">
+        {% include "web/partials/_status_dot.html" with status="open" %}
+        <span class="row-main">
+          <span class="row-title">{{ it.action }}</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">{% icon "chevron" "icon" %}</span>
+      </a>
+    {% endif %}
+  {% empty %}
+    <div class="all-clear">{% icon "check" "icon icon-clear" %}<span>Nothing is waiting on you — agents can keep going.</span></div>
+  {% endfor %}
+</div>
