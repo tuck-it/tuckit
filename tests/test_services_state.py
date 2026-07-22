@@ -19,7 +19,9 @@ from tuckit.core.services.state import (
     roadmap_state,
     STALE_DAYS,
     get_project_state,
+    mark_home_seen,
     render_slice_markdown,
+    since_last_visit,
     your_turn,
 )
 
@@ -569,3 +571,78 @@ def test_your_turn_is_empty_when_nothing_is_blocked():
     s = create_slice(a, "moving along", status="building", spec="designed")
     create_bite(create_plan(s, title="Plan"), "in flight", status="todo")
     assert your_turn(org) == []
+
+
+def _member(org):
+    from tuckit.core.models import OrgMember, User
+    user = User.objects.create_user(email=f"m{org.pk}@example.com", password="x")
+    return OrgMember.objects.create(user=user, org=org, role="owner")
+
+
+@pytest.mark.django_db
+def test_since_last_visit_badges_nothing_on_a_first_visit():
+    from tuckit.core.services.activity import record_activity
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "work", status="building")
+    record_activity(org, actor="agent", verb="created", target=s)
+
+    out = since_last_visit(org, _member(org))
+    assert out["new_count"] == 0
+    assert all(not e.is_new for e in out["events"])
+    assert len(out["events"]) >= 1, "the log still renders — only the badge is empty"
+
+
+@pytest.mark.django_db
+def test_since_last_visit_counts_only_agent_events_as_new():
+    """In a solo org every 'human' event is the viewer's own. Badging your own
+    work as news is noise, so it renders for context but never counts."""
+    from tuckit.core.services.activity import record_activity
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "work", status="building")
+    m = _member(org)
+    mark_home_seen(m)
+
+    record_activity(org, actor="agent", verb="shipped", target=s)
+    record_activity(org, actor="human", verb="noted", target=s, body="mine")
+
+    out = since_last_visit(org, m)
+    assert out["new_count"] == 1
+    assert sum(1 for e in out["events"] if e.is_new) == 2, "both are new..."
+    assert [e.actor for e in out["events"] if e.is_new].count("human") == 1, \
+        "...but the human one is not counted"
+
+
+@pytest.mark.django_db
+def test_mark_home_seen_advances_the_watermark():
+    org = Org.objects.create(name="Acme", slug="acme")
+    m = _member(org)
+    assert m.home_seen_at is None
+
+    mark_home_seen(m)
+    m.refresh_from_db()
+    first = m.home_seen_at
+    assert first is not None
+
+    mark_home_seen(m)
+    m.refresh_from_db()
+    assert m.home_seen_at > first
+
+
+@pytest.mark.django_db
+def test_since_last_visit_is_capped_and_newest_first():
+    from tuckit.core.services.activity import record_activity
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    s = create_slice(a, "work", status="building")
+    for i in range(15):
+        record_activity(org, actor="agent", verb="noted", target=s, body=f"n{i}")
+
+    out = since_last_visit(org, _member(org), limit=10)
+    assert len(out["events"]) == 10
+    stamps = [e.created_at for e in out["events"]]
+    assert stamps == sorted(stamps, reverse=True)

@@ -405,6 +405,39 @@ def recent_activity(org: Org, limit: int = 8) -> list:
     return list(org.activity.all()[:limit])
 
 
+def since_last_visit(org: Org, member, limit: int = 10) -> dict:
+    """Recent org activity, plus how much of it is news to this member.
+
+    `is_new` is stamped on each event for the template (an instance attribute —
+    nothing is written back). The count deliberately ignores `human` events: in
+    a solo org every human event is the viewer's own, and badging your own work
+    as news is noise. Human rows still render, for context.
+
+    Read-only. The caller must invoke mark_home_seen() AFTER this — see there.
+    """
+    seen = getattr(member, "home_seen_at", None) if member is not None else None
+    events = list(org.activity.all()[:limit])
+    new_count = 0
+    for e in events:
+        e.is_new = bool(seen and e.created_at > seen)
+        if e.is_new and e.actor == "agent":
+            new_count += 1
+    return {"events": events, "new_count": new_count}
+
+
+def mark_home_seen(member) -> None:
+    """Advance the member's Home watermark to now.
+
+    Ordering is load-bearing: call this only AFTER since_last_visit() has
+    computed what was new, or the band renders its own visit as already-seen
+    and the badge is permanently zero.
+    """
+    if member is None:
+        return
+    member.home_seen_at = timezone.now()
+    member.save(update_fields=["home_seen_at"])
+
+
 def in_progress_state(org: Org) -> dict:
     """What's actively being worked right now: building slices + doing bites."""
     slices = list(
