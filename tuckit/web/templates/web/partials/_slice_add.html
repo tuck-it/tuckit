@@ -1,0 +1,18 @@
+{% comment %}
+  The area page's "＋ New slice" affordance: trigger + create dialog, owning
+  its own Alpine scope. Kept as a partial rather than hoisting `x-data` onto
+  the surrounding <header> because _area_header.html renders .page-head-l and
+  declares its own `x-data="{edit: false}"` — wrapping it in a scope it does
+  not declare is the page-context leak this codebase already hit once.
+
+  Context: area (target Area), focus (str — "slice" auto-opens the dialog for
+  the onboarding deep-link).
+{% endcomment %}
+<div class="slice-add {% if focus == 'slice' %}ob-focus-slice{% endif %}"
+     x-data="{ modal: {% if focus == 'slice' %}true{% else %}false{% endif %}, tags: [], tagDraft: '' }"
+     x-init="if (modal) $nextTick(() => $refs.obSliceTitle.focus())">
+  <button class="button button-small slice-new-btn" type="button"
+          x-on:click="modal = true; $nextTick(() => $refs.obSliceTitle.focus())">＋ New slice</button>
+
+  {% include "web/partials/_slice_create_modal.html" with area=area list_target="#board" %}
+</div>

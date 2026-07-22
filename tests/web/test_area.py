@@ -48,27 +48,82 @@ def test_area_header_omits_description_when_blank(client_local, org):
 
 
 @pytest.mark.django_db
-def test_area_list_collapses_shipped_and_dropped(client_local, org):
+def test_area_board_omits_dropped_and_links_to_it(client_local, org):
     a = create_area(org, "Backend")
     create_slice(a, "building one", status="building")
-    create_slice(a, "shipped one", status="shipped")
     create_slice(a, "dropped one", status="dropped")
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
-    assert 'id="area-list"' in body
-    # shipped + dropped are inside <details>; building is not
-    shipped_pos = body.index("shipped one")
-    dropped_pos = body.index("dropped one")
-    details_open = [m for m in range(len(body)) if body.startswith("<details", m)]
-    # both shipped and dropped titles follow a <details> that opens before them
-    assert any(d < shipped_pos for d in details_open)
-    assert any(d < dropped_pos for d in details_open)
-    # building renders unwrapped (before the first <details>, which is shipped)
-    assert body.index("building one") < body.index("<details")
+    assert 'id="board"' in body
+    assert "building one" in body
+    assert "dropped one" not in body            # no dropped column on the board
+    assert "Dropped (1)" in body                # ...but a route to it
+    assert 'href="?status=dropped"' in body
 
 
 @pytest.mark.django_db
-def test_area_list_empty_copy_is_english(client_local, org):
+def test_area_board_hides_dropped_link_when_none(client_local, org):
+    a = create_area(org, "Backend")
+    create_slice(a, "building one", status="building")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    assert "Dropped (" not in body
+
+
+@pytest.mark.django_db
+def test_area_status_filter_lists_dropped_flat(client_local, org):
+    a = create_area(org, "Backend")
+    create_slice(a, "dropped one", status="dropped")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/?status=dropped").content.decode()
+    assert "dropped one" in body
+    assert 'id="board"' not in body
+    assert "← Board" in body
+    assert f'href="/{org.slug}/areas/{a.slug}/"' in body
+
+
+@pytest.mark.django_db
+def test_area_caps_shipped_and_links_to_all(client_local, org):
+    org.shipped_board_mode = "count"
+    org.shipped_board_limit = 1
+    org.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
+    a = create_area(org, "Backend")
+    create_slice(a, "shipped one", status="shipped")
+    create_slice(a, "shipped two", status="shipped")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    assert "View all shipped (2)" in body
+    assert 'href="?status=shipped"' in body
+    # ...and the uncapped surface behind that link shows both
+    all_body = client_local.get(f"/{org.slug}/areas/{a.slug}/?status=shipped").content.decode()
+    assert "shipped one" in all_body and "shipped two" in all_body
+
+
+@pytest.mark.django_db
+def test_area_ignores_stale_view_param(client_local, org):
+    """?view= is gone. An old bookmark must land on the board, not 404."""
+    a = create_area(org, "Backend")
+    resp = client_local.get(f"/{org.slug}/areas/{a.slug}/?view=list")
+    assert resp.status_code == 200
+    assert 'id="board"' in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_area_has_no_view_toggle(client_local, org):
+    a = create_area(org, "Backend")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    assert 'href="?view=list"' not in body
+    assert 'href="?view=board"' not in body
+
+
+@pytest.mark.django_db
+def test_new_slice_button_lives_in_the_page_head(client_local, org):
+    a = create_area(org, "Backend")
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    head = body[body.index('class="page-head"'):body.index('id="board"')]
+    assert "page-head-r" in head
+    assert "＋ New slice" in head
+
+
+@pytest.mark.django_db
+def test_area_empty_copy_is_english(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Empty")
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
@@ -86,7 +141,7 @@ def test_add_slice_creates_planned_slice_in_area(client_local, org):
     s = Slice.objects.get(area=a, title="new idea")
     assert s.status == "planned"
     body = resp.content.decode()
-    assert 'id="area-list"' in body
+    assert 'id="board"' in body
     assert "new idea" in body
 
 
@@ -99,7 +154,7 @@ def test_add_slice_ignores_blank_title(client_local, org):
                              HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     assert Slice.objects.filter(area=a).count() == 0
-    assert 'id="area-list"' in resp.content.decode()
+    assert 'id="board"' in resp.content.decode()
 
 
 @pytest.mark.django_db

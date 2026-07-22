@@ -3,7 +3,8 @@ from django.shortcuts import render
 
 from tuckit.core.services.exceptions import NotFound
 from tuckit.core.services.resolve import get_area_by_slug, get_slice
-from tuckit.core.services.slices import grouped_slices
+from tuckit.core.services.slices import list_slices
+from tuckit.core.services.state import AREA_STATUS_KEYS, area_board_view
 from tuckit.web.auth import get_current_org
 from tuckit.web.panel import slice_panel_context
 
@@ -14,13 +15,25 @@ def area_view(request, slug):
         area = get_area_by_slug(org, slug)
     except NotFound:
         raise Http404
-    groups = grouped_slices(area)
-    has_any_slice = any(items for _, items in groups)
+    status = request.GET.get("status")
+    if status in AREA_STATUS_KEYS:
+        # Single-status flat list — the uncapped "view all" / archive surface
+        # behind the shipped overflow and Dropped links.
+        return render(request, "web/area.html", {
+            "area": area,
+            "filter_status": status,
+            "filter_slices": list(
+                list_slices(area, status=status).prefetch_related("tags").order_by("rank")
+            ),
+        })
+    board = area_board_view(area)
     return render(request, "web/area.html", {
         "area": area,
-        "groups": groups,
-        "has_any_slice": has_any_slice,
-        "view": request.GET.get("view", "list"),
+        "groups": board["groups"],
+        "has_any_slice": board["has_any_slice"],
+        "shipped_total": board["shipped_total"],
+        "shipped_hidden": board["shipped_hidden"],
+        "dropped_count": board["dropped_count"],
         "focus": request.GET.get("focus", ""),
     })
 

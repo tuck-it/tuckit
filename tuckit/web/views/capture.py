@@ -8,7 +8,8 @@ from django.urls import reverse
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.areas import create_area, list_areas, update_area, delete_area, reorder_area
-from tuckit.core.services.slices import create_slice, set_slice_status, grouped_slices
+from tuckit.core.services.slices import create_slice, set_slice_status
+from tuckit.core.services.state import area_board_view
 from tuckit.core.services.tickets import (
     create_ticket, query_tickets, ticket_queryset, promote_ticket, reopen_ticket,
     resolve_ticket, update_ticket,
@@ -373,12 +374,12 @@ def area_slice_create(request, slug):
             create_slice(target, title, spec=spec, status=status, tags=tags, source="human")
         except InvalidValue as e:
             return HttpResponse(str(e), status=400)
-    groups = grouped_slices(area)
-    has_any_slice = any(items for _, items in groups)
-    html = render_to_string("web/partials/_area_list.html", {
+    board = area_board_view(area)
+    html = render_to_string("web/partials/_board.html", {
         "area": area,
-        "groups": groups,
-        "has_any_slice": has_any_slice,
+        "groups": board["groups"],
+        "shipped_total": board["shipped_total"],
+        "shipped_hidden": board["shipped_hidden"],
     }, request=request)
     return refresh_rollup(request, HttpResponse(html + widget_oob(request)))
 

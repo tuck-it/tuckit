@@ -13,7 +13,7 @@ def test_board_has_swap_target_id(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
     create_slice(a, "one", status="building")
-    body = client_local.get(f"{p}/areas/{a.slug}/?view=board").content.decode()
+    body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert 'id="board"' in body
     assert 'class="board"' in body
 
@@ -22,7 +22,7 @@ def test_board_view_renders_columns(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
     create_slice(a, "Payment", status="building")
-    resp = client_local.get(f"{p}/areas/{a.slug}/?view=board")
+    resp = client_local.get(f"{p}/areas/{a.slug}/")
     body = resp.content.decode()
     assert "Payment" in body
     assert 'data-status="building"' in body
@@ -34,7 +34,7 @@ def test_board_column_head_has_dot_and_count(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Product")
     create_slice(a, "Card A", status="building")
-    body = client_local.get(f"{p}/areas/{a.slug}/?view=board").content.decode()
+    body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert "board-col-head" in body
     assert "status-dot--building" in body
 

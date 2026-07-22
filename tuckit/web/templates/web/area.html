@@ -1,27 +1,20 @@
 {% extends "web/base.html" %}
 {% load web_extras %}
 {% block main %}
-  <header class="page-head">
-    {% include "web/partials/_area_header.html" %}
-    <div class="view-toggle">
-      <a class="view-toggle-link{% if view == 'list' %} view-toggle-link--active{% endif %}"
-         href="?view=list">List</a>
-      <a class="view-toggle-link{% if view == 'board' %} view-toggle-link--active{% endif %}"
-         href="?view=board">Board</a>
-    </div>
-  </header>
-  {% if view == "board" %}
+  {% if filter_status %}
+    {% wurl 'web:area' area.slug as back_url %}
+    {% include "web/partials/_status_filter_list.html" %}
+  {% else %}
+    <header class="page-head">
+      {% include "web/partials/_area_header.html" %}
+      <div class="page-head-r">
+        {% include "web/partials/_slice_add.html" %}
+      </div>
+    </header>
     {% include "web/partials/_board.html" %}
     {% if not has_any_slice %}<div class="empty muted">No slices yet.</div>{% endif %}
-  {% else %}
-    <div class="slice-add {% if focus == 'slice' %}ob-focus-slice{% endif %}"
-         x-data="{ modal: {% if focus == 'slice' %}true{% else %}false{% endif %}, tags: [], tagDraft: '' }"
-         x-init="if (modal) $nextTick(() => $refs.obSliceTitle.focus())">
-      <button class="button button-small slice-new-btn" type="button"
-              x-on:click="modal = true; $nextTick(() => $refs.obSliceTitle.focus())">＋ New slice</button>
-
-      {% include "web/partials/_slice_create_modal.html" with area=area list_target="#area-list" %}
-    </div>
-    {% include "web/partials/_area_list.html" %}
+    {% if dropped_count %}
+      <a class="group-more" href="?status=dropped">Dropped ({{ dropped_count }}) →</a>
+    {% endif %}
   {% endif %}
 {% endblock %}
