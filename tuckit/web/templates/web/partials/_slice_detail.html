@@ -110,7 +110,7 @@
          x-on:click="editSpec=true; $nextTick(()=>{ $refs.specEdit.focus(); autosize($refs.specEdit); })">{% if slice.spec %}{{ spec_html|safe }}{% elif origin_ticket %}<span class="muted">No design doc yet. The original capture is in {{ org_slug_ref }}{{ origin_ticket.number }}.</span>{% else %}<span class="muted">Add a spec…</span>{% endif %}</button>
     <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}{{ modal_qs }}"
           hx-target="closest .detail-body" hx-swap="outerHTML">
-      <textarea name="spec" class="spec-edit" x-ref="specEdit" rows="2"
+      <textarea name="spec" class="spec-edit spec-edit--tall" x-ref="specEdit" rows="2"
                 x-on:input="autosize($event.target)"
                 x-on:keydown.escape.stop="editSpec=false"
                 x-on:keydown.meta.enter.prevent="$el.form.requestSubmit()"
@@ -146,7 +146,7 @@
            x-on:click="editBody=true; $nextTick(()=>{ $refs.body.focus(); autosize($refs.body); })">{% if entry.plan.body %}{{ entry.plan_html|safe }}{% else %}<span class="muted">Add an overview…</span>{% endif %}</button>
       <form x-show="editBody" x-cloak hx-post="{% wurl 'web:plan_edit' entry.plan.id %}{{ modal_qs }}"
             hx-target="closest .detail-body" hx-swap="outerHTML">
-        <textarea name="body" class="spec-edit" x-ref="body" rows="2"
+        <textarea name="body" class="spec-edit spec-edit--tall" x-ref="body" rows="2"
                   x-on:input="autosize($event.target)"
                   x-on:keydown.escape.stop="editBody=false"
                   x-on:keydown.meta.enter.prevent="$el.form.requestSubmit()"

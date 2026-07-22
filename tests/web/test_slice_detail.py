@@ -228,7 +228,10 @@ def test_spec_is_boxed_inline_edit(client_local, org):
     s = create_slice(create_area(org, "Design"), "spec slice")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="section-label">Spec' in body          # labeled section
-    assert 'class="spec-edit"' in body                   # inline editor present
+    # Substring, not the whole class attribute: spec is a long-form surface, so
+    # it also carries .spec-edit--tall. What this line pins is that the inline
+    # editor is there at all, not the exact attribute spelling.
+    assert "spec-edit" in body                           # inline editor present
     assert 'rows="6"' not in body                        # no big fixed textarea jump
     # Spec reads as a field: boxed like the other props (border + background).
     css = (Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "app.css").read_text()

@@ -30,7 +30,7 @@
          x-on:click="editBody=true; $nextTick(() => { focusEnd($refs.b); autosize($refs.b) })">
       {% if ticket.body %}{{ body_html|safe }}{% else %}<span class="muted">Add a note — what you saw, and why it matters.</span>{% endif %}
     </button>
-    <textarea name="body" class="spec-edit" x-ref="b" x-show="editBody" x-cloak
+    <textarea name="body" class="spec-edit spec-edit--tall" x-ref="b" x-show="editBody" x-cloak
               aria-label="Ticket note"
               x-on:input="autosize($event.target)"
               x-on:keydown.escape.stop="editBody=false"
