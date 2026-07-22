@@ -1075,7 +1075,9 @@ body.modal-open { overflow: hidden; }
 
 /* Same partial also renders as ordinary page content on the full slice page
    (web/slice_detail.html), so detail-body itself carries no positioning. */
-.detail-body { display: flex; flex-direction: column; gap: 20px; padding: 22px; }
+/* --detail-pad is read back by .action-bar, which bleeds to the edges with
+   negative margins and has to know how far that is. */
+.detail-body { --detail-pad: 22px; display: flex; flex-direction: column; gap: 20px; padding: var(--detail-pad); }
 .detail-head { display: flex; align-items: flex-start; gap: 10px; }
 .detail-head-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .detail-title { font-size: 17px; font-weight: 600; line-height: 1.4; letter-spacing: -0.02em; cursor: text; }
@@ -1975,7 +1977,16 @@ html.sidebar-collapsed .side-resize { display: none; }
 .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin-bottom: 8px; }
 
 .action-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 8px;
-  margin: 6px -22px -22px; padding: 10px 22px; background: var(--paper-solid); border-top: 1px solid var(--line); }
+  margin: 6px calc(-1 * var(--detail-pad)) calc(-1 * var(--detail-pad));
+  padding: 10px var(--detail-pad); background: var(--paper-solid); border-top: 1px solid var(--line); }
+/* A sticky bottom offset resolves against the scrollport's PADDING box. Inside
+   the modal the card is BOTH the scroller and the padded box, so bottom:0
+   parked the bar --detail-pad above the card's edge and the rest of the
+   document scrolled visibly through the gap underneath it. Pull it back down
+   by exactly that padding. Scoped to .detail-card on purpose: on the full page
+   the scrollport is the document, where a negative offset would push the bar
+   below the fold. */
+.detail-card .action-bar { bottom: calc(-1 * var(--detail-pad)); }
 .action-spacer { flex: 1; }
 .action-drop { color: var(--warn); border-color: transparent; }
 .action-drop:hover { border-color: var(--warn); }

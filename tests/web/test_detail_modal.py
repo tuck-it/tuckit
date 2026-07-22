@@ -5,6 +5,7 @@ These are template-level assertions on purpose. The bugs this area produces
 are invisible to endpoint tests, so the markup contract is what we pin.
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -163,3 +164,18 @@ def test_escape_only_dismisses_the_topmost_layer():
     assert esc, "the detail modal must close on window-level Escape"
     assert "!dialogAboveDetail()" in esc[0], \
         "Escape must not reach the modal while a dialog sits on top of it"
+
+
+def test_the_sticky_action_bar_reaches_the_bottom_of_the_modal_card():
+    """A sticky bottom offset resolves against the scrollport's PADDING box.
+    In the modal the card is both the scroller and the padded box, so bottom:0
+    parked the action bar 22px above the card edge with the rest of the
+    document scrolling visibly through the gap. Scoped to .detail-card: on the
+    full page the scrollport is the document, where a negative offset would
+    push the bar below the fold."""
+    css = _read("static/web/app.css")
+    assert "--detail-pad" in css, "the pad must be a variable the action bar can read back"
+    assert re.search(r"\.detail-card \.action-bar\s*\{[^}]*bottom:\s*calc\(-1 \* var\(--detail-pad\)\)", css)
+    # the unscoped rule must stay at 0 for the full page
+    base = re.search(r"\n\.action-bar\s*\{(.*?)\}", css, re.S).group(1)
+    assert "bottom: 0" in base
