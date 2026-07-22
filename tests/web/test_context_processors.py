@@ -104,3 +104,24 @@ def test_onboarding_short_circuits_when_completed_or_dismissed(rf, org):
 
         setattr(org, flag, False)
         org.save(update_fields=[flag])
+
+
+@pytest.mark.django_db
+def test_sidebar_areas_keep_rank_order_despite_annotation(client_local, org):
+    """The slice_count annotation adds a GROUP BY, and Django does not apply
+    Meta.ordering to aggregate queries — so the queryset needs an explicit
+    order_by. Without it the SQL has no ORDER BY at all: sqlite happens to
+    return rowid order, Postgres guarantees nothing, and the sidebar's
+    drag-to-reorder silently stops sticking."""
+    from tuckit.core.services.areas import create_area, reorder_area
+
+    first = create_area(org, "Alpha")
+    create_area(org, "Beta")
+    third = create_area(org, "Gamma")
+    # Drag Gamma to the top — the whole point of `rank`. Rank order now differs
+    # from insertion order, so a query with no ORDER BY gives itself away.
+    reorder_area(third, before=first)
+
+    body = client_local.get(f"/{org.slug}/").content.decode()
+    positions = [body.index(name) for name in ("Gamma", "Alpha", "Beta")]
+    assert positions == sorted(positions), "sidebar areas are not in rank order"

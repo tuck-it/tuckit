@@ -19,9 +19,14 @@ def sidebar_areas(request):
     org = current_org_or_fallback(request)
     if not org:
         return {}
+    # order_by is explicit because the annotation adds a GROUP BY, and Django
+    # does not apply Meta.ordering to aggregate queries — the generated SQL
+    # then has no ORDER BY at all. sqlite happens to hand back rowid order, so
+    # the sidebar looks right locally while Postgres guarantees nothing and
+    # drag-to-reorder silently stops sticking in production.
     return {"areas": list(list_areas(org).annotate(
         slice_count=Count("slices", filter=~Q(slices__status="dropped"))
-    ))}
+    ).order_by("rank"))}
 
 
 def inbox_count(request):
