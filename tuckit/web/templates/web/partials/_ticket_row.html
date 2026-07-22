@@ -16,7 +16,7 @@
   <div class="ticket-row">
     <button class="ticket-open" type="button"
             hx-get="{% wurl 'web:ticket' ticket.id %}" hx-target="#ticket-modal"
-            hx-swap="innerHTML">
+            hx-swap="innerHTML" hx-push-url="{% detail_push_url 'ticket' ticket.id %}">
       <span class="row-title">{{ ticket.title }}</span>
       {% if ticket.body %}<span class="row-desc">{{ ticket.body|spec_summary }}</span>{% endif %}
     </button>
@@ -31,7 +31,7 @@
   <div class="ticket-row" x-data="{area: ''}">
     <button class="ticket-open" type="button"
             hx-get="{% wurl 'web:ticket' ticket.id %}" hx-target="#ticket-modal"
-            hx-swap="innerHTML">
+            hx-swap="innerHTML" hx-push-url="{% detail_push_url 'ticket' ticket.id %}">
       <span class="row-title">{{ ticket.title }}</span>
       {% if ticket.body %}<span class="row-desc">{{ ticket.body|spec_summary }}</span>{% endif %}
     </button>

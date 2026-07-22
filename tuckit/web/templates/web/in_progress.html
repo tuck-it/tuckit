@@ -9,7 +9,7 @@
       <div class="list-card">
         {% for bite in state.bites %}
           <a class="slice-row" href="{% wurl 'web:slice' bite.plan.slice.id %}"
-             hx-get="{% wurl 'web:slice' bite.plan.slice.id %}?modal=1" hx-target="#panel" hx-push-url="true">
+             hx-get="{% wurl 'web:slice' bite.plan.slice.id %}?modal=1" hx-target="#panel" hx-push-url="{% detail_push_url 'slice' bite.plan.slice.id %}">
             {% include "web/partials/_status_dot.html" with status=bite.status %}
             <span class="row-title">{{ bite.title }}</span>
             <span class="row-meta">{{ bite.plan.slice.title }}</span>

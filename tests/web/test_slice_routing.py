@@ -1,23 +1,29 @@
 import pytest
 from django.test import RequestFactory
-from tuckit.web.templatetags.web_extras import slice_push_url
+from tuckit.web.templatetags.web_extras import detail_push_url
 
 
 def _ctx(path):
     return {"request": RequestFactory().get(path)}
 
 
-def test_slice_push_url_appends_param_to_current_path():
-    assert slice_push_url(_ctx("/acme/main/home"), 42) == "/acme/main/home?slice=42"
+def test_detail_push_url_merges_the_param_into_the_current_path():
+    assert detail_push_url(_ctx("/acme/main/board"), "slice", 7) == "/acme/main/board?slice=7"
+    assert detail_push_url(_ctx("/acme/main/inbox"), "ticket", 3) == "/acme/main/inbox?ticket=3"
 
 
-def test_slice_push_url_preserves_other_query_and_replaces_slice():
-    out = slice_push_url(_ctx("/acme/main/board?view=board&slice=9"), 42)
-    assert out == "/acme/main/board?view=board&slice=42"
+def test_detail_push_url_drops_any_previously_open_detail():
+    """Opening B while A is open must not leave ?slice=A in the URL, and the
+    internal ?modal=1 / legacy ?panel=1 must never be pushed to the address bar."""
+    assert detail_push_url(_ctx("/acme/main/board?slice=1"), "slice", 7) == "/acme/main/board?slice=7"
+    assert detail_push_url(_ctx("/acme/main/inbox?ticket=1"), "slice", 7) == "/acme/main/inbox?slice=7"
+    assert detail_push_url(_ctx("/acme/main/home?modal=1"), "slice", 7) == "/acme/main/home?slice=7"
+    assert detail_push_url(_ctx("/acme/main/home?panel=1"), "slice", 7) == "/acme/main/home?slice=7"
 
 
-def test_slice_push_url_drops_modal_param():
-    assert slice_push_url(_ctx("/acme/main/home?modal=1"), 7) == "/acme/main/home?slice=7"
+def test_detail_push_url_keeps_unrelated_filters():
+    assert detail_push_url(_ctx("/acme/main/area/x?status=shipped"), "slice", 7) == \
+        "/acme/main/area/x?status=shipped&slice=7"
 
 
 @pytest.mark.django_db

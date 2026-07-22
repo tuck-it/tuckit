@@ -434,3 +434,13 @@ def test_merge_area_select_declares_its_own_hx_swap(client_local, org):
     start = body.index('name="merge_area_id"')
     select_tag = body[start:body.index(">", start)]
     assert 'hx-swap="innerHTML"' in select_tag
+
+
+@pytest.mark.django_db
+def test_inbox_row_pushes_a_ticket_deep_link(client_local, org):
+    """The inbox row used to open the modal without touching the URL, so a
+    refresh closed it and Back could not. Slices always deep-linked; tickets
+    now do too."""
+    t = create_ticket(org, "Something broke")
+    body = client_local.get(f"/{org.slug}/inbox/").content.decode()
+    assert f'hx-push-url="/{org.slug}/inbox/?ticket={t.id}"' in body

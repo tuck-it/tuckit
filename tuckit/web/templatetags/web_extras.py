@@ -20,15 +20,26 @@ def wurl_tag(context, name, *args, **kwargs):
     return reverse(name, args=[org.slug, *args], kwargs=kwargs)
 
 
-@register.simple_tag(name="slice_push_url", takes_context=True)
-def slice_push_url(context, slice_id):
-    """Path (no host) for the current page with `slice=<id>` merged into the query,
-    dropping any existing `slice`/`modal` params. htmx pushes this so a refresh
-    restores the same list page with the slide-over reopened."""
+# Params that mean "a detail overlay is open". Any of them must be dropped
+# before a new one is merged in, or opening B while A is open leaves both.
+# `panel` is the pre-rename spelling of `modal`; kept so links already in
+# someone's history or a bookmark do not resurrect a stale param.
+_DETAIL_PARAMS = ("slice", "ticket", "modal", "panel")
+
+
+@register.simple_tag(name="detail_push_url", takes_context=True)
+def detail_push_url(context, param, obj_id):
+    """Path (no host) for the CURRENT page with `<param>=<id>` merged into the
+    query. htmx pushes this so a refresh restores the same list page with the
+    same detail modal reopened, and Back closes it.
+
+    Never `hx-push-url="true"`: that pushes the REQUEST url
+    (/<org>/slices/12/?modal=1), which on reload renders the full slice page
+    instead of the list you were on, and which close() cannot strip."""
     request = context["request"]
     parts = urlsplit(request.get_full_path())
-    query = [(k, v) for k, v in parse_qsl(parts.query) if k not in ("slice", "modal")]
-    query.append(("slice", str(slice_id)))
+    query = [(k, v) for k, v in parse_qsl(parts.query) if k not in _DETAIL_PARAMS]
+    query.append((param, str(obj_id)))
     return urlunsplit(("", "", parts.path, urlencode(query), ""))
 
 
