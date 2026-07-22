@@ -1,10 +1,11 @@
 {% load web_extras %}
-<div class="detail-body" x-data="{editTitle:false, editSpec:false}">
+<div class="detail-body{% if is_modal %} detail-card{% endif %}" x-data="{editTitle:false, editSpec:false}"
+     {% if is_modal %}role="dialog" aria-modal="true" aria-labelledby="detail-title" data-url-param="slice"{% endif %}>
   <div class="detail-crumb">
     <a class="area-chip" href="{% wurl 'web:area' slice.area.slug %}">{% icon "area" "icon area-chip-icon" %}{{ slice.area.name }}</a>
     {% if is_modal %}
     <button class="ghost crumb-close" type="button" aria-label="Close panel"
-            hx-on:click="closePanel(document.getElementById('panel'))">{% icon "close" "icon" %}</button>
+            hx-on:click="closeDetail()">{% icon "close" "icon" %}</button>
     {% endif %}
   </div>
 

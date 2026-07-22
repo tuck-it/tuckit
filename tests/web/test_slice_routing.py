@@ -41,7 +41,7 @@ def test_page_with_slice_param_autoloads_panel(client_local, org):
 def test_page_without_slice_param_does_not_autoload(client_local, org):
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/").content.decode()
-    assert 'id="panel"' in body
+    assert 'id="detail-modal"' in body
     assert 'hx-trigger="load"' not in body
 
 

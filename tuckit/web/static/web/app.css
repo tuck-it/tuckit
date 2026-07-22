@@ -559,16 +559,11 @@ body { padding: 0; }
 }
 .ticket-open:hover .row-title { color: var(--blue); }
 
-/* Ticket modal — centered (a decision), unlike the slice slide-over (work you
-   keep open beside the board). Wider than .modal-card since it holds a body. */
+/* Ticket contents. The box itself (size, surface, border) comes from
+   .detail-card, the same one a slice gets — that is the whole point of the
+   unification. Only the internal stacking lives here. */
 .ticket-card {
-  background: var(--paper-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
   padding: var(--space-8);
-  width: 560px;
-  max-width: 92vw;
-  max-height: var(--modal-room);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -767,7 +762,7 @@ body { padding: 0; }
    --paper-raised background) so a control reads as a distinct well instead
    of nearly disappearing into the card it sits on. Selects are handled by
    .settings-select select below instead of here, so they're styled the
-   same way inside the #member-modal dialog too — that modal lives outside
+   same way inside the Manage dialog too — #detail-modal lives outside
    .settings-page in the DOM (it's a sibling of <main> in base.html), so a
    rule scoped to ".settings-page select" never reached it; the select
    rendered with no background/border/height at all, just appearance:none
@@ -1002,48 +997,42 @@ body { padding: 0; }
 .seg-item:hover { color: var(--ink); }
 .seg-item--on { background: var(--paper-deep); color: var(--ink); font-weight: 500; }
 
-/* Slice slide-over — fixed right-side panel, flat surface, hairline border.
-   #panel is an empty <div> until htmx swaps a .detail-body into it, so it
-   collapses to nothing (no stray fixed box) until there is content. */
-#panel:empty {
-  display: none;
-}
+/* Detail modal — one centred surface for every detail view. It replaced a
+   420px right-hand slide-over (slices) and a 560px centred card (tickets):
+   the same kind of thing opened in two different shapes depending on which
+   list you happened to click from.
 
-#panel:not(:empty) {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 420px;
-  max-width: 90vw;
+   The height is fixed, not content-driven. A short ticket therefore opens in
+   a large box — deliberately. If the box resized itself per item, "the modal
+   is inconsistently sized" would come straight back in another form. */
+.overlay--detail {
+  --overlay-top: 0;
+  align-items: stretch;
+  padding: var(--space-7);
+}
+/* margin:auto rather than align-items:center — centring a flex item taller
+   than the viewport clips its top beyond reach once the overlay scrolls. */
+.overlay--detail > * { margin: auto; }
+
+.detail-card {
+  width: min(900px, 90vw);
+  height: 85vh;
   background: var(--paper-raised);
-  border-left: 1px solid var(--line);
-  box-shadow: -18px 0 48px var(--shadow);
-  overflow-y: auto;
-  z-index: 30;
-}
-
-/* Member/invite "Manage" modal — small centered dialog (vs. #panel's
-   right-side slide-over), for a single row's actions. Empty/non-empty toggle
-   mirrors #panel: htmx swaps innerHTML in, nothing to show/hide manually. */
-.modal-overlay:empty { display: none; }
-.modal-overlay:not(:empty) {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: var(--overlay);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  /* Cards cap themselves to --modal-room, so this only catches a viewport too
-     short for even a capped card. Without it the overflow is unreachable: the
-     overlay is fixed, so the document behind it never grows to scroll. */
-  padding: 20vh var(--space-6) var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 48px var(--shadow);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-/* What is left for a card after the overlay's own padding. */
-.modal-overlay { --modal-room: calc(100vh - 20vh - var(--space-6)); }
+/* The ticket card pins its head and actions and scrolls only the note, so it
+   must not also scroll as a whole. */
+.ticket-card.detail-card { overflow: hidden; }
+
+/* Without this the page behind the scrim scrolls under the wheel. */
+body.modal-open { overflow: hidden; }
+
+/* Member/invite "Manage" — an action dialog for one row, not a detail view,
+   so it stays small while slices and tickets go to .detail-card. */
 .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; width: 360px; max-width: 90vw; }
 .modal-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .modal-card-title { font-size: 15px; font-weight: 600; color: var(--ink); }
@@ -2066,7 +2055,8 @@ html.sidebar-collapsed .side-resize { display: none; }
 .ob-dismiss { margin-top: 10px; text-align: right; }
 .ob-dismiss-btn { background: none; border: 0; color: var(--muted); font-size: 12px; cursor: pointer; }
 .ob-dismiss-btn:hover { color: var(--text); }
-#panel:not(:empty) ~ .ob-widget { display: none; }
+/* The guide would otherwise float over an open modal. */
+#detail-modal:not(:empty) ~ .ob-widget { display: none; }
 @media (max-width: 640px) { .ob-widget { right: 12px; bottom: 12px; left: 12px; width: auto; } }
 
 /* --- Areas overview --- */

@@ -71,7 +71,7 @@ function commandPalette() {
       var vis = this.visible();
       if (vis[this.active]) vis[this.active].click();
     },
-    /* Tab trap while the palette is open — mirrors trapFocus/trapPanel in
+    /* Tab trap while the palette is open — mirrors trapFocus/trapOverlay in
        base.html, scoped to the search input plus the currently visible rows. */
     trap(e) {
       var f = [this.$refs.search].concat(this.visible());

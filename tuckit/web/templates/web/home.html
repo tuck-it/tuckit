@@ -57,7 +57,7 @@
       <div class="home-col-body">
         {% for bite in in_progress.bites|slice:":5" %}
           <a class="slice-row" href="{% wurl 'web:slice' bite.plan.slice.id %}"
-             hx-get="{% wurl 'web:slice' bite.plan.slice.id %}?modal=1" hx-target="#panel" hx-push-url="{% detail_push_url 'slice' bite.plan.slice.id %}">
+             hx-get="{% wurl 'web:slice' bite.plan.slice.id %}?modal=1" hx-target="#detail-modal" hx-push-url="{% detail_push_url 'slice' bite.plan.slice.id %}">
             {% include "web/partials/_status_dot.html" with status=bite.status %}
             <span class="row-title">{{ bite.title }}</span>
             <span class="row-meta">{{ bite.plan.slice.title }}</span>
@@ -123,7 +123,7 @@
       <div class="shipped-strip">
         {% for slice in state.shipped %}
           <a class="shipped-chip" href="{% wurl 'web:slice' slice.id %}"
-             hx-get="{% wurl 'web:slice' slice.id %}?modal=1" hx-target="#panel" hx-push-url="{% detail_push_url 'slice' slice.id %}">
+             hx-get="{% wurl 'web:slice' slice.id %}?modal=1" hx-target="#detail-modal" hx-push-url="{% detail_push_url 'slice' slice.id %}">
             {% include "web/partials/_status_dot.html" with status=slice.status %}
             <span>{{ slice.title }}</span>
             <span class="chip-area">{{ slice.area.name }}</span>

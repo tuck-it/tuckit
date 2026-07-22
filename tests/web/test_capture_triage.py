@@ -314,7 +314,7 @@ def test_ticket_actions_close_the_modal(client_local, org):
     p = f"/{org.slug}"
     t = create_ticket(org, "Going")
     out = client_local.post(f"{p}/tickets/{t.id}/dismiss", HTTP_HX_REQUEST="true").content.decode()
-    assert 'hx-swap-oob="innerHTML:#ticket-modal"' in out
+    assert 'hx-swap-oob="innerHTML:#detail-modal"' in out
 
 
 # --- merge: the human path for absorb_ticket ---

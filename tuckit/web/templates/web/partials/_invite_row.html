@@ -8,6 +8,7 @@
   <td><span class="role-badge role-badge--{{ inv.role }}">{{ inv.get_role_display }}</span></td>
   <td><span class="status-pill status-pill--pending">Invited</span></td>
   <td class="member-table-actions">
-    <button class="btn" type="button" hx-get="{% url 'web:invite_manage' org.slug inv.id %}" hx-target="#member-modal">Manage</button>
+    <button class="btn" type="button" data-modal="small"
+            hx-get="{% url 'web:invite_manage' org.slug inv.id %}" hx-target="#detail-modal">Manage</button>
   </td>
 </tr>

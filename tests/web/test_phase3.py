@@ -55,14 +55,13 @@ def test_slice_detail_renders_status_dropdown(client_local, org):
 
 
 @pytest.mark.django_db
-def test_slide_over_container_is_labelled_dialog(client_local, org):
+def test_detail_modal_container_is_wired_for_focus(client_local, org):
+    """The container is now a bare scrim: role/aria-labelledby moved onto the
+    card htmx swaps in, because an empty container cannot honestly claim to be
+    a dialog labelled by a title that is not there."""
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/").content.decode()
-    assert 'id="panel"' in body
-    assert 'role="dialog"' in body
-    assert 'aria-modal="true"' in body
-    assert 'aria-labelledby="detail-title"' in body
-    # focus-management wiring present
-    assert "closePanel" in body
-    assert "trapPanel" in body
-    assert "__overlayOpeners" in body   # shared by #panel/#ticket-modal/#member-modal
+    assert 'id="detail-modal"' in body
+    assert "closeDetail" in body
+    assert "trapOverlay" in body
+    assert "__overlayOpeners" in body

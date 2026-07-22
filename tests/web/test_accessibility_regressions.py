@@ -369,11 +369,15 @@ def test_a_long_ticket_modal_can_be_scrolled_to_its_actions():
     the head and actions.
     """
     app = (STATIC / "app.css").read_text(encoding="utf-8")
-    overlay = re.search(r"\.modal-overlay:not\(:empty\)\s*\{(.*?)\}", app, re.S).group(1)
+    overlay = re.search(r"\.overlay\s*\{(.*?)\}", app, re.S).group(1)
     assert "overflow-y: auto" in overlay, "a fixed overlay must scroll its own content"
 
-    card = re.search(r"\.ticket-card\s*\{(.*?)\}", app, re.S).group(1)
-    assert "max-height:" in card, "the card must not be allowed to exceed the viewport"
+    # The cap moved from .ticket-card to the shared .detail-card box, which is
+    # the point of the unification: a slice and a ticket get the same one.
+    card = re.search(r"\.detail-card\s*\{(.*?)\}", app, re.S).group(1)
+    assert "85vh" in card, "the card must not be allowed to exceed the viewport"
+    assert re.search(r"\.ticket-card\.detail-card\s*\{[^}]*overflow:\s*hidden", app), \
+        "the ticket card scrolls its note, so the box itself must not scroll too"
 
     body = re.search(r"\.ticket-body\s*\{(.*?)\}", app, re.S)
     assert body is not None, ".ticket-body needs a rule of its own to take the scroll"

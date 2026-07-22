@@ -1,8 +1,8 @@
 {% load web_extras %}
-<div class="modal-card" role="document">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detail-title">
   <div class="modal-card-head">
-    <div class="modal-card-title">{{ m.user.email }}</div>
-    <button type="button" class="ghost" aria-label="Close" x-on:click="closeMemberModal()">{% icon "close" %}</button>
+    <div class="modal-card-title" id="detail-title">{{ m.user.email }}</div>
+    <button type="button" class="ghost" aria-label="Close" x-on:click="closeDetail()">{% icon "close" %}</button>
   </div>
 
   <div class="modal-card-row">
@@ -10,7 +10,7 @@
     {% if can_owner and m.user != request.user %}
       <span class="settings-select"><select hx-post="{% url 'web:org_member_role' org.slug m.id %}"
               hx-target="#member-{{ m.id }}" hx-swap="outerHTML" name="role"
-              hx-on::after-request="if(event.detail.successful) closeMemberModal()">
+              hx-on::after-request="if(event.detail.successful) closeDetail()">
         {% for value, label in role_choices %}
           <option value="{{ value }}" {% if m.role == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
@@ -25,7 +25,7 @@
     <span class="hint">Remove from organization</span>
     <button class="btn danger" type="button" hx-post="{% url 'web:org_member_remove' org.slug m.id %}"
             hx-target="#member-{{ m.id }}" hx-swap="outerHTML" hx-confirm="Remove this member?"
-            hx-on::after-request="if(event.detail.successful) closeMemberModal()">Remove</button>
+            hx-on::after-request="if(event.detail.successful) closeDetail()">Remove</button>
   </div>
   {% endif %}
 </div>

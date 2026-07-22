@@ -9,7 +9,8 @@
   <td><span class="status-pill status-pill--active">Active</span></td>
   <td class="member-table-actions">
     {% if can_owner and m.user != request.user or can_admin and m.role != 'owner' and m.user != request.user %}
-      <button class="btn" type="button" hx-get="{% url 'web:org_member_manage' org.slug m.id %}" hx-target="#member-modal">Manage</button>
+      <button class="btn" type="button" data-modal="small"
+              hx-get="{% url 'web:org_member_manage' org.slug m.id %}" hx-target="#detail-modal">Manage</button>
     {% endif %}
   </td>
 </tr>

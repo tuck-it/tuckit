@@ -28,8 +28,13 @@
 {% include "web/partials/_inbox_dismissed_link.html" with oob=True %}
 
 {% comment %}
-  Close the ticket modal if it happens to be open — promote/dismiss/restore can
+  Close the detail modal if it happens to be open — promote/dismiss/restore can
   all be fired from inside it, and the ticket it was showing has just left the
   list. innerHTML (not outerHTML) so the container keeps its Alpine handlers.
+
+  This empties the container directly instead of calling closeDetail(), so it
+  does NOT strip ?ticket= from the URL. Acceptable: the triage response also
+  re-renders the list, and a stale ?ticket= on a resolved ticket still opens a
+  valid (now "promoted"/"dismissed") modal on refresh.
 {% endcomment %}
-<div hx-swap-oob="innerHTML:#ticket-modal"></div>
+<div hx-swap-oob="innerHTML:#detail-modal"></div>

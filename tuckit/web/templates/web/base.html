@@ -75,25 +75,33 @@
     </div>
     <main class="main" id="main-content" tabindex="-1">{% block main %}{% endblock %}</main>
   </div>
-  <div id="panel" role="dialog" aria-modal="true" aria-labelledby="detail-title"
-       {% with sid=request.GET.slice|ascii_int %}{% if sid %}hx-get="{% wurl 'web:slice' sid %}?modal=1" hx-trigger="load" hx-target="#panel"{% endif %}{% endwith %}
-       x-on:keydown.escape="$el.innerHTML.trim() && closePanel($el)"
-       x-on:keydown.tab="trapPanel($event, $el)"></div>
+  {% comment %}
+    The one detail overlay. It is a scrim and nothing else: the card htmx swaps
+    in carries role/aria-labelledby/data-url-param, so closing never needs to
+    know what is inside. Before this, three containers each hard-coded which
+    query param their close function stripped, and the empty #panel div wore
+    aria-labelledby="panel-title" permanently — pointing a screen reader at the
+    slice title even when a ticket was open.
+
+    .window on escape is required: without it Esc dies the moment focus leaves
+    the card (clicking the page behind an undimmed slide-over did exactly
+    that). The innerHTML guard is equally required, because .window also fires
+    when nothing is open.
+  {% endcomment %}
+  <div id="detail-modal" class="overlay overlay--detail"
+       {% with sid=request.GET.slice|ascii_int tid=request.GET.ticket|ascii_int %}
+       {% if sid %}hx-get="{% wurl 'web:slice' sid %}?modal=1" hx-trigger="load" hx-target="#detail-modal"
+       {% elif tid %}hx-get="{% wurl 'web:ticket' tid %}" hx-trigger="load" hx-target="#detail-modal"{% endif %}
+       {% endwith %}
+       x-on:click.self="closeDetail()"
+       x-on:keydown.escape.window="$el.innerHTML.trim() && closeDetail()"
+       x-on:keydown.tab="trapOverlay($event, $el)"></div>
   {% comment %} Status messages must reach assistive tech, not just the screen (WCAG 4.1.3).
      polite + atomic: announce the whole message once, without interrupting. {% endcomment %}
   <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true" x-cloak></div>
   {% include "web/partials/_onboarding_widget.html" %}
   {% include "web/partials/_capture_modal.html" %}
   {% include "web/partials/_command_palette.html" %}
-  <div id="member-modal" class="modal-overlay" role="dialog" aria-modal="true"
-       x-on:click.self="closeMemberModal()"
-       x-on:keydown.escape="$el.innerHTML.trim() && closeMemberModal()"
-       x-on:keydown.tab="trapOverlay($event, $el)"></div>
-  <div id="ticket-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title"
-       {% with tid=request.GET.ticket|ascii_int %}{% if tid %}hx-get="{% wurl 'web:ticket' tid %}" hx-trigger="load" hx-target="#ticket-modal"{% endif %}{% endwith %}
-       x-on:click.self="closeTicketModal()"
-       x-on:keydown.escape="$el.innerHTML.trim() && closeTicketModal()"
-       x-on:keydown.tab="trapOverlay($event, $el)"></div>
   <script>
     /* Settings-form save confirmation. Independent of the capture toast's
        OOB/Alpine mechanism above — replaces #toast with a plain element so it
@@ -152,9 +160,9 @@
     });
 
     /* Dialog bookkeeping for the Alpine-driven .capture-overlay family (quick
-       capture, new slice, new area). The htmx-swapped overlays (#panel,
-       #ticket-modal, #member-modal) are handled by the block below; these are
-       shown/hidden by an Alpine flag, so they need their own open/close hook.
+       capture, new slice, new area). The htmx-swapped overlay (#detail-modal)
+       is handled by the block below; these are shown/hidden by an Alpine flag,
+       so they need their own open/close hook.
        Without this they had no focus trap and no focus restore — four Tabs from
        an open capture dialog landed on a button behind the scrim. */
     window.__dlgOpener = new WeakMap();
@@ -207,27 +215,28 @@
       var on = document.documentElement.classList.toggle("sidebar-collapsed");
       localStorage.setItem("sidebar-collapsed", on ? "1" : "0");
     }
-    /* Overlay focus management, shared by #panel (slide-over), #ticket-modal and
-       #member-modal (centered). Each persists as an empty div; htmx swaps its
-       innerHTML in. Capture the opener before the swap, move focus in after it,
-       restore it on close. `param` (if given) is the deep-link query key to strip
-       on close — replaceState, not pushState, so Back doesn't reopen what was
-       just closed. */
-    var OVERLAY_IDS = ["panel", "ticket-modal", "member-modal"];
-    function closeOverlay(el, param) {
+    /* The single detail overlay. It persists as an empty div; htmx swaps a card
+       into it. The card — not this function — knows which query param restores
+       it (data-url-param), so closing stays ignorant of its contents. This used
+       to be three near-identical functions differing only in that one string. */
+    var DETAIL_ID = "detail-modal";
+    function closeDetail() {
+      var el = document.getElementById(DETAIL_ID);
       if (!el) return;
+      var card = el.firstElementChild;
+      var param = card && card.dataset ? card.dataset.urlParam : null;
       el.innerHTML = "";
-      var opener = window.__overlayOpeners && window.__overlayOpeners[el.id];
-      if (opener) { opener.focus(); window.__overlayOpeners[el.id] = null; }
+      document.body.classList.remove("modal-open");
+      var opener = window.__overlayOpeners && window.__overlayOpeners[DETAIL_ID];
+      if (opener) { opener.focus(); window.__overlayOpeners[DETAIL_ID] = null; }
       if (!param) return;
+      /* replaceState, not pushState: Back must not reopen what was just closed. */
       var u = new URL(window.location.href);
       if (u.searchParams.has(param)) {
         u.searchParams.delete(param);
         history.replaceState({}, "", u.pathname + u.search + u.hash);
       }
     }
-    function closePanel(el) { closeOverlay(el, "slice"); }
-    function closeTicketModal() { closeOverlay(document.getElementById("ticket-modal"), "ticket"); }
     /* Grow a textarea to fit its content — used by the seamless description editor
        so entering edit mode never jumps to a fixed-height box. */
     function autosize(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
@@ -253,7 +262,6 @@
       var n = el.value.length;
       if (el.setSelectionRange) el.setSelectionRange(n, n);
     }
-    function closeMemberModal() { closeOverlay(document.getElementById("member-modal"), null); }
     function overlayFocusables(el) {
       return Array.prototype.slice.call(
         el.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')
@@ -267,17 +275,18 @@
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
-    function trapPanel(e, el) { trapOverlay(e, el); }
     document.body.addEventListener("htmx:beforeRequest", function (e) {
       var t = e.detail.target;
-      if (t && OVERLAY_IDS.indexOf(t.id) !== -1) {
-        window.__overlayOpeners = window.__overlayOpeners || {};
-        window.__overlayOpeners[t.id] = e.detail.elt;
-      }
+      if (!t || t.id !== DETAIL_ID) return;
+      window.__overlayOpeners = window.__overlayOpeners || {};
+      /* On a ?slice=/?ticket= deep link the opener IS the container, which is
+         not focusable — recording it would strand focus on close. */
+      if (e.detail.elt !== t) window.__overlayOpeners[DETAIL_ID] = e.detail.elt;
+      document.body.classList.add("modal-open");
     });
     document.body.addEventListener("htmx:afterSwap", function (e) {
       var t = e.target;
-      if (!t || OVERLAY_IDS.indexOf(t.id) === -1 || !t.innerHTML.trim()) return;
+      if (!t || t.id !== DETAIL_ID || !t.innerHTML.trim()) return;
       /* Prefer the close control so Esc/Tab start somewhere predictable. */
       var target = t.querySelector('[aria-label="Close panel"], [aria-label="Close"]')
         || overlayFocusables(t)[0];

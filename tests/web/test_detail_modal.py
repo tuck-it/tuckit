@@ -37,3 +37,82 @@ def test_overlay_base_sets_the_stacking_context():
     assert "z-index: 60" in base
     assert "position: fixed" in base
     assert "inset: 0" in base
+
+
+def test_there_is_exactly_one_detail_overlay_container():
+    html = _read("templates/web/base.html")
+    assert 'id="detail-modal"' in html
+    for gone in ('id="panel"', 'id="ticket-modal"', 'id="member-modal"'):
+        assert gone not in html, f"{gone} still exists — the overlays are not unified"
+
+
+def test_only_one_close_function_survives():
+    html = _read("templates/web/base.html")
+    assert "function closeDetail(" in html
+    for gone in ("function closePanel(", "function closeTicketModal(",
+                 "function closeMemberModal(", "function trapPanel("):
+        assert gone not in html, f"{gone} still exists"
+
+
+def test_no_opener_targets_a_removed_overlay():
+    """A stale hx-target is the quiet failure mode: htmx cannot find the node,
+    the request still returns 200, and the response is dropped on the floor."""
+    root = Path(tuckit.web.__file__).parent / "templates"
+    for path in root.rglob("*.html"):
+        text = path.read_text()
+        for gone in ('hx-target="#panel"', 'hx-target="#ticket-modal"',
+                     'hx-target="#member-modal"'):
+            assert gone not in text, f"{path.name} still targets {gone}"
+
+
+def test_the_detail_card_is_notion_sized():
+    css = _read("static/web/app.css")
+    block = css.split(".detail-card {", 1)[1].split("}", 1)[0]
+    assert "min(900px, 90vw)" in block
+    assert "85vh" in block
+
+
+def test_the_slide_over_is_gone():
+    css = _read("static/web/app.css")
+    assert "#panel:not(:empty)" not in css
+    assert "#panel:empty" not in css
+
+
+@pytest.mark.django_db
+def test_slice_modal_card_declares_its_dialog_contract(client_local, org):
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    a = create_area(org, "Backend")
+    s = create_slice(a, "Payment integration")
+    body = client_local.get(
+        f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true"
+    ).content.decode()
+    assert 'role="dialog"' in body
+    assert 'aria-modal="true"' in body
+    assert 'aria-labelledby="detail-title"' in body
+    assert 'data-url-param="slice"' in body
+    assert "detail-card" in body
+
+
+@pytest.mark.django_db
+def test_slice_full_page_is_not_a_dialog(client_local, org):
+    """The same partial renders the standalone page; there it is page content,
+    not a dialog, and must carry no card chrome."""
+    from tuckit.core.services.areas import create_area
+    from tuckit.core.services.slices import create_slice
+    a = create_area(org, "Backend")
+    s = create_slice(a, "Payment integration")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    main = body.split('id="main-content"', 1)[1]
+    assert 'data-url-param="slice"' not in main
+    assert "detail-card" not in main
+
+
+@pytest.mark.django_db
+def test_ticket_modal_card_declares_its_dialog_contract(client_local, org):
+    from tuckit.core.services.tickets import create_ticket
+    t = create_ticket(org, "Something broke")
+    body = client_local.get(f"/{org.slug}/tickets/{t.id}/").content.decode()
+    assert 'data-url-param="ticket"' in body
+    assert 'aria-labelledby="detail-title"' in body
+    assert "detail-card" in body

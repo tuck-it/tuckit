@@ -1,8 +1,8 @@
 {% load web_extras %}
-<div class="modal-card" role="document">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detail-title">
   <div class="modal-card-head">
-    <div class="modal-card-title">{{ inv.email }}</div>
-    <button type="button" class="ghost" aria-label="Close" x-on:click="closeMemberModal()">{% icon "close" %}</button>
+    <div class="modal-card-title" id="detail-title">{{ inv.email }}</div>
+    <button type="button" class="ghost" aria-label="Close" x-on:click="closeDetail()">{% icon "close" %}</button>
   </div>
 
   <div class="modal-card-row">
@@ -26,7 +26,7 @@
             hx-post="{% url 'web:invite_cancel' org.slug inv.id %}"
             hx-target="#invite-{{ inv.id }}" hx-swap="outerHTML"
             hx-confirm="Cancel this invitation?"
-            hx-on::after-request="if(event.detail.successful) closeMemberModal()">Cancel</button>
+            hx-on::after-request="if(event.detail.successful) closeDetail()">Cancel</button>
   </div>
   {% endif %}
 </div>

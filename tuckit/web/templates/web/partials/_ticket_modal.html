@@ -5,17 +5,18 @@
   a decision ("are we doing this?"), so it wants focus, while a Slice is work you
   keep open beside the board. Title and body autosave on blur.
 {% endcomment %}
-<div class="ticket-card" x-data="{editTitle:false, editBody:false}">
+<div class="ticket-card detail-card" x-data="{editTitle:false, editBody:false}"
+     role="dialog" aria-modal="true" aria-labelledby="detail-title" data-url-param="ticket">
   <div class="ticket-card-head">
     <span class="ticket-ref">{{ current_org.slug }}-{{ ticket.number }}</span>
     <span class="source-badge{% if ticket.source == 'agent' %} is-agent{% endif %}">{% if ticket.source == 'agent' %}agent{% else %}you{% endif %}</span>
     <span class="ticket-status ticket-status--{{ ticket.status }}">{{ ticket.get_status_display }}</span>
     <button class="ghost ticket-close" type="button" aria-label="Close"
-            hx-on:click="closeTicketModal()">{% icon "close" "icon" %}</button>
+            hx-on:click="closeDetail()">{% icon "close" "icon" %}</button>
   </div>
 
   <div class="detail-titlebar">
-    <button type="button" class="detail-title edit-surface" id="ticket-modal-title" x-show="!editTitle"
+    <button type="button" class="detail-title edit-surface" id="detail-title" x-show="!editTitle"
           x-on:click="editTitle=true; $nextTick(() => focusEnd($refs.t))">{{ ticket.title }}<span class="edit-hint">Edit</span></button>
     <input name="title" value="{{ ticket.title }}" class="title-edit" x-ref="t" x-show="editTitle" x-cloak
            aria-label="Ticket title"
