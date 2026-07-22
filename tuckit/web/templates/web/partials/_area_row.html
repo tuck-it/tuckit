@@ -8,7 +8,9 @@
   "all items in it will be deleted" without saying how many, which is the one
   number that decides whether you click OK.
 {% endcomment %}
-<div class="area-item" data-area-id="{{ a.id }}" x-data="{editing: false, menu: false}">
+<div class="area-item" data-area-id="{{ a.id }}"
+     data-reorder-url="{% wurl 'web:area_reorder' a.id %}"
+     x-data="{editing: false, menu: false}">
   <a class="nav area-link{% if active or request.resolver_match.url_name == 'area' and request.resolver_match.kwargs.slug == a.slug %} nav--active{% endif %}"
      href="{% wurl 'web:area' a.slug %}"
      x-show="!editing"

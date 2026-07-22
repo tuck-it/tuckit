@@ -20,8 +20,12 @@
       filter: ".area-act, .area-menu-item, .area-rename-input",  // don't start a drag from action buttons/input
       onEnd: function (evt) {
         const item = evt.item;
-        const areaId = item.getAttribute("data-area-id");
-        if (!areaId) return;
+        // The URL comes from the server on the row itself (data-reorder-url,
+        // rendered by {% wurl %}). Do NOT rebuild it here: routes are
+        // org-scoped (/<org>/areas/<id>/reorder), a hand-built path silently
+        // 404s, and endpoint tests miss it because they post the correct path.
+        const url = item.getAttribute("data-reorder-url");
+        if (!url) return;
         const before = item.nextElementSibling;
         const after = item.previousElementSibling;
 
@@ -35,7 +39,7 @@
 
         // As in board.js: an ignored response meant a rejected reorder still
         // looked like it worked until the next load.
-        fetch("/areas/" + areaId + "/reorder", {
+        fetch(url, {
           method: "POST",
           headers: {
             "X-CSRFToken": getCookie("csrftoken"),

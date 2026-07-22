@@ -8,8 +8,12 @@
     return match ? decodeURIComponent(match[1]) : null;
   }
 
-  function moveUrl(sliceId) {
-    return "/slices/" + sliceId + "/move";
+  // The URL comes from the server on the card itself (data-move-url, rendered
+  // by {% wurl %}). Do NOT rebuild it here: routes are org-scoped
+  // (/<org>/slices/<id>/move), a hand-built path silently 404s, and no endpoint
+  // test catches it because they all post the correct path directly.
+  function moveUrl(card) {
+    return card.getAttribute("data-move-url");
   }
 
   function initBoard() {
@@ -32,9 +36,9 @@
             col.classList.remove("board-col--droppable");
           });
           const item = evt.item;
-          const sliceId = item.getAttribute("data-slice-id");
           const targetCol = evt.to.closest(".board-col");
-          if (!sliceId || !targetCol) return;
+          const url = moveUrl(item);
+          if (!url || !targetCol) return;
 
           const status = targetCol.getAttribute("data-status");
           const before = item.nextElementSibling;
@@ -49,7 +53,7 @@
           // the move the card stayed where it was dropped, so the UI claimed a
           // change that never persisted and the next page load silently undid
           // it. Say so, and put the board back in sync.
-          fetch(moveUrl(sliceId), {
+          fetch(url, {
             method: "POST",
             headers: {
               "X-CSRFToken": getCookie("csrftoken"),

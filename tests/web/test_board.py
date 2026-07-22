@@ -215,3 +215,29 @@ def test_roadmap_status_filter_uses_shared_partial(client_local, org):
     assert f'href="/{org.slug}/roadmap/"' in body
     assert "shipped one" in body
     assert 'id="board"' not in body
+
+
+@pytest.mark.django_db
+def test_board_js_move_url_matches_the_routed_url(client_local, org):
+    """Drive the exact URL the browser posts to. Routes are org-scoped
+    (/<org>/slices/<id>/move); board.js used to rebuild that path by hand
+    without the org segment, so every drag 404'd — invisible to the other move
+    tests, which post the correct path directly. The URL now comes from the
+    card's data-move-url, so this test fails if either side drifts."""
+    import re
+    from pathlib import Path
+
+    a = create_area(org, "B")
+    s = create_slice(a, "draggable", status="planned")
+
+    js = (Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "board.js").read_text()
+    assert 'getAttribute("data-move-url")' in js, "board.js must read the URL, not build it"
+    assert '"/slices/"' not in js, "board.js is hand-building an org-less move URL again"
+
+    body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
+    url = re.search(r'data-move-url="([^"]+)"', body).group(1)
+    assert url == f"/{org.slug}/slices/{s.id}/move"
+
+    resp = client_local.post(url, {"status": "building"}, HTTP_HX_REQUEST="true")
+    assert resp.status_code in (200, 204), f"board posts to {url!r} -> {resp.status_code}"
+    assert Slice.objects.get(pk=s.id).status == "building"

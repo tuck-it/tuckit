@@ -289,3 +289,29 @@ def test_account_menu_css_present():
     assert ".account-avatar" in css
     # Popup opens upward from the sidebar bottom.
     assert ".account-pop" in css
+
+
+@pytest.mark.django_db
+def test_sidebar_reorder_url_matches_the_routed_url(client_local, org):
+    """Same root cause as the board's move URL: area_nav.js hand-built
+    /areas/<id>/reorder while the route is org-scoped, so sidebar drag-to-
+    reorder 404'd. The URL now comes from the row's data-reorder-url."""
+    import re
+    from pathlib import Path
+    from tuckit.core.services.areas import create_area
+
+    first = create_area(org, "Alpha")
+    second = create_area(org, "Beta")
+
+    js = (Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "area_nav.js").read_text()
+    assert 'getAttribute("data-reorder-url")' in js, "area_nav.js must read the URL, not build it"
+    assert '"/areas/"' not in js, "area_nav.js is hand-building an org-less reorder URL again"
+
+    body = client_local.get(f"/{org.slug}/").content.decode()
+    url = re.search(r'data-reorder-url="([^"]+)"', body).group(1)
+    assert url.startswith(f"/{org.slug}/areas/")
+
+    resp = client_local.post(
+        f"/{org.slug}/areas/{second.id}/reorder", {"before_id": first.id}, HTTP_HX_REQUEST="true"
+    )
+    assert resp.status_code in (200, 204), f"sidebar posts to {url!r} -> {resp.status_code}"
