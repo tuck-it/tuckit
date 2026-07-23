@@ -8,7 +8,7 @@ from tuckit.core.services.bites import list_bites, slice_bites
 from tuckit.core.services.plans import list_plans
 from tuckit.core.services.refs import ticket_ref
 from tuckit.core.services.slices import (
-    annotate_stage_counts, grouped_slices, list_slices, stage_column, stage_of,
+    annotate_stage_counts, list_slices, stage_column, stage_of,
 )
 from tuckit.core.services.tickets import origin_ticket
 
@@ -369,42 +369,51 @@ AREA_STATUS_KEYS = ROADMAP_STATUS_KEYS | {"dropped"}
 
 
 def area_board_view(area: Area) -> dict:
-    """Capped kanban groups + overflow meta for one Area's board — the
-    area-scoped mirror of roadmap_board_view.
+    """Stage-keyed kanban groups + overflow/dropped meta for one Area's board —
+    the area-scoped mirror of roadmap_board_view.
 
-    `dropped` is deliberately absent from the columns and reported as a count
-    instead: the board is the surface for work that is still flowing, and every
-    mature kanban tool keeps cancelled work off it while still offering a route
-    to it. The page turns that count into a ?status=dropped link.
+    `dropped` is deliberately absent from the columns and reported as a count;
+    the page turns it into a ?status=dropped link. Every slice carries `.stage`.
     """
     from tuckit.core.services.tickets import ticket_queryset
 
-    grouped = dict(grouped_slices(area))
-    # grouped_slices orders by rank; cap_shipped's count mode assumes the list
-    # is recency-sorted (see its docstring). Sorting here is load-bearing —
-    # without it the column keeps top-ranked shipped slices, not recent ones.
-    shipped = sorted(
-        grouped.get("shipped", []),
-        key=lambda s: (s.completed_at or s.updated_at),
-        reverse=True,
+    qs = (
+        annotate_stage_counts(
+            Slice.objects.filter(area=area).select_related("area")
+        )
+        .prefetch_related("tags")
+        .order_by("rank")  # explicit: annotate_stage_counts drops Meta.ordering
     )
+    columns: dict[str, list] = {key: [] for key in STAGE_BOARD_ORDER}
+    dropped_count = 0
+    shipped: list = []
+    for s in qs:
+        stage = stage_of(s)
+        s.stage = stage
+        if stage == "dropped":
+            dropped_count += 1
+            continue
+        if stage == "shipped":
+            shipped.append(s)
+            continue
+        columns[stage_column(stage)].append(s)
+
+    shipped.sort(key=lambda s: (s.completed_at or s.updated_at), reverse=True)
     visible, total = cap_shipped(area.org, shipped)
-    columns = {status: grouped.get(status, []) for status in AREA_BOARD_ORDER}
     columns["shipped"] = visible
-    dropped_count = len(grouped.get("dropped", []))
+
+    active = any(columns[key] for key in STAGE_BOARD_ORDER if key != "shipped")
     return {
-        "groups": [(status, columns[status]) for status in AREA_BOARD_ORDER],
+        "groups": [(key, columns[key]) for key in STAGE_BOARD_ORDER],
         "shipped_total": total,
         "shipped_hidden": total - len(visible),
         "dropped_count": dropped_count,
         # Untriaged tickets filed to this area. NOT a board column: a Ticket has
-        # not been committed to, and putting it next to Planned collapses the
-        # very distinction the strip exists to show.
+        # not been committed to, and putting it next to a stage column collapses
+        # the very distinction the strip exists to show.
         "tickets": list(ticket_queryset(area.org, status="open", area=area)),
         # A capped-out or dropped slice still means "this area is not empty".
-        "has_any_slice": bool(columns["planned"] or columns["building"])
-        or total > 0
-        or dropped_count > 0,
+        "has_any_slice": active or total > 0 or dropped_count > 0,
     }
 
 

@@ -459,6 +459,32 @@ def test_area_status_keys_include_dropped(product_org):
 
 
 @pytest.mark.django_db
+def test_area_board_view_buckets_by_stage_and_scopes_to_area(product_org):
+    from tuckit.core.services.plans import create_plan
+    from tuckit.core.services.bites import create_bite
+
+    a = create_area(product_org, "A")
+    other = create_area(product_org, "B")
+    create_slice(a, "no spec")                                  # needs_design
+    rts = create_slice(a, "all done", spec="s")
+    create_bite(create_plan(rts, title="P"), "b", status="done")  # ready_to_ship
+    create_slice(a, "gone", status="dropped")                   # dropped
+    create_slice(other, "elsewhere")                            # different area
+
+    view = area_board_view(a)
+    groups = dict(view["groups"])
+    assert [k for k, _ in view["groups"]] == [
+        "needs_design", "needs_plan", "executing", "ready_to_ship", "shipped",
+    ]
+    assert [s.title for s in groups["needs_design"]] == ["no spec"]
+    assert [s.title for s in groups["ready_to_ship"]] == ["all done"]
+    assert "dropped" not in groups
+    assert view["dropped_count"] == 1
+    all_titles = {s.title for _, g in view["groups"] for s in g}
+    assert "elsewhere" not in all_titles      # scoped to area A
+
+
+@pytest.mark.django_db
 def test_your_turn_includes_specless_building_slice():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
