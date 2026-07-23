@@ -13,7 +13,7 @@
   Dismiss stays one click because dismissal IS reversible (see ?status=dismissed).
 {% endcomment %}
 {% if resolved_view %}
-  <div class="ticket-row">
+  <div class="ticket-row" data-ticket-id="{{ ticket.id }}">
     <button class="ticket-open" type="button"
             hx-get="{% wurl 'web:ticket' ticket.id %}" hx-target="#detail-modal"
             hx-swap="innerHTML" hx-push-url="{% detail_push_url 'ticket' ticket.id %}">
@@ -28,7 +28,7 @@
     </div>
   </div>
 {% else %}
-  <div class="ticket-row" x-data="{area: ''}">
+  <div class="ticket-row" data-ticket-id="{{ ticket.id }}" x-data="{area: ''}">
     <button class="ticket-open" type="button"
             hx-get="{% wurl 'web:ticket' ticket.id %}" hx-target="#detail-modal"
             hx-swap="innerHTML" hx-push-url="{% detail_push_url 'ticket' ticket.id %}">

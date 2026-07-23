@@ -90,5 +90,15 @@
     });
   };
 
+  document.body.addEventListener("tuckit:live-refreshed", function (e) {
+    (e.detail.events || []).forEach(function (ev) {
+      var sel = "[data-" + ev.target_type + "-id=\"" + ev.target_id + "\"]";
+      document.querySelectorAll(sel).forEach(function (el) {
+        el.classList.add("just-live");
+        setTimeout(function () { el.classList.remove("just-live"); }, 1600);
+      });
+    });
+  });
+
   schedule();
 })();

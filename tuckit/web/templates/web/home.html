@@ -78,7 +78,7 @@
     {% if state.shipped %}
       <div class="shipped-strip">
         {% for slice in state.shipped %}
-          <a class="shipped-chip" href="{% wurl 'web:slice' slice.id %}"
+          <a class="shipped-chip" data-slice-id="{{ slice.id }}" href="{% wurl 'web:slice' slice.id %}"
              hx-get="{% wurl 'web:slice' slice.id %}?modal=1" hx-target="#detail-modal" hx-push-url="{% detail_push_url 'slice' slice.id %}">
             {% include "web/partials/_status_dot.html" with status=slice.status %}
             <span>{{ slice.title }}</span>

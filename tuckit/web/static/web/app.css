@@ -2405,3 +2405,15 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 @media (prefers-reduced-motion: reduce) {
   .area-inbox-head::before { transition: none; }
 }
+
+/* Live update highlight: briefly ring an item that just arrived/changed via
+   the activity poller, then settle. Tokens only — accent is --blue. */
+@keyframes just-live-fade {
+  from { background: color-mix(in srgb, var(--blue) 16%, transparent); }
+  to   { background: transparent; }
+}
+.just-live {
+  animation: just-live-fade 1.6s ease-out;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 40%, transparent);
+  border-radius: var(--radius-small);
+}
