@@ -1,22 +1,19 @@
-{% load static %}
+{% load web_extras %}
 <div class="board" id="board">
-  {% for status, slices in groups %}
-    {% if status != "dropped" %}
-      <div class="board-col" data-status="{{ status }}">
-        <div class="board-col-head">
-          <span class="status-dot status-dot--{{ status }}"></span>
-          <span class="board-col-label">{{ status }}</span>
-          <span class="board-col-count">{{ slices|length }}</span>
-        </div>
-        <div class="board-col-cards">
-          {% for slice in slices %}{% include "web/partials/_slice_card.html" %}{% endfor %}
-        </div>
-        {% if status == "shipped" and shipped_hidden %}
-          {# Relative href: resolves against whichever page rendered the board. #}
-          <a class="board-col-more" href="?status=shipped">View all shipped ({{ shipped_total }}) →</a>
-        {% endif %}
+  {% for key, slices in groups %}
+    <div class="board-col" data-stage="{{ key }}">
+      <div class="board-col-head">
+        <span class="status-dot status-dot--{{ key }}"></span>
+        <span class="board-col-label">{{ key|board_label }}</span>
+        <span class="board-col-count">{{ slices|length }}</span>
       </div>
-    {% endif %}
+      <div class="board-col-cards">
+        {% for slice in slices %}{% include "web/partials/_slice_card.html" %}{% endfor %}
+      </div>
+      {% if key == "shipped" and shipped_hidden %}
+        {# Relative href: resolves against whichever page rendered the board. #}
+        <a class="board-col-more" href="?status=shipped">View all shipped ({{ shipped_total }}) →</a>
+      {% endif %}
+    </div>
   {% endfor %}
 </div>
-<script src="{% static 'web/board.js' %}"></script>

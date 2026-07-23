@@ -1,44 +1,42 @@
 {% load web_extras %}
 {% comment %}
-  A board card. The title is now a real <a>, not a bare <div hx-get>: as a div
-  it had no tabindex, role or href, so on the Board page the only tab-reachable
-  things inside <main> were the Board/List toggle links — a keyboard user could
-  not open a single slice.
-
-  The status buttons are the non-drag way to move a card between columns (WCAG
-  2.5.7). They are SIBLINGS of the anchor, not children: <a> may not contain
-  interactive content, and nesting a button inside it would also make the whole
-  card an ambiguous click target.
-
-  The outer element keeps data-slice-id because SortableJS drags this node and
-  board.js reads the id off evt.item.
+  A board card. The title is a real <a> (keyboard-reachable, opens the detail
+  modal). The board is a read-only stage X-ray: cards are not draggable — a
+  card moves columns when its content changes (spec written, plan/bites added).
+  The only manual actions are Ship (ready_to_ship only) and Drop, both posting a
+  status to web:slice_move, which refresh_rollup turns into an HX-Refresh so the
+  card visibly lands in its new column. slice.stage is attached by
+  roadmap_board_view / area_board_view.
 {% endcomment %}
-{% status_move_targets slice.status as move %}
-<div class="slice-card" data-slice-id="{{ slice.id }}"
-     data-move-url="{% wurl 'web:slice_move' slice.id %}">
+<div class="slice-card" data-slice-id="{{ slice.id }}">
   <a class="slice-card-link" href="{% wurl 'web:slice' slice.id %}"
      hx-get="{% wurl 'web:slice' slice.id %}?modal=1" hx-target="#detail-modal" hx-push-url="{% detail_push_url 'slice' slice.id %}">
     {% if show_area %}<span class="card-area">{{ slice.area.name }}</span>{% endif %}
+    {% if slice.stage == "needs_plan" %}<span class="card-badge">needs plan</span>
+    {% elif slice.stage == "needs_bites" %}<span class="card-badge">needs bites</span>{% endif %}
     <span class="card-title">{{ slice.title }}</span>
     <span class="card-meta">
       {% include "web/partials/_tag_text.html" %}
       <span class="card-bites">{% bite_progress slice %}</span>
     </span>
   </a>
-  {% if move.prev or move.next %}
+  {% if slice.stage != "shipped" and slice.stage != "dropped" %}
   <div class="card-actions">
-    {% if move.prev %}
-      <button class="card-move" type="button"
-              hx-post="{% wurl 'web:slice_move' slice.id %}" hx-vals='{"status": "{{ move.prev }}"}'
+    {% if slice.stage == "ready_to_ship" %}
+      <button class="card-ship" type="button"
+              hx-post="{% wurl 'web:slice_move' slice.id %}" hx-vals='{"status": "shipped"}'
               hx-swap="none" hx-disabled-elt="this"
-              aria-label="Move {{ slice.title }} to {{ move.prev }}">← {{ move.prev }}</button>
+              aria-label="Ship {{ slice.title }}">Ship it →</button>
     {% endif %}
-    {% if move.next %}
-      <button class="card-move" type="button"
-              hx-post="{% wurl 'web:slice_move' slice.id %}" hx-vals='{"status": "{{ move.next }}"}'
-              hx-swap="none" hx-disabled-elt="this"
-              aria-label="Move {{ slice.title }} to {{ move.next }}">{{ move.next }} →</button>
-    {% endif %}
+    <details class="card-menu">
+      <summary aria-label="More actions for {{ slice.title }}">⋯</summary>
+      <div class="card-menu-pop">
+        <button class="card-menu-item danger" type="button"
+                hx-post="{% wurl 'web:slice_move' slice.id %}" hx-vals='{"status": "dropped"}'
+                hx-swap="none" hx-disabled-elt="this"
+                aria-label="Drop {{ slice.title }}">Drop</button>
+      </div>
+    </details>
   </div>
   {% endif %}
 </div>

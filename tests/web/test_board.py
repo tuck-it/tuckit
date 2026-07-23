@@ -26,7 +26,7 @@ def test_board_view_renders_columns(client_local, org):
     resp = client_local.get(f"{p}/areas/{a.slug}/")
     body = resp.content.decode()
     assert "Payment" in body
-    assert 'data-status="building"' in body
+    assert 'data-stage="needs_design"' in body
 
 @pytest.mark.django_db
 def test_board_column_head_has_dot_and_count(client_local, org):
@@ -37,7 +37,7 @@ def test_board_column_head_has_dot_and_count(client_local, org):
     create_slice(a, "Card A", status="building")
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert "board-col-head" in body
-    assert "status-dot--building" in body
+    assert "status-dot--needs_design" in body
 
 @pytest.mark.django_db
 def test_move_changes_status(client_local, org):
@@ -97,19 +97,22 @@ def test_move_without_hx_returns_204(client_local, org):
 
 @pytest.mark.django_db
 def test_roadmap_tab_defaults_to_cross_area_board(client_local, org):
-    """The Board tab (web:roadmap) now defaults to a workspace-wide kanban that
-    labels each card with its parent area."""
+    """The Board tab (web:roadmap) defaults to a workspace-wide stage pipeline
+    that labels each card with its parent area."""
+    from tuckit.core.services.plans import create_plan
+    from tuckit.core.services.bites import create_bite
     p = f"/{org.slug}"
     design = create_area(org, "Design")
     core = create_area(org, "Core")
-    create_slice(design, "polish empty states", status="building")
-    create_slice(core, "slice move api", status="planned")
+    ex = create_slice(design, "polish empty states", spec="s")
+    create_bite(create_plan(ex, title="P"), "b", status="doing")   # executing
+    create_slice(core, "slice move api")                            # needs_design
     body = client_local.get(f"{p}/roadmap/").content.decode()
-    assert 'id="board"' in body                     # kanban, not the flat list
-    assert 'data-status="building"' in body
-    assert 'data-status="planned"' in body
-    assert 'class="card-area"' in body              # parent area surfaced
-    assert "Design" in body and "Core" in body      # both areas' cards mixed in
+    assert 'id="board"' in body
+    assert 'data-stage="executing"' in body
+    assert 'data-stage="needs_design"' in body
+    assert 'class="card-area"' in body
+    assert "Design" in body and "Core" in body
 
 
 @pytest.mark.django_db
@@ -170,6 +173,53 @@ def test_board_no_footer_when_within_limit(client_local, org):
     create_slice(a, "only one", status="shipped")
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert "View all shipped" not in body
+
+
+@pytest.mark.django_db
+def test_ready_to_ship_card_has_ship_button(client_local, org):
+    from tuckit.core.services.plans import create_plan
+    from tuckit.core.services.bites import create_bite
+    p = f"/{org.slug}"
+    a = create_area(org, "Core")
+    rts = create_slice(a, "all done", spec="s")
+    create_bite(create_plan(rts, title="P"), "b", status="done")
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "Ship it" in body
+    assert f'/slices/{rts.id}/move' in body
+    assert '"status": "shipped"' in body
+
+
+@pytest.mark.django_db
+def test_every_active_card_has_a_drop_action(client_local, org):
+    p = f"/{org.slug}"
+    a = create_area(org, "Core")
+    s = create_slice(a, "no spec")   # needs_design
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert ">Drop<" in body
+    assert '"status": "dropped"' in body
+
+
+@pytest.mark.django_db
+def test_needs_plan_column_badges_needs_plan_vs_needs_bites(client_local, org):
+    from tuckit.core.services.plans import create_plan
+    p = f"/{org.slug}"
+    a = create_area(org, "Core")
+    create_slice(a, "spec only", spec="s")             # needs_plan
+    empty = create_slice(a, "empty plan", spec="s")
+    create_plan(empty, title="P")                      # needs_bites
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "needs plan" in body
+    assert "needs bites" in body
+
+
+@pytest.mark.django_db
+def test_board_partial_has_no_drag_script(client_local, org):
+    p = f"/{org.slug}"
+    a = create_area(org, "Core")
+    create_slice(a, "one")
+    body = client_local.get(f"{p}/roadmap/").content.decode()
+    assert "board.js" not in body
+    assert "data-move-url" not in body
 
 
 def test_board_js_declares_drag_states():
