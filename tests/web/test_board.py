@@ -136,8 +136,11 @@ def test_board_caps_shipped_and_links_to_all(client_local, org):
     create_slice(a, "shipped one", status="shipped")
     create_slice(a, "shipped two", status="shipped")
     body = client_local.get(f"{p}/roadmap/").content.decode()
-    assert "View all shipped (2)" in body
+    # Shipped is off-board now: the header link shows the TOTAL (cap no longer
+    # governs a board column), pointing at the ?status=shipped filter view.
+    assert "Shipped (2)" in body
     assert 'href="?status=shipped"' in body
+    assert 'data-stage="shipped"' not in body
 
 
 @pytest.mark.django_db
@@ -165,14 +168,17 @@ def test_status_filter_is_generic(client_local, org):
 
 
 @pytest.mark.django_db
-def test_board_no_footer_when_within_limit(client_local, org):
+def test_shipped_link_shows_regardless_of_cap(client_local, org):
+    # Shipped is off-board: the header link shows whenever any shipped slice
+    # exists, independent of the (now board-irrelevant) cap.
     org.shipped_board_limit = 8
     org.save(update_fields=["shipped_board_limit", "updated_at"])
     p = f"/{org.slug}"
     a = create_area(org, "Design")
     create_slice(a, "only one", status="shipped")
     body = client_local.get(f"{p}/roadmap/").content.decode()
-    assert "View all shipped" not in body
+    assert "Shipped (1)" in body
+    assert 'data-stage="shipped"' not in body
 
 
 @pytest.mark.django_db
@@ -234,9 +240,9 @@ def test_app_css_board_is_flex_scroll_not_grid_drag():
 
 @pytest.mark.django_db
 def test_board_days_mode_shipped_outside_window_still_counts_as_slice(client_local, org):
-    """In days mode, a shipped slice completed outside the window is capped out
-    of the visible column, but it still counts as "a slice exists" — the board
-    must not show the empty-board hint alongside the shipped overflow footer."""
+    """In days mode, a shipped slice completed outside the window still counts as
+    "a slice exists" — the board must not show the empty-board hint alongside the
+    off-board Shipped link."""
     org.shipped_board_mode = "days"
     org.shipped_board_limit = 7
     org.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
@@ -247,7 +253,7 @@ def test_board_days_mode_shipped_outside_window_still_counts_as_slice(client_loc
     s.save(update_fields=["completed_at"])
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert "Nothing here yet — add a slice" not in body
-    assert "View all shipped (1)" in body
+    assert "Shipped (1)" in body
 
 
 @pytest.mark.django_db
@@ -308,5 +314,16 @@ def test_board_view_is_viewport_bounded(client_local, org):
     assert "main--board" in body          # A-model: fixed-height board page
     list_body = client_local.get(f"{p}/roadmap/?view=list").content.decode()
     assert "main--board" not in list_body  # list scrolls normally
+
+
+@pytest.mark.django_db
+def test_shipped_is_offboard_not_a_column(client_local, org):
+    p = f"/{org.slug}"
+    a = create_area(org, "Core")
+    create_slice(a, "shipped one", status="shipped")
+    body = client_local.get(f"{p}/roadmap/?view=board").content.decode()
+    assert 'data-stage="shipped"' not in body      # no shipped column
+    assert 'href="?status=shipped"' in body        # off-board filter link
+    assert "Shipped (1)" in body                    # with total count
 
 

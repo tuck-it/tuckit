@@ -20,8 +20,13 @@
     {% if area_tickets %}{% include "web/partials/_area_inbox.html" %}{% endif %}
     {% include "web/partials/_board.html" %}
     {% if not has_any_slice %}<div class="empty muted">No slices yet.</div>{% endif %}
-    {% if dropped_count %}
-      <a class="group-more" href="?status=dropped">Dropped ({{ dropped_count }}) →</a>
-    {% endif %}
+    <div class="board-offboard">
+      {% if shipped_total %}
+        <a class="group-more" href="?status=shipped">Shipped ({{ shipped_total }}) →</a>
+      {% endif %}
+      {% if dropped_count %}
+        <a class="group-more" href="?status=dropped">Dropped ({{ dropped_count }}) →</a>
+      {% endif %}
+    </div>
   {% endif %}
 {% endblock %}

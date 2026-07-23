@@ -33,9 +33,14 @@
       {% endif %}
     {% else %}
       {% include "web/partials/_board.html" %}
-      {% if dropped_count %}
-        <a class="group-more" href="?status=dropped">Dropped ({{ dropped_count }}) →</a>
-      {% endif %}
+      <div class="board-offboard">
+        {% if shipped_total %}
+          <a class="group-more" href="?status=shipped">Shipped ({{ shipped_total }}) →</a>
+        {% endif %}
+        {% if dropped_count %}
+          <a class="group-more" href="?status=dropped">Dropped ({{ dropped_count }}) →</a>
+        {% endif %}
+      </div>
       {% if not has_any_slice %}
         <div class="empty muted">Nothing here yet — add a slice in any area and it shows up on the board.</div>
       {% endif %}
