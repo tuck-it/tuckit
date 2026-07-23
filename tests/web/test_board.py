@@ -229,11 +229,14 @@ def test_board_js_declares_drag_states():
     assert "board-col--droppable" in js
 
 
-def test_app_css_declares_droppable_state():
+def test_app_css_board_is_flex_scroll_not_grid_drag():
     from pathlib import Path
     css = (Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web" / "app.css").read_text()
-    assert ".board-col--droppable" in css
-    assert ".slice-card--ghost" in css
+    assert "overflow-x: auto" in css          # horizontal scroll board
+    assert "repeat(4," not in css             # the hardcoded 4-track grid is gone
+    assert ".board-col--droppable" not in css # drag states removed
+    assert ".slice-card--ghost" not in css
+    assert ".card-ship" in css                 # ship affordance styled
 
 
 @pytest.mark.django_db

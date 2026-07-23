@@ -206,6 +206,11 @@ body { padding: 0; }
   background: var(--dot-someday);
 }
 
+.status-dot--needs_design  { background: var(--stage-design); }
+.status-dot--needs_plan    { background: var(--stage-plan); }
+.status-dot--executing     { background: var(--stage-exec); }
+.status-dot--ready_to_ship { background: var(--stage-ship); }
+
 /* Slice row: link reset, shared surface, quiet arrow, subtle hover. */
 .slice-row {
   color: var(--ink);
@@ -346,19 +351,20 @@ body { padding: 0; }
 /* Board: a structured planning surface. The state columns share a calm
    background while individual work remains on raised cards. */
 .board {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(210px, 1fr));
-  gap: 12px;
+  display: flex;
+  gap: var(--space-6);
   align-items: start;
+  overflow-x: auto;
   margin-top: 20px;
-  padding: 12px;
+  padding: var(--space-6);
   background: var(--paper-deep);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
 .board-col {
-  min-width: 0;
+  flex: 0 0 260px;
+  min-width: 260px;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -405,7 +411,6 @@ body { padding: 0; }
   border-radius: var(--radius-small);
   min-height: 74px;
   padding: 10px;
-  cursor: grab;
 }
 .slice-card:hover { border-color: var(--blue); }
 .card-title { line-height: 1.45; font-size: 14px; font-weight: 570; }
@@ -416,6 +421,69 @@ body { padding: 0; }
   margin-top: 5px;
 }
 .card-bites { color: var(--ink-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.card-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  padding: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.card-ship {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--dot-shipped);
+  background: transparent;
+  border: 1px solid var(--dot-shipped);
+  border-radius: var(--radius-small);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+}
+.card-ship:hover { background: var(--paper-deep); }
+.card-menu { position: relative; margin-left: auto; }
+.card-menu > summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--ink-faint);
+  padding: 0 var(--space-3);
+  line-height: 1;
+}
+.card-menu > summary::-webkit-details-marker { display: none; }
+.card-menu-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-2));
+  z-index: 5;
+  min-width: 96px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  padding: var(--space-2);
+  box-shadow: 0 6px 20px var(--shadow);
+}
+.card-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+.card-menu-item:hover { background: var(--paper-deep); }
+.card-menu-item.danger { color: var(--warn); }
 
 /* "View all" affordance under a capped shipped column / group. */
 .board-col-more, .group-more {
@@ -430,26 +498,15 @@ body { padding: 0; }
 .board-col-more { padding-left: 8px; }
 .board-col-more:hover, .group-more:hover { color: var(--ink); }
 
-/* Drag states — visible drop target + quiet ghost, tinted lift on the card. */
-.board-col--droppable .board-col-cards {
-  outline: 2px dashed var(--blue-soft);
-  outline-offset: 2px;
-  border-radius: var(--radius-small);
-}
-.slice-card--ghost { opacity: 0.4; }
-.slice-card--chosen { box-shadow: var(--shadow); cursor: grabbing; }
-
-/* Mobile: horizontal scroll-snap so four columns are not squeezed. */
+/* Mobile: narrower columns; the desktop rule is already flex + overflow-x. */
 @media (max-width: 767px) {
   .board {
-    display: flex;
-    padding: 8px;
-    overflow-x: auto;
+    padding: var(--space-4);
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
   }
   .board-col {
-    flex: 0 0 auto;
+    flex-basis: min(78vw, 260px);
     min-width: min(78vw, 260px);
     scroll-snap-align: start;
   }

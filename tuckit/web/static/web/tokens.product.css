@@ -12,6 +12,15 @@
   --dot-building: #966137;
   --dot-shipped: #52745f;
   --dot-someday: #8a7f97;
+
+  /* Stage-pipeline dots — the Board groups by derived stage, not stored status.
+     Aliased onto the status-dot palette so they track light/dark automatically
+     (custom properties resolve at use time); give them their own values here if
+     the two axes should ever diverge. shipped reuses --dot-shipped. */
+  --stage-design: var(--dot-building);
+  --stage-plan:   var(--dot-someday);
+  --stage-exec:   var(--dot-planned);
+  --stage-ship:   var(--dot-shipped);
   --overlay: rgba(35, 40, 42, 0.38);
 
   /* Boundary of an INTERACTIVE control (input, select, textarea, checkbox).
