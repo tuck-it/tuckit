@@ -138,3 +138,12 @@ def onboarding(request):
         "onboarding_mcp_url": request.build_absolute_uri("/mcp"),
         "onboarding_agent_baseline": baseline,
     }
+
+
+def live_cursor(request):
+    """Starting activity cursor for the live poller (0 off-tenant). Prevents the
+    poller from replaying pre-load events as toasts."""
+    from tuckit.core.services.activity import latest_activity_id
+    from tuckit.web.auth import current_org_or_fallback
+    org = current_org_or_fallback(request)
+    return {"live_cursor": latest_activity_id(org) if org else 0}

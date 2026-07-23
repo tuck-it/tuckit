@@ -1,5 +1,6 @@
 {% extends "web/base.html" %}
 {% load web_extras %}
+{% block main_data %}data-live-refresh="1"{% endblock %}
 {% block main_class %}{% if not filter_status and view != "list" %}main--board{% endif %}{% endblock %}
 {% block main %}
   {% if filter_status %}

@@ -68,6 +68,7 @@ TEMPLATES = [
                 "tuckit.web.context_processors.auth_chrome",
                 "tuckit.web.context_processors.onboarding",
                 "tuckit.web.context_processors.capture_area",
+                "tuckit.web.context_processors.live_cursor",
             ],
         },
     },

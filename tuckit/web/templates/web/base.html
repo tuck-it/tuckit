@@ -73,7 +73,7 @@
          x-on:keydown.tab="trapFocus($event)">
       {% block sidebar %}{% include "web/partials/_sidebar.html" %}{% endblock %}
     </div>
-    <main class="main {% block main_class %}{% endblock %}" id="main-content" tabindex="-1">{% block main %}{% endblock %}</main>
+    <main class="main {% block main_class %}{% endblock %}" id="main-content" tabindex="-1" {% block main_data %}{% endblock %}>{% block main %}{% endblock %}</main>
   </div>
   {% comment %}
     The one detail overlay. It is a scrim and nothing else: the card htmx swaps
@@ -385,5 +385,9 @@
       if (target) target.focus();
     });
   </script>
+  {% if current_org %}
+  <div id="live-config" data-live-url="{% wurl 'web:live' %}" data-cursor="{{ live_cursor|default:0 }}" hidden></div>
+  <script src="{% static 'web/live.js' %}" defer></script>
+  {% endif %}
 </body>
 </html>
