@@ -89,8 +89,10 @@ def test_area_caps_shipped_and_links_to_all(client_local, org):
     create_slice(a, "shipped one", status="shipped")
     create_slice(a, "shipped two", status="shipped")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
-    assert "View all shipped (2)" in body
+    # Shipped is off-board: header link shows the total, no shipped column.
+    assert "Shipped (2)" in body
     assert 'href="?status=shipped"' in body
+    assert 'data-stage="shipped"' not in body
     # ...and the uncapped surface behind that link shows both
     all_body = client_local.get(f"/{org.slug}/areas/{a.slug}/?status=shipped").content.decode()
     assert "shipped one" in all_body and "shipped two" in all_body

@@ -1,8 +1,10 @@
 {% load web_extras %}
 <div class="board" id="board">
   {% for key, slices in groups %}
-    {# Shipped is off-board (a ?status=shipped link, rendered by the page). The
-       board shows only the four active stage columns — work that is flowing. #}
+    {% comment %}
+      Shipped is off-board (a ?status=shipped link, rendered by the page). The
+      board shows only the four active stage columns — work that is flowing.
+    {% endcomment %}
     {% if key != "shipped" %}
     <div class="board-col" data-stage="{{ key }}">
       <div class="board-col-head">
