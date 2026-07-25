@@ -50,6 +50,18 @@ def slice_activity(slice_):
     )
 
 
+def parent_slice_ids(bite_ids) -> dict:
+    """{bite_id: owning slice id} for the bites that still exist. A bite deleted
+    by the very event being reported has no row left, so it is simply absent."""
+    from tuckit.core.models import Bite
+
+    if not bite_ids:
+        return {}
+    return dict(
+        Bite.objects.filter(id__in=bite_ids).values_list("id", "plan__slice_id")
+    )
+
+
 def latest_activity_id(org) -> int:
     """The org's activity cursor: max ActivityEvent id, or 0 when there are none.
     Monotonic, so a change anywhere in the org strictly increases it."""
