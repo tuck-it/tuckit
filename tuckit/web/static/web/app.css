@@ -2453,3 +2453,12 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   to   { opacity: 0; transform: translateY(-4px); }
 }
 .is-leaving { animation: item-exit .2s var(--ease) forwards; pointer-events: none; }
+
+/* Motion is the decoration; the state is not. Under reduced-motion the warmth
+   still shows and the label still reads — only the tweening stops. */
+@media (prefers-reduced-motion: reduce) {
+  .slice-row, .slice-card, .ticket-row, .area-item { animation: none; }
+  .is-leaving { animation: none; opacity: 0; }
+  .row-prog-track i { transition: none; }
+  .slice-card { transition: none; }
+}

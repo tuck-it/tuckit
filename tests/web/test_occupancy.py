@@ -55,3 +55,14 @@ def test_the_progress_bar_transitions_its_width():
     block = css.split(".row-prog-track i {", 1)[1].split("}", 1)[0]
     assert "transition" in block
     assert "width" in block
+
+
+def test_all_live_motion_is_suppressed_under_reduced_motion():
+    """Occupancy must still be READABLE without motion — the label carries the
+    same information in words, so only the movement is dropped, not the state."""
+    css = (Path(tuckit.web.__file__).parent / "static/web/app.css").read_text()
+    blocks = css.split("@media (prefers-reduced-motion: reduce)")
+    assert len(blocks) > 1
+    guarded = " ".join(blocks[1:])
+    for name in ("item-enter", "item-exit", ".row-prog-track i"):
+        assert name in guarded, f"{name} keeps animating under reduced motion"
