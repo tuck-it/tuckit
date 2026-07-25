@@ -147,3 +147,12 @@ def live_cursor(request):
     from tuckit.web.auth import current_org_or_fallback
     org = current_org_or_fallback(request)
     return {"live_cursor": latest_activity_id(org) if org else 0}
+
+
+def agent_activity(request):
+    """Per-slice agent occupancy, computed once per request so the row/card
+    partials can read it without a query each (they are included in loops)."""
+    from tuckit.core.services.activity import active_targets
+
+    org = current_org_or_fallback(request)
+    return {"agent_activity": active_targets(org) if org else {}}

@@ -1,0 +1,45 @@
+"""Occupancy is seeded server-side because a screen can load with items ALREADY
+warm — without a seed they would render cold until the next event arrived."""
+
+import pytest
+from django.urls import reverse
+
+from tuckit.core.models import Org, OrgMember, User
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.bites import create_bite
+from tuckit.core.services.plans import create_plan
+from tuckit.core.services.slices import create_slice
+
+
+@pytest.fixture
+def member(db):
+    org = Org.objects.create(name="Acme", slug="acme")
+    user = User.objects.create_user(email="m@b.co", password="pw123456")
+    OrgMember.objects.create(user=user, org=org, role="owner")
+    return org, user
+
+
+@pytest.mark.django_db
+def test_recent_agent_work_seeds_the_slice_row(client, member):
+    org, user = member
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
+    client.force_login(user)
+
+    html = client.get(reverse("web:home", args=[org.slug])).content.decode()
+
+    assert "data-last-touch=" in html
+    assert "Wire the form" in html
+
+
+@pytest.mark.django_db
+def test_a_cold_slice_carries_no_occupancy_markup(client, member):
+    """No attribute at all when cold — the client keys off its presence."""
+    org, user = member
+    create_slice(create_area(org, "Backend"), "Login", status="building")  # human-created
+    client.force_login(user)
+
+    html = client.get(reverse("web:home", args=[org.slug])).content.decode()
+
+    assert "data-last-touch=" not in html
+    assert "agent-mark" not in html

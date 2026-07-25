@@ -2,6 +2,7 @@ from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 
 from django import template
 from django.urls import reverse
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from tuckit.core.services import bites as bites_svc
@@ -188,3 +189,33 @@ def status_move_targets(status):
         "prev": columns[i - 1] if i > 0 else None,
         "next": columns[i + 1] if i < len(columns) - 1 else None,
     }
+
+
+@register.simple_tag(name="occupancy_attrs", takes_context=True)
+def occupancy_attrs_tag(context, slice):
+    """data-last-touch for a slice an agent touched recently, or nothing at all.
+
+    Emits epoch MILLISECONDS so the client can compare against Date.now()
+    without parsing. Absent when cold — the client keys off presence, so an
+    empty-but-present attribute would be a different (wrong) state."""
+    entry = (context.get("agent_activity") or {}).get(slice.id)
+    if not entry:
+        return ""
+    last_touch, _verb, _label = entry
+    return format_html(' data-last-touch="{}"', int(last_touch.timestamp() * 1000))
+
+
+@register.simple_tag(name="agent_label", takes_context=True)
+def agent_label_tag(context, slice):
+    """The 'what the agent just did' mark. The relative time is left empty for
+    the client to fill and keep fresh — a server-rendered 'just now' would be a
+    lie thirty seconds later."""
+    entry = (context.get("agent_activity") or {}).get(slice.id)
+    if not entry:
+        return ""
+    _last_touch, _verb, label = entry
+    return format_html(
+        '<span class="agent-mark">🤖 <span class="agent-what">{}</span>'
+        '<span class="agent-when"></span></span>',
+        label or "working",
+    )
