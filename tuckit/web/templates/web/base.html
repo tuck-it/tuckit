@@ -45,6 +45,7 @@
   <script defer src="{% static 'web/vendor/alpine.min.js' %}"></script>
   <script src="{% static 'web/vendor/htmx.min.js' %}"></script>
   <script src="{% static 'web/vendor/sortable.min.js' %}"></script>
+  <script src="{% static 'web/vendor/idiomorph-ext.min.js' %}"></script>
   <script>
     /* htmx 2.x skips swapping on 204 by default; this app relies on 204 +
        hx-swap to remove/empty elements (e.g. inbox row triage), so opt back in.
@@ -52,7 +53,7 @@
     htmx.config.responseHandling.unshift({code: "204", swap: true});
   </script>
 </head>
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' hx-ext="morph"
       x-data="{cap: false, menu: false, pal: false, trapFocus(e){ if(!this.menu) return; const f=[...this.$refs.sidebarWrap.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea')].filter(el=>el.offsetParent!==null); if(!f.length) return; const first=f[0], last=f[f.length-1]; if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); } else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); } }}"
       x-on:keydown.window="if (!cap && $event.key === 'c' && !$event.metaKey && !$event.ctrlKey && !$event.altKey && !['INPUT','TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) { cap = true }"
       x-on:keydown.cmd.k.window.prevent="if (!cap) pal = true"

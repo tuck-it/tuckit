@@ -65,31 +65,20 @@
     if (!document.hidden) { interval = FAST; schedule(); }
   });
 
-  function typingInMain(main) {
-    var a = document.activeElement;
-    if (!a || !main.contains(a)) return false;
-    var tag = a.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA" || a.isContentEditable;
-  }
-
-  /* Refresh only #main-content on live screens. htmx inherits hx-swap/hx-target
-     from ancestors, so we use the JS API with explicit options instead of
-     attributes. #detail-modal is a sibling of #main-content and is never swapped. */
+  /* Refresh only #main-content on live screens, morphing rather than replacing.
+     Morph keeps elements alive, which is what lets ordinary CSS transitions
+     apply to data changes at all — and it delivers what the original live
+     design asked for ("never swap the focused form / input text") without the
+     blunt instrument of skipping the refresh outright.
+     #detail-modal is a sibling of #main-content and is never swapped. */
   window.__liveOnEvents = function (events) {
     var main = document.getElementById("main-content");
     if (!main || !main.hasAttribute("data-live-refresh")) return;
-    // Never clobber in-progress typing. The cursor already advanced in poll(),
-    // so these events won't re-deliver — the background stays as-is until the
-    // NEXT activity batch triggers a refresh (after typing has moved on). The
-    // toast for this batch already fired, so nothing is silently lost.
-    if (typingInMain(main)) return;
-    var scrollY = window.scrollY;
     htmx.ajax("GET", location.pathname + location.search, {
       target: "#main-content",
       select: "#main-content",
-      swap: "outerHTML"
+      swap: "morph:outerHTML"
     }).then(function () {
-      window.scrollTo(0, scrollY);          // preserve viewport across the swap
       document.body.dispatchEvent(new CustomEvent("tuckit:live-refreshed", { detail: { events: events } }));
     });
   };

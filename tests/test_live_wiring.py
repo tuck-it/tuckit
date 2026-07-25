@@ -54,3 +54,19 @@ def test_the_old_ring_is_gone():
     assert "just-live" not in css
     live_js = (Path(tuckit.web.__file__).parent / "static/web/live.js").read_text()
     assert "just-live" not in live_js
+
+
+def test_live_refresh_morphs_instead_of_replacing():
+    """Full replacement destroys every element, and a CSS transition only runs
+    when a surviving element's value changes — so without morph no data change
+    can ever animate."""
+    js = " ".join(_live_js().split())
+    assert "morph:outerHTML" in js
+
+
+def test_the_full_replace_workarounds_are_gone():
+    """Both existed only because replacement threw the DOM away. Morph makes
+    them dead code, and typingInMain actively froze the screen while typing."""
+    js = _live_js()
+    assert "typingInMain" not in js
+    assert "window.scrollTo" not in js
