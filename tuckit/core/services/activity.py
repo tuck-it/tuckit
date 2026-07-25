@@ -62,6 +62,46 @@ def parent_slice_ids(bite_ids) -> dict:
     )
 
 
+def active_targets(org, window_seconds: int = 300) -> dict:
+    """{slice_id: (last_touch, verb, label)} for slices an agent touched inside
+    the window — "who is holding what, right now".
+
+    Derived on read and never stored, for the same reason as slice_stage(): a
+    column would need rewriting on every bite transition and would be wrong the
+    first time anything wrote around it.
+
+    Bite events fold onto their parent slice. A bite has no element of its own
+    on a live screen — it surfaces as its slice's progress — so its activity
+    belongs to the card the viewer can actually see.
+
+    Agent-only on purpose: warmth answers "an agent is working here", and a
+    human's own edits lighting up their own board would be noise.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    since = timezone.now() - timedelta(seconds=window_seconds)
+    rows = list(
+        ActivityEvent.objects.filter(
+            org=org, actor="agent", created_at__gte=since,
+            target_type__in=("slice", "bite"),
+        )
+        .order_by("id")  # ascending: last write per slice wins below
+        .values_list("target_type", "target_id", "verb", "target_label", "created_at")
+    )
+    if not rows:
+        return {}
+    owning = parent_slice_ids([tid for ttype, tid, *_ in rows if ttype == "bite"])
+    active = {}
+    for target_type, target_id, verb, label, created_at in rows:
+        slice_id = target_id if target_type == "slice" else owning.get(target_id)
+        if slice_id is None:
+            continue  # bite deleted by this very event — nothing to attribute it to
+        active[slice_id] = (created_at, verb, label)
+    return active
+
+
 def latest_activity_id(org) -> int:
     """The org's activity cursor: max ActivityEvent id, or 0 when there are none.
     Monotonic, so a change anywhere in the org strictly increases it."""
