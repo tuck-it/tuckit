@@ -2406,14 +2406,27 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   .area-inbox-head::before { transition: none; }
 }
 
-/* Live update highlight: briefly ring an item that just arrived/changed via
-   the activity poller, then settle. Tokens only — accent is --blue. */
-@keyframes just-live-fade {
-  from { background: color-mix(in srgb, var(--blue) 16%, transparent); }
-  to   { background: transparent; }
+/* Agent occupancy: a sustained wash while an agent is working an item, written
+   once a second by heat.js as --heat (1 → 0). This replaces the old 1.6s ring:
+   heat snapping back to 1 on new activity is itself the flare, so one visual
+   language covers both "just changed" and "being worked right now".
+   Tokens only — the accent is --blue. */
+.slice-row { background-color: color-mix(in srgb, var(--blue) calc(var(--heat, 0) * 14%), transparent); }
+
+/* The card already paints --paper-raised, so heat blends over it rather than
+   replacing it — otherwise a warm card would lose its surface. */
+.slice-card {
+  background-color: color-mix(in srgb, var(--blue) calc(var(--heat, 0) * 14%), var(--paper-raised));
+  transition: background-color .15s var(--ease);
 }
-.just-live {
-  animation: just-live-fade 1.6s ease-out;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 40%, transparent);
-  border-radius: var(--radius-small);
+
+/* The mark fades with the heat for free, so it needs no separate timer. */
+.agent-mark {
+  flex: 0 0 auto;
+  opacity: var(--heat, 0);
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: nowrap;
 }
+.slice-card .agent-mark { padding-top: var(--space-2); }

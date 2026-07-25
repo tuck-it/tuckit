@@ -388,6 +388,7 @@
   {% if current_org %}
   <div id="live-config" data-live-url="{% wurl 'web:live' %}" data-cursor="{{ live_cursor|default:0 }}" hidden></div>
   <script src="{% static 'web/live.js' %}" defer></script>
+  <script src="{% static 'web/heat.js' %}" defer></script>
   {% endif %}
 </body>
 </html>

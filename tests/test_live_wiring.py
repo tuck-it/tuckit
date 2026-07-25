@@ -39,14 +39,18 @@ def test_inbox_marks_main_live(client, member):
     assert 'data-live-refresh="1"' in html
 
 
-def test_highlight_selector_prefers_the_events_highlight_target():
-    """Static assertion on purpose: the failure this pins (a highlight silently
-    matching nothing) renders fine and returns 200, so no endpoint test can see
-    it. Building the selector from target_type is what left every bite event
-    unhighlighted — the event now names its own highlight target."""
-    handler = _live_js().split('"tuckit:live-refreshed"', 1)[1]
-    handler = " ".join(handler.split())          # formatting-agnostic
-    # The event's highlight target wins; non-bite events ship no highlight_* keys,
-    # so the fallback to the target itself has to stay.
-    assert "ev.highlight_type || ev.target_type" in handler
-    assert "ev.highlight_id || ev.target_id" in handler
+def test_heat_decays_from_the_seeded_timestamp():
+    """Static assertion on purpose: a decay that silently never runs still
+    renders a valid page and returns 200, so no endpoint test can see it."""
+    js = (Path(tuckit.web.__file__).parent / "static/web/heat.js").read_text()
+    js = " ".join(js.split())
+    assert "data-last-touch" in js
+    assert "--heat" in js
+
+
+def test_the_old_ring_is_gone():
+    """The ring and the warmth would be two languages for one idea."""
+    css = (Path(tuckit.web.__file__).parent / "static/web/app.css").read_text()
+    assert "just-live" not in css
+    live_js = (Path(tuckit.web.__file__).parent / "static/web/live.js").read_text()
+    assert "just-live" not in live_js

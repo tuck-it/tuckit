@@ -94,21 +94,5 @@
     });
   };
 
-  /* Highlight what CHANGED ON SCREEN, which is not always the event's target.
-     A bite has no element of its own here — it shows up as its slice's bite
-     progress — so those events carry highlight_type/highlight_id pointing at the
-     parent slice. Everything else omits them and highlights itself. */
-  document.body.addEventListener("tuckit:live-refreshed", function (e) {
-    (e.detail.events || []).forEach(function (ev) {
-      var type = ev.highlight_type || ev.target_type;
-      var id = ev.highlight_id || ev.target_id;
-      var sel = "[data-" + type + "-id=\"" + id + "\"]";
-      document.querySelectorAll(sel).forEach(function (el) {
-        el.classList.add("just-live");
-        setTimeout(function () { el.classList.remove("just-live"); }, 1600);
-      });
-    });
-  });
-
   schedule();
 })();
