@@ -1,9 +1,12 @@
 """Occupancy is seeded server-side because a screen can load with items ALREADY
 warm — without a seed they would render cold until the next event arrived."""
 
+from pathlib import Path
+
 import pytest
 from django.urls import reverse
 
+import tuckit.web
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
@@ -43,3 +46,12 @@ def test_a_cold_slice_carries_no_occupancy_markup(client, member):
 
     assert "data-last-touch=" not in html
     assert "agent-mark" not in html
+
+
+def test_the_progress_bar_transitions_its_width():
+    """The bar is the main number that moves while an agent works; before morph
+    it could not animate at all, so this is the payoff for that change."""
+    css = (Path(tuckit.web.__file__).parent / "static/web/app.css").read_text()
+    block = css.split(".row-prog-track i {", 1)[1].split("}", 1)[0]
+    assert "transition" in block
+    assert "width" in block

@@ -294,7 +294,14 @@ body { padding: 0; }
 /* Bite-progress bar — building rows only; a quiet neutral fill, never the accent. */
 .row-prog { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; }
 .row-prog-track { width: 44px; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
-.row-prog-track i { display: block; height: 100%; background: var(--line-strong); }
+/* The bar grows into its new value instead of jumping. Only reachable because
+   the live swap morphs — a replaced element mounts at its final width. */
+.row-prog-track i {
+  display: block;
+  height: 100%;
+  background: var(--line-strong);
+  transition: width .45s var(--ease);
+}
 .row-prog-num { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
 .row-meta { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; }
 .empty { color: var(--ink-faint); font-family: var(--mono); font-size: 13px; padding: 8px 2px; }
