@@ -2437,3 +2437,19 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   white-space: nowrap;
 }
 .slice-card .agent-mark { padding-top: var(--space-2); }
+
+/* Shape ③ enter: a newly arrived item settles in rather than blinking into
+   place. Runs on mount, so unlike the transitions above it does not need morph. */
+@keyframes item-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.slice-row, .slice-card, .ticket-row, .area-item { animation: item-enter .28s var(--ease); }
+
+/* Shape ④ exit: morph adds this class just before it removes the node, then
+   waits for the animation. Without morph the node is already gone here. */
+@keyframes item-exit {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+.is-leaving { animation: item-exit .2s var(--ease) forwards; pointer-events: none; }

@@ -57,4 +57,20 @@
   /* Every refresh re-renders the attributes from the server, so rescanning
      after a swap is all the coupling this needs to the poller. */
   document.body.addEventListener("tuckit:live-refreshed", start);
+
+  /* Shape ④ exit. Idiomorph asks before removing a node; answering false keeps
+     it for one animation, then removes it. Only items with a stable id are
+     animated — anything else is structural markup whose removal is not a
+     "thing leaving" the user should watch. */
+  document.body.addEventListener("htmx:beforeSwap", function () {
+    if (!window.Idiomorph) return;
+    window.Idiomorph.defaults.callbacks.beforeNodeRemoved = function (node) {
+      if (!node.dataset) return true;
+      var tracked = node.dataset.sliceId || node.dataset.ticketId || node.dataset.areaId;
+      if (!tracked || node.classList.contains("is-leaving")) return true;
+      node.classList.add("is-leaving");
+      setTimeout(function () { node.remove(); }, 200);
+      return false;
+    };
+  });
 })();
