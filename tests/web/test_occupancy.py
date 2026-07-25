@@ -36,6 +36,23 @@ def test_recent_agent_work_seeds_the_slice_row(client, member):
 
 
 @pytest.mark.django_db
+def test_agent_mark_is_aria_hidden(client, member):
+    """Server occupancy holds for 300s but the client fade (heat.js) ends at
+    120s, so the mark can sit fully transparent for up to 3 minutes while its
+    row is still a live link. Without aria-hidden a screen reader would keep
+    announcing it long after it stopped being visible — the toast already
+    announced the same event once, which is the right number of times."""
+    org, user = member
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
+    client.force_login(user)
+
+    html = client.get(reverse("web:home", args=[org.slug])).content.decode()
+
+    assert '<span class="agent-mark" aria-hidden="true">' in html
+
+
+@pytest.mark.django_db
 def test_a_cold_slice_carries_no_occupancy_markup(client, member):
     """No attribute at all when cold — the client keys off its presence."""
     org, user = member

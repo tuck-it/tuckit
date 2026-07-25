@@ -233,7 +233,10 @@ body { padding: 0; }
   gap: var(--space-4);
   transition: background .15s var(--ease);
 }
-.slice-row:hover { background: var(--paper-deep); }
+/* Blend with --paper-deep rather than replacing the background outright — a
+   plain override would outrank the warmth rule below (higher specificity) and
+   wipe a warm row's --heat wash the moment it is hovered. */
+.slice-row:hover { background-color: color-mix(in srgb, var(--blue) calc(var(--heat, 0) * 14%), var(--paper-deep)); }
 .slice-row:hover .row-title { color: var(--ink); }
 
 /* Section heading: label + optional count, mono uppercase, quiet. */
@@ -2444,7 +2447,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: none; }
 }
-.slice-row, .slice-card, .ticket-row, .area-item { animation: item-enter .28s var(--ease); }
+.slice-row, .slice-card, .ticket-row, .area-inbox-row { animation: item-enter .28s var(--ease); }
 
 /* Shape ④ exit: morph adds this class just before it removes the node, then
    waits for the animation. Without morph the node is already gone here. */
@@ -2457,7 +2460,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 /* Motion is the decoration; the state is not. Under reduced-motion the warmth
    still shows and the label still reads — only the tweening stops. */
 @media (prefers-reduced-motion: reduce) {
-  .slice-row, .slice-card, .ticket-row, .area-item { animation: none; }
+  .slice-row, .slice-card, .ticket-row, .area-inbox-row { animation: none; }
   .is-leaving { animation: none; opacity: 0; }
   .row-prog-track i { transition: none; }
   .slice-card { transition: none; }

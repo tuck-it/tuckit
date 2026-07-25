@@ -209,13 +209,20 @@ def occupancy_attrs_tag(context, slice):
 def agent_label_tag(context, slice):
     """The 'what the agent just did' mark. The relative time is left empty for
     the client to fill and keep fresh — a server-rendered 'just now' would be a
-    lie thirty seconds later."""
+    lie thirty seconds later.
+
+    aria-hidden: server occupancy holds for 300s but the client fade (heat.js)
+    finishes at 120s, so the mark can sit fully transparent for up to 3 minutes
+    while its row is still a live link. Without aria-hidden, a screen reader
+    would keep announcing "🤖 <label>" on that link long after it stopped being
+    visible — and the toast already announced the same event once, which is
+    the right number of times."""
     entry = (context.get("agent_activity") or {}).get(slice.id)
     if not entry:
         return ""
     _last_touch, _verb, label = entry
     return format_html(
-        '<span class="agent-mark">🤖 <span class="agent-what">{}</span>'
+        '<span class="agent-mark" aria-hidden="true">🤖 <span class="agent-what">{}</span>'
         '<span class="agent-when"></span></span>',
         label or "working",
     )

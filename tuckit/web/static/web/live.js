@@ -70,6 +70,13 @@
      apply to data changes at all — and it delivers what the original live
      design asked for ("never swap the focused form / input text") without the
      blunt instrument of skipping the refresh outright.
+
+     ignoreActiveValue: true is load-bearing, not decoration. A live screen can
+     morph a form whose fields are server-rendered empty (e.g. the Create Area
+     modal lives inside #main-content) — without this flag idiomorph's
+     input/textarea sync would overwrite whatever the user is mid-typing with
+     that empty value on every poll. With it, idiomorph leaves the currently
+     focused control's value alone and morphs everything else as usual.
      #detail-modal is a sibling of #main-content and is never swapped. */
   window.__liveOnEvents = function (events) {
     var main = document.getElementById("main-content");
@@ -77,7 +84,7 @@
     htmx.ajax("GET", location.pathname + location.search, {
       target: "#main-content",
       select: "#main-content",
-      swap: "morph:outerHTML"
+      swap: 'morph:{"morphStyle":"outerHTML","ignoreActiveValue":true}'
     }).then(function () {
       document.body.dispatchEvent(new CustomEvent("tuckit:live-refreshed", { detail: { events: events } }));
     });

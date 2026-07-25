@@ -54,10 +54,11 @@ def test_live_missing_since_treated_as_zero(client, member):
 
 
 @pytest.mark.django_db
-def test_bite_event_carries_parent_slice_as_highlight_target(client, member):
+def test_bite_event_carries_its_own_id_and_label(client, member):
     """A bite is never rendered as its own element on a live-refresh screen — it
-    shows up as the parent slice's bite progress. So the poller has to highlight
-    the SLICE, and the payload is what tells it which one."""
+    shows up as the parent slice's bite progress. That fold now happens
+    server-side in active_targets() (which occupancy warmth reads), not in this
+    payload — the live endpoint just reports the bite event as itself."""
     org, user = member
     client.force_login(user)
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
@@ -68,20 +69,18 @@ def test_bite_event_carries_parent_slice_as_highlight_target(client, member):
     resp = client.get(reverse("web:live", args=[org.slug]) + f"?since={cursor}")
     event = next(e for e in resp.json()["events"] if e["target_type"] == "bite")
 
-    # The event still tells the truth about WHAT happened (the toast reads it)...
     assert event["target_id"] == bite.id
     assert event["target_label"] == "Wire the form"
-    # ...while naming the slice as the thing to highlight.
-    assert event["highlight_type"] == "slice"
-    assert event["highlight_id"] == slice_.id
 
 
 @pytest.mark.django_db
-def test_deleted_bite_event_still_delivers_without_a_highlight(client, member):
-    """delete_bite records the event and THEN deletes the row, so the parent
-    lookup finds nothing. Regression guard: resolving per-event (a .get() call)
-    would raise here and take the whole poll down — one dead bite would stop
-    every toast in the org."""
+def test_deleted_bite_event_still_delivers(client, member):
+    """delete_bite records the event and THEN deletes the row. Regression guard
+    kept from when the payload resolved a parent slice per-event: a naive
+    .get() there would raise on a bite already gone and take the whole poll
+    down — one dead bite would stop every toast in the org. The live endpoint
+    no longer does that resolution at all, but delivering the deletion event
+    itself without erroring is still the behavior worth pinning."""
     org, user = member
     client.force_login(user)
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
@@ -94,9 +93,6 @@ def test_deleted_bite_event_still_delivers_without_a_highlight(client, member):
     assert resp.status_code == 200
     event = next(e for e in resp.json()["events"] if e["target_type"] == "bite")
     assert event["verb"] == "deleted"
-    # No row to resolve, so no highlight target — the client falls back to the
-    # bite selector, which matches nothing. A missed highlight, not an error.
-    assert "highlight_type" not in event
 
 
 @pytest.mark.django_db

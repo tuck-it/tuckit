@@ -58,6 +58,23 @@
      after a swap is all the coupling this needs to the poller. */
   document.body.addEventListener("tuckit:live-refreshed", start);
 
+  /* Idiomorph re-syncs each <option selected> during a morph, which can force
+     an Inbox row's Area <select> back to its unselected placeholder — but
+     Alpine's `area` x-data value (the one driving the Promote button's
+     :disabled) is not touched by that, since morph never fires input/change
+     events. Left alone, the two disagree: Alpine still thinks an area is
+     chosen (button enabled) while the DOM would submit area_id="". Re-derive
+     Alpine's value from the DOM after every refresh so the button's enabled
+     state always matches what the form would actually submit. */
+  function resyncTicketAreaSelects() {
+    document.querySelectorAll(".ticket-row select[name='area_id']").forEach(function (select) {
+      var row = select.closest("[x-data]");
+      var stack = row && row._x_dataStack;
+      if (stack && stack[0]) stack[0].area = select.value;
+    });
+  }
+  document.body.addEventListener("tuckit:live-refreshed", resyncTicketAreaSelects);
+
   /* Shape ④ exit. Idiomorph asks before removing a node; answering false keeps
      it for one animation, then removes it. Only items with a stable id are
      animated — anything else is structural markup whose removal is not a

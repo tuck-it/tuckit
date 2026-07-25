@@ -61,7 +61,45 @@ def test_live_refresh_morphs_instead_of_replacing():
     when a surviving element's value changes — so without morph no data change
     can ever animate."""
     js = " ".join(_live_js().split())
-    assert "morph:outerHTML" in js
+    assert '"morphStyle":"outerHTML"' in js
+
+
+def test_live_refresh_preserves_the_active_control_value():
+    """CRITICAL regression guard: a live screen can morph a form that renders
+    server-side with empty fields (e.g. the Create Area modal lives inside
+    #main-content). Idiomorph's input/textarea sync branch overwrites the live
+    DOM value with the incoming HTML's value on every morph — so without
+    ignoreActiveValue, typing into that form while ANY org activity fires a
+    poll blanks whatever the user just typed, silently, mid-keystroke.
+    ignoreActiveValue tells idiomorph to leave the currently focused control's
+    value untouched. Not otherwise reachable from pytest: this is a DOM/morph
+    interaction with no server-observable effect, so it is pinned here as a
+    static assertion on the swap spec actually wired up, in the style of the
+    other tests in this file."""
+    js = " ".join(_live_js().split())
+    assert "ignoreActiveValue" in js
+    assert "true" in js.split("ignoreActiveValue", 1)[1][:10]
+
+
+def test_ticket_row_area_select_resyncs_alpine_after_refresh():
+    """IMPORTANT regression guard: idiomorph re-syncs each <option selected>
+    during a morph, which can force an Inbox row's Area <select> back to its
+    unselected placeholder — but Alpine's `area` value (driving the Promote
+    button's :disabled) is a separate piece of state that morph never touches
+    (it fires no input/change events). Left alone the two disagree: Alpine
+    still thinks an area is chosen and leaves Promote enabled while the DOM
+    would submit area_id="".
+
+    Not reachable from pytest: this is a client-side Alpine+DOM interaction
+    with no server-observable effect (the Django test client never runs
+    Alpine or idiomorph), so — as with the other JS-only behaviors in this
+    file — it is pinned as a static assertion on the resync wiring actually
+    present in heat.js, not asserted end-to-end."""
+    js = (Path(tuckit.web.__file__).parent / "static/web/heat.js").read_text()
+    js = " ".join(js.split())
+    assert "tuckit:live-refreshed" in js
+    assert "area_id" in js
+    assert "_x_dataStack" in js
 
 
 def test_the_full_replace_workarounds_are_gone():
