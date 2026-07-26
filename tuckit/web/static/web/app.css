@@ -1677,6 +1677,11 @@ body.modal-open { overflow: hidden; }
 .cmdk-row .icon { stroke: var(--ink-faint); }
 .cmdk-row:hover, .cmdk-row--active { background: var(--blue-soft); }
 .cmdk-row--active .icon { stroke: var(--blue); }
+.cmdk-result { display: flex; align-items: baseline; gap: var(--space-3); }
+.cmdk-result-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdk-result-note,
+.cmdk-result-kind { font-size: var(--text-xs); color: var(--ink-faint); flex: 0 0 auto; }
+.cmdk-empty { padding: var(--space-4) var(--space-5); font-size: var(--text-sm); color: var(--ink-faint); }
 
 /* --- Capture confirmation toast (nav redesign, Phase 1) --- */
 .toast {

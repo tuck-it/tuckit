@@ -6,7 +6,7 @@ from django.views.generic import RedirectView
 from tuckit.web.views import (
     pages, slices, mutations, board, capture, health,
     accounts, settings_org, settings_account, settings_shell, routing,
-    onboarding, oauth, social, live,
+    onboarding, oauth, social, live, search,
 )
 from tuckit.web.views import settings as settings_views
 
@@ -85,6 +85,7 @@ app_patterns = [
     path(f"{P}onboarding/agent-activity", onboarding.agent_check, name="onboarding_agent_check"),
     path(f"{P}capture", capture.capture, name="capture"),
     path(f"{P}live", live.live, name="live"),
+    path(f"{P}search", search.search, name="search"),
     path(f"{P}inbox/", capture.inbox, name="inbox"),
     path(f"{P}roadmap/", pages.roadmap, name="roadmap"),
     path(f"{P}areas/", pages.areas, name="areas"),

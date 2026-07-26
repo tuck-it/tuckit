@@ -1,6 +1,11 @@
-/* Cmd+K palette. Rows are rendered server-side with data-label; this filters
-   them client-side, supports up/down/enter, and clicks the active row.
-   No backend — every row is a link or a local action.
+/* Cmd+K palette. Static nav rows are rendered server-side with data-label AND
+   data-static; this filters those client-side. Search results arrive from
+   web:search via htmx and carry data-label WITHOUT data-static — they are
+   already server-filtered, so client filtering must not touch them (a search
+   for "47" returns a slice whose title has no "47" in it, and filtering would
+   hide the very row the user asked for).
+
+   Both kinds share arrow-key navigation and Enter.
 
    The active row is published to assistive tech via aria-activedescendant plus
    a live result count. Without them the palette was silent to a screen reader:
@@ -14,11 +19,18 @@ function commandPalette() {
     rows() {
       return Array.prototype.slice.call(this.$refs.list.querySelectorAll("[data-label]"));
     },
+    staticRows() {
+      return this.rows().filter(function (r) { return r.dataset.static !== undefined; });
+    },
+    serverRows() {
+      return this.rows().filter(function (r) { return r.dataset.static === undefined; });
+    },
     visible() {
       var q = this.q.trim().toLowerCase();
-      return this.rows().filter(function (r) {
+      var statics = this.staticRows().filter(function (r) {
         return !q || r.dataset.label.toLowerCase().indexOf(q) !== -1;
       });
+      return statics.concat(this.serverRows());
     },
     open() {
       this.opener = document.activeElement;
