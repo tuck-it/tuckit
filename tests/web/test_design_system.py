@@ -99,3 +99,55 @@ def test_home_band_primitives_exist_and_use_tokens_only():
     # are a different thing and are used verbatim throughout app.css.
     assert not re.search(r"border-radius:\s*(14|9)px", block), \
         "surface/control radius must use var(--radius) / var(--radius-small)"
+
+
+def test_spacing_scale_is_value_named_with_no_gaps():
+    css = (STATIC / "tokens.product.css").read_text(encoding="utf-8")
+    for px in (2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24):
+        assert f"--space-{px}: {px}px" in css, f"missing --space-{px} token"
+    # old index-based names must be fully retired, not aliased
+    for old in ("--space-1:", "--space-3:", "--space-5:", "--space-7:", "--space-9:"):
+        assert old not in css, f"stale index-based token still defined: {old}"
+
+
+def test_app_css_uses_value_named_spacing_tokens_only():
+    import re
+
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    # any --space-N reference must be one of the eleven canonical values
+    valid = {2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24}
+    for match in re.finditer(r"--space-(\d+)\)", css):
+        n = int(match.group(1))
+        assert n in valid, f"app.css references retired/unknown --space-{n}"
+
+
+def test_title_typography_tokens_exist_and_base_css_uses_them():
+    product_css = (STATIC / "tokens.product.css").read_text(encoding="utf-8")
+    assert "--text-h1: 28px" in product_css
+    assert "--text-h2: 22px" in product_css
+    assert "--text-title: 18px" in product_css
+
+    base_css = (STATIC / "base.css").read_text(encoding="utf-8")
+    assert "h1 { font-size: var(--text-h1); }" in base_css
+    assert "h2 { font-size: var(--text-h2); }" in base_css
+    assert "h3 { font-size: var(--text-title); }" in base_css
+    assert "font-size: 28px" not in base_css
+    assert "font-size: 22px" not in base_css
+    assert "font-size: 18px" not in base_css
+
+
+def test_pill_radius_token_exists_and_is_used_everywhere():
+    import re
+
+    brand_css = (STATIC / "tokens.brand.css").read_text(encoding="utf-8")
+    assert "--radius-pill: 999px" in brand_css
+
+    app_css = (STATIC / "app.css").read_text(encoding="utf-8")
+    assert "border-radius: 999px" not in app_css   # .nav-count, now via token
+    # .area-chip and .status-pill are the specific pill-shaped selectors this
+    # slice tokenized; a >=3 floor (not ==) so a future slice adopting the
+    # token elsewhere doesn't fail this test, while still catching regression
+    # to a hardcoded value on these two.
+    assert re.search(r"\.area-chip\s*\{[^}]*var\(--radius-pill\)", app_css)
+    assert re.search(r"\.status-pill\s*\{[^}]*var\(--radius-pill\)", app_css)
+    assert app_css.count("var(--radius-pill)") >= 3

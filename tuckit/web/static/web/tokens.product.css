@@ -54,10 +54,14 @@
    Single-source knobs for spacing + type. Retune density here, not in app.css.
    Brand rhythm (landing) is unaffected — these live in the product layer. */
 :root {
-  /* spacing scale (4px grid) */
-  --space-1: 2px;  --space-2: 4px;  --space-3: 6px;  --space-4: 8px;
-  --space-5: 10px; --space-6: 12px; --space-7: 16px; --space-8: 20px;
-  --space-9: 24px;
+  /* spacing scale (4px grid). Value-based naming: the token name IS the
+     pixel value, so adding a size never renumbers an existing one. --space-14
+     and --space-18 fill the gaps between 12/16/20 that were previously
+     hand-rolled as raw px — not yet consumed anywhere; slice 37 assigns them
+     to the existing raw 14px/18px usages during the density migration. */
+  --space-2: 2px;   --space-4: 4px;   --space-6: 6px;   --space-8: 8px;
+  --space-10: 10px; --space-12: 12px; --space-14: 14px; --space-16: 16px;
+  --space-18: 18px; --space-20: 20px; --space-24: 24px;
   /* semantic shell / rhythm */
   --main-pad-y: 18px;
   --main-pad-x: clamp(16px, 2vw, 28px);
@@ -66,6 +70,7 @@
   /* type scale */
   --text-xs: 11px; --text-sm: 12px; --text-base: 13px; --text-md: 14px;
   --text-lg: 16px; --text-title: 18px; --text-stat: 20px;
+  --text-h2: 22px; --text-h1: 28px;
 }
 
 @media (prefers-color-scheme: dark) {

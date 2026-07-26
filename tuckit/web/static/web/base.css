@@ -74,9 +74,9 @@ body::before {
 
 /* --- Typography scale primitive --- */
 h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.02em; line-height: 1.2; }
-h1 { font-size: 28px; }
-h2 { font-size: 22px; }
-h3 { font-size: 18px; }
+h1 { font-size: var(--text-h1); }
+h2 { font-size: var(--text-h2); }
+h3 { font-size: var(--text-title); }
 
 /* --- Button primitive (9px radius, never a full pill) --- */
 .button {
