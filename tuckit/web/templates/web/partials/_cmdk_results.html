@@ -18,6 +18,14 @@
          number looks like the search sent you to the wrong place. {% endcomment %}
       <span class="cmdk-result-note">{{ r.absorbed_from }} was absorbed into {{ r.ref }}</span>
     {% endif %}
+    {% if r.status %}
+      {% comment %} promote_ticket copies the title onto its new Slice verbatim
+         and the Ticket row lives on (status='promoted'); dismissed/duplicate
+         tickets resurface the same way. Without this a resolved ticket is
+         indistinguishable from live work sharing its title. Open tickets are
+         the unmarked default, matching the Inbox. {% endcomment %}
+      <span class="ticket-status ticket-status--{{ r.status }}">{{ r.status_display }}</span>
+    {% endif %}
     <span class="cmdk-result-kind">{{ r.kind }}</span>
   </a>
 {% empty %}

@@ -15,6 +15,14 @@ _LIMIT = 8
 def _row(org, obj, requested_ref=""):
     is_slice = isinstance(obj, Slice)
     ref = ref_for(obj)
+    # promote_ticket() copies the ticket's title onto its new Slice verbatim,
+    # and the Ticket row itself lives on afterward (status='promoted') — so a
+    # title search can surface both, with identical titles and (since promote
+    # also hands over the number) identical refs. dismissed/duplicate tickets
+    # resurface the same way. Nothing about a bare title/ref distinguishes a
+    # dead-ended Ticket from live work, so the row itself has to say so. An
+    # open Ticket needs no marker: open is the unmarked default, same as Inbox.
+    resolved = (not is_slice) and obj.status in Ticket.RESOLVED_STATUSES
     return {
         "ref": ref,
         "title": obj.title,
@@ -25,6 +33,8 @@ def _row(org, obj, requested_ref=""):
         # Only set when the ref you typed is not the ref you landed on — i.e. an
         # absorbed ticket, whose work lives under another slice's number.
         "absorbed_from": requested_ref if requested_ref and requested_ref != ref else "",
+        "status": obj.status if resolved else "",
+        "status_display": obj.get_status_display() if resolved else "",
     }
 
 
