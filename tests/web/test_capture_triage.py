@@ -258,9 +258,9 @@ def test_ticket_modal_renders_body_and_actions(client_local, org):
     assert "<h2>Details</h2>" in body                      # markdown rendered
     assert "buttons misaligned" in body
     assert f"/tickets/{t.id}/edit" in body                 # title/body editable
-    assert f"/tickets/{t.id}/promote" in body
+    assert f"/tickets/{t.id}/triage" in body
     assert f"/tickets/{t.id}/dismiss" in body
-    assert "Backend" in body                               # area choices for promote
+    assert "Backend" in body                               # area choices for triage
 
 @pytest.mark.django_db
 def test_ticket_modal_deep_link_opens_from_the_inbox_url(client_local, org):
@@ -304,8 +304,12 @@ def test_promoted_ticket_modal_reads_status_off_the_slice(client_local, org):
     s = promote_ticket(t)
     set_slice_status(s, "building")
     body = client_local.get(f"{p}/tickets/{t.id}/").content.decode()
-    assert "Promoted → Backend · building" in body        # derived, never stored
+    # The destination line reads area and status off the slice; "Promoted" is
+    # the ticket's own status and lives in the meta line above it.
+    assert "Backend · building" in body                   # derived, never stored
+    assert "detail-meta-dest" in body
     assert f"/tickets/{t.id}/promote" not in body         # no re-promote affordance
+    assert f"/tickets/{t.id}/triage" not in body
 
 @pytest.mark.django_db
 def test_ticket_actions_close_the_modal(client_local, org):
@@ -445,7 +449,9 @@ def test_slice_options_always_offer_a_new_slice(client_local, org):
 
 
 @pytest.mark.django_db
-def test_merge_control_only_offered_on_open_tickets(client_local, org):
+def test_triage_control_only_offered_on_open_tickets(client_local, org):
+    """A resolved ticket has already answered "are we doing this?", so the row
+    that asks where it goes has nothing left to decide."""
     from tuckit.core.services.tickets import promote_ticket
     p = f"/{org.slug}"
     area = create_area(org, "Backend")
@@ -453,8 +459,8 @@ def test_merge_control_only_offered_on_open_tickets(client_local, org):
     promoted_t = create_ticket(org, "Already promoted", area=area)
     promote_ticket(promoted_t)
 
-    assert "Merge into" in client_local.get(f"{p}/tickets/{open_t.id}/").content.decode()
-    assert "Merge into" not in client_local.get(f"{p}/tickets/{promoted_t.id}/").content.decode()
+    assert "triage-row" in client_local.get(f"{p}/tickets/{open_t.id}/").content.decode()
+    assert "triage-row" not in client_local.get(f"{p}/tickets/{promoted_t.id}/").content.decode()
 
 
 # --- release: undo a merge from the modal ---
@@ -503,7 +509,7 @@ def test_releasing_the_origin_over_http_is_refused(client_local, org):
 
 
 @pytest.mark.django_db
-def test_merge_area_select_declares_its_own_hx_swap(client_local, org):
+def test_triage_area_select_declares_its_own_hx_swap(client_local, org):
     """htmx inherits hx-swap from ancestors, and this select lives inside a form
     carrying hx-swap="none" for its own submit. Without an explicit swap the
     options request fires, returns 200, and is silently discarded — the select
@@ -512,7 +518,7 @@ def test_merge_area_select_declares_its_own_hx_swap(client_local, org):
     t = create_ticket(org, "Open one", area=create_area(org, "Backend"))
     body = client_local.get(f"/{org.slug}/tickets/{t.id}/").content.decode()
 
-    start = body.index('name="merge_area_id"')
+    start = body.index('name="area_id"')
     select_tag = body[start:body.index(">", start)]
     assert 'hx-swap="innerHTML"' in select_tag
 

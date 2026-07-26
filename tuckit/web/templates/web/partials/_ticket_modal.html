@@ -4,13 +4,17 @@
   writable by a human. Centered rather than a side panel on purpose: a Ticket is
   a decision ("are we doing this?"), so it wants focus, while a Slice is work you
   keep open beside the board. Title and body autosave on blur.
+
+  The facts sit on ONE line under the title, GitHub-style, rather than in a
+  Notion-style props table. A Ticket has three of them and none are editable, so
+  a table would spend ~100px of the first screen — the height the body needs,
+  since the body IS what the reader is judging. The Slice modal does use a props
+  table and should: its properties are editable and there are seven.
 {% endcomment %}
 <div class="ticket-card detail-card" x-data="{editTitle:false, editBody:false}"
      role="dialog" aria-modal="true" aria-labelledby="detail-title" data-url-param="ticket">
   <div class="ticket-card-head">
     {% ref_of ticket copy=True %}
-    <span class="source-badge{% if ticket.source == 'agent' %} is-agent{% endif %}">{% if ticket.source == 'agent' %}agent{% else %}you{% endif %}</span>
-    <span class="ticket-status ticket-status--{{ ticket.status }}">{{ ticket.get_status_display }}</span>
     <button class="ghost ticket-close" type="button" aria-label="Close"
             hx-on:click="closeDetail()">{% icon "close" "icon" %}</button>
   </div>
@@ -25,6 +29,36 @@
            x-on:keydown.escape.stop="editTitle=false; $el.value = $el.defaultValue">
   </div>
 
+  {% comment %}
+    The status and source badges used to sit in the head and the capture line at
+    the very bottom, with the whole body between them — the same kind of fact,
+    split across the card so neither half could be read at a glance.
+  {% endcomment %}
+  <div class="detail-meta meta">
+    <span class="status-dot status-dot--{{ ticket.status }}"></span>
+    <span>{{ ticket.get_status_display }}</span>
+    <span aria-hidden="true">·</span>
+    <span class="detail-meta-who">captured by {% if ticket.source == 'agent' %}agent{% elif ticket.created_by %}{{ ticket.created_by.user.email }}{% else %}unknown{% endif %}</span>
+    <span aria-hidden="true">·</span>
+    <span>{{ ticket.created_at|timesince }} ago</span>
+    {% if ticket.resolved_at %}
+      <span aria-hidden="true">·</span>
+      <span>resolved {{ ticket.resolved_at|timesince }} ago</span>
+    {% endif %}
+  </div>
+
+  {% if promoted_slice %}
+    {% comment %}
+      Delivery is never stored on the ticket — it is read off the slice, so this
+      cannot go stale the way a mirrored copy would.
+    {% endcomment %}
+    <a class="detail-meta-dest" href="{% wurl 'web:slice' promoted_slice.id %}">
+      {% include "web/partials/_status_dot.html" with status=promoted_slice.status %}
+      <span>{{ promoted_slice.area.name }} · {{ promoted_slice.status }}</span>
+      <span class="row-arrow" aria-hidden="true">{% icon "chevron" "icon" %}</span>
+    </a>
+  {% endif %}
+
   <div class="ticket-body">
     <button type="button" class="spec edit-surface" x-show="!editBody" aria-label="Edit note"
          x-on:click="editBody=true; $nextTick(() => { focusEnd($refs.b); autosize($refs.b) })">
@@ -38,77 +72,81 @@
               hx-target="closest .ticket-card" hx-swap="outerHTML">{{ ticket.body }}</textarea>
   </div>
 
-  {% if promoted_slice %}
+  {% if ticket.status == "open" %}
     {% comment %}
-      Delivery is never stored on the ticket — it is read off the slice, so this
-      cannot go stale the way a mirrored copy would.
+      One row, one question: where does this go? The slice select defaults to
+      "New slice", so promoting costs zero interactions with it, and picking an
+      existing slice turns the same submit into a merge. The server branches on
+      slice_id — see ticket_triage().
+
+      Alpine drives the button LABEL and the hint, nothing else. Every htmx
+      attribute here is static on purpose: htmx attributes are evaluated outside
+      Alpine's scope, so a :hx-post would post to the wrong place without ever
+      failing visibly.
     {% endcomment %}
-    <a class="ticket-slice-link" href="{% wurl 'web:slice' promoted_slice.id %}">
-      {% include "web/partials/_status_dot.html" with status=promoted_slice.status %}
-      <span>Promoted → {{ promoted_slice.area.name }} · {{ promoted_slice.status }}</span>
-      <span class="row-arrow" aria-hidden="true">{% icon "chevron" "icon" %}</span>
-    </a>
-    {% if not is_origin %}
+    <form class="triage-row" x-data="{dest: 'new'}"
+          hx-post="{% wurl 'web:ticket_triage' ticket.id %}" hx-swap="none"
+          hx-disabled-elt="find button[type='submit']">
+      <span class="triage-label">Send to</span>
+      {% comment %}
+        hx-swap is declared here on purpose. htmx INHERITS attributes from
+        ancestors, and this select sits inside a form carrying hx-swap="none"
+        for its own submit — without an explicit swap the options request fires,
+        returns 200, and is then thrown away.
+      {% endcomment %}
+      <select name="area_id" class="triage-select" required aria-label="Area"
+              hx-get="{% wurl 'web:ticket_slice_options' %}"
+              hx-target="#triage-slice-{{ ticket.id }}"
+              hx-swap="innerHTML" hx-trigger="change">
+        <option value="" selected disabled>Choose area</option>
+        {% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+      </select>
+      <select id="triage-slice-{{ ticket.id }}" name="slice_id" class="triage-select"
+              aria-label="Destination slice" x-model="dest">
+        {% include "web/partials/_slice_options.html" %}
+      </select>
+      <button class="button button-small" type="submit"
+              x-text="dest === 'new' ? 'Promote' : 'Merge'">Promote</button>
+      {% comment %}
+        A hint, not an hx-confirm. htmx inherits a confirm from the form onto
+        every button inside it, and the wording has to follow the select — which
+        an htmx attribute cannot read.
+      {% endcomment %}
+      <p class="triage-hint" x-show="dest === 'new'">Promoting ends triage — this can't be undone.</p>
+      <p class="triage-hint" x-show="dest !== 'new'" x-cloak>Merges can be released back to the Inbox.</p>
+    </form>
+  {% endif %}
+
+  <div class="action-bar">
+    {% if ticket.status == "open" %}
+      <button class="ghost" type="button"
+              hx-post="{% wurl 'web:ticket_dismiss' ticket.id %}" hx-swap="none"
+              hx-disabled-elt="this">Dismiss</button>
+    {% elif promoted_slice %}
       {% comment %}
         Absorbed tickets only. The origin gave the slice its ref, so
         release_ticket() refuses it and the control would be a dead end —
         undoing a promote means dropping the slice.
       {% endcomment %}
-      <div class="ticket-actions">
+      {% if not is_origin %}
         <button class="ghost" type="button"
-                hx-post="{% wurl 'web:ticket_release' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">Release to Inbox</button>
-      </div>
-    {% endif %}
-  {% elif ticket.status == "open" %}
-    <form class="ticket-actions" hx-post="{% wurl 'web:ticket_promote' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">
-      <label class="ticket-field">Promote to
-        <select name="area_id" class="ticket-select" required>
-          <option value="" selected disabled>Choose area</option>
-          {% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
-        </select>
-      </label>
-      <button class="button button-small" type="submit">Promote</button>
+                hx-post="{% wurl 'web:ticket_release' ticket.id %}" hx-swap="none"
+                hx-disabled-elt="this">Release to Inbox</button>
+      {% endif %}
+    {% else %}
       <button class="ghost" type="button"
-              hx-post="{% wurl 'web:ticket_dismiss' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">Dismiss</button>
-    </form>
+              hx-post="{% wurl 'web:ticket_reopen' ticket.id %}" hx-swap="none"
+              hx-disabled-elt="this">Restore to Inbox</button>
+    {% endif %}
+    <span class="action-spacer"></span>
     {% comment %}
-      Merge folds this capture into work already planned instead of minting a
-      new slice. The slice select is scoped by area rather than being a search
-      box: it mirrors the Promote row above, and an org-wide slice dropdown
-      would be unusable within months.
-
-      The area field is `merge_area_id`, not `area_id` — htmx serializes the
-      whole form on hx-get, so reusing the Promote form's name would collide.
+      detail_push_url, not wurl: web:ticket returns this partial, so its own URL
+      pasted to someone hands them bare HTML. This gives the list page the reader
+      is on plus ?ticket=<id>, which reopens the same modal. The path comes from
+      the tag; JS only prefixes the origin.
     {% endcomment %}
-    <form class="ticket-actions" hx-post="{% wurl 'web:ticket_merge' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">
-      <label class="ticket-field">Merge into
-        {% comment %}
-          hx-swap is declared here on purpose. htmx INHERITS attributes from
-          ancestors, and this select sits inside a form carrying hx-swap="none"
-          for its own submit — without an explicit swap the options request
-          fires, returns 200, and is then thrown away.
-        {% endcomment %}
-        <select name="merge_area_id" class="ticket-select"
-                hx-get="{% wurl 'web:ticket_slice_options' %}"
-                hx-target="#merge-slice-{{ ticket.id }}"
-                hx-swap="innerHTML" hx-trigger="change">
-          <option value="" selected disabled>Choose area</option>
-          {% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
-        </select>
-      </label>
-      <select id="merge-slice-{{ ticket.id }}" name="slice_id" class="ticket-select" required>
-        <option value="" selected disabled>Choose slice</option>
-      </select>
-      <button class="button button-small" type="submit">Merge</button>
-    </form>
-  {% else %}
-    <div class="ticket-actions">
-      <button class="button button-small" type="button"
-              hx-post="{% wurl 'web:ticket_reopen' ticket.id %}" hx-swap="none" hx-disabled-elt="find button[type='submit'], this">Restore to Inbox</button>
-    </div>
-  {% endif %}
-
-  <div class="ticket-meta meta">
-    Captured {{ ticket.created_at|timesince }} ago{% if ticket.created_by %} by {{ ticket.created_by.user.email }}{% endif %}{% if ticket.resolved_at %} · resolved {{ ticket.resolved_at|timesince }} ago{% endif %}
+    <button class="ghost" type="button" x-data="{copied:false}"
+            x-on:click="copyText(window.location.origin + '{% detail_push_url 'ticket' ticket.id %}').then(ok => { copied = ok; setTimeout(()=>copied=false,1500) })"
+            x-text="copied ? 'Copied' : 'Copy link'">Copy link</button>
   </div>
 </div>
