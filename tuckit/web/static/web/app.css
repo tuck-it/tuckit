@@ -778,7 +778,7 @@ body { padding: 0; }
   border: none;
   color: var(--text);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--text-md);
 }
 
 /* Full capture modal — quiet optional authoring block beneath the title. */
@@ -965,7 +965,7 @@ body { padding: 0; }
   justify-content: flex-end;
   gap: 8px;
   cursor: text;
-  font-size: 15px;
+  font-size: var(--text-md);
   margin: -7px -10px;
   padding: 7px 10px;
   border: 1px solid transparent;
@@ -978,7 +978,7 @@ body { padding: 0; }
 /* Descriptive helper text (not an empty state): quiet but readable, sans. */
 .hint { color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
 /* A real value the user owns (email, etc.) — full ink, readable size. */
-.settings-value { font-size: 15px; color: var(--ink); }
+.settings-value { font-size: var(--text-md); color: var(--ink); }
 
 .title-edit { background: none; border: none; border-bottom: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 18px; padding: 2px 0; width: 320px; max-width: 100%; }
 .title-edit:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-bottom-color: var(--blue); }
@@ -1176,7 +1176,7 @@ body.modal-open { overflow: hidden; }
    so it stays small while slices and tickets go to .detail-card. */
 .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; width: 360px; max-width: 90vw; }
 .modal-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: var(--space-14); }
-.modal-card-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+.modal-card-title { font-size: var(--text-md); font-weight: 600; color: var(--ink); }
 .modal-card-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .modal-card-row:first-of-type { border-top: 0; padding-top: 0; }
 
@@ -1665,7 +1665,7 @@ body.modal-open { overflow: hidden; }
   overflow: hidden;
 }
 .cmdk-input {
-  width: 100%; font: inherit; font-size: 15px;
+  width: 100%; font: inherit; font-size: var(--text-md);
   padding: var(--space-14) 16px; border: none; border-bottom: 1px solid var(--line);
   background: none; color: var(--ink);
 }
@@ -2156,14 +2156,14 @@ html.sidebar-collapsed .side-resize { display: none; }
 .orghome { padding: var(--space-24); }
 .orghome-bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 20px; }
 .orghome-id { display: flex; align-items: center; gap: 10px; }
-.orghome-name { font-size: 22px; font-weight: 650; margin: 0; }
+.orghome-name { font-size: var(--text-h2); font-weight: 650; margin: 0; }
 .orghome-meta { color: var(--muted); font-size: 13px; }
 .orghome-bar-r { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
 /* --- Account overview: org cards --- */
 .org-card { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
 .org-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 15px; background: var(--paper-raised); border-bottom: 1px solid var(--line); }
-.org-card-name { font-weight: 650; font-size: 15px; color: var(--ink); text-decoration: none; }
+.org-card-name { font-weight: 650; font-size: var(--text-md); color: var(--ink); text-decoration: none; }
 .org-card-name:hover { color: var(--blue); }
 .org-card-open { margin-left: auto; color: var(--blue); font-size: 12px; text-decoration: none; }
 .org-card-foot { padding: 8px 15px; border-top: 1px dashed var(--line); }

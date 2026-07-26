@@ -161,3 +161,30 @@ def test_space_14_18_24_are_actually_used_in_app_css():
     assert "var(--space-14)" in css
     assert "var(--space-18)" in css
     assert "var(--space-24)" in css
+
+
+def test_text_hero_token_exists_and_auth_panel_tag_uses_it():
+    product_css = (STATIC / "tokens.product.css").read_text(encoding="utf-8")
+    assert "--text-hero: 24px" in product_css
+
+    auth_css = (STATIC / "auth.css").read_text(encoding="utf-8")
+    assert "font-size: var(--text-hero);" in auth_css
+    assert "font-size: 24px" not in auth_css
+    assert ".auth-panel-tag { font-size: var(--text-stat); }" in auth_css
+
+
+def test_fifteen_px_font_sizes_snapped_to_text_md():
+    import re
+
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    assert "font-size: 15px" not in css
+    for selector in (".capture-input", ".settings-name-display",
+                      ".settings-value", ".modal-card-title",
+                      ".cmdk-input", ".org-card-name"):
+        assert re.search(re.escape(selector) + r"[^{]*\{[^}]*var\(--text-md\)", css), \
+            f"{selector} missing var(--text-md)"
+
+
+def test_orghome_name_uses_text_h2():
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    assert ".orghome-name { font-size: var(--text-h2); font-weight: 650; margin: 0; }" in css

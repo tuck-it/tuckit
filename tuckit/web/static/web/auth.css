@@ -193,7 +193,7 @@ a.auth-panel-brand { text-decoration: none; display: inline-block; }
 a.auth-panel-brand:hover { opacity: 0.85; }
 .auth-panel-tag {
   margin-top: auto;
-  font-size: 24px;
+  font-size: var(--text-hero);
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.22;
@@ -234,7 +234,7 @@ a.auth-panel-brand:hover { opacity: 0.85; }
 @media (max-width: 640px) {
   .auth-split { grid-template-columns: 1fr; }
   .auth-panel { min-height: 140px; }
-  .auth-panel-tag { font-size: 20px; }
+  .auth-panel-tag { font-size: var(--text-stat); }
 }
 
 /* --- Social sign-in --- */
