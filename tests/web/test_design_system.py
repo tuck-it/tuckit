@@ -151,3 +151,13 @@ def test_pill_radius_token_exists_and_is_used_everywhere():
     assert re.search(r"\.area-chip\s*\{[^}]*var\(--radius-pill\)", app_css)
     assert re.search(r"\.status-pill\s*\{[^}]*var\(--radius-pill\)", app_css)
     assert app_css.count("var(--radius-pill)") >= 3
+
+
+def test_space_14_18_24_are_actually_used_in_app_css():
+    """--space-14/18/24 were defined in the prior slice but had zero real
+    usages — this slice assigns them. A regression back to zero usage means
+    someone reverted the assignment without reverting the token definition."""
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    assert "var(--space-14)" in css
+    assert "var(--space-18)" in css
+    assert "var(--space-24)" in css

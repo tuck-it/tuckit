@@ -25,7 +25,7 @@ body { padding: 0; }
   overflow-y: auto;            /* sidebar scrolls independently when tall */
   background: var(--paper-deep);
   border-right: 1px solid var(--line);
-  padding: 14px 10px;
+  padding: var(--space-14) 10px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -548,7 +548,7 @@ body { padding: 0; }
 }
 
 /* "+ New slice" opens the area-scoped create modal (reuses .capture-modal). */
-.slice-add { margin: 0 0 18px; }
+.slice-add { margin: 0 0 var(--space-18); }
 .slice-new-btn { display: inline-flex; align-items: center; }
 .slice-add-toggle {
   background: none; border: none; color: var(--ink-faint);
@@ -567,7 +567,7 @@ body { padding: 0; }
    the Area/Status selects are quiet until the row is hovered/focused. */
 .ticket-row {
   line-height: 1.5;
-  padding: 9px 14px;
+  padding: 9px var(--space-14);
   display: flex;
   align-items: center;
   gap: 11px;
@@ -754,7 +754,7 @@ body { padding: 0; }
   text-align: left;
   overflow: hidden;
 }
-.ac-head { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; }
+.ac-head { display: flex; gap: 12px; align-items: flex-start; padding: 16px var(--space-18); }
 .ac-head-icon {
   display: inline-grid; place-items: center; flex: none;
   width: 32px; height: 32px;
@@ -766,11 +766,11 @@ body { padding: 0; }
 .ac-sub { margin: 3px 0 0; color: var(--muted); font-size: var(--text-sm); line-height: 1.45; }
 .ac-body {
   display: flex; flex-direction: column; gap: 16px;
-  padding: 16px 18px;
+  padding: 16px var(--space-18);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
-.ac-foot { padding: 12px 18px; }
+.ac-foot { padding: 12px var(--space-18); }
 
 .capture-input {
   width: 100%;
@@ -834,7 +834,7 @@ body { padding: 0; }
 .settings-section {
   gap: 10px;
   margin-bottom: 10px;
-  padding: 14px 18px;
+  padding: var(--space-14) var(--space-18);
   background: var(--paper-raised);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -914,7 +914,7 @@ body { padding: 0; }
 .shipped-board-prefs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .shipped-board-prefs input { width: 76px; padding: 7px 10px; }
 @media (max-width: 560px) {
-  .settings-section { padding: 14px 16px; }
+  .settings-section { padding: var(--space-14) 16px; }
   .token-add { flex-wrap: wrap; }
   .token-add input { min-width: min(100%, 220px); }
   .settings-row { flex-wrap: wrap; gap: 10px; }
@@ -953,7 +953,7 @@ body { padding: 0; }
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
-  margin: 18px 0 2px;
+  margin: var(--space-18) 0 2px;
 }
 .settings-section > .settings-subhead:first-of-type { margin-top: 4px; }
 
@@ -1068,7 +1068,7 @@ body { padding: 0; }
 .page-count { color: var(--ink-faint); font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
 
 .area-desc {
-  margin: -14px 0 22px;
+  margin: calc(-1 * var(--space-14)) 0 22px;
   color: var(--ink-soft);
   font-size: 14px;
   line-height: 1.5;
@@ -1175,7 +1175,7 @@ body.modal-open { overflow: hidden; }
 /* Member/invite "Manage" — an action dialog for one row, not a detail view,
    so it stays small while slices and tickets go to .detail-card. */
 .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; width: 360px; max-width: 90vw; }
-.modal-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.modal-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: var(--space-14); }
 .modal-card-title { font-size: 15px; font-weight: 600; color: var(--ink); }
 .modal-card-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .modal-card-row:first-of-type { border-top: 0; padding-top: 0; }
@@ -1304,7 +1304,7 @@ body.modal-open { overflow: hidden; }
 /* Expanded bite detail: an indented left-rule, not another nested box. */
 .plan-card .bite-body {
   background: none; border: none; border-left: 2px solid var(--line);
-  border-radius: 0; margin: 4px 0 8px 24px; padding: 4px 0 4px 12px;
+  border-radius: 0; margin: 4px 0 8px var(--space-24); padding: 4px 0 4px 12px;
 }
 
 /* Add-plan form — title input + inline submit. */
@@ -1349,7 +1349,7 @@ body.modal-open { overflow: hidden; }
 .bite-chev .icon-chev { transition: transform 0.15s; }
 .bite-chev--open .icon-chev { transform: rotate(90deg); }
 
-.bite-body { margin: 4px 0 8px 24px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-small); }
+.bite-body { margin: 4px 0 8px var(--space-24); padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-small); }
 .bite-body-src { font-size: 11px; margin-bottom: 8px; }
 .bite-body-md :is(p, ul, ol) { margin: 0 0 6px; }
 .bite--done .bite-title { color: var(--ink-faint); text-decoration: line-through; }
@@ -1448,7 +1448,7 @@ body.modal-open { overflow: hidden; }
   gap: 8px;
   /* Lives inside a .list-card now, so it carries the panel's own inner padding
      rather than floating as bare text under the label. */
-  padding: 14px 16px;
+  padding: var(--space-14) 16px;
   color: var(--ink-faint);
   /* A quiet note, not a headline — sits below the 16px content tier and above
      the 11px header tier, so it stops out-shouting the NOW/NEXT labels. */
@@ -1666,7 +1666,7 @@ body.modal-open { overflow: hidden; }
 }
 .cmdk-input {
   width: 100%; font: inherit; font-size: 15px;
-  padding: 14px 16px; border: none; border-bottom: 1px solid var(--line);
+  padding: var(--space-14) 16px; border: none; border-bottom: 1px solid var(--line);
   background: none; color: var(--ink);
 }
 .cmdk-input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; outline-offset: -3px; }
@@ -1700,7 +1700,7 @@ body.modal-open { overflow: hidden; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  padding: 8px 14px;
+  padding: 8px var(--space-14);
   color: var(--text);
   box-shadow: 0 2px 8px var(--shadow);
   /* Above every overlay (60) and the capture dialog (70): an error toast
@@ -1869,14 +1869,14 @@ body.modal-open { overflow: hidden; }
 
 /* First-run "Get started" checklist card (Home). */
 .get-started{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
-  margin-bottom:24px;overflow:hidden}
-.gs-head{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 18px 12px}
+  margin-bottom:var(--space-24);overflow:hidden}
+.gs-head{display:flex;align-items:flex-start;justify-content:space-between;padding:16px var(--space-18) 12px}
 .gs-title{margin:0;font-size:16px;font-weight:640;letter-spacing:-.01em}
 .gs-sub{margin:2px 0 0;font-size:13px;color:var(--muted)}
 .gs-dismiss{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
 .gs-dismiss:hover{color:var(--text)}
 .gs-list{margin:0;padding:0;list-style:none}
-.gs-list li{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--line);font-size:14px}
+.gs-list li{display:flex;align-items:center;gap:12px;padding:12px var(--space-18);border-top:1px solid var(--line);font-size:14px}
 .gs-box{width:19px;height:19px;border-radius:var(--radius-small);border:1.6px solid var(--line-strong);
   flex:none;display:grid;place-items:center;font-size:11px;color:transparent}
 .gs-list li.done .gs-box{background:var(--good);border-color:var(--good);color:var(--paper-raised)}
@@ -2121,11 +2121,11 @@ html.sidebar-collapsed .side-resize { display: none; }
 
 /* Get started — expandable concept steps (four-step onboarding checklist) */
 .gs-step { display: block; padding: 0; }
-.gs-step > details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 12px 18px; }
+.gs-step > details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 12px var(--space-18); }
 .gs-step > details > summary::-webkit-details-marker { display: none; }
 .gs-step > details[open] > summary { padding-bottom: 4px; }
 .gs-step.gated { opacity: .55; }
-.gs-card { padding: 0 18px 14px 42px; display: grid; gap: 8px; font-size: 13px; }
+.gs-card { padding: 0 var(--space-18) var(--space-14) 42px; display: grid; gap: 8px; font-size: 13px; }
 .gs-def { margin: 0; color: var(--text); }
 .gs-eg { margin: 0; color: var(--muted); }
 .gs-gate { margin: 0; color: var(--muted); font-style: italic; }
@@ -2153,7 +2153,7 @@ html.sidebar-collapsed .side-resize { display: none; }
 .gs-done-note { margin: 0; color: var(--good); font-size: 13px; }
 
 /* --- Org home (/<org>/) --- */
-.orghome { padding: 24px; }
+.orghome { padding: var(--space-24); }
 .orghome-bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 20px; }
 .orghome-id { display: flex; align-items: center; gap: 10px; }
 .orghome-name { font-size: 22px; font-weight: 650; margin: 0; }
@@ -2172,13 +2172,13 @@ html.sidebar-collapsed .side-resize { display: none; }
 .ob-widget { position: fixed; right: 20px; bottom: 20px; z-index: 60; width: 320px;
   max-width: calc(100vw - 40px); border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
-.ob-toggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 14px;
+.ob-toggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px var(--space-14);
   background: none; border: 0; cursor: pointer; color: var(--text); font: inherit; }
 .ob-title { font-weight: 600; }
 .ob-count { color: var(--muted); font-size: 13px; }
 .ob-chev { margin-left: auto; color: var(--muted); transform: rotate(90deg); transition: transform .15s var(--ease); }
 .ob-chev--up { transform: rotate(-90deg); }
-.ob-body { padding: 0 14px 12px; border-top: 1px solid var(--line); }
+.ob-body { padding: 0 var(--space-14) 12px; border-top: 1px solid var(--line); }
 .ob-steps { list-style: none; margin: 0; padding: 8px 0 0; display: grid; gap: 6px; }
 .ob-step { padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-small);
   background: var(--paper); }
@@ -2214,7 +2214,7 @@ html.sidebar-collapsed .side-resize { display: none; }
 .areas-empty-form input { flex: 1; max-width: 220px; padding: 8px 10px; border: 1px solid var(--line-strong);
   border-radius: var(--radius-small); background: var(--paper); color: var(--text); font: inherit; }
 .areas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.area-card { display: block; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius);
+.area-card { display: block; padding: var(--space-14); border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--surface); color: var(--text); text-decoration: none; }
 .area-card:hover { border-color: var(--line-strong); }
 .area-card-name { font-weight: 600; margin-bottom: 4px; }
@@ -2223,11 +2223,11 @@ html.sidebar-collapsed .side-resize { display: none; }
 .area-card-dot { display: inline-flex; align-items: center; gap: 4px; }
 
 /* --- Settings mode: swapped sidebar nav --- */
-.settings-nav { display: flex; flex-direction: column; gap: 1px; padding: 14px 10px; height: 100%; overflow: auto; }
+.settings-nav { display: flex; flex-direction: column; gap: 1px; padding: var(--space-14) 10px; height: 100%; overflow: auto; }
 .settings-back { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); padding: 6px 8px; text-decoration: none; margin-bottom: 10px; }
 .settings-back:hover { color: var(--blue); }
 .settings-back-chev { transform: scaleX(-1); }
-.settings-grp { display: flex; align-items: center; gap: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; margin: 14px 8px 4px; }
+.settings-grp { display: flex; align-items: center; gap: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; margin: var(--space-14) 8px 4px; }
 .settings-scope { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--ink-soft); border: 1px solid var(--line-strong); border-radius: var(--radius-small); padding: 0 6px; font-weight: 500; }
 .settings-item { font-size: 13px; color: var(--ink-soft); padding: 7px 10px; border-radius: var(--radius-small); text-decoration: none; }
 .settings-item:hover { background: var(--paper-raised); }
