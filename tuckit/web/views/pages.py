@@ -59,7 +59,7 @@ def roadmap(request):
         if status == "dropped":
             filter_slices = list(
                 Slice.objects.filter(area__org=org, status="dropped")
-                .select_related("area").prefetch_related("tags")
+                .select_related("area", "org").prefetch_related("tags")
                 .order_by("area__name", "rank")
             )
         else:

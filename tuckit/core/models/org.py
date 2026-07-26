@@ -32,11 +32,34 @@ class Org(models.Model):
         # is called directly in bootstrap, migrations and many tests; a blank
         # key would collide with every other blank one on the unique index.
         if self._state.adding and not self.key:
+            from django.db import IntegrityError, transaction
+
             from tuckit.core.services.keys import derive_key, unique_key
 
-            self.key = unique_key(
-                derive_key(self.slug), Org.objects.values_list("key", flat=True)
-            )
+            base = derive_key(self.slug)
+            attempts = 5
+            for attempt in range(attempts):
+                self.key = unique_key(base, Org.objects.values_list("key", flat=True))
+                try:
+                    # atomic() confines a failed INSERT to its own savepoint —
+                    # the same reasoning set_org_key uses: on Postgres an
+                    # uncaught IntegrityError poisons the whole surrounding
+                    # transaction (e.g. create_org()'s), not just this INSERT.
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    # unique_key()'s read of "taken" keys and this INSERT are
+                    # not atomic, so two concurrent signups can both compute
+                    # the same free-looking key (e.g. "acme-corp" and
+                    # "acme-inc" both deriving "AC") and only one INSERT wins.
+                    # Re-derive against fresh state and retry rather than
+                    # letting the race surface as a 500; bounded so a
+                    # genuinely broken unique index still fails loudly
+                    # instead of looping forever.
+                    if attempt == attempts - 1:
+                        raise
+            return  # unreachable: the loop always returns or raises above
         super().save(*args, **kwargs)
 
     def __str__(self):

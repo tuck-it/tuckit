@@ -52,6 +52,15 @@ def test_backfills_keys_and_rewrites_activity_refs():
         org=a, actor="human", verb="status_changed", target_type="slice",
         target_id=3, target_label="s", to_value="shipped",
     )
+    # A ref-SHAPED to_value on a non-'promoted' verb must also survive: only
+    # promote_ticket/absorb_ticket ever write a real ref into to_value. This
+    # is what an Area named "<org-slug>-<digits>" would produce on a 'moved'
+    # event — absurd, but the pattern alone can't tell it apart from a real
+    # ref without the verb filter.
+    ActivityEvent.objects.create(
+        org=a, actor="human", verb="moved", target_type="slice",
+        target_id=4, target_label="s", to_value="tuckit-projects-99",
+    )
 
     new = _forward()
     Org = new.get_model("core", "Org")
@@ -61,6 +70,6 @@ def test_backfills_keys_and_rewrites_activity_refs():
     assert Org.objects.get(slug="tuckit-plugins").key == "TP2"
 
     values = set(ActivityEvent.objects.values_list("to_value", flat=True))
-    assert values == {"TP-47", "TP2-3", "shipped"}
+    assert values == {"TP-47", "TP2-3", "shipped", "tuckit-projects-99"}
 
     _leave_migrated()

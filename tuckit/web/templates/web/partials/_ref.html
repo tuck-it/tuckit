@@ -9,8 +9,7 @@
 {% if copy %}
 <button type="button" class="ref ref--copy" x-data="{copied: false}"
         title="Copy {{ ref }}" aria-label="Copy ref {{ ref }}"
-        x-on:click.stop.prevent="navigator.clipboard.writeText('{{ ref|escapejs }}');
-                                 copied = true; setTimeout(() => copied = false, 1200)"
+        x-on:click.stop.prevent="copyText('{{ ref|escapejs }}').then(ok => { copied = ok; setTimeout(() => copied = false, 1200) })"
         x-text="copied ? 'Copied' : '{{ ref|escapejs }}'">{{ ref }}</button>
 {% else %}
 <span class="ref{% if muted %} ref--muted{% endif %}">{{ ref }}</span>

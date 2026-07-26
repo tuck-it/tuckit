@@ -12,7 +12,9 @@ from tuckit.core.services.validation import validate_choice
 
 
 def list_slices(area: Area, status: str | None = None, tag: str | None = None) -> QuerySet:
-    qs = Slice.objects.filter(area=area)
+    # select_related("org") so {% ref_of %} on every row doesn't fire its own
+    # SELECT against core_org — this feeds the area board's flat-list views.
+    qs = Slice.objects.filter(area=area).select_related("org")
     if status:
         qs = qs.filter(status=status)
     if tag:
@@ -28,7 +30,7 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
     # queries per row. Must precede the .distinct() and the slice below —
     # annotating an already-sliced queryset raises.
     qs = annotate_stage_counts(
-        Slice.objects.filter(area__org=org).select_related("area", "assignee__user")
+        Slice.objects.filter(area__org=org).select_related("area", "assignee__user", "org")
     )
     if area is not None:
         qs = qs.filter(area=area)

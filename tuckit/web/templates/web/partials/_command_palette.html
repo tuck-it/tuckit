@@ -34,7 +34,7 @@
       <a class="cmdk-row" role="option" data-static data-label="Settings" href="{% url 'web:settings_root' current_org.slug %}">{% icon "settings" %}<span>Settings</span></a>
       <button class="cmdk-row" role="option" type="button" data-static data-label="Capture new item"
               x-on:click="pal = false; cap = true">{% icon "plus" %}<span>Capture new item</span></button>
-      <div id="cmdk-results"></div>
+      <div id="cmdk-results" role="presentation"></div>
     </div>
   </div>
 </div>

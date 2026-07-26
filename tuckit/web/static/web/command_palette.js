@@ -36,6 +36,12 @@ function commandPalette() {
       this.opener = document.activeElement;
       this.q = "";
       this.active = 0;
+      /* x-model="q" assigning "" above dispatches no input event, so the
+         hx-trigger="input changed" on the search box never fires and the
+         previous query's server rows are never re-requested. Clear them
+         here rather than waiting on a request that isn't coming. */
+      var results = document.getElementById("cmdk-results");
+      if (results) results.innerHTML = "";
       this.$nextTick(function () {
         this.filter();
         this.$refs.search.focus();

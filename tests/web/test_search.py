@@ -3,7 +3,7 @@
 
 import pytest
 
-from tuckit.core.models import Org, OrgMember, User
+from tuckit.core.models import Org
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.refs import slice_ref, ticket_ref
 from tuckit.core.services.slices import create_slice

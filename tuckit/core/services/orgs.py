@@ -1,6 +1,8 @@
+import re
+
 from django.db import IntegrityError, transaction
 
-from tuckit.core.models import Org, OrgMember
+from tuckit.core.models import ActivityEvent, Org, OrgMember
 from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.slugs import RESERVED_ORG_SLUGS, validate_slug
 
@@ -72,14 +74,28 @@ def rename_org(org: Org, name: str, description: str | None = None) -> Org:
 
 def set_org_key(org: Org, raw: str) -> Org:
     """Change the org's ref prefix. Every displayed ref follows immediately —
-    refs are derived, not stored — which is the point and also why the settings
-    row warns that older refs stop resolving."""
+    refs are derived, not stored — which is the point, EXCEPT for
+    ActivityEvent.to_value: promote_ticket/absorb_ticket persist the rendered
+    ref string there (it's the only place a ref is ever written to a column),
+    which is exactly why migration 0042 exists. A key change re-creates that
+    same staleness for every org that has ever promoted a ticket, so this
+    rewrites it in place rather than leaving old-prefix refs frozen in
+    history and in the markdown get_slice/render_slice_markdown hands an
+    agent."""
     from tuckit.core.services.keys import validate_key
 
     key = validate_key(raw)
     if Org.objects.filter(key=key).exclude(pk=org.pk).exists():
         raise InvalidValue(f"'{key}' is already taken by another organization.")
+    old_key = org.key
     org.key = key
+    # Anchored on the OLD key so a plain status value ("shipped") or an Area
+    # literally named like a ref never matches — same shape migration 0042
+    # uses, restricted to verb="promoted" for the same reason Minor D adds
+    # that filter there: slices.py writes to_value=area.name on 'moved'
+    # events, and an Area named "<key>-<digits>" is a real (if absurd)
+    # possibility.
+    ref_pattern = re.compile(rf"^{re.escape(old_key)}-(\d+)$")
     try:
         # The pre-check above is what produces the friendly message in the
         # common case; it can't close the TOCTOU window between two admins of
@@ -90,6 +106,14 @@ def set_org_key(org: Org, raw: str) -> Org:
         # sqlite (used by the test suite) doesn't surface that class of bug.
         with transaction.atomic():
             org.save(update_fields=["key"])
+            events = ActivityEvent.objects.filter(
+                org=org, verb="promoted"
+            ).exclude(to_value="")
+            for ev in events:
+                m = ref_pattern.match(ev.to_value)
+                if m:
+                    ev.to_value = f"{key}-{m.group(1)}"
+                    ev.save(update_fields=["to_value"])
     except IntegrityError:
         raise InvalidValue(f"'{key}' is already taken by another organization.")
     return org
