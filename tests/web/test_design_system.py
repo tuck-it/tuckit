@@ -119,3 +119,15 @@ def test_app_css_uses_value_named_spacing_tokens_only():
     for match in re.finditer(r"--space-(\d+)\)", css):
         n = int(match.group(1))
         assert n in valid, f"app.css references retired/unknown --space-{n}"
+
+
+def test_title_typography_tokens_exist_and_base_css_uses_them():
+    product_css = (STATIC / "tokens.product.css").read_text(encoding="utf-8")
+    assert "--text-h1: 28px" in product_css
+    assert "--text-h2: 22px" in product_css
+
+    base_css = (STATIC / "base.css").read_text(encoding="utf-8")
+    assert "h1 { font-size: var(--text-h1); }" in base_css
+    assert "h2 { font-size: var(--text-h2); }" in base_css
+    assert "font-size: 28px" not in base_css
+    assert "font-size: 22px" not in base_css

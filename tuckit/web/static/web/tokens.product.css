@@ -70,6 +70,7 @@
   /* type scale */
   --text-xs: 11px; --text-sm: 12px; --text-base: 13px; --text-md: 14px;
   --text-lg: 16px; --text-title: 18px; --text-stat: 20px;
+  --text-h2: 22px; --text-h1: 28px;
 }
 
 @media (prefers-color-scheme: dark) {
