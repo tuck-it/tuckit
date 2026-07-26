@@ -452,3 +452,36 @@ def test_agent_switcher_panes_are_filled(client_local, org):
     assert "Instructions coming" not in body
     # every client pane shows the org-scoped MCP URL somewhere in its config
     assert body.count("/mcp") >= 4  # claude + cursor + codex + antigravity
+
+
+# --- org ref prefix (Task 4: editable Org.key in Settings) ---
+
+
+@pytest.mark.django_db
+def test_org_key_row_renders(client_local, org):
+    body = client_local.get(f"/{org.slug}/settings/general").content.decode()
+    assert "Ref prefix" in body
+    assert org.key in body
+
+
+@pytest.mark.django_db
+def test_org_key_can_be_changed(client_local, org):
+    resp = client_local.post(f"/{org.slug}/settings/key", {"key": "zz"})
+    assert resp.status_code == 200
+    org.refresh_from_db()
+    assert org.key == "ZZ"
+
+
+@pytest.mark.django_db
+def test_org_key_rejects_an_invalid_value(client_local, org):
+    resp = client_local.post(f"/{org.slug}/settings/key", {"key": "1"})
+    assert resp.status_code == 400
+    org.refresh_from_db()
+    assert org.key != "1"
+
+
+@pytest.mark.django_db
+def test_org_key_rejects_one_another_org_holds(client_local, org):
+    Org.objects.create(name="Other", slug="other-org", key="ZZ")
+    resp = client_local.post(f"/{org.slug}/settings/key", {"key": "ZZ"})
+    assert resp.status_code == 400

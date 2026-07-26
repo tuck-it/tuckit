@@ -46,6 +46,7 @@ settings_patterns = [
     path("<slug:org_slug>/settings/", settings_shell.settings_root, name="settings_root"),
     path("<slug:org_slug>/settings/general", settings_org.org_general, name="settings_org_general"),
     path("<slug:org_slug>/settings/rename", settings_org.org_rename, name="org_rename"),
+    path("<slug:org_slug>/settings/key", settings_org.org_key, name="org_key"),
     path("<slug:org_slug>/settings/members", settings_org.org_members, name="settings_org_members"),
     path("<slug:org_slug>/settings/members/<int:member_id>/role", settings_org.member_role, name="org_member_role"),
     path("<slug:org_slug>/settings/members/<int:member_id>/remove", settings_org.member_remove, name="org_member_remove"),

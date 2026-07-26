@@ -70,6 +70,20 @@ def rename_org(org: Org, name: str, description: str | None = None) -> Org:
     return org
 
 
+def set_org_key(org: Org, raw: str) -> Org:
+    """Change the org's ref prefix. Every displayed ref follows immediately —
+    refs are derived, not stored — which is the point and also why the settings
+    row warns that older refs stop resolving."""
+    from tuckit.core.services.keys import validate_key
+
+    key = validate_key(raw)
+    if Org.objects.filter(key=key).exclude(pk=org.pk).exists():
+        raise InvalidValue(f"'{key}' is already taken by another organization.")
+    org.key = key
+    org.save(update_fields=["key"])
+    return org
+
+
 def list_org_members(org: Org):
     return OrgMember.objects.filter(org=org).select_related("user").order_by("created_at")
 

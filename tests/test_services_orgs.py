@@ -258,3 +258,32 @@ def test_org_name_not_globally_unique():
     # same name, different slug -> allowed
     create_org(u2, name="Acme", slug="acme-two")
     assert Org.objects.filter(name="Acme").count() == 2
+
+
+def test_set_org_key_normalises_and_saves(db):
+    from tuckit.core.models import Org
+    from tuckit.core.services.orgs import set_org_key
+
+    org = Org.objects.create(name="Tuckit", slug="tuckit")
+    set_org_key(org, " zz ")
+    org.refresh_from_db()
+    assert org.key == "ZZ"
+
+
+def test_set_org_key_rejects_a_key_another_org_holds(db):
+    from tuckit.core.models import Org
+    from tuckit.core.services.exceptions import InvalidValue
+    from tuckit.core.services.orgs import set_org_key
+
+    Org.objects.create(name="A", slug="alpha", key="AAA")
+    b = Org.objects.create(name="B", slug="bravo", key="BBB")
+    with pytest.raises(InvalidValue):
+        set_org_key(b, "AAA")
+
+
+def test_set_org_key_accepts_the_key_the_org_already_has(db):
+    from tuckit.core.models import Org
+    from tuckit.core.services.orgs import set_org_key
+
+    org = Org.objects.create(name="A", slug="alpha", key="AAA")
+    assert set_org_key(org, "aaa").key == "AAA"
