@@ -75,3 +75,19 @@ def test_the_strip_is_absent_from_the_status_filter_view(client_local, org):
     body = client_local.get(f"{P(org)}/areas/{area.slug}/?status=shipped").content.decode()
 
     assert "untriaged" not in body
+
+
+@pytest.mark.django_db
+def test_the_strip_renders_collapsed(client_local, org):
+    """서버는 <details>를 닫힌 채 렌더한다.
+
+    열림 여부는 클라이언트 선호(localStorage)이고, idiomorph가 2초마다
+    #main-content를 서버 렌더값으로 morph한다. 여기에 open을 되살리면
+    heat.js의 속성 보호막과 싸우게 되고, 사용자 선택이 매 폴링마다 덮인다.
+    """
+    area = create_area(org, "Backend")
+    create_ticket(org, "retry webhooks", area=area)
+
+    body = client_local.get(f"{P(org)}/areas/{area.slug}/").content.decode()
+
+    assert '<details class="area-inbox">' in body
