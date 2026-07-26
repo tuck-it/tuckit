@@ -141,6 +141,24 @@
   {% include "web/partials/_onboarding_widget.html" %}
   {% include "web/partials/_capture_modal.html" %}
   {% include "web/partials/_command_palette.html" %}
+  {% comment %}
+    Per-screen overlays go HERE, never inside {% block main %}.
+
+    A live screen refreshes by morphing a fresh server render over
+    #main-content, and morph reconciles attributes toward that render. Alpine
+    hides an overlay by writing an inline display:none onto it at runtime, and
+    the server's copy has no such style — so a morph strips it and the overlay
+    appears, unbidden, on any write anyone in the org makes. It cannot even be
+    dismissed: Cancel sets `modal = false` when it is already false, which is
+    not a change, so nothing re-renders. Only a reload closes it.
+
+    The rule that falls out: #main-content holds what the server owns, and
+    nothing else. Which overlay you have open is not something the server can
+    know. Everything above — the detail scrim, quick capture, the palette, the
+    onboarding widget — already lived out here; this block is where screens put
+    theirs. tests/web/test_live_morph_boundary.py holds the line.
+  {% endcomment %}
+  {% block overlays %}{% endblock %}
   <script>
     /* Settings-form save confirmation. Independent of the capture toast's
        OOB/Alpine mechanism above — replaces #toast with a plain element so it

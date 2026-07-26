@@ -31,3 +31,14 @@
     </div>
   {% endif %}
 {% endblock %}
+
+{% comment %}
+  Both dialogs this screen owns, mounted outside the live morph target. Only
+  the board view has the triggers, so only it mounts them.
+{% endcomment %}
+{% block overlays %}
+  {% if not filter_status %}
+    {% include "web/partials/_area_edit_overlay.html" %}
+    {% include "web/partials/_slice_create_overlay.html" %}
+  {% endif %}
+{% endblock %}
