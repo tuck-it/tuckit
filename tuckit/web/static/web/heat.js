@@ -95,8 +95,15 @@
        preference). Left alone, morph's attribute sync would strip it back
        closed on every poll — as often as every 2s. Re-opening it after the
        fact would work too, but leaves a closed-then-open frame; refusing to
-       strip it in the first place is the cleaner fix. The guard covers only
-       this element's `open` attribute, so everything else morphs as usual. */
+       strip it in the first place is the cleaner fix.
+
+       Its reach really is one attribute on one element: instrumenting this
+       callback over a live poll showed exactly one veto, `open` on
+       DETAILS.area-inbox with mutationType "remove", out of 372 calls. So it
+       is not the reason the strip's count text can go stale while the rows
+       update — that is idiomorph skipping the children of whatever holds
+       focus, and it is handled in live.js (focusHoldsAValue). Don't widen or
+       delete this guard chasing that symptom. */
     window.Idiomorph.defaults.callbacks.beforeAttributeUpdated = function (name, node) {
       if (name !== "open") return true;
       return !(node.classList && node.classList.contains("area-inbox"));

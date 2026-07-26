@@ -2449,9 +2449,13 @@ button.htmx-request, a.htmx-request { opacity: .6; }
    board's height — one card's worth at 12 tickets, zero at 25. The expanded
    inbox scrolls within its own share instead. Morph keeps the node alive, so
    this scroll position survives across polls. */
+/* The padding is the row focus ring's clearance, not decoration: the rows can
+   scroll inside this box, so anything drawn outside their border is clipped.
+   A ring needs 3px (2px outline + 1px offset) and --space-2 left only 2, so
+   its outermost pixel was cut off; --space-4 is the first step that clears. */
 .area-inbox-rows {
   display: flex; flex-direction: column; gap: var(--space-2);
-  padding: var(--space-2);
+  padding: var(--space-4);
 }
 /* The cap exists only to protect .main--board's fixed height budget, and that
    budget itself only exists at >=768px (below it .main--board reverts to

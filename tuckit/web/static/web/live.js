@@ -71,12 +71,12 @@
      design asked for ("never swap the focused form / input text") without the
      blunt instrument of skipping the refresh outright.
 
-     ignoreActiveValue: true is load-bearing, not decoration. A live screen can
+     ignoreActiveValue is load-bearing, not decoration. A live screen can
      morph a form whose fields are server-rendered empty (e.g. the Create Area
      modal lives inside #main-content) — without this flag idiomorph's
      input/textarea sync would overwrite whatever the user is mid-typing with
-     that empty value on every poll. With it, idiomorph leaves the currently
-     focused control's value alone and morphs everything else as usual.
+     that empty value on every poll. It is set per swap below rather than
+     hardcoded here.
      #detail-modal is a sibling of #main-content and is never swapped. */
   window.__liveOnEvents = function (events) {
     var main = document.getElementById("main-content");
@@ -84,11 +84,34 @@
     htmx.ajax("GET", location.pathname + location.search, {
       target: "#main-content",
       select: "#main-content",
-      swap: 'morph:{"morphStyle":"outerHTML","ignoreActiveValue":true}'
+      swap: 'morph:{"morphStyle":"outerHTML"}'
     }).then(function () {
       document.body.dispatchEvent(new CustomEvent("tuckit:live-refreshed", { detail: { events: events } }));
     });
   };
+
+  /* Ask for ignoreActiveValue only while the focus is actually holding a value.
+     The flag protects what the user is typing, but idiomorph enforces it far
+     more bluntly than that: morphNode skips morphChildren entirely for
+     document.activeElement, so the whole focused subtree stops updating — not
+     just its value. A <summary> takes focus when it is clicked, so opening the
+     Area Inbox strip froze the "N untriaged" count inside it while the rows
+     below it kept morphing. Requesting the flag only for a control that has a
+     value to lose keeps the typing protection and lets everything else morph.
+
+     Decided per swap (and not in the swap spec above) because the honest answer
+     only exists when the response lands: the user can start typing while the
+     poll request is in flight. htmx fires this event immediately before the
+     morph, and a spec that omits the key inherits it from Idiomorph.defaults. */
+  function focusHoldsAValue() {
+    var el = document.activeElement;
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT";
+  }
+  document.body.addEventListener("htmx:beforeSwap", function () {
+    if (window.Idiomorph) window.Idiomorph.defaults.ignoreActiveValue = focusHoldsAValue();
+  });
 
   schedule();
 })();
