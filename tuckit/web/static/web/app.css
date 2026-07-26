@@ -523,6 +523,9 @@ body { padding: 0; }
   .board { flex-direction: column; }
   .board-col { flex: 0 0 auto; }
   .board-col-cards { overflow-y: visible; }
+  /* 여기서는 .main--board가 height:auto로 풀려 고정 예산 자체가 없다. 상한을
+     남겨두면 페이지는 안 잘렸는데 인박스만 342px 창에 갇힌다. */
+  .area-inbox-rows { max-height: none; }
 }
 
 /* Inline "+ Area" add form in the sidebar. */
@@ -2439,7 +2442,18 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 }
 .area-inbox[open] .area-inbox-head::before { transform: rotate(90deg); }
 .area-inbox-label { font-weight: 600; color: var(--ink-soft); }
-.area-inbox-rows { display: flex; flex-direction: column; gap: var(--space-2); }
+/* 접히면 이 한 줄이 유일한 신호다. 헤더가 --muted를 물려주므로 카운트도 같이
+   가라앉아 있었다. 펼쳐져 있을 때는 행들이 이미 신호라 강조하면 중복이다. */
+.area-inbox:not([open]) .area-inbox-count { color: var(--blue); }
+/* 보드는 .main--board(100dvh)의 남은 높이만 받는다. 상한이 없으면 티켓 수가
+   그대로 보드 높이가 된다 — 12개면 카드 한 장, 25개면 0. 펼친 인박스는 자기
+   몫 안에서 스크롤한다. morph는 노드를 살려두므로 이 스크롤 위치는 폴링을
+   넘어 유지된다. */
+.area-inbox-rows {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  max-height: 38vh;
+  overflow-y: auto;
+}
 .area-inbox-row {
   display: flex; align-items: baseline; gap: var(--space-10);
   width: 100%; padding: var(--space-6) var(--space-10);
