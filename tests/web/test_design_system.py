@@ -131,3 +131,13 @@ def test_title_typography_tokens_exist_and_base_css_uses_them():
     assert "h2 { font-size: var(--text-h2); }" in base_css
     assert "font-size: 28px" not in base_css
     assert "font-size: 22px" not in base_css
+
+
+def test_pill_radius_token_exists_and_is_used_everywhere():
+    brand_css = (STATIC / "tokens.brand.css").read_text(encoding="utf-8")
+    assert "--radius-pill: 999px" in brand_css
+
+    app_css = (STATIC / "app.css").read_text(encoding="utf-8")
+    assert "border-radius: 999px" not in app_css   # .nav-count, now via token
+    assert "border-radius: 20px" not in app_css    # .area-chip, .status-pill
+    assert app_css.count("var(--radius-pill)") == 3

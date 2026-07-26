@@ -23,6 +23,7 @@
   --texture-opacity: 0.48;
   --radius: 14px;
   --radius-small: 9px;
+  --radius-pill: 999px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
