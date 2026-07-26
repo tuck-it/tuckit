@@ -97,13 +97,13 @@
        fact would work too, but leaves a closed-then-open frame; refusing to
        strip it in the first place is the cleaner fix.
 
-       Its reach really is one attribute on one element: instrumenting this
-       callback over a live poll showed exactly one veto, `open` on
-       DETAILS.area-inbox with mutationType "remove", out of 372 calls. So it
-       is not the reason the strip's count text can go stale while the rows
-       update — that is idiomorph skipping the children of whatever holds
-       focus, and it is handled in live.js (focusHoldsAValue). Don't widen or
-       delete this guard chasing that symptom. */
+       Its reach really is one attribute on one element, as the check below
+       proves: it only ever vetoes `open` on DETAILS.area-inbox, everything
+       else passes through unchanged. So it is not the reason the strip's
+       count text can go stale while the rows update — that is idiomorph
+       skipping the children of whatever holds focus, and it is handled in
+       live.js (focusHoldsAValue). Don't widen or delete this guard chasing
+       that symptom. */
     window.Idiomorph.defaults.callbacks.beforeAttributeUpdated = function (name, node) {
       if (name !== "open") return true;
       return !(node.classList && node.classList.contains("area-inbox"));

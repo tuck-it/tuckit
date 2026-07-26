@@ -71,12 +71,22 @@
      design asked for ("never swap the focused form / input text") without the
      blunt instrument of skipping the refresh outright.
 
-     ignoreActiveValue is load-bearing, not decoration. A live screen can
-     morph a form whose fields are server-rendered empty (e.g. the Create Area
-     modal lives inside #main-content) — without this flag idiomorph's
-     input/textarea sync would overwrite whatever the user is mid-typing with
-     that empty value on every poll. It is set per swap below rather than
-     hardcoded here.
+     ignoreActiveValue is load-bearing, not decoration — but not for the
+     reason a live screen morphing a form might suggest: per-screen overlays
+     like the Create Area modal live in {% block overlays %}, never inside
+     #main-content, so no <input>/<textarea> is ever in scope here. The
+     value-bearing control that IS in scope is the Inbox ticket rows' Area
+     <select> (_ticket_row.html:44). A <select>'s selection rides on
+     <option selected>, reached only via morphChildren, so it is the
+     focused-node subtree skip — not idiomorph's input/textarea value sync —
+     that protects it. It is set per swap below rather than hardcoded here
+     because that same subtree skip also covers #main-content itself
+     (tabindex="-1", base.html:77), which takes focus on any click that lands
+     on non-focusable content; a hardcoded flag froze the whole screen
+     whenever that happened. The per-swap check trades that coverage away
+     deliberately: the screen stays live and the Area select can reset on the
+     next poll instead, which is why heat.js resyncs it on
+     tuckit:live-refreshed (resyncTicketAreaSelects).
      #detail-modal is a sibling of #main-content and is never swapped. */
   window.__liveOnEvents = function (events) {
     var main = document.getElementById("main-content");

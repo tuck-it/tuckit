@@ -65,20 +65,33 @@ def test_live_refresh_morphs_instead_of_replacing():
 
 
 def test_live_refresh_preserves_the_active_control_value():
-    """CRITICAL regression guard: a live screen can morph a form that renders
-    server-side with empty fields (e.g. the Create Area modal lives inside
-    #main-content). Idiomorph's input/textarea sync branch overwrites the live
-    DOM value with the incoming HTML's value on every morph — so without
-    ignoreActiveValue, typing into that form while ANY org activity fires a
-    poll blanks whatever the user just typed, silently, mid-keystroke.
-    ignoreActiveValue tells idiomorph to leave the currently focused control's
-    value untouched. Not otherwise reachable from pytest: this is a DOM/morph
-    interaction with no server-observable effect, so it is pinned here as a
-    static assertion on the swap spec actually wired up, in the style of the
-    other tests in this file."""
+    """CRITICAL regression guard: the Inbox ticket rows' Area <select>
+    (partials/_ticket_row.html) is a value-bearing control that lives inside
+    the live morph target. Idiomorph re-syncs every <option selected> on each
+    morph, which would reset that dropdown out from under the user mid-choice
+    — so without ignoreActiveValue, any org activity firing a poll while a
+    row's select is focused could silently discard the in-progress choice.
+
+    ignoreActiveValue is far blunter than its name: idiomorph skips the WHOLE
+    subtree of document.activeElement, not just a value. Hardcoding the flag
+    would therefore freeze any focused element's subtree on every poll,
+    including a <summary> or #main-content itself — so live.js decides it per
+    swap in an htmx:beforeSwap listener, asking for the flag only when the
+    currently focused element actually holds a value (INPUT / TEXTAREA /
+    SELECT / contenteditable) before assigning Idiomorph.defaults.ignoreActiveValue.
+
+    Not otherwise reachable from pytest: this is a DOM/morph interaction with
+    no server-observable effect, so it is pinned here as a static assertion on
+    the wiring actually present, in the style of the other tests in this
+    file."""
     js = " ".join(_live_js().split())
-    assert "ignoreActiveValue" in js
-    assert "true" in js.split("ignoreActiveValue", 1)[1][:10]
+    assert "htmx:beforeSwap" in js
+    assert "Idiomorph.defaults.ignoreActiveValue" in js
+    assert "document.activeElement" in js
+    assert "isContentEditable" in js
+    assert 'tagName === "INPUT"' in js
+    assert 'tagName === "TEXTAREA"' in js
+    assert 'tagName === "SELECT"' in js
 
 
 def test_ticket_row_area_select_resyncs_alpine_after_refresh():
