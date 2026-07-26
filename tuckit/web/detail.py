@@ -46,8 +46,6 @@ def slice_detail_context(slice_, is_modal: bool = False) -> dict:
         "slice": slice_,
         "origin_ticket": origin,
         "absorbed_tickets": [t for t in linked if t != origin],
-        # Built here rather than by string surgery in the template.
-        "org_slug_ref": f"{slice_.org.slug}-",
         "spec_html": render_markdown_html(slice_.spec),
         "statuses": ["planned", "building", "shipped"],
         "activity": slice_activity(slice_),

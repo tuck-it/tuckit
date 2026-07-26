@@ -44,6 +44,15 @@ def detail_push_url(context, param, obj_id):
     return urlunsplit(("", "", parts.path, urlencode(query), ""))
 
 
+@register.inclusion_tag("web/partials/_ref.html")
+def ref_of(obj, copy=False, muted=False):
+    """Render a Slice's or Ticket's ref. The ONLY way a template may show one —
+    the format lives in services/refs.py and nowhere else."""
+    from tuckit.core.services.refs import ref_for
+
+    return {"ref": ref_for(obj), "copy": copy, "muted": muted}
+
+
 @register.filter
 def ascii_int(value):
     """The value as a str iff it is a plain ASCII decimal integer, else "".

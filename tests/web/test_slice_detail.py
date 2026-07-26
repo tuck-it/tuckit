@@ -297,6 +297,7 @@ def test_plan_delete_removes_plan_and_its_bites(client_local, org):
 
 @pytest.mark.django_db
 def test_panel_shows_origin_and_absorbed_refs(client_local, org):
+    from tuckit.core.services.refs import ticket_ref
     from tuckit.core.services.tickets import absorb_ticket, create_ticket, promote_ticket
 
     area = create_area(org, "Backend")
@@ -307,8 +308,8 @@ def test_panel_shows_origin_and_absorbed_refs(client_local, org):
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "From:" in body
-    assert f"{org.slug}-{origin.number}" in body
-    assert f"{org.slug}-{extra.number}" in body
+    assert ticket_ref(origin) in body
+    assert ticket_ref(extra) in body
     assert "(origin)" in body
     # the link lands on the ticket modal via the existing deep-link
     assert f"?ticket={origin.id}" in body
@@ -318,6 +319,7 @@ def test_panel_shows_origin_and_absorbed_refs(client_local, org):
 def test_promoted_slice_empty_spec_points_at_the_capture(client_local, org):
     """After promote stops copying the body, this is the default state of every
     promoted slice — a bare prompt here reads as 'my text vanished'."""
+    from tuckit.core.services.refs import ticket_ref
     from tuckit.core.services.tickets import create_ticket, promote_ticket
 
     area = create_area(org, "Backend")
@@ -326,7 +328,7 @@ def test_promoted_slice_empty_spec_points_at_the_capture(client_local, org):
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "No design doc yet" in body
-    assert f"{org.slug}-{t.number}" in body
+    assert ticket_ref(t) in body
     assert "Click to add a spec" not in body
 
 

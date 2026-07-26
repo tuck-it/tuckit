@@ -639,7 +639,35 @@ body { padding: 0; }
   gap: var(--space-6);
 }
 .ticket-card-head { display: flex; align-items: center; gap: var(--space-5); }
-.ticket-ref { color: var(--ink-faint); font-family: var(--mono); font-size: 12px; }
+/* The ref (TUC-47) — the id the human and the agent both speak. Mono and
+   min-width'd in ch so a column of them lines up and can be scanned; that
+   scannability is the whole reason it leads the row. */
+.ref {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  flex: 0 0 auto;
+  min-width: 7ch;
+  letter-spacing: 0.02em;
+}
+/* Inside a card's meta line the refs are not in a column, so the reserved
+   width would just be a gap. */
+.card-sub .ref,
+.settings-row-desc .ref { min-width: 0; }
+/* A promoted ticket row and its slice card now both carry the same ref. It is
+   the same item, so the number is right — but the Inbox copy steps back so the
+   pair does not read as duplication. */
+.ref--muted { opacity: 0.55; }
+.ref--copy {
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.ref--copy:hover { background: var(--paper-deep); color: var(--ink); }
 .ticket-status {
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
@@ -2411,7 +2439,6 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 }
 .area-inbox-row:hover { border-color: var(--blue); }
 .area-inbox-row:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-.area-inbox-ref { flex: none; color: var(--ink-faint); font-size: var(--text-xs); font-family: var(--mono); }
 @media (prefers-reduced-motion: reduce) {
   .area-inbox-head::before { transition: none; }
 }
