@@ -33,28 +33,33 @@
   </div>
 </details>
 {% comment %}
-  펼침 상태 복원. base.html의 pre-paint 스크립트에서는 할 수 없다 — <head>가
-  도는 시점에 #main-content는 아직 파싱 전이다. 거기서 <html>에 클래스를 다는
-  우회는 ob-open 360px 유령 여백(루트 클래스가 자기 요소보다 오래 삶)을 만든
-  바로 그 패턴이라 쓰지 않는다.
+  Restoring the open/closed state. This can't be done in base.html's pre-paint
+  script — while <head> is running, #main-content hasn't been parsed yet.
+  Working around that by tagging a class on <html> instead is exactly the
+  pattern that produced the ob-open 360px ghost margin (a root class outliving
+  its own element), so that route isn't used here.
 
-  여기 인라인이면 파싱 도중 = 첫 페인트 전에 돌고, 요소와 수명이 같아 유령이
-  남을 수 없다. 저장은 하지 않는다 — toggle은 버블링하지 않아 전역 캡처
-  리스너(base.html)가 맡고, 그래야 morph가 이 script를 재삽입해도 리스너가
-  중복으로 붙지 않는다. 속성 대입은 멱등이라 재실행이 안전하다.
+  Being inline here means it runs during parsing — before first paint — and
+  its lifetime matches the element's, so no ghost can be left behind. It does
+  not persist the value itself — toggle doesn't bubble, so the global capture
+  listener (base.html) owns that, which also means morph re-inserting this
+  script never attaches a duplicate listener. Assigning the attribute is
+  idempotent, so re-running it is safe.
 {% endcomment %}
 <script>
   (function () {
-    /* currentScript는 파싱 중 실행일 때만 보장된다. morph가 이 노드를 다시
-       삽입해 실행되는 경로에서는 null일 수 있으므로 먼저 받아 확인한다. */
+    /* currentScript is only guaranteed during the initial parse-time
+       execution. On any path where morph re-inserts this node and it runs
+       again, it can be null, so check it before using it. */
     var s = document.currentScript;
     var el = s && s.previousElementSibling;
     if (!el || !el.classList.contains("area-inbox")) return;
     try {
       if (localStorage.getItem("area-inbox-open") === "1") el.open = true;
     } catch (e) {
-      /* 사파리 프라이빗 모드 등에서 localStorage 접근이 던진다. 선호를 못 읽으면
-         기본값(접힘)으로 살면 되므로 화면을 죽이지 않는다. */
+      /* localStorage access throws in Safari private mode and similar
+         environments. Falling back to the default (collapsed) when the
+         preference can't be read is fine — it shouldn't break the page. */
     }
   })();
 </script>
