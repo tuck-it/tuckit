@@ -60,3 +60,35 @@ def test_org_member_starts_with_no_home_watermark():
     m = OrgMember.objects.create(user=user, org=org, role="owner")
 
     assert m.home_seen_at is None
+
+
+def test_org_key_is_derived_on_create(db):
+    from tuckit.core.models import Org
+
+    org = Org.objects.create(name="Tuckit Projects", slug="tuckit-projects")
+    assert org.key == "TP"
+
+
+def test_org_key_avoids_collision(db):
+    from tuckit.core.models import Org
+
+    Org.objects.create(name="One", slug="tuckit-projects")
+    second = Org.objects.create(name="Two", slug="tuckit-plugins")
+    assert second.key == "TP2"
+
+
+def test_explicit_key_is_not_overwritten(db):
+    from tuckit.core.models import Org
+
+    org = Org.objects.create(name="Tuckit", slug="tuckit", key="ZZ")
+    assert org.key == "ZZ"
+
+
+def test_saving_an_existing_org_does_not_touch_its_key(db):
+    from tuckit.core.models import Org
+
+    org = Org.objects.create(name="Tuckit", slug="tuckit")
+    org.name = "Renamed"
+    org.save(update_fields=["name"])
+    org.refresh_from_db()
+    assert org.key == "TUC"
