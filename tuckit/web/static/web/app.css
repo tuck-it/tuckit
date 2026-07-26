@@ -523,11 +523,6 @@ body { padding: 0; }
   .board { flex-direction: column; }
   .board-col { flex: 0 0 auto; }
   .board-col-cards { overflow-y: visible; }
-  /* On mobile .main--board relaxes to height:auto, so there's no fixed
-     height budget here at all. Leaving the cap in place would trap the
-     inbox in a 342px window even though the page itself is no longer
-     clipped. */
-  .area-inbox-rows { max-height: none; }
 }
 
 /* Inline "+ Area" add form in the sidebar. */
@@ -2458,6 +2453,18 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   display: flex; flex-direction: column; gap: var(--space-2);
   max-height: 38vh;
   overflow-y: auto;
+}
+/* This override MUST stay here, immediately after .area-inbox-rows, and
+   cannot be folded back into the "Mobile: stack columns" block near line
+   520. A media query adds no specificity: both rules are a single class
+   selector, so whichever one appears later in the file wins the cascade.
+   On mobile .main--board relaxes to height:auto (see line ~522), so there
+   is no fixed height budget left to protect and the cap must be released
+   entirely. If this block is moved earlier in the file, the max-height:
+   38vh rule above will win again and silently trap the inbox in a small
+   internal scroll window on phones. */
+@media (max-width: 767px) {
+  .area-inbox-rows { max-height: none; }
 }
 .area-inbox-row {
   display: flex; align-items: baseline; gap: var(--space-10);
