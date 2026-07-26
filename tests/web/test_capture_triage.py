@@ -93,6 +93,16 @@ def test_ticket_row_has_no_manual_caret_and_area_placeholder(client_local, org):
     assert "Choose area" in body           # placeholder present (same wording as the ticket modal)
 
 @pytest.mark.django_db
+def test_ticket_row_prefills_already_assigned_area(client_local, org):
+    from tuckit.core.services.tickets import create_ticket
+    p = f"/{org.slug}"
+    backend = create_area(org, "Backend")
+    create_ticket(org, "Already scoped", area=backend)
+    body = client_local.get(f"{p}/inbox/").content.decode()
+    assert f"{{area: '{backend.id}'}}" in body           # Alpine picks up the existing area on load
+    assert f'<option value="{backend.id}" selected>Backend</option>' in body
+
+@pytest.mark.django_db
 def test_ticket_promote_status_only_keeps_area(client_local, org):
     from tuckit.core.services.tickets import create_ticket
     p = f"/{org.slug}"

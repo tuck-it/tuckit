@@ -28,7 +28,7 @@
     </div>
   </div>
 {% else %}
-  <div class="ticket-row" data-ticket-id="{{ ticket.id }}" x-data="{area: ''}">
+  <div class="ticket-row" data-ticket-id="{{ ticket.id }}" x-data="{area: '{{ ticket.area_id|default_if_none:"" }}'}">
     <button class="ticket-open" type="button"
             hx-get="{% wurl 'web:ticket' ticket.id %}" hx-target="#detail-modal"
             hx-swap="innerHTML" hx-push-url="{% detail_push_url 'ticket' ticket.id %}">
@@ -40,8 +40,8 @@
     <div class="ticket-controls">
       <label class="ticket-field">Area
         <select name="area_id" class="ticket-select" x-model="area">
-          <option value="" selected disabled>Choose area</option>
-          {% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+          <option value="" {% if not ticket.area_id %}selected{% endif %} disabled>Choose area</option>
+          {% for a in areas %}<option value="{{ a.id }}"{% if a.id == ticket.area_id %} selected{% endif %}>{{ a.name }}</option>{% endfor %}
         </select>
       </label>
       <label class="ticket-field">Status
