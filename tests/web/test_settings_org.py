@@ -485,3 +485,13 @@ def test_org_key_rejects_one_another_org_holds(client_local, org):
     Org.objects.create(name="Other", slug="other-org", key="ZZ")
     resp = client_local.post(f"/{org.slug}/settings/key", {"key": "ZZ"})
     assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+def test_member_cannot_change_org_key(org_ctx):
+    client, org, owner, member = org_ctx
+    _login(client, member)
+    resp = client.post(f"/{org.slug}/settings/key", {"key": "zz"})
+    assert resp.status_code == 403
+    org.refresh_from_db()
+    assert org.key != "ZZ"

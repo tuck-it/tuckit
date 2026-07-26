@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from tuckit.core.models import Org, OrgMember
 from tuckit.core.services.exceptions import InvalidValue
@@ -80,7 +80,18 @@ def set_org_key(org: Org, raw: str) -> Org:
     if Org.objects.filter(key=key).exclude(pk=org.pk).exists():
         raise InvalidValue(f"'{key}' is already taken by another organization.")
     org.key = key
-    org.save(update_fields=["key"])
+    try:
+        # The pre-check above is what produces the friendly message in the
+        # common case; it can't close the TOCTOU window between two admins of
+        # two different orgs racing the same key, so the DB's unique
+        # constraint is the real guard. atomic() confines the failed INSERT to
+        # its own savepoint — on Postgres an uncaught IntegrityError poisons
+        # the whole surrounding transaction, not just this statement, and
+        # sqlite (used by the test suite) doesn't surface that class of bug.
+        with transaction.atomic():
+            org.save(update_fields=["key"])
+    except IntegrityError:
+        raise InvalidValue(f"'{key}' is already taken by another organization.")
     return org
 
 

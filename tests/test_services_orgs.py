@@ -287,3 +287,25 @@ def test_set_org_key_accepts_the_key_the_org_already_has(db):
 
     org = Org.objects.create(name="A", slug="alpha", key="AAA")
     assert set_org_key(org, "aaa").key == "AAA"
+
+
+def test_set_org_key_converts_a_racing_integrity_error_to_invalid_value(db):
+    # The pre-check (`filter(key=key).exclude(pk=org.pk).exists()`) can't close
+    # the window between two admins racing the same key across two different
+    # orgs: both pre-checks can pass before either save() lands. Rather than
+    # simulate the race with two threads, patch save() to raise the
+    # IntegrityError the DB's unique constraint would raise in that window,
+    # and pin that it surfaces as the same InvalidValue as the non-racing
+    # rejection, not an unhandled 500.
+    from unittest.mock import patch
+
+    from django.db import IntegrityError
+
+    from tuckit.core.models import Org
+    from tuckit.core.services.exceptions import InvalidValue
+    from tuckit.core.services.orgs import set_org_key
+
+    org = Org.objects.create(name="A", slug="alpha", key="AAA")
+    with patch.object(org, "save", side_effect=IntegrityError("duplicate key value")):
+        with pytest.raises(InvalidValue):
+            set_org_key(org, "ZZ")
