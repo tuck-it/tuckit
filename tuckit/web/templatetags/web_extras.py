@@ -44,6 +44,18 @@ def detail_push_url(context, param, obj_id):
     return urlunsplit(("", "", parts.path, urlencode(query), ""))
 
 
+@register.simple_tag(name="detail_params")
+def detail_params_tag():
+    """_DETAIL_PARAMS for the client, published on the overlay container.
+
+    The close path has to strip whichever one is currently in the url, and it
+    cannot ask the overlay's contents: during the loading window those contents
+    are a skeleton, which has no idea what opened it. Handing the list over
+    keeps it defined once — a hand-copy in base.html's JS is how the two drift
+    the day a third overlay kind arrives."""
+    return " ".join(_DETAIL_PARAMS)
+
+
 @register.filter
 def ascii_int(value):
     """The value as a str iff it is a plain ASCII decimal integer, else "".

@@ -90,6 +90,7 @@
     when nothing is open.
   {% endcomment %}
   <div id="detail-modal" class="overlay overlay--detail"
+       data-detail-params="{% detail_params %}"
        {% with sid=request.GET.slice|ascii_int tid=request.GET.ticket|ascii_int %}
        {% if sid %}hx-get="{% wurl 'web:slice' sid %}?modal=1" hx-trigger="load" hx-target="#detail-modal"
        {% elif tid %}hx-get="{% wurl 'web:ticket' tid %}" hx-trigger="load" hx-target="#detail-modal"{% endif %}
@@ -254,26 +255,35 @@
       localStorage.setItem("sidebar-collapsed", on ? "1" : "0");
     }
     /* The single detail overlay. It persists as an empty div; htmx swaps a card
-       into it. The card — not this function — knows which query param restores
-       it (data-url-param), so closing stays ignorant of its contents. This used
-       to be three near-identical functions differing only in that one string. */
+       into it. Closing stays ignorant of its contents — it used to be three
+       near-identical functions differing only in the query param each stripped.
+
+       That param comes from the container's published list, NOT from the card
+       inside it. Asking the card worked only once the response had landed: for
+       the whole loading window the contents are a skeleton, which carries no
+       data-url-param, so closing on it (Esc/scrim before the response arrives,
+       or the afterRequest failure path) cleared the modal and left ?ticket=39
+       in the url forever — and the next page load re-opened the modal off that
+       stale param. detail_push_url drops every other detail param before it
+       merges a new one, so at most one is ever present and stripping all of
+       them can never take one that is still in use. */
     var DETAIL_ID = "detail-modal";
+    function detailParams(el) {
+      return (el.dataset.detailParams || "").split(/\s+/).filter(Boolean);
+    }
     function closeDetail() {
       var el = document.getElementById(DETAIL_ID);
       if (!el) return;
-      var card = el.firstElementChild;
-      var param = card && card.dataset ? card.dataset.urlParam : null;
       el.innerHTML = "";
       document.body.classList.remove("modal-open");
       var opener = window.__overlayOpeners && window.__overlayOpeners[DETAIL_ID];
       if (opener) { opener.focus(); window.__overlayOpeners[DETAIL_ID] = null; }
-      if (!param) return;
       /* replaceState, not pushState: Back must not reopen what was just closed. */
-      var u = new URL(window.location.href);
-      if (u.searchParams.has(param)) {
-        u.searchParams.delete(param);
-        history.replaceState({}, "", u.pathname + u.search + u.hash);
-      }
+      var u = new URL(window.location.href), stripped = false;
+      detailParams(el).forEach(function (p) {
+        if (u.searchParams.has(p)) { u.searchParams.delete(p); stripped = true; }
+      });
+      if (stripped) history.replaceState({}, "", u.pathname + u.search + u.hash);
     }
     /* Esc must dismiss only the TOPMOST layer. Quick capture, the command
        palette and the create dialogs stack above the detail modal (z-70 vs

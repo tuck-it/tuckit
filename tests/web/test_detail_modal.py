@@ -202,6 +202,41 @@ def test_history_restore_reconciles_the_modal_against_the_url():
     assert 'innerHTML = ""' in handler
 
 
+def test_close_does_not_ask_the_container_which_param_opened_it():
+    """closeDetail read the param to strip off the overlay's FIRST CHILD. During
+    the loading window that child is the skeleton, and neither skeleton template
+    carries data-url-param — so `if (!param) return` fired and the url was never
+    cleaned. Closing on the skeleton (Esc/scrim before the response lands, or the
+    afterRequest failure path) cleared the modal but left ?ticket=39 in the
+    address bar for good, and the next page load re-opened the modal off that
+    stale param via the hx-trigger="load" deep link.
+
+    Reproduced in a browser against prod; no endpoint test can see it, because
+    the whole bug lives in a timing window on the client.
+    """
+    html = _read("templates/web/base.html")
+    close = html.split("function closeDetail(", 1)[1].split("\n    }", 1)[0]
+    assert "dataset.urlParam" not in close, \
+        "closeDetail still derives the param from whatever is inside the container"
+    assert "detailParams" in close, \
+        "closeDetail must strip from the canonical param list instead"
+
+
+@pytest.mark.django_db
+def test_the_overlay_publishes_the_canonical_detail_param_list(client_local, org):
+    """The list of params that mean "an overlay is open" already exists once, in
+    _DETAIL_PARAMS. Hand-copying it into base.html's JS is how the two drift: add
+    a third overlay kind and only one of them learns about it."""
+    from tuckit.web.templatetags.web_extras import _DETAIL_PARAMS
+
+    body = client_local.get(f"/{org.slug}/").content.decode()
+    attrs = body.split('id="detail-modal"', 1)[1].split(">", 1)[0]
+    assert 'data-detail-params="' in attrs, \
+        "the overlay does not publish the param list the close path needs"
+    rendered = attrs.split('data-detail-params="', 1)[1].split('"', 1)[0].split()
+    assert rendered == list(_DETAIL_PARAMS)
+
+
 @pytest.mark.django_db
 def test_long_form_editors_get_the_tall_modifier(client_local, org):
     """장문을 쓰는 면(티켓 본문, 슬라이스 spec)만 .spec-edit--tall을 받는다.
