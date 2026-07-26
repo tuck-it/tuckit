@@ -1,0 +1,38 @@
+{% load web_extras %}
+{% comment %}
+  The Edit-Area dialog, mounted in {% block overlays %} — outside #main-content,
+  where a live morph cannot strip the inline display:none Alpine hides it with.
+  Its two triggers stay in the header and reach it by window event (see
+  _area_header.html).
+
+  hx-target="#area-header" still resolves from out here: htmx matches the
+  selector against the whole document, and the header it swaps is now purely
+  the title block. Moving the dialog out of that target is in fact what lets
+  the swap stay simple — the dialog is no longer collateral in its own save.
+
+  Closing after a save goes out through the same window event that opens it,
+  and for a reason worth spelling out: an hx-on handler is compiled in GLOBAL
+  scope, so it cannot see Alpine's. The old `edit = false` in here silently
+  assigned to a global of that name and never closed anything — the dialog only
+  seemed to shut because it sat inside the swapped header and was destroyed
+  along with it. Out here nothing destroys it, so the close has to be real.
+
+  Context: area (target Area).
+{% endcomment %}
+<div x-data="{ edit: false }"
+     x-on:area-edit-open.window="edit = true"
+     x-on:area-edit-done.window="edit = false">
+  <div class="overlay capture-overlay" x-show="edit" x-cloak
+       x-on:keydown.escape.window="edit = false" x-on:click.self="edit = false">
+    <form class="capture-modal" hx-post="{% wurl 'web:area_edit' area.id %}"
+          hx-target="#area-header" hx-swap="outerHTML"
+          hx-on::after-request="if (event.detail.successful) window.dispatchEvent(new CustomEvent('area-edit-done'))">
+      <div class="capture-lbl">Edit area</div>
+      {% include "web/partials/_area_fields.html" with edit_area=area %}
+      <div class="capture-actions">
+        <button class="ghost" type="button" x-on:click="edit = false">Cancel</button>
+        <button class="button" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>

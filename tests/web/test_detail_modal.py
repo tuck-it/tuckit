@@ -26,7 +26,9 @@ def test_every_dimming_overlay_uses_the_overlay_base_class():
         "templates/web/partials/_command_palette.html",
         "templates/web/partials/_area_create_modal.html",
         "templates/web/partials/_slice_create_modal.html",
-        "templates/web/partials/_area_header.html",
+        # Was _area_header.html until the Edit dialog was moved out of the live
+        # morph target; the header is now the title block and holds no overlay.
+        "templates/web/partials/_area_edit_overlay.html",
     ):
         html = _read(partial)
         assert 'class="overlay ' in html, f"{partial} has no .overlay base class"

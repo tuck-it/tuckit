@@ -5,24 +5,22 @@
   <header class="page-head">
     <div class="page-head-l"><h1 class="page-title">Areas</h1></div>
     {% if not is_empty %}
-    <div x-data="{ modal: false }">
+    <div x-data="{}">
       <button type="button" class="button button-small button-primary"
-              x-on:click="modal = true; $nextTick(() => $refs.nameInput && $refs.nameInput.focus())">+ Create Area</button>
-      {% include "web/partials/_area_create_modal.html" with reload=True %}
+              x-on:click="$dispatch('area-create-open')">+ Create Area</button>
     </div>
     {% endif %}
   </header>
 
   {% if is_empty %}
-  <div class="areas-empty" x-data="{ modal: false }">
+  <div class="areas-empty" x-data="{}">
     <div class="areas-empty-icon">{% icon "area" "icon" %}</div>
     <h2>Organize work into Areas</h2>
     <p>An <b>Area</b> is a long-lived domain of responsibility. It never gets
       "done"; it's a home for work, so nothing floats around unowned. Examples:
       Backend, Marketing, Mobile.</p>
     <button type="button" class="button button-primary"
-            x-on:click="modal = true; $nextTick(() => $refs.nameInput && $refs.nameInput.focus())">+ Create your first Area</button>
-    {% include "web/partials/_area_create_modal.html" with reload=True %}
+            x-on:click="$dispatch('area-create-open')">+ Create your first Area</button>
   </div>
   {% else %}
   <div class="areas-grid">
@@ -39,4 +37,15 @@
     {% endfor %}
   </div>
   {% endif %}
+{% endblock %}
+
+{% comment %}
+  One dialog for both triggers. The populated header and the empty state are
+  mutually exclusive branches, so a single mount out here serves whichever one
+  rendered — and neither can be reached by the live morph.
+{% endcomment %}
+{% block overlays %}
+  <div x-data="{ modal: false }" x-on:area-create-open.window="modal = true">
+    {% include "web/partials/_area_create_modal.html" with reload=True %}
+  </div>
 {% endblock %}

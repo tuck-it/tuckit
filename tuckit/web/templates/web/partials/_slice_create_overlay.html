@@ -1,0 +1,20 @@
+{% comment %}
+  The Create-Slice dialog, mounted in {% block overlays %} — outside
+  #main-content, where a live morph cannot strip the inline display:none that
+  Alpine hides it with. Its trigger stays behind in the page header and reaches
+  it by window event (see _slice_add.html).
+
+  This wrapper exists to satisfy _slice_create_modal.html's contract — include
+  it inside an element whose x-data defines `modal`, `tags` and `tagDraft` —
+  without changing that partial, which the sidebar and the onboarding widget
+  also include from scopes of their own.
+
+  focus == "slice" is the onboarding deep-link: the dialog opens on load, and
+  dialogSync (base.html) puts the caret in the first field.
+
+  Context: area (target Area), focus (str).
+{% endcomment %}
+<div x-data="{ modal: {% if focus == 'slice' %}true{% else %}false{% endif %}, tags: [], tagDraft: '' }"
+     x-on:slice-create-open.window="modal = true">
+  {% include "web/partials/_slice_create_modal.html" with area=area list_target="#board" %}
+</div>
