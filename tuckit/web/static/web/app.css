@@ -221,6 +221,14 @@ body { padding: 0; }
 .status-dot--executing     { background: var(--stage-exec); }
 .status-dot--ready_to_ship { background: var(--stage-ship); }
 
+/* Resolved Ticket states. The modal's meta line renders a dot for all four of
+   Ticket.STATUS_CHOICES; only --open existed while the rest were badges up in
+   the head. Promoted borrows the brand accent because it is the one outcome
+   that produced work; the two dead ends share the faint ink. */
+.status-dot--promoted  { background: var(--blue); }
+.status-dot--dismissed { background: var(--ink-faint); }
+.status-dot--duplicate { background: var(--ink-faint); }
+
 /* Slice row: link reset, shared surface, quiet arrow, subtle hover. */
 .slice-row {
   color: var(--ink);
@@ -683,21 +691,80 @@ body { padding: 0; }
    its own max-height again. */
 .ticket-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
 .ticket-body .spec { min-height: 60px; }
-.ticket-actions { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
-.ticket-actions .ghost { margin-left: auto; }
-.ticket-slice-link {
+/* Ticket triage — "where does this go?" on one line. Every control stands at
+   .button-small's 34px: the old row mixed a 12px label, a ~24px select and a
+   34px button under align-items:center, and that height spread is what made
+   three parts of one sentence read as three unrelated things.
+
+   Deliberately NOT .ticket-field/.ticket-select — the Inbox row shares those,
+   and its control heights belong to the control-height slice, not this one. */
+.triage-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+.triage-label {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  font-size: var(--text-sm);
+}
+.triage-select {
+  min-height: 34px;
+  max-width: 16rem;
+  padding: 0 var(--space-8);
+  background: var(--paper-raised);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-small);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-base);
+}
+.triage-select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+  border-color: var(--blue);
+}
+/* The hint takes a row of its own. Inline, its length would decide where the
+   submit button sits, and the button would jump as the label switched. */
+.triage-hint {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: var(--text-sm);
+}
+
+/* The read-only facts, one line under the title. */
+.detail-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  color: var(--ink-faint);
+  font-size: var(--text-sm);
+}
+/* Show the whole address — it says who to ask. Truncate rather than wrap, so a
+   long one cannot push this into two lines. */
+.detail-meta-who {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Where a promoted ticket went. Read off the slice, never stored here. */
+.detail-meta-dest {
   display: flex;
   align-items: center;
   gap: var(--space-8);
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: var(--text-base);
   padding: var(--space-10) var(--space-12);
   text-decoration: none;
 }
-.ticket-slice-link:hover { border-color: var(--blue); color: var(--ink); }
-.ticket-slice-link .row-arrow { margin-left: auto; }
+.detail-meta-dest:hover { border-color: var(--blue); color: var(--ink); }
+.detail-meta-dest .row-arrow { margin-left: auto; }
 
 
 /* --- Overlay layer -------------------------------------------------------

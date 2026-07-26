@@ -198,3 +198,34 @@ def test_fifteen_px_font_sizes_snapped_to_text_md():
 def test_orghome_name_uses_text_h2():
     css = (STATIC / "app.css").read_text(encoding="utf-8")
     assert ".orghome-name { font-size: var(--text-h2); font-weight: 650; margin: 0; }" in css
+
+
+def test_triage_controls_share_one_height():
+    """The old row stacked a 12px label, a ~24px select and a 34px button on one
+    center-aligned line — that spread is what made three parts of one sentence
+    read as three unrelated controls."""
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    start = css.index(".triage-select {")
+    block = css[start:css.index("}", start)]
+    assert "min-height: 34px" in block  # matches .button-small
+
+
+def test_triage_and_meta_use_tokens_only():
+    import re
+
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    start = css.index("/* Ticket triage")
+    block = css[start:css.index("/* --- Overlay layer", start)]
+    # Every colour comes through a token; a literal hex would drift from the
+    # brand file and would not track light/dark.
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", block)
+    # Radius comes from the scale, never a raw pixel value.
+    assert not re.search(r"border-radius:\s*\d", block)
+
+
+def test_every_ticket_status_has_a_dot():
+    """The meta line renders a dot for all four of Ticket.STATUS_CHOICES; only
+    --open existed while the rest were badges in the head."""
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    for status in ("open", "promoted", "dismissed", "duplicate"):
+        assert f".status-dot--{status}" in css
