@@ -75,12 +75,13 @@
   }
   document.body.addEventListener("tuckit:live-refreshed", resyncTicketAreaSelects);
 
-  /* Shape ④ exit. Idiomorph asks before removing a node; answering false keeps
-     it for one animation, then removes it. Only items with a stable id are
-     animated — anything else is structural markup whose removal is not a
-     "thing leaving" the user should watch. */
   document.body.addEventListener("htmx:beforeSwap", function () {
     if (!window.Idiomorph) return;
+
+    /* Shape ④ exit. Idiomorph asks before removing a node; answering false
+       keeps it for one animation, then removes it. Only items with a stable
+       id are animated — anything else is structural markup whose removal is
+       not a "thing leaving" the user should watch. */
     window.Idiomorph.defaults.callbacks.beforeNodeRemoved = function (node) {
       if (!node.dataset) return true;
       var tracked = node.dataset.sliceId || node.dataset.ticketId || node.dataset.areaId;
@@ -89,16 +90,13 @@
       setTimeout(function () { node.remove(); }, 200);
       return false;
     };
-  });
 
-  /* The server always renders .area-inbox closed (open is a client-side
-     preference). Left alone, morph's attribute sync would strip it back
-     closed on every poll — as often as every 2s. Re-opening it after the
-     fact would work too, but leaves a closed-then-open frame; refusing to
-     strip it in the first place is the cleaner fix. The guard covers only
-     this element's `open` attribute, so everything else morphs as usual. */
-  document.body.addEventListener("htmx:beforeSwap", function () {
-    if (!window.Idiomorph) return;
+    /* The server always renders .area-inbox closed (open is a client-side
+       preference). Left alone, morph's attribute sync would strip it back
+       closed on every poll — as often as every 2s. Re-opening it after the
+       fact would work too, but leaves a closed-then-open frame; refusing to
+       strip it in the first place is the cleaner fix. The guard covers only
+       this element's `open` attribute, so everything else morphs as usual. */
     window.Idiomorph.defaults.callbacks.beforeAttributeUpdated = function (name, node) {
       if (name !== "open") return true;
       return !(node.classList && node.classList.contains("area-inbox"));

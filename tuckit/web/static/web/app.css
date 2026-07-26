@@ -2451,20 +2451,17 @@ button.htmx-request, a.htmx-request { opacity: .6; }
    this scroll position survives across polls. */
 .area-inbox-rows {
   display: flex; flex-direction: column; gap: var(--space-2);
-  max-height: 38vh;
-  overflow-y: auto;
+  padding: var(--space-2);
 }
-/* This override MUST stay here, immediately after .area-inbox-rows, and
-   cannot be folded back into the "Mobile: stack columns" block near line
-   520. A media query adds no specificity: both rules are a single class
-   selector, so whichever one appears later in the file wins the cascade.
-   On mobile .main--board relaxes to height:auto (see line ~522), so there
-   is no fixed height budget left to protect and the cap must be released
-   entirely. If this block is moved earlier in the file, the max-height:
-   38vh rule above will win again and silently trap the inbox in a small
-   internal scroll window on phones. */
-@media (max-width: 767px) {
-  .area-inbox-rows { max-height: none; }
+/* The cap exists only to protect .main--board's fixed height budget, and that
+   budget itself only exists at >=768px (below it .main--board reverts to
+   height:auto and the page scrolls normally). Scoping the cap to the same range
+   makes the two mutually exclusive, so neither depends on where it sits in the
+   file — an earlier version released the cap in the mobile block near line 521,
+   which lost the cascade tiebreak to this rule and never applied at all.
+   dvh, not vh: the budget it protects is 100dvh. */
+@media (min-width: 768px) {
+  .area-inbox-rows { max-height: 38dvh; overflow-y: auto; }
 }
 .area-inbox-row {
   display: flex; align-items: baseline; gap: var(--space-10);
