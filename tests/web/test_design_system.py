@@ -99,3 +99,23 @@ def test_home_band_primitives_exist_and_use_tokens_only():
     # are a different thing and are used verbatim throughout app.css.
     assert not re.search(r"border-radius:\s*(14|9)px", block), \
         "surface/control radius must use var(--radius) / var(--radius-small)"
+
+
+def test_spacing_scale_is_value_named_with_no_gaps():
+    css = (STATIC / "tokens.product.css").read_text(encoding="utf-8")
+    for px in (2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24):
+        assert f"--space-{px}: {px}px" in css, f"missing --space-{px} token"
+    # old index-based names must be fully retired, not aliased
+    for old in ("--space-1:", "--space-3:", "--space-5:", "--space-7:", "--space-9:"):
+        assert old not in css, f"stale index-based token still defined: {old}"
+
+
+def test_app_css_uses_value_named_spacing_tokens_only():
+    import re
+
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    # any --space-N reference must be one of the eleven canonical values
+    valid = {2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24}
+    for match in re.finditer(r"--space-(\d+)\)", css):
+        n = int(match.group(1))
+        assert n in valid, f"app.css references retired/unknown --space-{n}"

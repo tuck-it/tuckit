@@ -227,10 +227,10 @@ body { padding: 0; }
   text-decoration: none;
   line-height: 1.45;
   min-height: 30px;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-6) var(--space-10);
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-8);
   transition: background .15s var(--ease);
 }
 /* Blend with --paper-deep rather than replacing the background outright — a
@@ -355,7 +355,7 @@ body { padding: 0; }
    page — scroll. Transparent frame: the card is the only surface (시안 B). */
 .board {
   display: flex;
-  gap: var(--space-6);
+  gap: var(--space-12);
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;              /* let the flex child actually shrink so columns scroll */
@@ -386,9 +386,9 @@ body { padding: 0; }
 .board-col-head {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-6);
   min-height: 32px;
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-12);
   border-bottom: 1px solid var(--line);
 }
 .board-col-label {
@@ -413,7 +413,7 @@ body { padding: 0; }
   background: var(--paper-raised);
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-6) var(--space-8);
 }
 .slice-card:hover { border-color: var(--blue); }
 .card-title {
@@ -432,19 +432,19 @@ body { padding: 0; }
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  column-gap: var(--space-2);
+  column-gap: var(--space-4);
   row-gap: 2px;
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
   font-family: var(--mono);
   font-size: var(--text-xs);
   color: var(--ink-faint);
 }
-.card-sub > span + span::before { content: "·"; margin-right: var(--space-2); }
+.card-sub > span + span::before { content: "·"; margin-right: var(--space-4); }
 .card-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
+  gap: var(--space-6);
+  margin-top: var(--space-8);
 }
 .card-ship {
   font-family: var(--mono);
@@ -453,7 +453,7 @@ body { padding: 0; }
   background: transparent;
   border: 1px solid var(--dot-shipped);
   border-radius: var(--radius-small);
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-4) var(--space-8);
   cursor: pointer;
 }
 .card-ship:hover { background: var(--paper-deep); }
@@ -462,20 +462,20 @@ body { padding: 0; }
   list-style: none;
   cursor: pointer;
   color: var(--ink-faint);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-6);
   line-height: 1;
 }
 .card-menu > summary::-webkit-details-marker { display: none; }
 .card-menu-pop {
   position: absolute;
   right: 0;
-  top: calc(100% + var(--space-2));
+  top: calc(100% + var(--space-4));
   z-index: 5;
   min-width: 96px;
   background: var(--paper-raised);
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
-  padding: var(--space-2);
+  padding: var(--space-4);
   box-shadow: 0 6px 20px var(--shadow);
 }
 .card-menu-item {
@@ -486,7 +486,7 @@ body { padding: 0; }
   border: 0;
   font-size: var(--text-sm);
   color: var(--ink);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-6) var(--space-8);
   border-radius: var(--radius-small);
   cursor: pointer;
 }
@@ -512,7 +512,7 @@ body { padding: 0; }
 .board-offboard {
   flex: 0 0 auto;
   display: flex;
-  gap: var(--space-6);
+  gap: var(--space-12);
   align-items: center;
 }
 .board-offboard .group-more { margin-top: 0; }
@@ -605,7 +605,7 @@ body { padding: 0; }
   border-radius: var(--radius-small);
   color: var(--ink-faint);
   cursor: pointer;
-  padding: var(--space-2);
+  padding: var(--space-4);
 }
 .ticket-dismiss:hover { border-color: var(--line); }
 .ticket-dismiss:hover .icon { stroke: var(--ink); }
@@ -633,12 +633,12 @@ body { padding: 0; }
    .detail-card, the same one a slice gets — that is the whole point of the
    unification. Only the internal stacking lives here. */
 .ticket-card {
-  padding: var(--space-8);
+  padding: var(--space-20);
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-12);
 }
-.ticket-card-head { display: flex; align-items: center; gap: var(--space-5); }
+.ticket-card-head { display: flex; align-items: center; gap: var(--space-10); }
 .ticket-ref { color: var(--ink-faint); font-family: var(--mono); font-size: 12px; }
 .ticket-status {
   border: 1px solid var(--line);
@@ -655,17 +655,17 @@ body { padding: 0; }
    its own max-height again. */
 .ticket-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
 .ticket-body .spec { min-height: 60px; }
-.ticket-actions { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
+.ticket-actions { display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap; }
 .ticket-actions .ghost { margin-left: auto; }
 .ticket-slice-link {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-8);
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
   color: var(--ink-soft);
   font-size: 13px;
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-10) var(--space-12);
   text-decoration: none;
 }
 .ticket-slice-link:hover { border-color: var(--blue); color: var(--ink); }
@@ -753,8 +753,8 @@ body { padding: 0; }
 /* Full capture modal — quiet optional authoring block beneath the title. */
 /* 720px: the audience arrives from GitHub Issues, where the body field is the
    whole column. 480px made a markdown body feel like a comment box. */
-.capture-modal--full { width: 720px; display: flex; flex-direction: column; gap: var(--space-5); }
-.capture-head { display: flex; flex-direction: column; gap: var(--space-1); }
+.capture-modal--full { width: 720px; display: flex; flex-direction: column; gap: var(--space-10); }
+.capture-head { display: flex; flex-direction: column; gap: var(--space-2); }
 .capture-opts {
   display: flex;
   flex-direction: column;
@@ -784,7 +784,7 @@ body { padding: 0; }
 .capture-bites { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .capture-bite { display: flex; align-items: center; gap: 4px; width: 100%; }
 .capture-bite-input { flex: 1; }
-.capture-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-4); }
+.capture-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-8); }
 /* The keyboard hint sits opposite the buttons rather than under the field: it
    documents the whole form, not one input. */
 .capture-actions .capture-keys { margin: 0; margin-right: auto; }
@@ -911,8 +911,8 @@ body { padding: 0; }
 /* A control that owns its own Save (the org description textarea): the button
    sits under the field, right-aligned with it, and a dirty marker says why the
    button woke up. */
-.settings-row-stack { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-6); min-width: 320px; }
-.settings-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-6); }
+.settings-row-stack { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-12); min-width: 320px; }
+.settings-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-12); }
 .settings-dirty { font-size: var(--text-sm); color: var(--ink-faint); }
 
 /* Sub-heading inside a multi-concern card (e.g. roster + invite form both
@@ -1024,15 +1024,15 @@ body { padding: 0; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-7);
-  margin: 0 0 var(--space-7);
-  padding: 0 0 var(--space-5);
+  gap: var(--space-16);
+  margin: 0 0 var(--space-16);
+  padding: 0 0 var(--space-10);
   border-bottom: 1px solid var(--line);
 }
 .page-title { margin: 0; font-size: var(--text-title); font-weight: 670; letter-spacing: -0.03em; }
 .page-head-l { display: flex; align-items: baseline; gap: 10px; }
 /* Right-hand header cluster (quiet link + primary action). */
-.page-head-r { display: flex; align-items: center; gap: var(--space-6); }
+.page-head-r { display: flex; align-items: center; gap: var(--space-12); }
 .page-head-r .group-more { margin-top: 0; }
 .page-count { color: var(--ink-faint); font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
 
@@ -1084,7 +1084,7 @@ body { padding: 0; }
 .overlay--detail {
   --overlay-top: 0;
   align-items: stretch;
-  padding: var(--space-7);
+  padding: var(--space-16);
 }
 /* margin:auto rather than align-items:center — centring a flex item taller
    than the viewport clips its top beyond reach once the overlay scrolls. */
@@ -1113,8 +1113,8 @@ body.modal-open { overflow: hidden; }
 .skeleton-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-8);
+  gap: var(--space-12);
+  padding: var(--space-20);
 }
 .skel {
   display: block;
@@ -1133,7 +1133,7 @@ body.modal-open { overflow: hidden; }
 }
 @keyframes skel-shimmer { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .skel::after { animation: none; } }
-.skel-head { display: flex; align-items: center; gap: var(--space-5); }
+.skel-head { display: flex; align-items: center; gap: var(--space-10); }
 .skel-close { margin-left: auto; }
 .skel-chip { height: 14px; width: 96px; }
 .skel-title { height: 22px; width: 55%; }
@@ -1213,14 +1213,14 @@ body.modal-open { overflow: hidden; }
   max-width: 100%;
   overflow-x: auto;
   border-collapse: collapse;
-  margin: var(--space-4) 0;
+  margin: var(--space-8) 0;
   font-size: var(--text-sm);
 }
 .spec table:first-child, .bite-body-md table:first-child { margin-top: 0; }
 .spec table:last-child, .bite-body-md table:last-child { margin-bottom: 0; }
 .spec :is(th, td), .bite-body-md :is(th, td) {
   border: 1px solid var(--line);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-6) var(--space-8);
   text-align: left;
   vertical-align: top;
 }
@@ -1235,8 +1235,8 @@ body.modal-open { overflow: hidden; }
    The card is ONE bordered box; its parts are named (Overview / Constraints /
    Bites) so it's clear what is a plan vs a bite. Inner fields are borderless in
    read mode (no box-in-box) and only lift to a subtle field while editing. */
-.plan-block { display: flex; flex-direction: column; gap: var(--space-4); }
-.plan-head { display: flex; align-items: flex-start; gap: var(--space-5); }
+.plan-block { display: flex; flex-direction: column; gap: var(--space-8); }
+.plan-head { display: flex; align-items: flex-start; gap: var(--space-10); }
 .plan-head-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .plan-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--blue); }
 .plan-name { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; color: var(--ink); }
@@ -1246,15 +1246,15 @@ body.modal-open { overflow: hidden; }
 .plan-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-12);
   background: var(--paper-solid);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: var(--space-7);
+  padding: var(--space-16);
 }
 
 /* Each labelled part of a plan: tight label + its content. */
-.plan-field { display: flex; flex-direction: column; gap: var(--space-3); }
+.plan-field { display: flex; flex-direction: column; gap: var(--space-6); }
 .plan-card .section-label { margin-bottom: 0; }
 
 /* Read mode: no border/background — the card is the only box. A hover tint
@@ -1268,7 +1268,7 @@ body.modal-open { overflow: hidden; }
 .plan-card .spec-edit { background: var(--paper-raised); }
 
 /* The bites checklist, divided from the constraints above. */
-.plan-card .plan-bites { border-top: 1px solid var(--line); padding-top: var(--space-6); }
+.plan-card .plan-bites { border-top: 1px solid var(--line); padding-top: var(--space-12); }
 .plan-bites-empty { font-size: 12px; }
 /* Expanded bite detail: an indented left-rule, not another nested box. */
 .plan-card .bite-body {
@@ -1277,7 +1277,7 @@ body.modal-open { overflow: hidden; }
 }
 
 /* Add-plan form — title input + inline submit. */
-.plan-add { display: flex; align-items: center; gap: var(--space-4); }
+.plan-add { display: flex; align-items: center; gap: var(--space-8); }
 .plan-add .bite-add { flex: 1; margin-top: 0; }
 
 /* Collapsible Activity — a full-width header button toggles the timeline so a
@@ -1926,7 +1926,7 @@ html.sidebar-collapsed .side-resize { display: none; }
     position: fixed; inset: 0; z-index: 30;
     background: var(--overlay);
   }
-  .main { padding: var(--space-6) var(--space-7); }
+  .main { padding: var(--space-12) var(--space-16); }
   .side-collapse { display: none; }
   .side-resize { display: none; }
 }
@@ -1943,8 +1943,8 @@ html.sidebar-collapsed .side-resize { display: none; }
 .band-head {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-1) var(--space-1) var(--space-2);
+  gap: var(--space-8);
+  padding: var(--space-2) var(--space-2) var(--space-4);
 }
 .band-title {
   font-family: var(--mono);
@@ -1963,15 +1963,15 @@ html.sidebar-collapsed .side-resize { display: none; }
 /* The only count on Home that is news rather than inventory. */
 .band-count--new { color: var(--accent); font-weight: 600; }
 .band-sub {
-  padding: 0 var(--space-1) var(--space-4);
+  padding: 0 var(--space-2) var(--space-8);
   font-size: var(--text-xs);
   line-height: 1.3;
   color: var(--ink-faint);
 }
 .band-more {
   display: inline-block;
-  margin-top: var(--space-4);
-  padding-left: var(--space-1);
+  margin-top: var(--space-8);
+  padding-left: var(--space-2);
   font-size: var(--text-sm);
   color: var(--ink-faint);
 }
@@ -1984,11 +1984,11 @@ html.sidebar-collapsed .side-resize { display: none; }
 .activity-row.is-new::before {
   content: "";
   position: absolute;
-  left: var(--space-2);
+  left: var(--space-4);
   top: 50%;
-  width: var(--space-3);
-  height: var(--space-3);
-  margin-top: calc(var(--space-3) / -2);
+  width: var(--space-6);
+  height: var(--space-6);
+  margin-top: calc(var(--space-6) / -2);
   border-radius: 50%;
   background: var(--accent);
 }
@@ -2194,7 +2194,7 @@ html.sidebar-collapsed .side-resize { display: none; }
 .settings-item.danger { color: var(--warn); }
 
 /* Area header edit affordances + shared area fields */
-.area-head-row { display: flex; align-items: center; gap: var(--space-2); }
+.area-head-row { display: flex; align-items: center; gap: var(--space-4); }
 .area-edit-btn, .area-desc-add { font-size: var(--text-sm); }
 /* Labeled Area fields (shared by the create modal and the edit modal). */
 .af-field { display: flex; flex-direction: column; gap: 5px; }
@@ -2215,10 +2215,10 @@ html.sidebar-collapsed .side-resize { display: none; }
 .af-help { font-size: var(--text-xs); color: var(--ink-faint); line-height: 1.4; }
 
 /* Agent-access client switcher (settings/org_agent.html) */
-.agent-clients-tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); flex-wrap: wrap; }
-.agent-tab { padding: var(--space-1) var(--space-3); border-radius: var(--radius-small); background: transparent; border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; }
+.agent-clients-tabs { display: flex; gap: var(--space-4); margin-bottom: var(--space-4); flex-wrap: wrap; }
+.agent-tab { padding: var(--space-2) var(--space-6); border-radius: var(--radius-small); background: transparent; border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; }
 .agent-tab--on { background: var(--blue); border-color: var(--blue); color: var(--paper); }
-.agent-client-pane { margin-top: var(--space-2); }
+.agent-client-pane { margin-top: var(--space-4); }
 
 /* Provenance: which tickets a slice was built from. The capture bodies live on
    the tickets rather than copied into spec, so these links are the way back to
@@ -2226,9 +2226,9 @@ html.sidebar-collapsed .side-resize { display: none; }
 .provenance {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-8);
   flex-wrap: wrap;
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-12);
 }
 .provenance-label { color: var(--ink-faint); }
 .provenance-ref { color: var(--ink-soft); text-decoration: none; }
@@ -2302,12 +2302,12 @@ html.sidebar-collapsed .side-resize { display: none; }
 /* --- Keyboard/pointer alternative to dragging (WCAG 2.5.7). The sidebar area
    order and the board column were drag-only; these are the menu items that do
    the same thing without a drag. --- */
-.move-group { display: flex; gap: var(--space-2); }
+.move-group { display: flex; gap: var(--space-4); }
 .card-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+  gap: var(--space-4);
+  margin-top: var(--space-4);
   opacity: 0;
   transition: opacity .12s ease;
 }
@@ -2319,7 +2319,7 @@ html.sidebar-collapsed .side-resize { display: none; }
   place-items: center;
   min-width: 24px;
   min-height: 24px;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-6);
   background: var(--paper);
   border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
@@ -2351,14 +2351,14 @@ html.sidebar-collapsed .side-resize { display: none; }
 .edit-surface:hover .edit-hint { opacity: 1; }
 .edit-hint {
   opacity: 0;
-  margin-left: var(--space-3);
+  margin-left: var(--space-6);
   color: var(--ink-faint);
   font-size: var(--text-xs);
   transition: opacity .12s ease;
 }
 
 /* --- Toast: now a live region, and it can carry an Undo control. --- */
-.toast { display: flex; align-items: center; gap: var(--space-6); }
+.toast { display: flex; align-items: center; gap: var(--space-12); }
 .toast:empty { display: none; }
 .toast-undo {
   background: none;
@@ -2387,10 +2387,10 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 /* Area Inbox strip — untriaged tickets for one area, above the board.
    Quieter than a board column on purpose: this is work not yet committed to,
    so it must not compete with Planned/Building for attention. */
-.area-inbox { margin-bottom: var(--space-7); }
+.area-inbox { margin-bottom: var(--space-16); }
 .area-inbox-head {
-  display: flex; align-items: center; gap: var(--space-4);
-  padding: var(--space-3) 0;
+  display: flex; align-items: center; gap: var(--space-8);
+  padding: var(--space-6) 0;
   cursor: pointer; list-style: none;
   color: var(--muted); font-size: var(--text-sm);
 }
@@ -2401,10 +2401,10 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 }
 .area-inbox[open] .area-inbox-head::before { transform: rotate(90deg); }
 .area-inbox-label { font-weight: 600; color: var(--ink-soft); }
-.area-inbox-rows { display: flex; flex-direction: column; gap: var(--space-1); }
+.area-inbox-rows { display: flex; flex-direction: column; gap: var(--space-2); }
 .area-inbox-row {
-  display: flex; align-items: baseline; gap: var(--space-5);
-  width: 100%; padding: var(--space-3) var(--space-5);
+  display: flex; align-items: baseline; gap: var(--space-10);
+  width: 100%; padding: var(--space-6) var(--space-10);
   background: var(--paper-solid); border: 1px solid var(--line);
   border-radius: var(--radius-small);
   text-align: left; cursor: pointer; font: inherit; color: var(--ink);
@@ -2439,7 +2439,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   font-size: 11px;
   white-space: nowrap;
 }
-.slice-card .agent-mark { padding-top: var(--space-2); }
+.slice-card .agent-mark { padding-top: var(--space-4); }
 
 /* Shape ③ enter: a newly arrived item settles in rather than blinking into
    place. Runs on mount, so unlike the transitions above it does not need morph. */
