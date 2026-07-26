@@ -138,7 +138,7 @@ def test_mcp_ssot_round_trip_ref_note_and_hydrate(asgi_app):
 
         created = call(client, "create_slice", {"area_id": area.id, "title": "OAuth login"})
         ref = created["ref"]
-        assert ref.startswith("acme-")
+        assert ref.startswith("ACM-")
 
         note = call(client, "add_note", {"slice": ref, "body": "blocked on Neon migration"})
         assert note["verb"] == "noted"

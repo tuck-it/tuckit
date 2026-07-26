@@ -27,7 +27,7 @@ async def test_create_list_and_get_ticket():
     _org, raw, _area_id = await _seed()
     ctx = make_ctx(raw)
     t = await create_ticket(ctx, "Fix login", body="from brainstorm")
-    assert t["status"] == "open" and t["ref"] == "acme-1"
+    assert t["status"] == "open" and t["ref"] == "ACM-1"
     listed = await list_tickets(ctx)
     assert [x["title"] for x in listed] == ["Fix login"]
     md = await get_ticket(ctx, t["id"])
@@ -79,17 +79,17 @@ async def test_promoted_ticket_reports_live_slice_status_not_a_stored_copy():
     assert listed[0]["status"] == "promoted"
     assert listed[0]["slice_status"] == "planned"
     md = await get_ticket(ctx, t["id"])
-    assert "Status: promoted → slice acme-1 (planned)" in md
+    assert "Status: promoted → slice ACM-1 (planned)" in md
     assert "buttons misaligned" in md          # captured context survived promotion
 
     slice_obj = await sync_to_async(Slice.objects.get)(pk=s["id"])
     await sync_to_async(set_slice_status)(slice_obj, "shipped")
     md = await get_ticket(ctx, t["id"])
-    assert "Status: promoted → slice acme-1 (shipped)" in md
+    assert "Status: promoted → slice ACM-1 (shipped)" in md
 
     await sync_to_async(set_slice_status)(slice_obj, "building")   # reopened
     md = await get_ticket(ctx, t["id"])
-    assert "Status: promoted → slice acme-1 (building)" in md
+    assert "Status: promoted → slice ACM-1 (building)" in md
 
 
 @pytest.mark.django_db(transaction=True)
