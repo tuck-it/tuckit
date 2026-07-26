@@ -317,35 +317,101 @@ def test_ticket_actions_close_the_modal(client_local, org):
     assert 'hx-swap-oob="innerHTML:#detail-modal"' in out
 
 
-# --- merge: the human path for absorb_ticket ---
+# --- triage: one endpoint, "where does this ticket go?" ---
+# slice_id == "new" mints a slice (promote); a numeric id folds into an existing
+# one (absorb). These were separate endpoints behind two identical-looking
+# "Choose area" selects that meant different things — one named where to build,
+# the other only filtered a list. That is one decision, so it is one endpoint.
 
 
 @pytest.mark.django_db
-def test_ticket_merge_absorbs_into_the_chosen_slice(client_local, org):
+def test_ticket_triage_new_slice_promotes(client_local, org):
+    p = f"/{org.slug}"
+    backend = create_area(org, "Backend")
+    t = create_ticket(org, "To move")
+
+    client_local.post(f"{p}/tickets/{t.id}/triage",
+                      {"area_id": backend.id, "slice_id": "new"},
+                      HTTP_HX_REQUEST="true")
+    t.refresh_from_db()
+    assert t.status == "promoted"
+    assert t.slice is not None and t.slice.area_id == backend.id
+
+
+@pytest.mark.django_db
+def test_ticket_triage_defaults_to_a_new_slice(client_local, org):
+    # A form that somehow omits slice_id must not 500 or silently merge into an
+    # arbitrary slice — the safe default is the one the UI preselects.
+    p = f"/{org.slug}"
+    backend = create_area(org, "Backend")
+    t = create_ticket(org, "No slice field")
+
+    client_local.post(f"{p}/tickets/{t.id}/triage", {"area_id": backend.id},
+                      HTTP_HX_REQUEST="true")
+    t.refresh_from_db()
+    assert t.status == "promoted" and t.slice is not None
+
+
+@pytest.mark.django_db
+def test_ticket_triage_absorbs_into_the_chosen_slice(client_local, org):
     from tuckit.core.services.tickets import promote_ticket
     p = f"/{org.slug}"
     area = create_area(org, "Backend")
     target = promote_ticket(create_ticket(org, "Parent", area=area))
     t = create_ticket(org, "Child", area=area)
 
-    client_local.post(f"{p}/tickets/{t.id}/merge", {"slice_id": target.id},
+    client_local.post(f"{p}/tickets/{t.id}/triage",
+                      {"area_id": area.id, "slice_id": target.id},
                       HTTP_HX_REQUEST="true")
     t.refresh_from_db()
     assert t.slice_id == target.id and t.status == "promoted"
 
 
 @pytest.mark.django_db
-def test_ticket_merge_rejects_a_slice_from_another_org(client_local, org):
+def test_ticket_triage_rejects_a_slice_outside_the_chosen_area(client_local, org):
+    # The area select scopes the slice list, so a mismatch means a stale form —
+    # not a legitimate cross-area merge.
+    from tuckit.core.services.tickets import promote_ticket
+    p = f"/{org.slug}"
+    backend = create_area(org, "Backend")
+    frontend = create_area(org, "Frontend")
+    target = promote_ticket(create_ticket(org, "Parent", area=frontend))
+    t = create_ticket(org, "Child")
+
+    resp = client_local.post(f"{p}/tickets/{t.id}/triage",
+                             {"area_id": backend.id, "slice_id": target.id},
+                             HTTP_HX_REQUEST="true")
+    t.refresh_from_db()
+    assert resp.status_code == 400
+    assert t.slice_id is None and t.status == "open"
+
+
+@pytest.mark.django_db
+def test_ticket_triage_rejects_a_slice_from_another_org(client_local, org):
     p = f"/{org.slug}"
     other = Org.objects.create(name="Beta", slug="beta")
     foreign = create_slice(create_area(other, "X"), "Foreign")
-    t = create_ticket(org, "Child", area=create_area(org, "Backend"))
+    area = create_area(org, "Backend")
+    t = create_ticket(org, "Child", area=area)
 
-    resp = client_local.post(f"{p}/tickets/{t.id}/merge", {"slice_id": foreign.id},
+    resp = client_local.post(f"{p}/tickets/{t.id}/triage",
+                             {"area_id": area.id, "slice_id": foreign.id},
                              HTTP_HX_REQUEST="true")
     t.refresh_from_db()
     assert resp.status_code == 404
     assert t.slice_id is None
+
+
+@pytest.mark.django_db
+def test_ticket_triage_without_an_area_404s(client_local, org):
+    p = f"/{org.slug}"
+    t = create_ticket(org, "Nowhere to go")
+
+    resp = client_local.post(f"{p}/tickets/{t.id}/triage", {"slice_id": "new"},
+                             HTTP_HX_REQUEST="true")
+    t.refresh_from_db()
+    assert resp.status_code == 404
+    assert t.status == "open"
 
 
 @pytest.mark.django_db
@@ -356,11 +422,26 @@ def test_slice_options_are_scoped_to_the_chosen_area(client_local, org):
     create_slice(backend, "In backend")
     create_slice(frontend, "In frontend")
 
-    # merge_area_id, not area_id: HTMX serializes the whole form on hx-get, so
-    # reusing the promote form's field name would collide.
+    # Plain area_id now: there is one triage form, so the field name that used
+    # to collide with the promote form's has nothing left to collide with.
     body = client_local.get(f"{p}/tickets/slice-options",
-                            {"merge_area_id": backend.id}).content.decode()
+                            {"area_id": backend.id}).content.decode()
     assert "In backend" in body and "In frontend" not in body
+
+
+@pytest.mark.django_db
+def test_slice_options_always_offer_a_new_slice(client_local, org):
+    # The second dropdown must be valid before an area is chosen, so the option
+    # list carries "new" in every response — including the empty one.
+    p = f"/{org.slug}"
+    area = create_area(org, "Backend")
+
+    empty = client_local.get(f"{p}/tickets/slice-options").content.decode()
+    assert 'value="new"' in empty
+
+    filled = client_local.get(f"{p}/tickets/slice-options",
+                              {"area_id": area.id}).content.decode()
+    assert 'value="new"' in filled
 
 
 @pytest.mark.django_db

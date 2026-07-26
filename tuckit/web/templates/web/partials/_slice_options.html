@@ -1,4 +1,12 @@
-{% comment %}Options for the merge select. A separate partial so the area select
-can swap it in via hx-get without re-rendering the whole modal.{% endcomment %}
-<option value="" selected disabled>Choose slice</option>
-{% for s in slices %}<option value="{{ s.id }}">{{ s.title }}</option>{% endfor %}
+{% comment %}Options for the triage slice select. A separate partial so the area
+select can swap it in via hx-get without re-rendering the whole modal.
+
+"New slice" leads and is preselected: it keeps the select valid before an area
+is chosen, and it makes promoting — the common case — cost zero interactions
+with this control.
+
+`s.ref` is a plain string the view attached via ref_for(); {% ref_of %} renders
+a <span>/<button> and markup cannot live inside an <option>. The format still
+has exactly one source (services/refs.py).{% endcomment %}
+<option value="new" selected>＋ New slice</option>
+{% for s in slices %}<option value="{{ s.id }}">{{ s.ref }} · {{ s.title }}</option>{% endfor %}

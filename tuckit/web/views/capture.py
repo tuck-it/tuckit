@@ -370,11 +370,16 @@ def area_slice_create(request, slug):
 
 
 def ticket_slice_options(request):
-    """`<option>` list for the merge select, scoped to one area. An org-wide
-    slice dropdown would be unusable within months; scoping keeps it bounded
-    without introducing a search widget."""
+    """`<option>` list for the triage slice select, scoped to one area. An
+    org-wide slice dropdown would be unusable within months; scoping keeps it
+    bounded without introducing a search widget.
+
+    "New slice" leads the list in every response, so the select is valid before
+    an area is picked and promoting costs no interaction with it at all."""
+    from tuckit.core.services.refs import ref_for
+
     org = get_current_org(request)
-    area_id = request.GET.get("merge_area_id")
+    area_id = request.GET.get("area_id")
     slices = []
     if area_id:
         try:
@@ -382,23 +387,52 @@ def ticket_slice_options(request):
             slices = list(query_slices(org, area=get_area(org, int(area_id))))
         except (NotFound, ValueError):
             slices = []
+    # An <option> cannot hold the markup {% ref_of %} renders, so attach the ref
+    # as a plain string. ref_for() keeps the format in services/refs.py, which is
+    # the rule that tag exists to enforce.
+    for s in slices:
+        s.ref = ref_for(s)
     return render(request, "web/partials/_slice_options.html", {"slices": slices})
 
 
-def ticket_merge(request, ticket_id):
-    """Fold this ticket into an existing slice instead of promoting it into a
-    new one — the human path for what absorb_ticket does over MCP."""
+def ticket_triage(request, ticket_id):
+    """Send a ticket somewhere: into a NEW slice in the chosen area, or into an
+    EXISTING one.
+
+    These were two endpoints behind two identical-looking "Choose area" selects
+    that meant different things — one named where to build, the other only
+    filtered a list of slices. That is a single decision ("where does this
+    go?"), so it is now one form and one endpoint, and `slice_id` is its branch.
+
+    Note this is NOT ticket_promote: the Inbox row still posts there, with its
+    own area+status pair and its own irreversibility confirm."""
     org = get_current_org(request)
     try:
         ticket = get_ticket(org, ticket_id)
-        target = get_slice(org, int(request.POST["slice_id"]))
+        area = get_area(org, int(request.POST["area_id"]))
     except (NotFound, KeyError, ValueError):
         raise Http404
+
+    # Absent means "new". A form that loses the field must not fall through to
+    # merging into some arbitrary slice.
+    slice_id = request.POST.get("slice_id") or "new"
     try:
-        absorb_ticket(ticket, target, actor="human")
+        if slice_id == "new":
+            promote_ticket(ticket, area=area, actor="human")
+            message = "Promoted to a slice."
+        else:
+            target = get_slice(org, int(slice_id))
+            if target.area_id != area.id:
+                # The area select scopes the slice list, so a mismatch means a
+                # stale form rather than a deliberate cross-area merge.
+                return HttpResponse("That slice is not in the chosen area", status=400)
+            absorb_ticket(ticket, target, actor="human")
+            message = "Merged."
+    except (NotFound, ValueError):
+        raise Http404
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
-    return _inbox_result(request, org, "Merged.")
+    return _inbox_result(request, org, message)
 
 
 def ticket_release(request, ticket_id):
