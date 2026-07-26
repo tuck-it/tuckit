@@ -90,4 +90,17 @@
       return false;
     };
   });
+
+  /* 서버는 .area-inbox를 항상 닫힌 채 렌더한다(열림은 클라이언트 선호다).
+     그래서 morph의 속성 동기화를 그냥 두면 사용자가 연 스트립이 2초마다,
+     즉 폴링마다 도로 접힌다. 폴링 후에 다시 열어주는 사후 복구도 가능하지만
+     닫혔다 열리는 한 프레임이 남는다 — 아예 벗기지 않는 쪽이 옳다.
+     보호 범위는 이 요소의 open 하나뿐이라, 나머지는 평소대로 morph된다. */
+  document.body.addEventListener("htmx:beforeSwap", function () {
+    if (!window.Idiomorph) return;
+    window.Idiomorph.defaults.callbacks.beforeAttributeUpdated = function (name, node) {
+      if (name !== "open") return true;
+      return !(node.classList && node.classList.contains("area-inbox"));
+    };
+  });
 })();
