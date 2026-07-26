@@ -155,33 +155,43 @@ def test_pill_radius_token_exists_and_is_used_everywhere():
 
 def test_space_14_18_24_are_actually_used_in_app_css():
     """--space-14/18/24 were defined in the prior slice but had zero real
-    usages — this slice assigns them. A regression back to zero usage means
-    someone reverted the assignment without reverting the token definition."""
+    usages — this slice assigns them. Floors (not exact counts) mirror the
+    number of conversions this slice made, so a future slice adopting these
+    tokens further won't fail this test, while a regression that reverts the
+    assignment without reverting the token definition still gets caught."""
     css = (STATIC / "app.css").read_text(encoding="utf-8")
-    assert "var(--space-14)" in css
-    assert "var(--space-18)" in css
-    assert "var(--space-24)" in css
+    assert css.count("var(--space-14)") >= 10
+    assert css.count("var(--space-18)") >= 8
+    assert css.count("var(--space-24)") >= 3
 
 
 def test_text_hero_token_exists_and_auth_panel_tag_uses_it():
     product_css = (STATIC / "tokens.product.css").read_text(encoding="utf-8")
     assert "--text-hero: 24px" in product_css
 
+    import re
+
     auth_css = (STATIC / "auth.css").read_text(encoding="utf-8")
-    assert "font-size: var(--text-hero);" in auth_css
-    assert "font-size: 24px" not in auth_css
+    assert re.search(r"\.auth-panel-tag\s*\{[^}]*font-size:\s*var\(--text-hero\)", auth_css)
+    assert not re.search(r"font-size:\s*24px", auth_css)
     assert ".auth-panel-tag { font-size: var(--text-stat); }" in auth_css
 
 
 def test_fifteen_px_font_sizes_snapped_to_text_md():
+    """These six sites used a stray 15px that matched no token in the scale.
+    Unlike every other conversion in this file's token-adoption tests, this
+    is a deliberate ~1px visual change, not a byte-identical substitution:
+    14px (not 16px) was chosen because it matches the dominant existing
+    convention for similar label/name/value text used elsewhere in app.css.
+    """
     import re
 
     css = (STATIC / "app.css").read_text(encoding="utf-8")
-    assert "font-size: 15px" not in css
+    assert not re.search(r"font-size:\s*15px", css)
     for selector in (".capture-input", ".settings-name-display",
                       ".settings-value", ".modal-card-title",
                       ".cmdk-input", ".org-card-name"):
-        assert re.search(re.escape(selector) + r"[^{]*\{[^}]*var\(--text-md\)", css), \
+        assert re.search(re.escape(selector) + r"[^{]*\{[^}]*font-size:\s*var\(--text-md\)", css), \
             f"{selector} missing var(--text-md)"
 
 
