@@ -60,12 +60,13 @@ def test_get_bite_scoped(data):
 
 @pytest.mark.django_db
 def test_get_slice_by_ref_and_flexible():
+    from tuckit.core.services.refs import slice_ref
     from tuckit.core.services.resolve import get_slice_by_ref, get_slice_flexible
 
     org = Org.objects.create(name="Acme", slug="acme")
     s = create_slice(create_area(org, "B"), "Auth")
-    assert get_slice_by_ref(org, f"acme-{s.number}").id == s.id
-    assert get_slice_flexible(org, f"acme-{s.number}").id == s.id
+    assert get_slice_by_ref(org, slice_ref(s)).id == s.id
+    assert get_slice_flexible(org, slice_ref(s)).id == s.id
     assert get_slice_flexible(org, s.id).id == s.id
 
 

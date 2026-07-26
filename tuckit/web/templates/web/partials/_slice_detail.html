@@ -3,6 +3,7 @@
      {% if is_modal %}role="dialog" aria-modal="true" aria-labelledby="detail-title" data-url-param="slice"{% endif %}>
   <div class="detail-crumb">
     <a class="area-chip" href="{% wurl 'web:area' slice.area.slug %}">{% icon "area" "icon area-chip-icon" %}{{ slice.area.name }}</a>
+    {% ref_of slice copy=True %}
     {% if is_modal %}
     <button class="ghost crumb-close" type="button" aria-label="Close panel"
             hx-on:click="closeDetail()">{% icon "close" "icon" %}</button>
@@ -95,11 +96,11 @@
       <span class="provenance-label">From:</span>
       {% if origin_ticket %}
         <a class="provenance-ref" href="{% url 'web:inbox' current_org.slug %}?ticket={{ origin_ticket.id }}"
-           title="{{ origin_ticket.title }}">{{ org_slug_ref }}{{ origin_ticket.number }} <span class="provenance-origin">(origin)</span></a>
+           title="{{ origin_ticket.title }}">{% ref_of origin_ticket %} <span class="provenance-origin">(origin)</span></a>
       {% endif %}
       {% for t in absorbed_tickets %}
         <a class="provenance-ref" href="{% url 'web:inbox' current_org.slug %}?ticket={{ t.id }}"
-           title="{{ t.title }}">{{ org_slug_ref }}{{ t.number }}</a>
+           title="{{ t.title }}">{% ref_of t %}</a>
       {% endfor %}
     </div>
   {% endif %}
@@ -107,7 +108,7 @@
   <div class="desc-block">
     <div class="section-label">Spec</div>
     <button type="button" class="spec edit-surface" x-show="!editSpec" aria-label="Edit spec"
-         x-on:click="editSpec=true; $nextTick(()=>{ $refs.specEdit.focus(); autosize($refs.specEdit); })">{% if slice.spec %}{{ spec_html|safe }}{% elif origin_ticket %}<span class="muted">No design doc yet. The original capture is in {{ org_slug_ref }}{{ origin_ticket.number }}.</span>{% else %}<span class="muted">Add a spec…</span>{% endif %}</button>
+         x-on:click="editSpec=true; $nextTick(()=>{ $refs.specEdit.focus(); autosize($refs.specEdit); })">{% if slice.spec %}{{ spec_html|safe }}{% elif origin_ticket %}<span class="muted">No design doc yet. The original capture is in {% ref_of origin_ticket %}.</span>{% else %}<span class="muted">Add a spec…</span>{% endif %}</button>
     <form x-show="editSpec" x-cloak hx-post="{% wurl 'web:slice_edit' slice.id %}{{ modal_qs }}"
           hx-target="closest .detail-body" hx-swap="outerHTML">
       <textarea name="spec" class="spec-edit spec-edit--tall" x-ref="specEdit" rows="2"

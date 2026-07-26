@@ -25,7 +25,7 @@
       <button class="area-inbox-row" type="button" data-ticket-id="{{ ticket.id }}"
               hx-get="{% wurl 'web:ticket' ticket.id %}" hx-target="#detail-modal"
               hx-swap="innerHTML" hx-push-url="{% detail_push_url 'ticket' ticket.id %}">
-        <span class="area-inbox-ref">{{ current_org.slug }}-{{ ticket.number }}</span>
+        {% ref_of ticket %}
         <span class="row-title">{{ ticket.title }}</span>
         {% if ticket.body %}<span class="row-desc">{{ ticket.body|spec_summary }}</span>{% endif %}
       </button>

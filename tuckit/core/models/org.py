@@ -3,6 +3,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 
 _SLUG_VALIDATOR = RegexValidator(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$", "invalid slug")
+_KEY_VALIDATOR = RegexValidator(r"^[A-Z][A-Z0-9]{1,5}$", "invalid key")
 
 SHIPPED_BOARD_MODE_CHOICES = [("count", "Count"), ("days", "Days")]
 
@@ -10,6 +11,11 @@ SHIPPED_BOARD_MODE_CHOICES = [("count", "Count"), ("days", "Days")]
 class Org(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=100, unique=True, validators=[_SLUG_VALIDATOR])
+    # The human-facing prefix in a ref: the 'TUC' of 'TUC-47'. Lives on Org
+    # rather than Area because numbers are minted per-org (next_slice_number
+    # below) and an Inbox Ticket has no area at all — an area-scoped key would
+    # leave the entire Inbox unnamable.
+    key = models.CharField(max_length=6, unique=True, validators=[_KEY_VALIDATOR])
     description = models.TextField(blank=True, default="")
     onboarding_dismissed = models.BooleanField(default=False)
     onboarding_completed = models.BooleanField(default=False)
@@ -20,6 +26,41 @@ class Org(models.Model):
     next_slice_number = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Filled here rather than in create_org() because Org.objects.create()
+        # is called directly in bootstrap, migrations and many tests; a blank
+        # key would collide with every other blank one on the unique index.
+        if self._state.adding and not self.key:
+            from django.db import IntegrityError, transaction
+
+            from tuckit.core.services.keys import derive_key, unique_key
+
+            base = derive_key(self.slug)
+            attempts = 5
+            for attempt in range(attempts):
+                self.key = unique_key(base, Org.objects.values_list("key", flat=True))
+                try:
+                    # atomic() confines a failed INSERT to its own savepoint —
+                    # the same reasoning set_org_key uses: on Postgres an
+                    # uncaught IntegrityError poisons the whole surrounding
+                    # transaction (e.g. create_org()'s), not just this INSERT.
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    # unique_key()'s read of "taken" keys and this INSERT are
+                    # not atomic, so two concurrent signups can both compute
+                    # the same free-looking key (e.g. "acme-corp" and
+                    # "acme-inc" both deriving "AC") and only one INSERT wins.
+                    # Re-derive against fresh state and retry rather than
+                    # letting the race surface as a 500; bounded so a
+                    # genuinely broken unique index still fails loudly
+                    # instead of looping forever.
+                    if attempt == attempts - 1:
+                        raise
+            return  # unreachable: the loop always returns or raises above
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

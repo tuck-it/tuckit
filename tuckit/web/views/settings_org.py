@@ -12,6 +12,7 @@ from tuckit.core.services.orgs import (
     list_org_members,
     remove_member,
     rename_org,
+    set_org_key,
 )
 from tuckit.web.htmx import redirect_response
 from tuckit.web.views.settings_shell import settings_context
@@ -27,6 +28,18 @@ def org_rename(request):
     except InvalidValue as exc:
         return HttpResponse(str(exc), status=400)
     return HttpResponse(org.name)
+
+
+@require_POST
+def org_key(request):
+    org = request.org
+    if not is_org_admin(request.user, org):
+        return HttpResponseForbidden("You don't have permission.")
+    try:
+        org = set_org_key(org, request.POST.get("key", ""))
+    except InvalidValue as exc:
+        return HttpResponse(str(exc), status=400)
+    return HttpResponse(org.key)
 
 
 def _member_in_org(request, member_id):

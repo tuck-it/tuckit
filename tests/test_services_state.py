@@ -351,10 +351,10 @@ def test_slice_markdown_lists_provenance_with_origin_first():
 
     md = render_slice_markdown(s)
     line = next(l for l in md.splitlines() if l.startswith("From:"))
-    assert f"acme-{origin.number} (origin)" in line
-    assert f"acme-{extra.number}" in line
+    assert f"ACM-{origin.number} (origin)" in line
+    assert f"ACM-{extra.number}" in line
     # origin leads, so the ref that names the slice reads first
-    assert line.index(f"acme-{origin.number}") < line.index(f"acme-{extra.number}")
+    assert line.index(f"ACM-{origin.number}") < line.index(f"ACM-{extra.number}")
 
 
 @pytest.mark.django_db

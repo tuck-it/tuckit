@@ -42,6 +42,33 @@
     </div>
   </div>
   {% if can_admin %}
+  <div class="settings-row" x-data="{key:'{{ org.key|escapejs }}', saved:'{{ org.key|escapejs }}'}">
+    <div class="settings-row-text">
+      <div class="settings-row-label">Ref prefix</div>
+      {% comment %} Says the cost out loud: refs are derived from this, so every
+         ref already written down elsewhere — in an agent's memory, in a doc —
+         stops resolving the moment it changes. {% endcomment %}
+      <div class="settings-row-desc">
+        The short code in every ref, like <span class="ref">{{ org.key }}-47</span>.
+        Changing it renames every ref at once — older ones stop resolving.
+      </div>
+    </div>
+    <div class="settings-row-control">
+      {% comment %} x-on:, not hx-on:: — an hx-on handler runs in the global
+         scope and cannot see x-data. {% endcomment %}
+      <input name="key" class="title-edit" aria-label="Ref prefix" maxlength="6"
+             x-model="key"
+             hx-post="{% url 'web:org_key' org.slug %}"
+             hx-trigger="blur, keydown[key=='Enter']" hx-swap="none"
+             x-on:htmx:after-request="if ($event.detail.successful) {
+                 key = $event.detail.xhr.responseText; saved = key; showToast('Saved.', 'ok')
+               } else {
+                 key = saved; showToast($event.detail.xhr.responseText || 'Could not save. Nothing changed.', 'err')
+               }">
+    </div>
+  </div>
+  {% endif %}
+  {% if can_admin %}
   <div class="settings-row">
     <div class="settings-row-text">
       <div class="settings-row-label">Description</div>

@@ -60,3 +60,68 @@ def test_org_member_starts_with_no_home_watermark():
     m = OrgMember.objects.create(user=user, org=org, role="owner")
 
     assert m.home_seen_at is None
+
+
+def test_org_key_is_derived_on_create(db):
+    from tuckit.core.models import Org
+
+    org = Org.objects.create(name="Tuckit Projects", slug="tuckit-projects")
+    assert org.key == "TP"
+
+
+def test_org_key_avoids_collision(db):
+    from tuckit.core.models import Org
+
+    Org.objects.create(name="One", slug="tuckit-projects")
+    second = Org.objects.create(name="Two", slug="tuckit-plugins")
+    assert second.key == "TP2"
+
+
+def test_explicit_key_is_not_overwritten(db):
+    from tuckit.core.models import Org
+
+    org = Org.objects.create(name="Tuckit", slug="tuckit", key="ZZ")
+    assert org.key == "ZZ"
+
+
+def test_saving_an_existing_org_does_not_touch_its_key(db):
+    from tuckit.core.models import Org
+
+    org = Org.objects.create(name="Tuckit", slug="tuckit")
+    org.name = "Renamed"
+    org.save(update_fields=["name"])
+    org.refresh_from_db()
+    assert org.key == "TUC"
+
+
+def test_org_creation_retries_past_a_racing_key_collision(db, monkeypatch):
+    """unique_key() reads "taken" keys and the INSERT that follows are not
+    atomic, so two concurrent signups can both compute the same free-looking
+    key. Simulate the race (rather than real threads) by making unique_key
+    hand back an already-taken key on the first attempt: the save should
+    retry against fresh state instead of letting the IntegrityError become a
+    500."""
+    from tuckit.core.models import Org
+    from tuckit.core.services import keys as keys_module
+
+    Org.objects.create(name="Existing", slug="acme-corp", key="AC")
+
+    handed_out = iter(["AC", "AC2"])  # "AC" collides, "AC2" is the real retry
+    monkeypatch.setattr(keys_module, "unique_key", lambda base, taken: next(handed_out))
+
+    org = Org.objects.create(name="Racer", slug="acme-inc")
+    assert org.key == "AC2"
+
+
+def test_org_creation_gives_up_after_bounded_retries(db, monkeypatch):
+    """A persistently colliding key (a genuinely broken unique index, not a
+    one-off race) must still fail loudly rather than loop forever."""
+    from django.db import IntegrityError
+    from tuckit.core.models import Org
+    from tuckit.core.services import keys as keys_module
+
+    Org.objects.create(name="Existing", slug="acme-corp", key="AC")
+    monkeypatch.setattr(keys_module, "unique_key", lambda base, taken: "AC")
+
+    with pytest.raises(IntegrityError):
+        Org.objects.create(name="Racer", slug="acme-inc")

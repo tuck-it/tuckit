@@ -258,3 +258,107 @@ def test_org_name_not_globally_unique():
     # same name, different slug -> allowed
     create_org(u2, name="Acme", slug="acme-two")
     assert Org.objects.filter(name="Acme").count() == 2
+
+
+def test_set_org_key_normalises_and_saves(db):
+    from tuckit.core.models import Org
+    from tuckit.core.services.orgs import set_org_key
+
+    org = Org.objects.create(name="Tuckit", slug="tuckit")
+    set_org_key(org, " zz ")
+    org.refresh_from_db()
+    assert org.key == "ZZ"
+
+
+def test_set_org_key_rejects_a_key_another_org_holds(db):
+    from tuckit.core.models import Org
+    from tuckit.core.services.exceptions import InvalidValue
+    from tuckit.core.services.orgs import set_org_key
+
+    Org.objects.create(name="A", slug="alpha", key="AAA")
+    b = Org.objects.create(name="B", slug="bravo", key="BBB")
+    with pytest.raises(InvalidValue):
+        set_org_key(b, "AAA")
+
+
+def test_set_org_key_accepts_the_key_the_org_already_has(db):
+    from tuckit.core.models import Org
+    from tuckit.core.services.orgs import set_org_key
+
+    org = Org.objects.create(name="A", slug="alpha", key="AAA")
+    assert set_org_key(org, "aaa").key == "AAA"
+
+
+def test_set_org_key_converts_a_racing_integrity_error_to_invalid_value(db):
+    # The pre-check (`filter(key=key).exclude(pk=org.pk).exists()`) can't close
+    # the window between two admins racing the same key across two different
+    # orgs: both pre-checks can pass before either save() lands. Rather than
+    # simulate the race with two threads, patch save() to raise the
+    # IntegrityError the DB's unique constraint would raise in that window,
+    # and pin that it surfaces as the same InvalidValue as the non-racing
+    # rejection, not an unhandled 500.
+    from unittest.mock import patch
+
+    from django.db import IntegrityError
+
+    from tuckit.core.models import Org
+    from tuckit.core.services.exceptions import InvalidValue
+    from tuckit.core.services.orgs import set_org_key
+
+    org = Org.objects.create(name="A", slug="alpha", key="AAA")
+    with patch.object(org, "save", side_effect=IntegrityError("duplicate key value")):
+        with pytest.raises(InvalidValue):
+            set_org_key(org, "ZZ")
+
+
+def test_set_org_key_rewrites_promoted_refs_but_leaves_plain_values_alone(db):
+    """Migration 0042 rewrites org-slug-shaped refs to the key format once, at
+    deploy time. Renaming the key afterward recreates the exact same
+    staleness for THAT org unless set_org_key repeats the rewrite — this pins
+    that it does, and that it doesn't touch what it shouldn't."""
+    from tuckit.core.models import ActivityEvent, Org
+    from tuckit.core.services.orgs import set_org_key
+
+    org = Org.objects.create(name="Tuckit Projects", slug="tuckit-projects", key="TP")
+    other = Org.objects.create(name="Other", slug="other", key="OTH")
+
+    ref_event = ActivityEvent.objects.create(
+        org=org, actor="agent", verb="promoted", target_type="ticket",
+        target_id=1, target_label="t", to_value="TP-47",
+    )
+    plain_event = ActivityEvent.objects.create(
+        org=org, actor="human", verb="status_changed", target_type="slice",
+        target_id=2, target_label="s", to_value="shipped",
+    )
+    other_org_event = ActivityEvent.objects.create(
+        org=other, actor="agent", verb="promoted", target_type="ticket",
+        target_id=3, target_label="t", to_value="TP-99",  # coincidental match, wrong org
+    )
+
+    set_org_key(org, "ACME")
+
+    ref_event.refresh_from_db()
+    plain_event.refresh_from_db()
+    other_org_event.refresh_from_db()
+    assert ref_event.to_value == "ACME-47"
+    assert plain_event.to_value == "shipped"
+    assert other_org_event.to_value == "TP-99"  # a different org's rows are untouched
+
+
+def test_set_org_key_does_not_rewrite_a_non_promoted_ref_shaped_value(db):
+    """slices.py writes to_value=area.name on a 'moved' event — an Area named
+    like a ref is absurd but possible, and must survive a key rename exactly
+    as it survives migration 0042 (Minor D)."""
+    from tuckit.core.models import ActivityEvent, Org
+    from tuckit.core.services.orgs import set_org_key
+
+    org = Org.objects.create(name="Tuckit Projects", slug="tuckit-projects", key="TP")
+    area_named_like_a_ref = ActivityEvent.objects.create(
+        org=org, actor="human", verb="moved", target_type="slice",
+        target_id=1, target_label="s", to_value="TP-47",
+    )
+
+    set_org_key(org, "ACME")
+
+    area_named_like_a_ref.refresh_from_db()
+    assert area_named_like_a_ref.to_value == "TP-47"

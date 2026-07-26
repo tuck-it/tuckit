@@ -1,0 +1,16 @@
+{% comment %}
+  The shared vocabulary between the human and the agent. Rendered only through
+  {% ref_of %} so the format has exactly one source (services/refs.py).
+
+  The copy variant writes the FULL ref — that is the string you paste back to an
+  agent. Its state is pure Alpine: an hx-on:: handler runs in the global scope
+  and cannot see x-data, so it would fail silently here.
+{% endcomment %}
+{% if copy %}
+<button type="button" class="ref ref--copy" x-data="{copied: false}"
+        title="Copy {{ ref }}" aria-label="Copy ref {{ ref }}"
+        x-on:click.stop.prevent="copyText('{{ ref|escapejs }}').then(ok => { copied = ok; setTimeout(() => copied = false, 1200) })"
+        x-text="copied ? 'Copied' : '{{ ref|escapejs }}'">{{ ref }}</button>
+{% else %}
+<span class="ref{% if muted %} ref--muted{% endif %}">{{ ref }}</span>
+{% endif %}

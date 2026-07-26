@@ -6,7 +6,7 @@ from django.views.generic import RedirectView
 from tuckit.web.views import (
     pages, slices, mutations, board, capture, health,
     accounts, settings_org, settings_account, settings_shell, routing,
-    onboarding, oauth, social, live,
+    onboarding, oauth, social, live, search,
 )
 from tuckit.web.views import settings as settings_views
 
@@ -46,6 +46,7 @@ settings_patterns = [
     path("<slug:org_slug>/settings/", settings_shell.settings_root, name="settings_root"),
     path("<slug:org_slug>/settings/general", settings_org.org_general, name="settings_org_general"),
     path("<slug:org_slug>/settings/rename", settings_org.org_rename, name="org_rename"),
+    path("<slug:org_slug>/settings/key", settings_org.org_key, name="org_key"),
     path("<slug:org_slug>/settings/members", settings_org.org_members, name="settings_org_members"),
     path("<slug:org_slug>/settings/members/<int:member_id>/role", settings_org.member_role, name="org_member_role"),
     path("<slug:org_slug>/settings/members/<int:member_id>/remove", settings_org.member_remove, name="org_member_remove"),
@@ -84,6 +85,7 @@ app_patterns = [
     path(f"{P}onboarding/agent-activity", onboarding.agent_check, name="onboarding_agent_check"),
     path(f"{P}capture", capture.capture, name="capture"),
     path(f"{P}live", live.live, name="live"),
+    path(f"{P}search", search.search, name="search"),
     path(f"{P}inbox/", capture.inbox, name="inbox"),
     path(f"{P}roadmap/", pages.roadmap, name="roadmap"),
     path(f"{P}areas/", pages.areas, name="areas"),

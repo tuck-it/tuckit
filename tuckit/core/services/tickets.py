@@ -58,7 +58,9 @@ def ticket_queryset(
 ) -> QuerySet:
     """Lazy ticket query. Defaults to the Inbox (`status='open'`) — with the
     lifecycle ending at triage, open IS the inbox, so no slice join is needed."""
-    qs = Ticket.objects.filter(org=org)
+    # select_related("org") so {% ref_of %} on every Inbox/area-strip row
+    # doesn't fire its own SELECT against core_org.
+    qs = Ticket.objects.filter(org=org).select_related("org")
     if status:
         qs = qs.filter(status=status)
     if area is not None:

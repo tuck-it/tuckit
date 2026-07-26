@@ -17,14 +17,13 @@
   <a class="slice-card-link" href="{% wurl 'web:slice' slice.id %}"
      hx-get="{% wurl 'web:slice' slice.id %}?modal=1" hx-target="#detail-modal" hx-push-url="{% detail_push_url 'slice' slice.id %}">
     <span class="card-title">{{ slice.title }}</span>
-    {% if show_area or slice.stage != "needs_design" %}
     <span class="card-sub">
+      {% ref_of slice %}
       {% if show_area %}<span>{{ slice.area.name }}</span>{% endif %}
       {% if slice.stage == "needs_plan" %}<span>needs plan</span>
       {% elif slice.stage == "needs_bites" %}<span>needs bites</span>
       {% elif slice.stage != "needs_design" %}<span>{% bite_progress slice %}</span>{% endif %}
     </span>
-    {% endif %}
   </a>
   {% agent_label slice %}
   {% if slice.stage != "shipped" and slice.stage != "dropped" %}

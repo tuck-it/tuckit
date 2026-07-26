@@ -1,6 +1,6 @@
 from tuckit.core.models import Area, Bite, Org, Plan, Slice, Ticket
 from tuckit.core.services.exceptions import NotFound
-from tuckit.core.services.refs import parse_slice_ref
+from tuckit.core.services.refs import parse_ref
 
 
 def get_area(org: Org, area_id: int) -> Area:
@@ -39,7 +39,7 @@ def get_plan(org: Org, plan_id: int) -> Plan:
 
 
 def get_slice_by_ref(org: Org, ref: str) -> Slice:
-    number = parse_slice_ref(org, ref)
+    number = parse_ref(org, ref)
     try:
         return Slice.objects.get(number=number, area__org=org)
     except Slice.DoesNotExist:
@@ -47,7 +47,7 @@ def get_slice_by_ref(org: Org, ref: str) -> Slice:
 
 
 def get_slice_flexible(org: Org, id_or_ref) -> Slice:
-    """Accept an int id or a string ref ('<org-slug>-<n>')."""
+    """Accept an int id or a string ref ('<ORG-KEY>-<n>')."""
     if isinstance(id_or_ref, int) or (isinstance(id_or_ref, str) and id_or_ref.isdigit()):
         return get_slice(org, int(id_or_ref))
     return get_slice_by_ref(org, id_or_ref)
@@ -61,7 +61,7 @@ def get_ticket(org: Org, ticket_id: int) -> Ticket:
 
 
 def get_ticket_by_ref(org: Org, ref: str) -> Ticket:
-    number = parse_slice_ref(org, ref)
+    number = parse_ref(org, ref)
     try:
         return Ticket.objects.get(number=number, org=org)
     except Ticket.DoesNotExist:
@@ -69,10 +69,11 @@ def get_ticket_by_ref(org: Org, ref: str) -> Ticket:
 
 
 def resolve_ref(org: Org, ref: str):
-    """Resolve a '<slug>-<n>' ref to its current form: the Slice with that number
-    if one exists (i.e. the Ticket was promoted), the Slice that absorbed the
-    Ticket if it was folded into other work, otherwise the Ticket itself."""
-    number = parse_slice_ref(org, ref)
+    """Resolve a '<ORG-KEY>-<n>' ref to its current form: the Slice with that
+    number if one exists (i.e. the Ticket was promoted), the Slice that
+    absorbed the Ticket if it was folded into other work, otherwise the
+    Ticket itself."""
+    number = parse_ref(org, ref)
     s = Slice.objects.filter(number=number, org=org).first()
     if s is not None:
         return s

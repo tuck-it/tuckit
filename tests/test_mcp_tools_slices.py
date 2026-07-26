@@ -85,7 +85,7 @@ async def test_get_slice_accepts_ref_and_dict_has_ref():
     _org, _other, raw, area_id = await _seed()
     ctx = make_ctx(raw)
     s = await create_slice(ctx, area_id, "Auth", spec="x")
-    assert s["ref"].startswith("acme-")
+    assert s["ref"].startswith("ACM-")
     md = await get_slice(ctx, s["ref"])
     assert "# Auth" in md
     md2 = await get_slice(ctx, s["ref"], with_activity=True)

@@ -165,7 +165,7 @@ def home_state(org: Org) -> dict:
     """
     slices = list(
         Slice.objects.filter(area__org=org)
-        .select_related("area").prefetch_related("tags")
+        .select_related("area", "org").prefetch_related("tags")
     )
     now = timezone.now()
     stale_cutoff = now - timedelta(days=STALE_DAYS)
@@ -248,7 +248,7 @@ def your_turn(org: Org) -> list[dict]:
     qs = (
         annotate_stage_counts(
             Slice.objects.filter(area__org=org, status="building")
-            .select_related("area")
+            .select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("updated_at")
@@ -282,7 +282,7 @@ def roadmap_state(org: Org) -> dict:
     slices = list(
         Slice.objects.filter(area__org=org)
         .exclude(status="dropped")
-        .select_related("area")
+        .select_related("area", "org")
         .prefetch_related("tags")
     )
 
@@ -332,7 +332,7 @@ def roadmap_board_view(org: Org) -> dict:
     # it). area__name, rank matches roadmap_state's within-column order.
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(area__org=org).select_related("area")
+            Slice.objects.filter(area__org=org).select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("area__name", "rank")
@@ -379,7 +379,7 @@ def area_board_view(area: Area) -> dict:
 
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(area=area).select_related("area")
+            Slice.objects.filter(area=area).select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("rank")  # explicit: annotate_stage_counts drops Meta.ordering
