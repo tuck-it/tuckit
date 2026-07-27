@@ -102,3 +102,14 @@ def test_ticket_status_whitelist_is_enforced_in_the_db(org):
     from tuckit.core.models import Ticket
     with pytest.raises(IntegrityError):
         Ticket.objects.create(org=org, title="A", rank="a0", number=1, status="closed")
+
+
+def test_slice_status_choices_are_decisions_only():
+    """status는 사람이 내리는 결정만 담는다. 'building'은 관찰이고,
+    stage가 파생하므로 여기 있으면 안 된다 (A0)."""
+    values = [v for v, _label in Slice.STATUS_CHOICES]
+    assert values == ["open", "shipped", "dropped"]
+
+
+def test_slice_status_defaults_to_open():
+    assert Slice._meta.get_field("status").default == "open"
