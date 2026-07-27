@@ -7,7 +7,7 @@ from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.plans import list_plans
 from tuckit.core.services.refs import ticket_ref
 from tuckit.core.services.slices import (
-    annotate_stage_counts, list_slices, stage_column, stage_of,
+    annotate_stage_counts, filed_slices, list_slices, stage_column, stage_of,
 )
 from tuckit.core.services.tickets import origin_ticket
 
@@ -233,8 +233,13 @@ def your_turn(org: Org) -> list[dict]:
 
     Staleness is not an inclusion rule — it is the sort key. A "stale" section
     is a guilt list: it only grows, and it can never be cleared.
+
+    Inbox slices (area IS NULL) are excluded via filed_slices(): an unfiled
+    capture is not yet work anyone has committed to, so "write the spec" is
+    the wrong ask — triaging it (giving it an area) is the actual next step,
+    and that lives on the Inbox screen, not here.
     """
-    from tuckit.core.services.slices import annotate_stage_counts, stage_of
+    from tuckit.core.services.slices import annotate_stage_counts, filed_slices, stage_of
     from tuckit.core.services.tickets import ticket_queryset
 
     now = timezone.now()
@@ -244,7 +249,7 @@ def your_turn(org: Org) -> list[dict]:
     # Postgres.
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(org=org, status="open")
+            filed_slices(Slice.objects.filter(org=org, status="open"))
             .select_related("area", "org")
         )
         .prefetch_related("tags")
@@ -275,9 +280,14 @@ def your_turn(org: Org) -> list[dict]:
 
 def roadmap_state(org: Org) -> dict:
     """Non-dropped slices grouped by roadmap status — powers the Roadmap board
-    and its distribution counts."""
+    and its distribution counts.
+
+    Inbox slices (area IS NULL) are excluded via filed_slices(): bucket() below
+    sorts by `s.area.name`, which is exactly the AttributeError an unfiled
+    capture would trip, and even where it wouldn't crash the Inbox has its own
+    screen — it does not belong on the org-wide flat status list."""
     slices = list(
-        Slice.objects.filter(org=org)
+        filed_slices(Slice.objects.filter(org=org))
         .exclude(status="dropped")
         .select_related("area", "org")
         .prefetch_related("tags")
@@ -322,13 +332,15 @@ def roadmap_board_view(org: Org) -> dict:
     overflow + dropped count, for the org Board tab.
 
     Each slice carries a `.stage` attribute so the card can badge needs_steps
-    and show the Ship button only on ready_to_ship."""
+    and show the Ship button only on ready_to_ship. Inbox slices (area IS
+    NULL) are excluded via filed_slices() — the Board groups by area__name and
+    an unfiled capture has none; it belongs on the Inbox screen, not here."""
     # annotate_stage_counts adds a GROUP BY; Django then drops Meta.ordering, so
     # the explicit order_by is load-bearing (undefined order on Postgres without
     # it). area__name, rank matches roadmap_state's within-column order.
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(org=org).select_related("area", "org")
+            filed_slices(Slice.objects.filter(org=org)).select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("area__name", "rank")

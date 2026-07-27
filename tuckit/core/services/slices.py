@@ -39,7 +39,7 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
         Slice.objects.filter(org=org).select_related("area", "assignee__user", "org")
     )
     if not include_inbox and area is None:
-        qs = qs.filter(area__isnull=False)
+        qs = filed_slices(qs)
     if area is not None:
         qs = qs.filter(area=area)
     if status:
@@ -249,6 +249,19 @@ def inbox_slices(org: Org) -> QuerySet:
         .select_related("org")
         .order_by("-created_at")
     )
+
+
+def filed_slices(qs: QuerySet) -> QuerySet:
+    """Exclude Inbox items (area IS NULL) from a Slice queryset.
+
+    The single definition of "is this filed" on the queryset side, mirroring
+    inbox_slices()'s predicate on the other side of the split. Every query that
+    must not surface unfiled captures — the Board, the org-wide flat status
+    list, Home's your_turn, and query_slices' own default — filters through
+    this rather than re-spelling `area__isnull=False`. Grouping/sorting code
+    downstream (e.g. `s.area.name`) depends on this: an Inbox slice has no
+    area to group or sort by."""
+    return qs.filter(area__isnull=False)
 
 
 # Workflow order: what a slice needs next, from undesigned to done. Derived on

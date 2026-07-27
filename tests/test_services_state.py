@@ -224,6 +224,21 @@ def test_roadmap_sorts_by_area_name():
 
 
 @pytest.mark.django_db
+def test_roadmap_state_excludes_inbox_slices():
+    """Regression (Task 6 fix round 1): an area-less (Inbox) slice used to blow
+    up bucket()'s `s.area.name` sort key with an AttributeError. filed_slices()
+    must drop it before the sort ever sees it — the Inbox has its own screen,
+    not this org-wide flat list."""
+    org = Org.objects.create(name="Acme", slug="acme")
+    a = create_area(org, "Backend")
+    filed = create_slice(a.org, area=a, title="filed", status="open")
+    create_slice(org, title="unfiled capture", status="open")   # no area
+    rs = roadmap_state(org)   # must not raise
+    assert [s.title for s in rs["open"]] == ["filed"]
+    assert filed.id
+
+
+@pytest.mark.django_db
 def test_cap_shipped_count_mode(product_org):
     product_org.shipped_board_mode = "count"
     product_org.shipped_board_limit = 2
@@ -319,6 +334,20 @@ def test_roadmap_board_view_attaches_raw_stage_to_each_slice(product_org):
     groups = dict(roadmap_board_view(product_org)["groups"])
     by_title = {s.title: s.stage for s in groups["needs_steps"]}
     assert by_title == {"spec only": "needs_steps", "has an empty plan": "needs_steps"}
+
+
+@pytest.mark.django_db
+def test_roadmap_board_view_excludes_inbox_slices(product_org):
+    """Regression (Task 6 fix round 1): roadmap_board_view() queried
+    Slice.objects directly with no area filter, so an unfiled capture flooded
+    the org Board's needs_design column. The Inbox has its own screen."""
+    a = create_area(product_org, "Backend")
+    create_slice(a.org, area=a, title="filed", spec="s")           # needs_steps
+    create_slice(product_org, title="unfiled capture")             # Inbox — no area
+
+    groups = dict(roadmap_board_view(product_org)["groups"])
+    titles = {s.title for col in groups.values() for s in col}
+    assert titles == {"filed"}
 
 
 def test_snapshot_today_still_accrues_history(product_org):
@@ -564,6 +593,18 @@ def test_your_turn_excludes_stages_an_agent_can_do():
     ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
     assert bare.id not in ids
     assert with_empty_plan.id not in ids
+
+
+@pytest.mark.django_db
+def test_your_turn_excludes_inbox_slices():
+    """Regression (Task 6 fix round 1): an unfiled capture (area IS NULL, spec
+    empty) used to surface here as 'write the spec'. It isn't yet — the actual
+    next step is triaging it (giving it an area), which is the Inbox screen's
+    job, not this band's."""
+    org = Org.objects.create(name="Acme", slug="acme")
+    create_slice(org, title="unfiled capture", status="open")   # no area, no spec
+    ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
+    assert ids == set()
 
 
 @pytest.mark.django_db

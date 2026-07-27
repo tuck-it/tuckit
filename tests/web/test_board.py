@@ -169,6 +169,25 @@ def test_status_filter_is_generic(client_local, org):
 
 
 @pytest.mark.django_db
+def test_status_filter_survives_an_inbox_slice(client_local, org):
+    """Regression (Task 6 fix round 1): an area-less (Inbox) slice used to hard
+    500 this route — roadmap_state()'s bucket() sorted by `s.area.name`, which
+    an unfiled capture doesn't have. This must be a real request through the
+    view, not a service-level call, because a service-level test would not
+    have caught the crash (the view is what dereferences the template context
+    built from roadmap_state())."""
+    p = f"/{org.slug}"
+    a = create_area(org, "Core")
+    create_slice(a.org, area=a, title="filed thing", status="open")
+    create_slice(org, title="unfiled capture", status="open")   # no area — Inbox
+    resp = client_local.get(f"{p}/roadmap/?status=open")
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "filed thing" in body
+    assert "unfiled capture" not in body
+
+
+@pytest.mark.django_db
 def test_shipped_link_shows_regardless_of_cap(client_local, org):
     # Shipped is off-board: the header link shows whenever any shipped slice
     # exists, independent of the (now board-irrelevant) cap.
