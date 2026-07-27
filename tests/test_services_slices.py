@@ -253,67 +253,58 @@ def test_stage_counts_matches_annotation_on_the_same_slices():
     two from drifting apart."""
     from tuckit.core.models import Slice
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.slices import annotate_stage_counts, stage_counts
 
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
 
-    bare = create_slice(area, "No plan", spec="design")
-    empty_plan = create_slice(area, "Empty plan", spec="design")
-    create_plan(empty_plan, title="P")
+    bare = create_slice(area, "No bites", spec="design")
     mixed = create_slice(area, "Mixed", spec="design")
-    p = create_plan(mixed, title="P")
-    create_bite(p, "done one", status="done")
-    create_bite(p, "todo one")
-    create_bite(p, "dropped one", status="dropped")
+    create_bite(mixed, "done one", status="done")
+    create_bite(mixed, "todo one")
+    create_bite(mixed, "dropped one", status="dropped")
 
     annotated = {s.id: s for s in annotate_stage_counts(Slice.objects.filter(area=area))}
-    for s in (bare, empty_plan, mixed):
+    for s in (bare, mixed):
         a = annotated[s.id]
-        assert stage_counts(s) == (a._plan_count, a._bites_done, a._bites_total), s.title
+        assert stage_counts(s) == (a._bites_done, a._bites_total), s.title
 
 
 @pytest.mark.django_db
-def test_two_plans_one_empty_counts_plans_and_bites_correctly():
-    """plans__bites is a nested join: without distinct=True on every Count the
-    fan-out multiplies the numbers by each other, and the result is plausible
-    enough to pass unnoticed."""
+def test_tags_on_a_slice_do_not_fan_out_the_bite_counts():
+    """Bites hang directly off the Slice now, so the plans__bites nested join
+    is gone — but tags is still a separate multi-valued join on the same
+    queryset. Without distinct=True on every Count, N tags would multiply the
+    bite counts by N, and the result is plausible enough to pass unnoticed."""
     from tuckit.core.models import Slice
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.slices import annotate_stage_counts
 
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
-    s = create_slice(area, "Two plans", spec="design")
-    p1 = create_plan(s, title="First")
-    create_plan(s, title="Second (empty)")
-    create_bite(p1, "a")
-    create_bite(p1, "b", status="done")
+    s = create_slice(area, "Tagged", spec="design", tags=["bug", "urgent", "backend"])
+    create_bite(s, "a")
+    create_bite(s, "b", status="done")
 
     a = annotate_stage_counts(Slice.objects.filter(pk=s.pk))[0]
-    assert (a._plan_count, a._bites_done, a._bites_total) == (2, 1, 2)
+    assert (a._bites_done, a._bites_total) == (1, 2)
 
 
 @pytest.mark.django_db
 def test_stage_of_reports_the_workflow_position():
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.slices import stage_of
 
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
 
     assert stage_of(create_slice(area, "Blank")) == "needs_design"
-    assert stage_of(create_slice(area, "Designed", spec="design")) == "needs_plan"
 
-    with_plan = create_slice(area, "Planned", spec="design")
-    plan = create_plan(with_plan, title="P")
-    assert stage_of(with_plan) == "needs_bites"
+    designed = create_slice(area, "Designed", spec="design")
+    assert stage_of(designed) == "needs_steps"
 
-    create_bite(plan, "step")
-    assert stage_of(with_plan) == "executing"
+    create_bite(designed, "step")
+    assert stage_of(designed) == "executing"
 
 
 @pytest.mark.django_db
@@ -330,7 +321,7 @@ def test_stage_of_uses_the_annotation_without_extra_queries(django_assert_num_qu
 
     rows = list(annotate_stage_counts(Slice.objects.filter(area=area)))
     with django_assert_num_queries(0):
-        assert [stage_of(s) for s in rows] == ["needs_plan"] * 5
+        assert [stage_of(s) for s in rows] == ["needs_steps"] * 5
 
 
 @pytest.mark.django_db
@@ -344,8 +335,8 @@ def test_query_slices_rows_carry_the_annotation():
     create_slice(area, "One", spec="design")
 
     rows = query_slices(org)
-    assert hasattr(rows[0], "_plan_count")
-    assert stage_of(rows[0]) == "needs_plan"
+    assert hasattr(rows[0], "_bites_total")
+    assert stage_of(rows[0]) == "needs_steps"
 
 
 @pytest.mark.django_db

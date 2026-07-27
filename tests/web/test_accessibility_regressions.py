@@ -15,6 +15,7 @@ from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
 from tuckit.core.services.tickets import create_ticket
+from tests.web.conftest import bite_under_plan
 
 STATIC = Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web"
 
@@ -68,7 +69,7 @@ def test_bite_toggle_exposes_checkbox_state(client_local, org):
     area = create_area(org, "Backend")
     s = create_slice(area, "Retry webhooks")
     plan = create_plan(s, title="v1", actor="human")
-    create_bite(plan, "Write the test", source="human")
+    bite_under_plan(plan, s, "Write the test", source="human")
     body = client_local.get(f"{_p(org)}/slices/{s.id}/").content.decode()
 
     box = re.search(r'<button class="checkbox[^"]*"[^>]*>', body).group(0)
@@ -191,7 +192,7 @@ def test_board_actions_are_non_drag_and_keyboard_reachable(client_local, org):
     from tuckit.core.services.bites import create_bite
     area = create_area(org, "Backend")
     rts = create_slice(area, "Retry webhooks", spec="ship me")
-    create_bite(create_plan(rts, title="P"), "b", status="done")  # → ready_to_ship
+    create_bite(rts, "b", status="done")  # → ready_to_ship
     body = client_local.get(f"{_p(org)}/roadmap/?view=board").content.decode()
     assert 'aria-label="Ship Retry webhooks"' in body   # real button, not a drag target
     assert 'aria-label="Drop Retry webhooks"' in body    # real button, not a drag target

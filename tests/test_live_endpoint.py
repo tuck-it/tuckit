@@ -62,9 +62,9 @@ def test_bite_event_carries_its_own_id_and_label(client, member):
     org, user = member
     client.force_login(user)
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    plan = create_plan(slice_, title="Plan")
+    create_plan(slice_, title="Plan")
     cursor = latest_activity_id(org)
-    bite = create_bite(plan, "Wire the form", source="agent")
+    bite = create_bite(slice_, "Wire the form", source="agent")
 
     resp = client.get(reverse("web:live", args=[org.slug]) + f"?since={cursor}")
     event = next(e for e in resp.json()["events"] if e["target_type"] == "bite")
@@ -84,7 +84,7 @@ def test_deleted_bite_event_still_delivers(client, member):
     org, user = member
     client.force_login(user)
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    bite = create_bite(create_plan(slice_, title="Plan"), "Doomed")
+    bite = create_bite(slice_, "Doomed")
     cursor = latest_activity_id(org)
     delete_bite(bite)
 

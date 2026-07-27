@@ -41,7 +41,7 @@ def slice_activity(slice_):
 
     from tuckit.core.models import ActivityEvent, Bite
 
-    bite_ids = list(Bite.objects.filter(plan__slice=slice_).values_list("id", flat=True))
+    bite_ids = list(Bite.objects.filter(slice=slice_).values_list("id", flat=True))
     return list(
         ActivityEvent.objects.filter(org=slice_.org)
         .filter(Q(target_type="slice", target_id=slice_.id)
@@ -58,7 +58,7 @@ def parent_slice_ids(bite_ids) -> dict:
     if not bite_ids:
         return {}
     return dict(
-        Bite.objects.filter(id__in=bite_ids).values_list("id", "plan__slice_id")
+        Bite.objects.filter(id__in=bite_ids).values_list("id", "slice_id")
     )
 
 

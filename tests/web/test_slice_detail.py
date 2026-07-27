@@ -5,6 +5,7 @@ from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
 from tuckit.core.services.plans import create_plan
+from tests.web.conftest import bite_under_plan
 
 
 @pytest.mark.django_db
@@ -12,7 +13,8 @@ def test_slice_full_page_renders_spec_and_bites(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
     s = create_slice(a, "Payment integration", spec="## Goal\nWire up Stripe", status="open")
-    create_bite(create_plan(s, title="Plan"), "SDK integration", status="done")
+    plan = create_plan(s, title="Plan")
+    bite_under_plan(plan, s, "SDK integration", status="done")
     resp = client_local.get(f"{p}/slices/{s.id}/")
     body = resp.content.decode()
     assert resp.status_code == 200
@@ -75,7 +77,7 @@ def test_slice_detail_shows_its_activity_thread(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a, "Thread slice", status="open")       # logs created (slice)
     set_slice_status(s, "shipped")                            # logs status_changed (slice)
-    create_bite(create_plan(s, title="Plan"), "First bite")                             # logs created (bite)
+    create_bite(s, "First bite")                              # logs created (bite)
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="slice-activity"' in body                  # thread section present
     assert body.count('class="activity-row"') >= 3           # slice + status + bite events
@@ -90,9 +92,9 @@ def test_slice_detail_context_flags_and_progress(org):
     from tuckit.core.services.bites import create_bite
     from tuckit.core.services.plans import create_plan
     s = create_slice(create_area(org, "Design"), "T")
-    p = create_plan(s, title="Plan")
-    create_bite(p, "a", status="done")
-    create_bite(p, "b")  # 1 of 2 done -> 50%
+    create_plan(s, title="Plan")
+    create_bite(s, "a", status="done")
+    create_bite(s, "b")  # 1 of 2 done -> 50%
 
     panel = slice_detail_context(s, is_modal=True)
     assert panel["is_modal"] is True
@@ -158,9 +160,9 @@ def test_bites_progress_and_empty_state(client_local, org):
     assert 'class="row-prog-track"' not in body   # no progress bar when there are no bites
 
     # with bites: count + progress shown, empty state gone
-    plan_ = create_plan(s, title="Plan")
-    create_bite(plan_, "a", status="done")
-    create_bite(plan_, "b")
+    create_plan(s, title="Plan")
+    create_bite(s, "a", status="done")
+    create_bite(s, "b")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert "No plan yet" not in body
     assert "1/2" in body
@@ -244,7 +246,8 @@ def test_slice_detail_shows_plans_and_add_plan(client_local, org):
     from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
     a = create_area(org, "B"); s = create_slice(a, "S")
-    p = create_plan(s, title="Backend", body="overview"); create_bite(p, "step one")
+    p = create_plan(s, title="Backend", body="overview")
+    bite_under_plan(p, s, "step one")
     url = f"/{org.slug}"
     body = client_local.get(f"{url}/slices/{s.id}/").content.decode()
     assert "Backend" in body and "overview" in body and "step one" in body
@@ -284,7 +287,7 @@ def test_plan_delete_removes_plan_and_its_bites(client_local, org):
     a = create_area(org, "B")
     s = create_slice(a, "S")
     plan = create_plan(s, title="Doomed")
-    create_bite(plan, "will vanish")
+    bite_under_plan(plan, s, "will vanish")
     p = f"/{org.slug}"
 
     resp = client_local.post(f"{p}/plans/{plan.id}/delete")
@@ -399,8 +402,8 @@ def test_slice_detail_offers_no_status_menu(client_local, org):
 @pytest.mark.django_db
 def test_stage_pill_shows_human_label_not_raw_key(client_local, org):
     """The pill must never leak the raw snake_case stage key as visible text
-    — `board_label` turns needs_design/needs_plan/needs_bites/ready_to_ship
-    into readable text, the same filter the Board already uses. (The raw key
+    — `board_label` turns needs_design/needs_steps/ready_to_ship into readable
+    text, the same filter the Board already uses. (The raw key
     legitimately still appears inside the dot's `status-dot--needs_design`
     CSS class — ">needs_design<" pins the rendered TEXT, not the class.)"""
     a = create_area(org, "Backend")
@@ -418,8 +421,8 @@ def test_ready_to_ship_slice_can_ship_from_detail(client_local, org):
     the modal — it was the only path there."""
     a = create_area(org, "Backend")
     s = create_slice(a, "다 됐다", spec="왜", status="open")
-    plan = create_plan(s, title="Plan")
-    b = create_bite(plan, "한 걸음")
+    create_plan(s, title="Plan")
+    b = create_bite(s, "한 걸음")
     from tuckit.core.services.bites import update_bite
     update_bite(b, status="done")
 

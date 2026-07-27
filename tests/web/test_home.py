@@ -140,8 +140,8 @@ def test_someday_tagged_executing_slice_is_not_hidden(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a, "Parked but executing", status="open",
                       spec="designed", tags=["someday"])
-    plan = create_plan(s, title="Plan")
-    create_bite(plan, "step")
+    create_plan(s, title="Plan")
+    create_bite(s, "step")
     body = _body(client_local, org)
     assert "Parked but executing" in _band(body, "in progress")
 
@@ -150,7 +150,8 @@ def test_someday_tagged_executing_slice_is_not_hidden(client_local, org):
 def test_stalled_building_slice_stays_listed(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a, "Stalled work", status="open", spec="designed")
-    create_bite(create_plan(s, title="Plan"), "todo", status="todo")
+    create_plan(s, title="Plan")
+    create_bite(s, "todo", status="todo")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=30))
     body = _body(client_local, org)
     assert "Stalled work" in body
@@ -227,8 +228,8 @@ def test_home_in_progress_band_renders_executing_slice(client_local, org):
     with at least one open bite)."""
     a = create_area(org, "Backend")
     s = create_slice(a, "진행 중인 일", spec="왜", status="open")
-    plan = create_plan(s, title="계획")
-    create_bite(plan, "한 걸음")
+    create_plan(s, title="계획")
+    create_bite(s, "한 걸음")
 
     body = _body(client_local, org)
 

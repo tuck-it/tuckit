@@ -125,7 +125,14 @@ def bite_create(request, plan_id):
     title = request.POST.get("title", "").strip()
     if not title:
         return HttpResponse("Title is required", status=400)
-    create_bite(plan, title, source="human")
+    # create_bite() no longer accepts a Plan (Task 5) — it only ever attaches
+    # to the Slice. The panel's only add-bite affordance today still lives
+    # inside a plan card (Task 10 adds a slice-direct one), so this reparents
+    # the new bite onto that plan afterward — otherwise it would be created
+    # correctly but never appear in the panel that just asked for it.
+    b = create_bite(plan.slice, title, source="human")
+    b.plan = plan
+    b.save(update_fields=["plan"])
     return _detail(request, plan.slice)
 
 
@@ -136,7 +143,7 @@ def bite_edit(request, bite_id):
         raise Http404
     if "title" in request.POST:
         update_bite(bite, title=request.POST["title"])
-    return _detail(request, bite.plan.slice)
+    return _detail(request, bite.slice)
 
 
 def bite_delete(request, bite_id):
@@ -144,6 +151,6 @@ def bite_delete(request, bite_id):
         bite = get_bite(get_current_org(request), bite_id)
     except NotFound:
         raise Http404
-    slice_ = bite.plan.slice
+    slice_ = bite.slice
     delete_bite(bite)
     return _detail(request, slice_)

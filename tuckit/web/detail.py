@@ -1,8 +1,9 @@
 import markdown as md
 import nh3
 
+from tuckit.core.models import Bite
 from tuckit.core.services.activity import slice_activity
-from tuckit.core.services.bites import bite_progress, list_bites
+from tuckit.core.services.bites import bite_progress
 from tuckit.core.services.plans import list_plans
 from tuckit.core.services.slices import stage_of
 from tuckit.core.services.tickets import origin_ticket
@@ -34,7 +35,10 @@ def slice_detail_context(slice_, is_modal: bool = False) -> dict:
             "plan": plan,
             "plan_html": render_markdown_html(plan.body) if plan.body else "",
             "constraints_html": render_markdown_html(plan.constraints) if plan.constraints else "",
-            "bites": list(list_bites(plan)),
+            # list_bites() is slice-scoped now (bites hang off the Slice, not
+            # the Plan — Task 5); a per-plan filter still has to go through the
+            # model directly until the plan-based modal itself is retired.
+            "bites": list(Bite.objects.filter(plan=plan)),
         }
         for plan in list_plans(slice_)
     ]

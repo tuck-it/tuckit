@@ -33,7 +33,9 @@ async def test_create_plan_list_plans_create_bite_get_slice_roundtrip():
     assert [p["title"] for p in plans] == ["Backend plan"]
 
     (bite,) = await add_bites(ctx, plan["id"], [{"title": "JWT"}])
-    assert bite["plan_id"] == plan["id"]
+    # Bites hang off the Slice now, not the Plan (Task 5): add_bites still
+    # takes a plan_id, but resolves it one hop further to the slice.
+    assert bite["plan_id"] is None
     assert bite["slice_id"] == slice_id
 
     md = await get_slice(ctx, slice_id)

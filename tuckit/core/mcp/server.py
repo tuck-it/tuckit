@@ -149,7 +149,7 @@ async def list_slices(
 
     Each row carries `stage` — what that slice needs next, derived from its own
     state: needs_design (spec is empty — brainstorm and write the design doc into
-    it), needs_plan, needs_bites (a plan exists but has no steps), executing,
+    it), needs_steps (spec is written but it has no bites yet), executing,
     ready_to_ship, or shipped/dropped for finished work."""
     org, user = await require_caller(ctx)
 
@@ -174,8 +174,8 @@ async def get_slice(ctx: Context, slice: int | str, with_activity: bool = False)
     activity/notes thread.
 
     The `Stage:` line says what to do next: needs_design (spec is empty —
-    brainstorm and write the design doc into it), needs_plan, needs_bites (a plan
-    exists but has no steps), executing, ready_to_ship, or shipped/dropped."""
+    brainstorm and write the design doc into it), needs_steps (spec is written
+    but it has no bites yet), executing, ready_to_ship, or shipped/dropped."""
     org = await require_org(ctx)
 
     def _run():
@@ -444,7 +444,9 @@ async def list_bites(ctx: Context, plan_id: int) -> list[dict]:
 
     def _run():
         plan = _resolve_plan(org, plan_id)
-        return [bite_dict(b) for b in _list_bites(plan)]
+        # Bites hang off the Slice now, not the Plan (Task 5) — plan_id still
+        # picks the slice whose steps to list, it just resolves one hop further.
+        return [bite_dict(b) for b in _list_bites(plan.slice)]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -457,7 +459,7 @@ async def add_bites(ctx: Context, plan_id: int, bites: list[dict]) -> list[dict]
 
     def _run():
         plan = _resolve_plan(org, plan_id)
-        return [bite_dict(b) for b in _add_bites(plan, bites, source="agent")]
+        return [bite_dict(b) for b in _add_bites(plan.slice, bites, source="agent")]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 

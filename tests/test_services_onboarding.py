@@ -45,8 +45,8 @@ def test_plan_marks_has_plan(org):
 def test_bite_marks_has_bite(org):
     area = create_area(org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="open")
-    p = create_plan(sl, title="Plan")
-    create_bite(p, "Add backoff")
+    create_plan(sl, title="Plan")
+    create_bite(sl, "Add backoff")
     st = onboarding_state(org)
     assert st.has_bite is True and st.current == 5
 
@@ -87,8 +87,8 @@ def test_all_done(org):
     from tuckit.core.models import ActivityEvent
     area = create_area(org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="open")
-    p = create_plan(sl, title="Plan")
-    create_bite(p, "Add backoff")
+    create_plan(sl, title="Plan")
+    create_bite(sl, "Add backoff")
     ActivityEvent.objects.create(
         org=org, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,

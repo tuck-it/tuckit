@@ -61,13 +61,24 @@ def test_project_state_can_scope_to_one_area(product_org):
     assert state["areas"][0]["slug"] == a1.slug
 
 
+def _bite_under_plan(plan_, slice_, title, **kw):
+    """render_slice_markdown still groups bites by Plan (Task 7 retires this).
+    create_bite() no longer sets bite.plan (Task 5), so a bite that must show
+    up under a specific plan section has to be reparented onto it explicitly
+    after creation."""
+    b = create_bite(slice_, title, **kw)
+    b.plan = plan_
+    b.save(update_fields=["plan"])
+    return b
+
+
 @pytest.mark.django_db
 def test_render_slice_markdown_includes_spec_and_bites(product_org):
     area = create_area(product_org, "Backend")
     s = create_slice(area, "Auth", spec="Support OAuth login.", status="open", tags=["feature"])
     p = create_plan(s, title="Plan")
-    create_bite(p, "JWT", status="done")
-    create_bite(p, "Social login", status="todo")
+    _bite_under_plan(p, s, "JWT", status="done")
+    _bite_under_plan(p, s, "Social login", status="todo")
 
     md = render_slice_markdown(s)
     assert "# Auth" in md
@@ -82,7 +93,7 @@ def test_render_slice_markdown_includes_bite_body(product_org):
     area = create_area(product_org, "Backend")
     s = create_slice(area, "Auth")
     p = create_plan(s, title="Plan")
-    create_bite(p, "JWT", body="use RS256 keys")
+    _bite_under_plan(p, s, "JWT", body="use RS256 keys")
     md = render_slice_markdown(s)
     assert "- [ ] JWT" in md
     assert "use RS256 keys" in md
@@ -113,8 +124,7 @@ def test_home_state_keeps_every_in_progress_slice_visible():
 
     def executing(title, **kw):
         s = create_slice(a, title, spec="design", **kw)
-        p = create_plan(s)
-        create_bite(p, "step", status="doing")
+        create_bite(s, "step", status="doing")
         return s
 
     stalled = executing("stalled")
@@ -222,18 +232,15 @@ def test_roadmap_board_view_reports_overflow(product_org):
 
 @pytest.mark.django_db
 def test_roadmap_board_view_buckets_by_stage(product_org):
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
 
     a = create_area(product_org, "Backend")
     create_slice(a, "no spec")                                   # needs_design
-    create_slice(a, "spec only", spec="s")                      # needs_plan
-    empty = create_slice(a, "empty plan", spec="s")
-    create_plan(empty, title="P")                               # needs_bites → needs_plan col
+    create_slice(a, "spec only", spec="s")                      # needs_steps
     ex = create_slice(a, "in progress", spec="s")
-    create_bite(create_plan(ex, title="P"), "b", status="doing")  # executing
+    create_bite(ex, "b", status="doing")                        # executing
     rts = create_slice(a, "all done", spec="s")
-    create_bite(create_plan(rts, title="P"), "b", status="done")  # ready_to_ship
+    create_bite(rts, "b", status="done")                        # ready_to_ship
     create_slice(a, "done", status="shipped")                   # shipped
     create_slice(a, "abandoned", status="dropped")              # dropped (counted, not shown)
 
@@ -241,10 +248,10 @@ def test_roadmap_board_view_buckets_by_stage(product_org):
     groups = dict(view["groups"])
 
     assert [k for k, _ in view["groups"]] == [
-        "needs_design", "needs_plan", "executing", "ready_to_ship", "shipped",
+        "needs_design", "needs_steps", "executing", "ready_to_ship", "shipped",
     ]
     assert [s.title for s in groups["needs_design"]] == ["no spec"]
-    assert {s.title for s in groups["needs_plan"]} == {"spec only", "empty plan"}
+    assert {s.title for s in groups["needs_steps"]} == {"spec only"}
     assert [s.title for s in groups["executing"]] == ["in progress"]
     assert [s.title for s in groups["ready_to_ship"]] == ["all done"]
     assert [s.title for s in groups["shipped"]] == ["done"]
@@ -253,16 +260,18 @@ def test_roadmap_board_view_buckets_by_stage(product_org):
 
 @pytest.mark.django_db
 def test_roadmap_board_view_attaches_raw_stage_to_each_slice(product_org):
+    """A slice with a Plan already attached but no bites still lands in
+    needs_steps — the Plan layer no longer factors into stage at all (Task 4)."""
     from tuckit.core.services.plans import create_plan
 
     a = create_area(product_org, "Backend")
-    create_slice(a, "spec only", spec="s")                      # needs_plan
-    empty = create_slice(a, "empty plan", spec="s")
-    create_plan(empty, title="P")                               # needs_bites
+    create_slice(a, "spec only", spec="s")                      # needs_steps
+    empty = create_slice(a, "has an empty plan", spec="s")
+    create_plan(empty, title="P")                               # still needs_steps
 
     groups = dict(roadmap_board_view(product_org)["groups"])
-    by_title = {s.title: s.stage for s in groups["needs_plan"]}
-    assert by_title == {"spec only": "needs_plan", "empty plan": "needs_bites"}
+    by_title = {s.title: s.stage for s in groups["needs_steps"]}
+    assert by_title == {"spec only": "needs_steps", "has an empty plan": "needs_steps"}
 
 
 def test_snapshot_today_still_accrues_history(product_org):
@@ -274,7 +283,7 @@ def test_snapshot_today_still_accrues_history(product_org):
 
     a = create_area(product_org, "A")
     s = create_slice(a, "b", spec="design")
-    create_bite(create_plan(s), "step", status="doing")
+    create_bite(s, "step", status="doing")
     snapshot_today(product_org, home_state(product_org), 0)
     snapshot_today(product_org, home_state(product_org), 0)
 
@@ -300,8 +309,8 @@ def test_render_slice_markdown_renders_every_plan(product_org):
     s = create_slice(area, "Auth", spec="design")
     p1 = create_plan(s, title="Backend plan", body="Backend goal", constraints="no billing")
     p2 = create_plan(s, title="Frontend plan", body="Frontend goal")
-    create_bite(p1, "Backend bite")
-    create_bite(p2, "Frontend bite")
+    _bite_under_plan(p1, s, "Backend bite")
+    _bite_under_plan(p2, s, "Frontend bite")
 
     md = render_slice_markdown(s)
 
@@ -449,21 +458,20 @@ def test_area_status_keys_include_dropped(product_org):
 
 @pytest.mark.django_db
 def test_area_board_view_buckets_by_stage_and_scopes_to_area(product_org):
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
 
     a = create_area(product_org, "A")
     other = create_area(product_org, "B")
     create_slice(a, "no spec")                                  # needs_design
     rts = create_slice(a, "all done", spec="s")
-    create_bite(create_plan(rts, title="P"), "b", status="done")  # ready_to_ship
+    create_bite(rts, "b", status="done")                        # ready_to_ship
     create_slice(a, "gone", status="dropped")                   # dropped
     create_slice(other, "elsewhere")                            # different area
 
     view = area_board_view(a)
     groups = dict(view["groups"])
     assert [k for k, _ in view["groups"]] == [
-        "needs_design", "needs_plan", "executing", "ready_to_ship", "shipped",
+        "needs_design", "needs_steps", "executing", "ready_to_ship", "shipped",
     ]
     assert [s.title for s in groups["needs_design"]] == ["no spec"]
     assert [s.title for s in groups["ready_to_ship"]] == ["all done"]
@@ -489,8 +497,7 @@ def test_your_turn_includes_slice_whose_bites_are_all_done():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
     s = create_slice(a, "finished work", status="open", spec="designed")
-    p = create_plan(s, title="Plan")
-    create_bite(p, "one", status="done")
+    create_bite(s, "one", status="done")
     items = your_turn(org)
     hit = [it for it in items if it.get("slice") and it["slice"].id == s.id]
     assert hit
@@ -499,16 +506,17 @@ def test_your_turn_includes_slice_whose_bites_are_all_done():
 
 @pytest.mark.django_db
 def test_your_turn_excludes_stages_an_agent_can_do():
-    """needs_plan and needs_bites are agent work — create_plan and add_bites
-    exist for exactly that. Listing them here would nag daily."""
+    """needs_steps is agent work — add_bites exists for exactly that. Listing
+    it here would nag daily. Having an (empty) Plan attached must not change
+    that — the Plan layer no longer factors into stage at all (Task 4)."""
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    needs_plan = create_slice(a, "designed, unplanned", status="open", spec="designed")
-    needs_bites = create_slice(a, "planned, unbitten", status="open", spec="designed")
-    create_plan(needs_bites, title="Empty plan")
+    bare = create_slice(a, "designed, no bites", status="open", spec="designed")
+    with_empty_plan = create_slice(a, "designed, has an empty plan", status="open", spec="designed")
+    create_plan(with_empty_plan, title="Empty plan")
     ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
-    assert needs_plan.id not in ids
-    assert needs_bites.id not in ids
+    assert bare.id not in ids
+    assert with_empty_plan.id not in ids
 
 
 @pytest.mark.django_db
@@ -542,7 +550,7 @@ def test_your_turn_is_empty_when_nothing_is_blocked():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
     s = create_slice(a, "moving along", status="open", spec="designed")
-    create_bite(create_plan(s, title="Plan"), "in flight", status="todo")
+    create_bite(s, "in flight", status="todo")
     assert your_turn(org) == []
 
 
@@ -627,9 +635,8 @@ def test_in_progress_band_follows_stage_not_status(org, area):
     예전에는 status='building'을 사람이 켜야 했고, 아무도 안 켜서 밴드가
     상시 비어 있었다 (A0)."""
     s = create_slice(area, "spec 있는 일", spec="왜 하는지", status="open")
-    plan = create_plan(s, body="계획")
-    add_bites(plan, [{"title": "첫 단계"}, {"title": "둘째 단계"}])
-    update_bite(plan.bites.first(), status="done")
+    add_bites(s, [{"title": "첫 단계"}, {"title": "둘째 단계"}])
+    update_bite(s.bites.first(), status="done")
 
     state = home_state(area.org)
 

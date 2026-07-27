@@ -1,24 +1,25 @@
 from django.db import transaction
 from django.db.models import QuerySet
 
-from tuckit.core.models import Bite, Plan, Slice
+from tuckit.core.models import Bite, Slice
 from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.validation import validate_choice
 
 
-def list_bites(plan_: Plan) -> QuerySet:
-    return Bite.objects.filter(plan=plan_)
+def list_bites(slice_: Slice) -> QuerySet:
+    return Bite.objects.filter(slice=slice_)
 
 
 def slice_bites(slice_: Slice) -> QuerySet:
-    """Bites hang directly off the Slice now (Task 3's Bite.slice), so this
-    reads the flat column instead of joining through plans__bites."""
+    """Same query as list_bites now that bites hang directly off the Slice —
+    there is no plan-scoped subset left to distinguish them by. Kept as its
+    own name so existing callers of either don't have to change."""
     return Bite.objects.filter(slice=slice_)
 
 
 def create_bite(
-    plan_: Plan,
+    slice_: Slice,
     title: str,
     *,
     body: str = "",
@@ -28,22 +29,21 @@ def create_bite(
     source: str = "human",
 ) -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
-    rank = rank_for(Bite, {"plan": plan_}, before=before, after=after)
+    rank = rank_for(Bite, {"slice": slice_}, before=before, after=after)
     with transaction.atomic():
         b = Bite.objects.create(
-            plan=plan_, title=title, body=body, status=status, rank=rank, source=source,
+            slice=slice_, title=title, body=body, status=status, rank=rank, source=source,
         )
-        record_activity(plan_.slice.org, actor=source, verb="created", target=b)
+        record_activity(slice_.org, actor=source, verb="created", target=b)
     return b
 
 
-def add_bites(plan_: Plan, items, *, source: str = "human") -> list[Bite]:
-    """Create bites in order under a plan. items: [{title, body?, status?}].
-    Covers both single (a one-item list) and bulk capture."""
+def add_bites(slice_: Slice, items, *, source: str = "human") -> list[Bite]:
+    """Create bites in order under a slice. items: [{title, body?, status?}]."""
     made = []
     for item in items:
         made.append(create_bite(
-            plan_, item["title"],
+            slice_, item["title"],
             body=item.get("body", ""), status=item.get("status", "todo"),
             source=source,
         ))
@@ -69,12 +69,12 @@ def update_bite(
         validate_choice(status, Bite.STATUS_CHOICES, "status")
         bite.status = status
     if before is not None or after is not None:
-        bite.rank = rank_for(Bite, {"plan": bite.plan}, before=before, after=after)
+        bite.rank = rank_for(Bite, {"slice": bite.slice}, before=before, after=after)
     with transaction.atomic():
         bite.save()
         if status is not None and status != old_status:
             record_activity(
-                bite.plan.slice.org, actor=actor, verb=status_verb(status),
+                bite.slice.org, actor=actor, verb=status_verb(status),
                 target=bite, from_value=old_status, to_value=status,
             )
     return bite
@@ -88,20 +88,20 @@ def set_bite_status(bite: Bite, status: str, *, actor: str = "human") -> Bite:
         bite.save(update_fields=["status", "updated_at"])
         if status != old_status:
             record_activity(
-                bite.plan.slice.org, actor=actor, verb=status_verb(status),
+                bite.slice.org, actor=actor, verb=status_verb(status),
                 target=bite, from_value=old_status, to_value=status,
             )
     return bite
 
 
 def reorder_bite(bite: Bite, *, before: Bite | None = None, after: Bite | None = None) -> Bite:
-    bite.rank = rank_for(Bite, {"plan": bite.plan}, before=before, after=after)
+    bite.rank = rank_for(Bite, {"slice": bite.slice}, before=before, after=after)
     bite.save(update_fields=["rank", "updated_at"])
     return bite
 
 
 def delete_bite(bite: Bite) -> None:
-    record_activity(bite.plan.slice.org, actor="human", verb="deleted", target=bite)
+    record_activity(bite.slice.org, actor="human", verb="deleted", target=bite)
     bite.delete()
 
 

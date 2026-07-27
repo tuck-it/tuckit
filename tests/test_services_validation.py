@@ -45,9 +45,9 @@ def test_valid_status_still_works(area):
 @pytest.mark.django_db
 def test_bite_status_validation(area):
     s = create_slice(area, "X")
-    p = create_plan(s, title="Plan")
+    create_plan(s, title="Plan")
     with pytest.raises(InvalidValue):
-        create_bite(p, "B", status="wip")
-    b = create_bite(p, "B2")
+        create_bite(s, "B", status="wip")
+    b = create_bite(s, "B2")
     with pytest.raises(InvalidValue):
         set_bite_status(b, "wip")

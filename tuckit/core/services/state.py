@@ -2,9 +2,8 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
+from tuckit.core.models import Area, Bite, Org, Slice, OrgStatSnapshot
 from tuckit.core.services.activity import slice_activity
-from tuckit.core.services.bites import list_bites
 from tuckit.core.services.plans import list_plans
 from tuckit.core.services.refs import ticket_ref
 from tuckit.core.services.slices import (
@@ -85,7 +84,23 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
             lines += [plan.body, ""]
         if plan.constraints:
             lines += ["### Constraints", plan.constraints, ""]
-        for b in list_bites(plan):
+        # list_bites() is slice-scoped now (Task 5); a per-plan filter still
+        # has to go through the model directly until this plan-based render
+        # is retired.
+        for b in Bite.objects.filter(plan=plan):
+            check = "x" if b.status == "done" else " "
+            lines.append(f"- [{check}] {b.title}")
+            if b.body:
+                lines += [f"      {line}" for line in b.body.splitlines()]
+        lines.append("")
+    # Bites created directly on the slice (Task 5 — add_bites no longer needs
+    # a Plan) have no plan section to nest under, so they render as a flat
+    # checklist. Without this an agent's own add_bites() call would vanish
+    # from the next get_slice() it makes.
+    direct = Bite.objects.filter(slice=slice_, plan__isnull=True)
+    if direct.exists():
+        lines.append("## Steps")
+        for b in direct:
             check = "x" if b.status == "done" else " "
             lines.append(f"- [{check}] {b.title}")
             if b.body:
@@ -203,12 +218,11 @@ def your_turn(org: Org) -> list[dict]:
 
     Deliberately narrow:
 
-    - `needs_plan` / `needs_bites` are excluded because an agent can do them —
-      create_plan and add_bites exist for exactly that. Including them turns
-      this band into a daily nag.
+    - `needs_steps` is excluded because an agent can do it — add_bites exists
+      for exactly that. Including it turns this band into a daily nag.
     - `open` 슬라이스 중 stage가 needs_design / ready_to_ship인 것만 든다.
-      needs_plan / needs_bites는 에이전트가 할 수 있어서 빠진다(create_plan,
-      add_bites가 그걸 위해 있다) — 넣으면 이 밴드가 매일의 잔소리가 된다.
+      needs_steps는 에이전트가 할 수 있어서 빠진다(add_bites가 그걸 위해
+      있다) — 넣으면 이 밴드가 매일의 잔소리가 된다.
       예전에는 status='building'으로 한 번 더 걸렀는데, 그 스위치를 아무도 켜지
       않아 밴드가 통째로 비어 있었다. 실측(2026-07-27) needs_design은 4건이라
       백로그가 쏟아지지 않는다. 길어지면 그때 상한을 건다.
@@ -288,7 +302,7 @@ def roadmap_state(org: Org) -> dict:
 
 ROADMAP_BOARD_ORDER = ["open", "shipped"]
 ROADMAP_STATUS_KEYS = {"open", "shipped"}
-STAGE_BOARD_ORDER = ["needs_design", "needs_plan", "executing", "ready_to_ship", "shipped"]
+STAGE_BOARD_ORDER = ["needs_design", "needs_steps", "executing", "ready_to_ship", "shipped"]
 
 
 def cap_shipped(org: Org, shipped: list) -> tuple[list, int]:
@@ -307,8 +321,8 @@ def roadmap_board_view(org: Org) -> dict:
     """Kanban groups keyed by derived stage (not stored status) + shipped
     overflow + dropped count, for the org Board tab.
 
-    Each slice carries a `.stage` attribute so the card can badge needs_plan vs
-    needs_bites and show the Ship button only on ready_to_ship."""
+    Each slice carries a `.stage` attribute so the card can badge needs_steps
+    and show the Ship button only on ready_to_ship."""
     # annotate_stage_counts adds a GROUP BY; Django then drops Meta.ordering, so
     # the explicit order_by is load-bearing (undefined order on Postgres without
     # it). area__name, rank matches roadmap_state's within-column order.

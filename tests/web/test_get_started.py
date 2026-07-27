@@ -83,7 +83,8 @@ def test_widget_hidden_when_all_done(client_local, org):
     from tuckit.core.models import ActivityEvent
     area = create_area(org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="open")
-    create_bite(create_plan(sl, title="Plan"), "Add backoff")
+    create_plan(sl, title="Plan")
+    create_bite(sl, "Add backoff")
     ActivityEvent.objects.create(
         org=org, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,
@@ -108,7 +109,8 @@ def test_step4_shows_generate_key_when_no_key(client_local, org):
     # first — the widget only renders the connect UI once current == 5.
     area = create_area(org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="open")
-    create_bite(create_plan(sl, title="Plan"), "Add backoff")
+    create_plan(sl, title="Plan")
+    create_bite(sl, "Add backoff")
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert "/onboarding/connect-key" in body
     assert "/welcome/" not in body
@@ -119,7 +121,8 @@ def test_step4_shows_poller_when_key_exists(client_local, org):
     from tuckit.core.models import ApiToken
     area = create_area(org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="open")
-    create_bite(create_plan(sl, title="Plan"), "Add backoff")
+    create_plan(sl, title="Plan")
+    create_bite(sl, "Add backoff")
     ApiToken.objects.create(org=org, name="a", token_hash="x")
     body = client_local.get(f"{_p(org)}/").content.decode()
     # Primary onboarding poller now uses a distinct id (ob-listen) so it can't
@@ -147,8 +150,8 @@ def test_onboarding_step1_has_description_field(client_local, org):
 def test_step5_leads_with_tokenless_oauth_and_live_poller(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a, "Retry webhooks")
-    pl = create_plan(s, title="v1")
-    create_bite(pl, "wire it")  # now at step 5 (all prior steps done, not connected)
+    create_plan(s, title="v1")
+    create_bite(s, "wire it")  # now at step 5 (all prior steps done, not connected)
     body = client_local.get(f"{_p(org)}/").content.decode()
     # tokenless command is the headline; no raw-token instruction up front
     assert "claude mcp add --transport http tuckit" in body
@@ -172,8 +175,8 @@ def test_step5_poller_has_distinct_id_no_collision_with_fallback(client_local, o
     # poller became a zombie that never got replaced.
     a = create_area(org, "Backend")
     s = create_slice(a, "Retry webhooks")
-    pl = create_plan(s, title="v1")
-    create_bite(pl, "wire it")  # now at step 5
+    create_plan(s, title="v1")
+    create_bite(s, "wire it")  # now at step 5
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert 'id="ob-listen"' in body
     assert 'id="gs-listen"' not in body  # fallback poller not rendered until key-gen runs

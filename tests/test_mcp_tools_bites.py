@@ -22,13 +22,13 @@ def _seed():
     area = create_area(org, "Backend")
     s = create_slice(area, "Auth")
     p = create_plan(s, title="Plan")
-    return raw, p.id
+    return raw, p.id, s.id
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_add_bites_bulk_and_update_reorder():
-    raw, plan_id = await _seed()
+    raw, plan_id, _slice_id = await _seed()
     ctx = make_ctx(raw)
     made = await add_bites(ctx, plan_id, [{"title": "A"}, {"title": "B"}])
     assert [b["title"] for b in made] == ["A", "B"]
@@ -40,7 +40,7 @@ async def test_add_bites_bulk_and_update_reorder():
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_update_bite_status_and_body():
-    raw, plan_id = await _seed()
+    raw, plan_id, _slice_id = await _seed()
     ctx = make_ctx(raw)
     (b,) = await add_bites(ctx, plan_id, [{"title": "JWT"}])
     await update_bite(ctx, b["id"], body="use RS256")
@@ -51,9 +51,13 @@ async def test_update_bite_status_and_body():
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_add_bites_returns_body_and_plan_id():
-    raw, plan_id = await _seed()
+    raw, plan_id, slice_id = await _seed()
     ctx = make_ctx(raw)
     made = await add_bites(ctx, plan_id, [{"title": "JWT", "body": "use RS256 keys"}])
     listed = await list_bites(ctx, plan_id)
     assert listed[0]["body"] == "use RS256 keys"
-    assert made[0]["plan_id"] == plan_id
+    # Bites hang off the Slice now, not the Plan (Task 5) — plan_id on a
+    # freshly-created bite is gone, but it still resolves back to the slice
+    # the plan_id pointed at.
+    assert made[0]["plan_id"] is None
+    assert made[0]["slice_id"] == slice_id

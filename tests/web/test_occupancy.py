@@ -26,7 +26,7 @@ def member(db):
 def test_recent_agent_work_seeds_the_slice_row(client, member):
     org, user = member
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
+    create_bite(slice_, "Wire the form", source="agent")
     client.force_login(user)
 
     html = client.get(reverse("web:home", args=[org.slug])).content.decode()
@@ -44,7 +44,7 @@ def test_agent_mark_is_aria_hidden(client, member):
     announced the same event once, which is the right number of times."""
     org, user = member
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
+    create_bite(slice_, "Wire the form", source="agent")
     client.force_login(user)
 
     html = client.get(reverse("web:home", args=[org.slug])).content.decode()

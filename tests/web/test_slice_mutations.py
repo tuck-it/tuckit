@@ -3,6 +3,7 @@ from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
 from tuckit.core.models import Slice, Bite
+from tests.web.conftest import bite_under_plan
 
 @pytest.mark.django_db
 def test_status_change_updates_and_returns_panel(client_local, org):
@@ -62,7 +63,8 @@ def test_bite_edit_renames(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     s = create_slice(create_area(org, "B"), "x")
-    b = create_bite(create_plan(s, title="Plan"), "old")
+    plan_ = create_plan(s, title="Plan")
+    b = bite_under_plan(plan_, s, "old")
     resp = client_local.post(f"{p}/bites/{b.id}/edit", {"title": "new"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     b.refresh_from_db()
@@ -75,8 +77,8 @@ def test_bite_delete_removes_it(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     s = create_slice(create_area(org, "B"), "x")
-    plan_ = create_plan(s, title="Plan")
-    b = create_bite(plan_, "gone")
+    create_plan(s, title="Plan")
+    b = create_bite(s, "gone")
     resp = client_local.post(f"{p}/bites/{b.id}/delete", HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     assert Bite.objects.filter(pk=b.id).count() == 0
@@ -87,7 +89,8 @@ def test_bite_row_has_rename_and_delete_controls(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     s = create_slice(create_area(org, "B"), "x")
-    b = create_bite(create_plan(s, title="Plan"), "step")
+    plan_ = create_plan(s, title="Plan")
+    b = bite_under_plan(plan_, s, "step")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert f"/bites/{b.id}/edit" in body
     assert f"/bites/{b.id}/delete" in body
@@ -130,8 +133,8 @@ def test_bite_toggle(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     s = create_slice(create_area(org, "B"), "x")
-    plan_ = create_plan(s, title="Plan")
-    b = create_bite(plan_, "Webhook")
+    create_plan(s, title="Plan")
+    b = create_bite(s, "Webhook")
     assert b.status == "todo"
     client_local.post(f"{p}/bites/{b.id}/toggle", HTTP_HX_REQUEST="true")
     assert Bite.objects.get(pk=b.id).status == "done"
@@ -165,7 +168,8 @@ def test_bite_body_updates_and_renders(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     s = create_slice(create_area(org, "Product"), "Slice")
-    b = create_bite(create_plan(s, title="Plan"), "Slack integration")
+    create_plan(s, title="Plan")
+    b = create_bite(s, "Slack integration")
     resp = client_local.post(f"{p}/bites/{b.id}/body", {"body": "## Design\nRetry on failure"})
     assert resp.status_code == 200
     b.refresh_from_db()
@@ -176,11 +180,11 @@ def test_bite_body_updates_and_renders(client_local, org):
 def test_bite_body_is_sanitized(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.bites import create_bite
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     s = create_slice(create_area(org, "Product"), "Slice")
-    b = create_bite(create_plan(s, title="Plan"), "Risk", body="<script>alert(1)</script>ok")
+    plan_ = create_plan(s, title="Plan")
+    b = bite_under_plan(plan_, s, "Risk", body="<script>alert(1)</script>ok")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert "<script>" not in body
     assert "ok" in body
@@ -242,11 +246,11 @@ def test_bite_source_time_renders_english(client_local, org):
     from tuckit.core.models import Bite
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.bites import create_bite
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     s = create_slice(create_area(org, "Product"), "Slice")
-    b = create_bite(create_plan(s, title="Plan"), "Note bite", body="## Note")
+    plan_ = create_plan(s, title="Plan")
+    b = bite_under_plan(plan_, s, "Note bite", body="## Note")
     Bite.objects.filter(pk=b.pk).update(updated_at=timezone.now() - timedelta(hours=2, minutes=30))
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     # timesince now renders in English, not Korean

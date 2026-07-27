@@ -26,7 +26,7 @@ def get_slice(org: Org, slice_id: int) -> Slice:
 
 def get_bite(org: Org, bite_id: int) -> Bite:
     try:
-        return Bite.objects.get(pk=bite_id, plan__slice__org=org)
+        return Bite.objects.get(pk=bite_id, slice__org=org)
     except Bite.DoesNotExist:
         raise NotFound(f"bite {bite_id} not found")
 

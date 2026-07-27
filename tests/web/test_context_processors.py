@@ -57,8 +57,8 @@ def test_onboarding_hidden_stays_hidden_after_area_deleted(client_local, org):
     from tuckit.core.services.areas import delete_area
     area = create_area(org, "Backend")
     sl = create_slice(area, "Retry webhooks", status="open")
-    p = create_plan(sl, title="Plan")
-    create_bite(p, "Add backoff")
+    create_plan(sl, title="Plan")
+    create_bite(sl, "Add backoff")
     ActivityEvent.objects.create(
         org=org, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,

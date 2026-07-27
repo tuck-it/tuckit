@@ -65,7 +65,7 @@ def test_active_targets_folds_bite_activity_onto_its_slice():
 
     org = Org.objects.create(name="Acme", slug="acme-at1")
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
+    create_bite(slice_, "Wire the form", source="agent")
 
     active = active_targets(org)
 
@@ -83,9 +83,8 @@ def test_active_targets_keeps_only_the_most_recent_touch_per_slice():
 
     org = Org.objects.create(name="Acme", slug="acme-at2")
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    plan = create_plan(slice_, title="Plan")
-    create_bite(plan, "First", source="agent")
-    create_bite(plan, "Second", source="agent")
+    create_bite(slice_, "First", source="agent")
+    create_bite(slice_, "Second", source="agent")
 
     _last_touch, _verb, label = active_targets(org)[slice_.id]
 
@@ -150,7 +149,7 @@ def test_active_targets_skips_a_bite_whose_slice_is_gone():
 
     org = Org.objects.create(name="Acme", slug="acme-at6")
     slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    bite = create_bite(create_plan(slice_, title="Plan"), "Doomed", source="agent")
+    bite = create_bite(slice_, "Doomed", source="agent")
     ActivityEvent.objects.filter(org=org).delete()
     delete_bite(bite)
     ActivityEvent.objects.filter(org=org).update(actor="agent")

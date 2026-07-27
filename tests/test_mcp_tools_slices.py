@@ -137,7 +137,7 @@ async def test_list_slices_rows_carry_stage():
 
     rows = {r["title"]: r for r in await list_slices(ctx)}
     assert rows["Blank"]["stage"] == "needs_design"
-    assert rows["Designed"]["stage"] == "needs_plan"
+    assert rows["Designed"]["stage"] == "needs_steps"
 
 
 @pytest.mark.django_db(transaction=True)

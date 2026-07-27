@@ -17,8 +17,8 @@ def data(db):
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     area = create_area(org, "Backend")
     slice_ = create_slice(area, "Auth")
-    plan = create_plan(slice_, title="Plan")
-    bite = create_bite(plan, "JWT")
+    create_plan(slice_, title="Plan")
+    bite = create_bite(slice_, "JWT")
     return org, other_org, area, slice_, bite
 
 

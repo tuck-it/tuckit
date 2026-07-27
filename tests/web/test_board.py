@@ -99,13 +99,12 @@ def test_move_without_hx_returns_204(client_local, org):
 def test_roadmap_tab_defaults_to_cross_area_board(client_local, org):
     """The Board tab (web:roadmap) defaults to a workspace-wide stage pipeline
     that labels each card with its parent area."""
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
     p = f"/{org.slug}"
     design = create_area(org, "Design")
     core = create_area(org, "Core")
     ex = create_slice(design, "polish empty states", spec="s")
-    create_bite(create_plan(ex, title="P"), "b", status="doing")   # executing
+    create_bite(ex, "b", status="doing")   # executing
     create_slice(core, "slice move api")                            # needs_design
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert 'id="board"' in body
@@ -185,12 +184,11 @@ def test_shipped_link_shows_regardless_of_cap(client_local, org):
 
 @pytest.mark.django_db
 def test_ready_to_ship_card_has_ship_button(client_local, org):
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
     p = f"/{org.slug}"
     a = create_area(org, "Core")
     rts = create_slice(a, "all done", spec="s")
-    create_bite(create_plan(rts, title="P"), "b", status="done")
+    create_bite(rts, "b", status="done")
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert "Ship it" in body
     assert f'/slices/{rts.id}/move' in body
@@ -208,16 +206,18 @@ def test_every_active_card_has_a_drop_action(client_local, org):
 
 
 @pytest.mark.django_db
-def test_needs_plan_column_badges_needs_plan_vs_needs_bites(client_local, org):
+def test_needs_steps_column_badges_needs_steps(client_local, org):
+    """needs_plan and needs_bites collapsed into one needs_steps stage (Task 4)
+    — a slice with a Plan already attached but no bites still badges the same
+    as one with no Plan at all, because Plan no longer factors into stage."""
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "spec only", spec="s")             # needs_plan
-    empty = create_slice(a, "empty plan", spec="s")
-    create_plan(empty, title="P")                      # needs_bites
+    create_slice(a, "spec only", spec="s")             # needs_steps
+    empty = create_slice(a, "has an empty plan", spec="s")
+    create_plan(empty, title="P")                      # still needs_steps
     body = client_local.get(f"{p}/roadmap/").content.decode()
-    assert "needs plan" in body
-    assert "needs bites" in body
+    assert body.count("needs steps") == 2
 
 
 @pytest.mark.django_db
@@ -274,13 +274,12 @@ def test_roadmap_status_filter_uses_shared_partial(client_local, org):
 
 @pytest.mark.django_db
 def test_board_renders_stage_columns_and_labels(client_local, org):
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
     p = f"/{org.slug}"
     a = create_area(org, "Core")
     create_slice(a, "no spec")                                   # needs_design
     rts = create_slice(a, "all done", spec="s")
-    create_bite(create_plan(rts, title="P"), "b", status="done")  # ready_to_ship
+    create_bite(rts, "b", status="done")                         # ready_to_ship
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert 'data-stage="needs_design"' in body
     assert 'data-stage="ready_to_ship"' in body
@@ -333,11 +332,11 @@ def test_shipped_is_offboard_not_a_column(client_local, org):
 def test_card_is_title_centric_no_pills(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "spec only", spec="s")          # needs_plan
+    create_slice(a, "spec only", spec="s")          # needs_steps
     body = client_local.get(f"{p}/roadmap/?view=board").content.decode()
     assert "card-topline" not in body               # no nested pill row
     assert 'class="card-badge"' not in body         # stage is text, not a pill
     assert "card-sub" in body                        # the single meta line
-    assert "needs plan" in body                      # stage hint as text
+    assert "needs steps" in body                     # stage hint as text
 
 
