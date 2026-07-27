@@ -134,12 +134,16 @@ def test_your_turn_and_in_progress_are_mutually_exclusive(client_local, org):
 
 
 @pytest.mark.django_db
-def test_someday_tagged_building_slice_is_not_hidden(client_local, org):
+def test_someday_tagged_executing_slice_is_not_hidden(client_local, org):
+    """A `someday` tag must not hide a slice from `in progress` — staleness/
+    someday is never a filter, only ever a sort key."""
     a = create_area(org, "Backend")
-    create_slice(a, "Parked but building", status="open",
-                 spec="designed", tags=["someday"])
+    s = create_slice(a, "Parked but executing", status="open",
+                      spec="designed", tags=["someday"])
+    plan = create_plan(s, title="Plan")
+    create_bite(plan, "step")
     body = _body(client_local, org)
-    assert "Parked but building" in body
+    assert "Parked but executing" in _band(body, "in progress")
 
 
 @pytest.mark.django_db

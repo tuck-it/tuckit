@@ -397,6 +397,22 @@ def test_slice_detail_offers_no_status_menu(client_local, org):
 
 
 @pytest.mark.django_db
+def test_stage_pill_shows_human_label_not_raw_key(client_local, org):
+    """The pill must never leak the raw snake_case stage key as visible text
+    — `board_label` turns needs_design/needs_plan/needs_bites/ready_to_ship
+    into readable text, the same filter the Board already uses. (The raw key
+    legitimately still appears inside the dot's `status-dot--needs_design`
+    CSS class — ">needs_design<" pins the rendered TEXT, not the class.)"""
+    a = create_area(org, "Backend")
+    s = create_slice(a, "no spec yet")   # stage: needs_design
+
+    html = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert ">needs_design<" not in html
+    assert "Needs design" in html
+
+
+@pytest.mark.django_db
 def test_ready_to_ship_slice_can_ship_from_detail(client_local, org):
     """Removing the status dropdown must not remove the ability to ship from
     the modal — it was the only path there."""
