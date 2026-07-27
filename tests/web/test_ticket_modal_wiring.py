@@ -5,8 +5,9 @@ they cover are invisible to endpoint tests: an htmx attribute cannot read Alpine
 state at all, so a dynamic hx-post would post to the wrong place while every
 endpoint stayed green.
 
-The companion hx-swap inheritance guard lives in test_capture_triage.py
-(test_triage_area_select_declares_its_own_hx_swap) — it predates this file.
+test_triage_area_select_declares_its_own_hx_swap below is the companion
+hx-swap-inheritance guard (it used to live in the now-deleted
+test_capture_triage.py, which predated this file).
 """
 import pytest
 from tuckit.core.services.areas import create_area
@@ -97,3 +98,18 @@ def test_every_ticket_state_offers_a_copy_link(client_local, org):
     for t in (open_t, promoted, dismissed):
         t.refresh_from_db()
         assert "Copy link" in _modal(client_local, org, t)
+
+
+@pytest.mark.django_db
+def test_triage_area_select_declares_its_own_hx_swap(client_local, org):
+    """htmx inherits hx-swap from ancestors, and this select lives inside a form
+    carrying hx-swap="none" for its own submit. Without an explicit swap the
+    options request fires, returns 200, and is silently discarded — the select
+    stays empty and merging is impossible. Found in the browser; no endpoint
+    test can see it, because the endpoint is fine."""
+    t = create_ticket(org, "Open one", area=create_area(org, "Backend"))
+    body = _modal(client_local, org, t)
+
+    start = body.index('name="area_id"')
+    select_tag = body[start:body.index(">", start)]
+    assert 'hx-swap="innerHTML"' in select_tag
