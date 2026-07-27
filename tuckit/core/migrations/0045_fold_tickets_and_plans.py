@@ -59,14 +59,44 @@ def forward(apps, schema_editor):
     #    (absorb_ticket), select_related로 받아온 사본들은 서로의 저장을 못 본다.
     #    그러면 마지막 티켓의 본문만 남고 앞의 것들이 조용히 덮인다.
     for t in Ticket.objects.filter(slice__isnull=False).order_by("id"):
+        s = Slice.objects.get(pk=t.slice_id)
+        dirty = []
         if t.body:
-            s = Slice.objects.get(pk=t.slice_id)
             s.spec = _append(s.spec, f"### 원본 캡처 ({t.title})\n\n{t.body}")
-            s.save(update_fields=["spec"])
-        ticket_to_slice[t.id] = t.slice_id
+            dirty.append("spec")
+        # promote_ticket/absorb_ticket은 external_key를 슬라이스로 옮기지 않는다.
+        # 그래서 이 티켓들에게는 티켓 행이 유일한 사본이고, 0046이 테이블을
+        # 지우면 같이 사라진다. 옮길 수 있으면 옮기고, 못 옮기면 최소한 흔적은 남긴다.
+        ext = t.external_key or ""
+        if ext and s.external_key != ext:
+            taken = Slice.objects.filter(org_id=s.org_id, external_key=ext).exists()
+            if not s.external_key and not taken:
+                s.external_key = ext
+                dirty.append("external_key")
+            else:
+                # 슬라이스가 이미 제 키를 갖고 있거나 org 안에서 그 키가 쓰였다.
+                # uniq_slice_external_key_per_org를 깨뜨리는 대신 주석으로 남긴다.
+                s.spec = (s.spec or "") + f"\n\n<!-- migrated-external-key: {ext} -->"
+                if "spec" not in dirty:
+                    dirty.append("spec")
+                collisions += 1
+        if dirty:
+            s.save(update_fields=dirty)
+        ticket_to_slice[t.id] = s.pk
 
     # 2) 나머지 티켓 → 새 슬라이스. number/rank/source/external_key/생성시각을 승계한다.
-    status_map = {"open": "open", "dismissed": "dropped", "duplicate": "dropped"}
+    #
+    #    'promoted'인데 slice_id가 비어 있는 티켓이 있을 수 있다: Area를 지우면
+    #    (areas.py의 area.delete()) 슬라이스가 cascade로 사라지고 Ticket.slice는
+    #    SET_NULL이라 티켓만 남는다. 기본값 'open'으로 떨어뜨리면 이미 답이 나온
+    #    캡처가 인박스에 살아 있는 일감으로 되살아난다 — 명시적으로 dropped.
+    #    진짜로 모르는 status는 여전히 open으로 둔다(기본값은 건드리지 않는다).
+    status_map = {
+        "open": "open",
+        "promoted": "dropped",
+        "dismissed": "dropped",
+        "duplicate": "dropped",
+    }
     for t in Ticket.objects.filter(slice__isnull=True).order_by("id"):
         ext = t.external_key or ""
         note = ""

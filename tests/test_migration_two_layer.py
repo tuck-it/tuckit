@@ -294,6 +294,107 @@ def test_external_key_collision_clears_the_incoming_value(migrator: Migrator):
 
 
 @pytest.mark.django_db
+def test_linked_ticket_external_key_moves_onto_its_slice(migrator: Migrator):
+    """promote/absorb는 external_key를 슬라이스로 복사하지 않는다. 티켓 행이
+    유일한 사본이라, 안 옮기면 0046이 테이블을 지울 때 같이 사라진다."""
+    old = migrator.apply_initial_migration(BEFORE)
+    Org = old.apps.get_model("core", "Org")
+    Slice = old.apps.get_model("core", "Slice")
+    Ticket = old.apps.get_model("core", "Ticket")
+
+    org = Org.objects.create(name="O", slug="o", key="O", next_slice_number=9)
+    sl = Slice.objects.create(org=org, title="일감", rank="m", number=3)   # external_key 없음
+    Ticket.objects.create(
+        org=org, title="원본", body="캡처", status="promoted", number=3, rank="m",
+        slice=sl, external_key="JIRA-1", resolved_at=_resolved(),
+    )
+
+    new = migrator.apply_tested_migration(AFTER)
+    NewSlice = new.apps.get_model("core", "Slice")
+    assert NewSlice.objects.get(number=3).external_key == "JIRA-1"
+
+
+@pytest.mark.django_db
+def test_linked_ticket_external_key_that_would_collide_is_noted_not_assigned(migrator: Migrator):
+    """org 안에서 그 키가 이미 쓰였으면 uniq_slice_external_key_per_org를 깨는
+    대신 spec에 흔적을 남긴다 — 2번 루프가 미연결 티켓에 하는 것과 같은 처리."""
+    old = migrator.apply_initial_migration(BEFORE)
+    Org = old.apps.get_model("core", "Org")
+    Slice = old.apps.get_model("core", "Slice")
+    Ticket = old.apps.get_model("core", "Ticket")
+
+    org = Org.objects.create(name="O", slug="o", key="O", next_slice_number=9)
+    Slice.objects.create(org=org, title="선점", rank="l", number=1, external_key="JIRA-1")
+    target = Slice.objects.create(org=org, title="일감", rank="m", number=3)
+    Ticket.objects.create(
+        org=org, title="원본", body="캡처", status="promoted", number=3, rank="m",
+        slice=target, external_key="JIRA-1", resolved_at=_resolved(),
+    )
+
+    new = migrator.apply_tested_migration(AFTER)
+    NewSlice = new.apps.get_model("core", "Slice")
+    moved = NewSlice.objects.get(number=3)
+    assert moved.external_key == ""
+    assert "migrated-external-key: JIRA-1" in moved.spec
+    assert "캡처" in moved.spec                                    # 본문도 그대로 남는다
+    assert NewSlice.objects.get(number=1).external_key == "JIRA-1"  # 선점 쪽은 안 건드린다
+
+
+@pytest.mark.django_db
+def test_two_linked_tickets_with_the_same_slice_only_hand_over_one_key(migrator: Migrator):
+    """absorb로 한 슬라이스에 티켓이 둘 붙고 둘 다 external_key를 갖는 경우.
+    슬라이스 컬럼은 하나뿐이라, 먼저 온 쪽이 차지하고 나머지는 주석이 된다."""
+    old = migrator.apply_initial_migration(BEFORE)
+    Org = old.apps.get_model("core", "Org")
+    Slice = old.apps.get_model("core", "Slice")
+    Ticket = old.apps.get_model("core", "Ticket")
+
+    org = Org.objects.create(name="O", slug="o", key="O", next_slice_number=9)
+    sl = Slice.objects.create(org=org, title="일감", rank="m", number=3)
+    Ticket.objects.create(
+        org=org, title="원본", body="", status="promoted", number=3, rank="m",
+        slice=sl, external_key="JIRA-1", resolved_at=_resolved(),
+    )
+    Ticket.objects.create(
+        org=org, title="흡수", body="", status="promoted", number=4, rank="n",
+        slice=sl, external_key="JIRA-2", resolved_at=_resolved(),
+    )
+
+    new = migrator.apply_tested_migration(AFTER)
+    s = new.apps.get_model("core", "Slice").objects.get(number=3)
+    assert s.external_key == "JIRA-1"
+    assert "migrated-external-key: JIRA-2" in s.spec
+
+
+@pytest.mark.django_db
+def test_promoted_ticket_whose_slice_vanished_does_not_resurrect_as_open(migrator: Migrator):
+    """Area를 지우면 슬라이스는 cascade로 죽고 Ticket.slice는 SET_NULL이라
+    'promoted 인데 slice가 없는' 티켓이 남는다. open으로 떨어뜨리면 이미 답이
+    나온 캡처가 인박스에 살아 있는 일감으로 되살아난다."""
+    old = migrator.apply_initial_migration(BEFORE)
+    Org = old.apps.get_model("core", "Org")
+    Ticket = old.apps.get_model("core", "Ticket")
+
+    org = Org.objects.create(name="O", slug="o", key="O", next_slice_number=9)
+    Ticket.objects.create(
+        org=org, title="슬라이스가 사라진 캡처", body="본문", status="promoted",
+        number=5, rank="m", slice=None, resolved_at=_resolved(),
+    )
+
+    new = migrator.apply_tested_migration(AFTER)
+    s = new.apps.get_model("core", "Slice").objects.get(number=5)
+    assert s.status == "dropped"
+    assert s.spec == "본문"          # 본문은 그래도 살린다
+
+
+# NOTE: status_map의 기본값('open')은 DB를 통해 테스트할 수 없다.
+# ticket_resolved_at_matches_status가 status 화이트리스트를 겸해서
+# (models/domain.py의 주석 참고) 네 값 밖의 status는 UPDATE조차 막힌다:
+#   IntegrityError: CHECK constraint failed: ticket_resolved_at_matches_status
+# 그래서 기본값은 도달 불가능한 방어선이다 — 그대로 둔다.
+
+
+@pytest.mark.django_db
 def test_two_colliding_tickets_do_not_collide_with_each_other(migrator: Migrator):
     """티켓끼리 같은 external_key를 갖는 일은 없지만(유니크 제약), 슬라이스와
     겹치는 티켓이 둘이면 둘 다 비워야 한다 — 하나만 비우면 두 번째가 터진다."""
