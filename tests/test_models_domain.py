@@ -15,7 +15,7 @@ def test_area_slug_unique_per_org(org):
 def test_slice_defaults(org):
     area = Area.objects.create(org=org, name="Backend", slug="backend", rank="a0")
     s = Slice.objects.create(area=area, org=org, title="Auth", rank="a0")
-    assert s.status == "planned"
+    assert s.status == "open"
     assert s.spec == ""
     assert s.source == "human"
     assert s.completed_at is None

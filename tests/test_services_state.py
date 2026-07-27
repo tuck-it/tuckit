@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from tuckit.core.models import Org, Slice, Ticket
 from tuckit.core.services.areas import create_area
-from tuckit.core.services.bites import create_bite
+from tuckit.core.services.bites import add_bites, create_bite, update_bite
 from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.tickets import create_ticket
@@ -29,27 +29,26 @@ def product_org(db):
     return Org.objects.create(name="MyProduct", slug="myproduct", description="A demo product")
 
 
+@pytest.fixture
+def area(org):
+    return create_area(org, "Backend")
+
+
 @pytest.mark.django_db
 def test_project_state_buckets_by_status(product_org):
     product_org.description = "A demo product"
     product_org.save(update_fields=["description", "updated_at"])
     area = create_area(product_org, "Backend")
     create_slice(area, "Auth", status="shipped")
-    building = create_slice(area, "Payments", status="building")
-    building_plan = create_plan(building, title="Plan")
-    create_bite(building_plan, "Stripe", status="doing")
-    create_bite(building_plan, "Done bite", status="done")
-    create_slice(area, "Notifications", status="planned")
-    create_slice(area, "Someday item", status="planned", tags=["someday"])
+    create_slice(area, "Payments", status="open")
+    create_slice(area, "Notifications", status="open")
 
     state = get_project_state(product_org)
     assert state["org"]["description"] == "A demo product"
     a = state["areas"][0]
     assert [s["title"] for s in a["shipped"]] == ["Auth"]
-    assert [s["title"] for s in a["building"]] == ["Payments"]
-    assert [b["title"] for b in a["building"][0]["open_bites"]] == ["Stripe"]  # 'done' excluded
-    assert [s["title"] for s in a["roadmap"]] == ["Notifications"]
-    assert [s["title"] for s in a["someday"]] == ["Someday item"]
+    assert {s["title"] for s in a["roadmap"]} == {"Payments", "Notifications"}
+    assert a["counts"]["shipped"] == 1
 
 
 @pytest.mark.django_db
@@ -65,7 +64,7 @@ def test_project_state_can_scope_to_one_area(product_org):
 @pytest.mark.django_db
 def test_render_slice_markdown_includes_spec_and_bites(product_org):
     area = create_area(product_org, "Backend")
-    s = create_slice(area, "Auth", spec="Support OAuth login.", status="building", tags=["feature"])
+    s = create_slice(area, "Auth", spec="Support OAuth login.", status="open", tags=["feature"])
     p = create_plan(s, title="Plan")
     create_bite(p, "JWT", status="done")
     create_bite(p, "Social login", status="todo")
@@ -90,50 +89,42 @@ def test_render_slice_markdown_includes_bite_body(product_org):
 
 
 @pytest.mark.django_db
-def test_someday_slice_is_exclusive_to_someday_bucket(product_org):
+def test_someday_tag_no_longer_buckets_separately(product_org):
+    """someday is a plain tag again — the special-casing that pulled
+    #someday slices into their own bucket is gone (state.py _area_state)."""
     area = create_area(product_org, "Backend")
-    create_slice(area, "Planned someday", status="planned", tags=["someday"])
-    create_slice(area, "Plain planned", status="planned")
+    create_slice(area, "Planned someday", status="open", tags=["someday"])
+    create_slice(area, "Plain planned", status="open")
     state = get_project_state(product_org)
     a = state["areas"][0]
-    assert [s["title"] for s in a["someday"]] == ["Planned someday"]
-    # the #someday slice must NOT also appear in roadmap:
-    assert [s["title"] for s in a["roadmap"]] == ["Plain planned"]
+    assert "someday" not in a
+    assert {s["title"] for s in a["roadmap"]} == {"Planned someday", "Plain planned"}
 
 
 @pytest.mark.django_db
-def test_counts_and_dropped_bite_excluded(product_org):
-    area = create_area(product_org, "Backend")
-    shipped = create_slice(area, "Auth", status="shipped")
-    building = create_slice(area, "Payments", status="building")
-    building_plan = create_plan(building, title="Plan")
-    create_bite(building_plan, "Open", status="doing")
-    create_bite(building_plan, "Done", status="done")
-    create_bite(building_plan, "Dropped", status="dropped")
-    state = get_project_state(product_org)
-    a = state["areas"][0]
-    # only the 'doing' bite is open; done + dropped excluded:
-    assert [b["title"] for b in a["building"][0]["open_bites"]] == ["Open"]
-    assert a["counts"]["open_bites"] == 1
-    assert a["counts"]["shipped"] == 1
-
-
-@pytest.mark.django_db
-def test_home_state_keeps_every_building_slice_visible():
+def test_home_state_keeps_every_in_progress_slice_visible():
     """The old Home silently dropped a building slice from its Focus column
     once it also landed in the attention list, and dropped `someday`-tagged
-    ones outright. A slice whose status says building but which is missing from
-    the building list is the bug this replaces."""
+    ones outright. A slice whose stage is executing but which is missing from
+    the in_progress list is the bug this replaces — there is no hidden filter
+    (tag or otherwise) on top of the stage check."""
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    stalled = create_slice(a, "stalled", status="building")
-    create_slice(a, "parked", status="building", tags=["someday"])
-    create_slice(a, "fresh", status="building")
+
+    def executing(title, **kw):
+        s = create_slice(a, title, spec="design", **kw)
+        p = create_plan(s)
+        create_bite(p, "step", status="doing")
+        return s
+
+    stalled = executing("stalled")
+    executing("parked", tags=["someday"])
+    executing("fresh")
     Slice.objects.filter(pk=stalled.pk).update(
         updated_at=timezone.now() - timedelta(days=30)
     )
 
-    titles = [s.title for s in home_state(org)["building"]]
+    titles = [s.title for s in home_state(org)["in_progress"]]
     assert set(titles) == {"stalled", "parked", "fresh"}
     assert titles[0] == "stalled", "stalled sorts first — sort key, not filter"
 
@@ -142,25 +133,22 @@ def test_home_state_keeps_every_building_slice_visible():
 def test_home_state_counts_backlog_without_listing_it():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    create_slice(a, "queued", status="planned")
-    create_slice(a, "someday one", status="planned", tags=["someday"])
+    create_slice(a, "queued", status="open")
+    create_slice(a, "someday one", status="open", tags=["someday"])
     st = home_state(org)
-    assert st["planned_ct"] == 2
-    assert st["someday_ct"] == 1
-    assert "planned" not in st, "the backlog is Board's job — Home links to it"
+    assert st["open_ct"] == 2
+    assert "open" not in st, "the backlog is Board's job — Home links to it"
 
 
 @pytest.mark.django_db
 def test_roadmap_state_buckets_by_status():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    create_slice(a, "planned one", status="planned")
-    create_slice(a, "building one", status="building")
+    create_slice(a, "open one", status="open")
     create_slice(a, "shipped one", status="shipped")
     create_slice(a, "dropped one", status="dropped")
     rs = roadmap_state(org)
-    assert [s.title for s in rs["planned"]] == ["planned one"]
-    assert [s.title for s in rs["building"]] == ["building one"]
+    assert [s.title for s in rs["open"]] == ["open one"]
     assert [s.title for s in rs["shipped"]] == ["shipped one"]
     assert "dropped" not in rs                                   # dropped never bucketed
     assert "idea" not in rs                                      # the 'idea' status is retired
@@ -173,9 +161,9 @@ def test_roadmap_sorts_by_area_name():
     alpha = create_area(org, "Alpha")
     # Created Zeta-first, but must come back Alpha-first (sort key is
     # (area name, rank)). Guards against the sort key being dropped/reversed.
-    create_slice(zeta, "z build", status="building")
-    create_slice(alpha, "a build", status="building")
-    assert [s.title for s in roadmap_state(org)["building"]] == ["a build", "z build"]
+    create_slice(zeta, "z open", status="open")
+    create_slice(alpha, "a open", status="open")
+    assert [s.title for s in roadmap_state(org)["open"]] == ["a open", "z open"]
 
 
 @pytest.mark.django_db
@@ -285,7 +273,8 @@ def test_snapshot_today_still_accrues_history(product_org):
     from tuckit.core.models import OrgStatSnapshot
 
     a = create_area(product_org, "A")
-    create_slice(a, "b", status="building")
+    s = create_slice(a, "b", spec="design")
+    create_bite(create_plan(s), "step", status="doing")
     snapshot_today(product_org, home_state(product_org), 0)
     snapshot_today(product_org, home_state(product_org), 0)
 
@@ -404,7 +393,7 @@ def test_shipped_slice_markdown_does_not_ask_for_a_design_doc():
 @pytest.mark.django_db
 def test_area_board_view_excludes_dropped_and_counts_it(product_org):
     a = create_area(product_org, "A")
-    create_slice(a, "live one", status="building")
+    create_slice(a, "live one", status="open")
     create_slice(a, "gone one", status="dropped")
     view = area_board_view(a)
     assert "dropped" not in dict(view["groups"])
@@ -455,7 +444,7 @@ def test_area_board_view_has_any_slice_counts_capped_and_dropped(product_org):
 
 @pytest.mark.django_db
 def test_area_status_keys_include_dropped(product_org):
-    assert AREA_STATUS_KEYS == {"planned", "building", "shipped", "dropped"}
+    assert AREA_STATUS_KEYS == {"open", "shipped", "dropped"}
 
 
 @pytest.mark.django_db
@@ -485,13 +474,13 @@ def test_area_board_view_buckets_by_stage_and_scopes_to_area(product_org):
 
 
 @pytest.mark.django_db
-def test_your_turn_includes_specless_building_slice():
+def test_your_turn_includes_specless_open_slice():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "started but undesigned", status="building")  # spec=""
+    s = create_slice(a, "started but undesigned", status="open")  # spec=""
     items = your_turn(org)
     hit = [it for it in items if it.get("slice") and it["slice"].id == s.id]
-    assert hit, "a building slice with no spec is blocked on a human"
+    assert hit, "an open slice with no spec is blocked on a human"
     assert hit[0]["action"] == "write the spec"
 
 
@@ -499,7 +488,7 @@ def test_your_turn_includes_specless_building_slice():
 def test_your_turn_includes_slice_whose_bites_are_all_done():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "finished work", status="building", spec="designed")
+    s = create_slice(a, "finished work", status="open", spec="designed")
     p = create_plan(s, title="Plan")
     create_bite(p, "one", status="done")
     items = your_turn(org)
@@ -514,23 +503,12 @@ def test_your_turn_excludes_stages_an_agent_can_do():
     exist for exactly that. Listing them here would nag daily."""
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    needs_plan = create_slice(a, "designed, unplanned", status="building", spec="designed")
-    needs_bites = create_slice(a, "planned, unbitten", status="building", spec="designed")
+    needs_plan = create_slice(a, "designed, unplanned", status="open", spec="designed")
+    needs_bites = create_slice(a, "planned, unbitten", status="open", spec="designed")
     create_plan(needs_bites, title="Empty plan")
     ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
     assert needs_plan.id not in ids
     assert needs_bites.id not in ids
-
-
-@pytest.mark.django_db
-def test_your_turn_excludes_specless_planned_slices():
-    """promote never copies the ticket body, so EVERY freshly promoted slice is
-    specless. Including planned ones would dump the whole backlog here."""
-    org = Org.objects.create(name="Acme", slug="acme")
-    a = create_area(org, "Backend")
-    p = create_slice(a, "just captured", status="planned")
-    ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
-    assert p.id not in ids
 
 
 @pytest.mark.django_db
@@ -551,8 +529,8 @@ def test_your_turn_sorts_longest_blocked_first():
     would be a guilt list that only ever grows."""
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    recent = create_slice(a, "recent", status="building")
-    old = create_slice(a, "old", status="building")
+    recent = create_slice(a, "recent", status="open")
+    old = create_slice(a, "old", status="open")
     Slice.objects.filter(pk=old.pk).update(updated_at=timezone.now() - timedelta(days=30))
     titles = [it["slice"].title for it in your_turn(org) if it.get("slice")]
     assert titles == ["old", "recent"]
@@ -563,7 +541,7 @@ def test_your_turn_sorts_longest_blocked_first():
 def test_your_turn_is_empty_when_nothing_is_blocked():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "moving along", status="building", spec="designed")
+    s = create_slice(a, "moving along", status="open", spec="designed")
     create_bite(create_plan(s, title="Plan"), "in flight", status="todo")
     assert your_turn(org) == []
 
@@ -580,7 +558,7 @@ def test_since_last_visit_badges_nothing_on_a_first_visit():
 
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "work", status="building")
+    s = create_slice(a, "work", status="open")
     record_activity(org, actor="agent", verb="created", target=s)
 
     out = since_last_visit(org, _member(org))
@@ -597,7 +575,7 @@ def test_since_last_visit_counts_only_agent_events_as_new():
 
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "work", status="building")
+    s = create_slice(a, "work", status="open")
     m = _member(org)
     mark_home_seen(m)
 
@@ -633,7 +611,7 @@ def test_since_last_visit_is_capped_and_newest_first():
 
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "work", status="building")
+    s = create_slice(a, "work", status="open")
     for i in range(15):
         record_activity(org, actor="agent", verb="noted", target=s, body=f"n{i}")
 
@@ -641,3 +619,42 @@ def test_since_last_visit_is_capped_and_newest_first():
     assert len(out["events"]) == 10
     stamps = [e.created_at for e in out["events"]]
     assert stamps == sorted(stamps, reverse=True)
+
+
+@pytest.mark.django_db
+def test_in_progress_band_follows_stage_not_status(org, area):
+    """status를 손대지 않아도 bite가 진행 중이면 in progress에 나타난다.
+    예전에는 status='building'을 사람이 켜야 했고, 아무도 안 켜서 밴드가
+    상시 비어 있었다 (A0)."""
+    s = create_slice(area, "spec 있는 일", spec="왜 하는지", status="open")
+    plan = create_plan(s, body="계획")
+    add_bites(plan, [{"title": "첫 단계"}, {"title": "둘째 단계"}])
+    update_bite(plan.bites.first(), status="done")
+
+    state = home_state(area.org)
+
+    assert [x.title for x in state["in_progress"]] == ["spec 있는 일"]
+    s.refresh_from_db()
+    assert s.status == "open"  # status는 그대로다
+
+
+@pytest.mark.django_db
+def test_your_turn_lists_specless_open_slices(org, area):
+    """spec이 비면 사람이 써야 한다 — 그게 '내 차례'다. 예전에는
+    status='building'인 것만 봐서 이 밴드도 비어 있었다."""
+    create_slice(area, "설계 필요", spec="", status="open")
+    create_slice(area, "설계 끝남", spec="왜 하는지", status="open")
+
+    rows = [r for r in your_turn(area.org) if "slice" in r]
+
+    assert [(r["slice"].title, r["action"]) for r in rows] == [
+        ("설계 필요", "write the spec"),
+    ]
+
+
+@pytest.mark.django_db
+def test_shipped_slices_never_reach_your_turn(org, area):
+    """끝난 일은 내 차례가 아니다."""
+    create_slice(area, "이미 나감", spec="", status="shipped")
+
+    assert [r for r in your_turn(area.org) if "slice" in r] == []
