@@ -27,7 +27,7 @@ def test_area_marks_has_area(org):
 @pytest.mark.django_db
 def test_slice_marks_has_slice(org):
     area = create_area(org, "Backend")
-    create_slice(area, "Retry webhooks", status="planned")
+    create_slice(area, "Retry webhooks", status="open")
     st = onboarding_state(org)
     assert st.has_area is True and st.has_slice is True and st.current == 3
 
@@ -35,7 +35,7 @@ def test_slice_marks_has_slice(org):
 @pytest.mark.django_db
 def test_plan_marks_has_plan(org):
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="planned")
+    sl = create_slice(area, "Retry webhooks", status="open")
     create_plan(sl, title="Plan")
     st = onboarding_state(org)
     assert st.has_plan is True and st.has_bite is False and st.current == 4
@@ -44,7 +44,7 @@ def test_plan_marks_has_plan(org):
 @pytest.mark.django_db
 def test_bite_marks_has_bite(org):
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="planned")
+    sl = create_slice(area, "Retry webhooks", status="open")
     p = create_plan(sl, title="Plan")
     create_bite(p, "Add backoff")
     st = onboarding_state(org)
@@ -77,8 +77,8 @@ def test_newest_slice_id_tracks_latest(org):
     from tuckit.core.services.onboarding import onboarding_state
     area = create_area(org, "Backend")
     assert onboarding_state(org).newest_slice_id is None
-    s1 = create_slice(area, "One", status="planned")
-    s2 = create_slice(area, "Two", status="planned")
+    s1 = create_slice(area, "One", status="open")
+    s2 = create_slice(area, "Two", status="open")
     assert onboarding_state(org).newest_slice_id == s2.id
 
 
@@ -86,7 +86,7 @@ def test_newest_slice_id_tracks_latest(org):
 def test_all_done(org):
     from tuckit.core.models import ActivityEvent
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="planned")
+    sl = create_slice(area, "Retry webhooks", status="open")
     p = create_plan(sl, title="Plan")
     create_bite(p, "Add backoff")
     ActivityEvent.objects.create(

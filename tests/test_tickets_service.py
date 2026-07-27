@@ -135,7 +135,7 @@ def test_promote_inherits_number_and_ends_ticket_lifecycle():
     s = promote_ticket(t)
     assert s.number == t.number          # same ref across promotion
     assert s.spec == ""                  # the body is linked, not copied
-    assert s.status == "planned"
+    assert s.status == "open"
     t.refresh_from_db()
     assert t.slice_id == s.id
     assert t.status == "promoted" and t.resolved_at is not None
@@ -199,10 +199,10 @@ def test_slice_status_never_writes_back_to_the_ticket():
     assert t.status == "promoted" and t.resolved_at == resolved_at
     assert t.slice.status == "shipped"          # delivery is derived, not stored
 
-    set_slice_status(s, "building")             # reopened — used to strand the ticket
+    set_slice_status(s, "open")                 # reopened — used to strand the ticket
     t.refresh_from_db()
     assert t.status == "promoted"
-    assert t.slice.status == "building"
+    assert t.slice.status == "open"
 
 
 from datetime import timedelta
@@ -211,12 +211,12 @@ from tuckit.core.services.state import your_turn
 
 
 @pytest.mark.django_db
-def test_slice_default_status_is_planned():
+def test_slice_default_status_is_open():
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
     from tuckit.core.services.slices import create_slice
     s = create_slice(area, "S")
-    assert s.status == "planned"
+    assert s.status == "open"
 
 
 def _triage_rows(org):

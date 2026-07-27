@@ -12,7 +12,7 @@ def _org(slug="w"):
 def test_create_slice_records_created_with_source_actor():
     org = _org()
     a = create_area(org, "Backend")
-    create_slice(a, "Payment", status="planned", source="agent")
+    create_slice(a, "Payment", status="open", source="agent")
     e = ActivityEvent.objects.get(verb="created", target_type="slice")
     assert e.actor == "agent" and e.target_type == "slice" and e.target_label == "Payment"
 
@@ -21,19 +21,22 @@ def test_create_slice_records_created_with_source_actor():
 def test_set_slice_status_records_transition():
     org = _org("w2")
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment", status="planned")
+    # 'shipped' -> 'open' (a reopen) is the only non-terminal-to-non-terminal
+    # transition left post-redefinition that still maps to the generic
+    # 'status_changed' verb (status_verb keys only 'shipped'/'dropped').
+    s = create_slice(a, "Payment", status="shipped")
     ActivityEvent.objects.all().delete()
-    set_slice_status(s, "building", actor="agent")
+    set_slice_status(s, "open", actor="agent")
     e = ActivityEvent.objects.get()
     assert e.verb == "status_changed" and e.actor == "agent"
-    assert e.from_value == "planned" and e.to_value == "building"
+    assert e.from_value == "shipped" and e.to_value == "open"
 
 
 @pytest.mark.django_db
 def test_set_slice_status_shipped_uses_shipped_verb():
     org = _org("w3")
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment", status="building")
+    s = create_slice(a, "Payment", status="open")
     ActivityEvent.objects.all().delete()
     set_slice_status(s, "shipped")
     assert ActivityEvent.objects.get().verb == "shipped"
@@ -43,9 +46,9 @@ def test_set_slice_status_shipped_uses_shipped_verb():
 def test_set_slice_status_noop_records_nothing():
     org = _org("w4")
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment", status="building")
+    s = create_slice(a, "Payment", status="open")
     ActivityEvent.objects.all().delete()
-    set_slice_status(s, "building")   # same status
+    set_slice_status(s, "open")   # same status
     assert ActivityEvent.objects.count() == 0
 
 
@@ -64,11 +67,14 @@ def test_set_slice_area_records_moved_between_real_areas():
 def test_update_slice_records_only_on_status_change():
     org = _org("w7")
     a = create_area(org, "Backend")
-    s = create_slice(a, "Title", status="building")
+    # 'shipped' -> 'open' (a reopen) is the only non-terminal-to-non-terminal
+    # transition left post-redefinition that still maps to the generic
+    # 'status_changed' verb (status_verb keys only 'shipped'/'dropped').
+    s = create_slice(a, "Title", status="shipped")
     ActivityEvent.objects.all().delete()
     update_slice(s, title="New title")           # edit only -> no event
     assert ActivityEvent.objects.count() == 0
-    update_slice(s, status="planned")           # status -> one event
+    update_slice(s, status="open")           # status -> one event
     assert ActivityEvent.objects.get().verb == "status_changed"
 
 

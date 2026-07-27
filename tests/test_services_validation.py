@@ -36,7 +36,7 @@ def test_update_slice_rejects_bad_status(area):
 
 @pytest.mark.django_db
 def test_valid_status_still_works(area):
-    s = create_slice(area, "X", status="planned")
+    s = create_slice(area, "X", status="open")
     set_slice_status(s, "shipped")
     s.refresh_from_db()
     assert s.status == "shipped"

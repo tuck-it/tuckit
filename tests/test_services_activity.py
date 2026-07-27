@@ -13,15 +13,15 @@ def _org(slug="w"):
 def test_record_activity_derives_target_fields():
     org = _org()
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment integration", status="planned")
+    s = create_slice(a, "Payment integration", status="open")
     ActivityEvent.objects.all().delete()  # ignore the create_slice event from Task 2
-    record_activity(org, actor="agent", verb="status_changed", target=s, from_value="planned", to_value="building")
+    record_activity(org, actor="agent", verb="status_changed", target=s, from_value="open", to_value="shipped")
     e = ActivityEvent.objects.get()
     assert e.org_id == org.id
     assert e.actor == "agent" and e.verb == "status_changed"
     assert e.target_type == "slice" and e.target_id == s.id
     assert e.target_label == "Payment integration"
-    assert e.from_value == "planned" and e.to_value == "building"
+    assert e.from_value == "open" and e.to_value == "shipped"
 
 
 @pytest.mark.django_db
@@ -39,7 +39,7 @@ def test_record_activity_survives_target_deletion():
 def test_status_verb_maps_terminal_states():
     assert status_verb("shipped") == "shipped"
     assert status_verb("dropped") == "dropped"
-    assert status_verb("building") == "status_changed"
+    assert status_verb("open") == "status_changed"
     assert status_verb("done") == "status_changed"
 
 
@@ -64,7 +64,7 @@ def test_active_targets_folds_bite_activity_onto_its_slice():
     from tuckit.core.services.plans import create_plan
 
     org = Org.objects.create(name="Acme", slug="acme-at1")
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
     create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
 
     active = active_targets(org)
@@ -82,7 +82,7 @@ def test_active_targets_keeps_only_the_most_recent_touch_per_slice():
     from tuckit.core.services.plans import create_plan
 
     org = Org.objects.create(name="Acme", slug="acme-at2")
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
     plan = create_plan(slice_, title="Plan")
     create_bite(plan, "First", source="agent")
     create_bite(plan, "Second", source="agent")
@@ -99,7 +99,7 @@ def test_active_targets_excludes_human_activity():
     from tuckit.core.services.activity import active_targets
 
     org = Org.objects.create(name="Acme", slug="acme-at3")
-    create_slice(create_area(org, "Backend"), "Login", status="building")  # source defaults to human
+    create_slice(create_area(org, "Backend"), "Login", status="open")  # source defaults to human
 
     assert active_targets(org) == {}
 
@@ -112,7 +112,7 @@ def test_active_targets_excludes_activity_older_than_the_window():
     from tuckit.core.services.activity import active_targets
 
     org = Org.objects.create(name="Acme", slug="acme-at4")
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
     ActivityEvent.objects.filter(org=org).update(actor="agent")
     ActivityEvent.objects.filter(org=org).update(
         created_at=timezone.now() - timedelta(seconds=600)
@@ -128,7 +128,7 @@ def test_active_targets_is_scoped_to_one_org():
 
     org_a = Org.objects.create(name="A", slug="acme-at5a")
     org_b = Org.objects.create(name="B", slug="acme-at5b")
-    create_slice(create_area(org_b, "Backend"), "Login", status="building", source="agent")
+    create_slice(create_area(org_b, "Backend"), "Login", status="open", source="agent")
 
     assert active_targets(org_a) == {}
 
@@ -149,7 +149,7 @@ def test_active_targets_skips_a_bite_whose_slice_is_gone():
     from tuckit.core.services.plans import create_plan
 
     org = Org.objects.create(name="Acme", slug="acme-at6")
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
     bite = create_bite(create_plan(slice_, title="Plan"), "Doomed", source="agent")
     ActivityEvent.objects.filter(org=org).delete()
     delete_bite(bite)

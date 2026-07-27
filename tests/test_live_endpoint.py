@@ -30,7 +30,7 @@ def test_live_returns_new_events_and_cursor(client, member):
     org, user = member
     client.force_login(user)
     cursor = latest_activity_id(org)
-    create_slice(create_area(org, "Backend"), "Login", status="building")
+    create_slice(create_area(org, "Backend"), "Login", status="open")
     resp = client.get(reverse("web:live", args=[org.slug]) + f"?since={cursor}")
     assert resp.status_code == 200
     data = resp.json()
@@ -61,7 +61,7 @@ def test_bite_event_carries_its_own_id_and_label(client, member):
     payload — the live endpoint just reports the bite event as itself."""
     org, user = member
     client.force_login(user)
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
     plan = create_plan(slice_, title="Plan")
     cursor = latest_activity_id(org)
     bite = create_bite(plan, "Wire the form", source="agent")
@@ -83,7 +83,7 @@ def test_deleted_bite_event_still_delivers(client, member):
     itself without erroring is still the behavior worth pinning."""
     org, user = member
     client.force_login(user)
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
     bite = create_bite(create_plan(slice_, title="Plan"), "Doomed")
     cursor = latest_activity_id(org)
     delete_bite(bite)
