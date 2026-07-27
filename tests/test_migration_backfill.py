@@ -1,19 +1,15 @@
 import importlib
 
 import pytest
-from django.db.migrations.executor import MigrationExecutor
-from django.db import connection
+
+from tests.migration_utils import at, forward, leave_migrated
 
 
 @pytest.mark.django_db(transaction=True)
 def test_backfill_creates_org_and_migrates_membership():
-    executor = MigrationExecutor(connection)
-    # Roll back to just-before the backfill.
-    executor.migrate([("core", "0002_org_alter_workspace_slug_invitation_workspace_org_and_more")])
-    executor.loader.build_graph()
-    old = executor.loader.project_state(
-        [("core", "0002_org_alter_workspace_slug_invitation_workspace_org_and_more")]
-    ).apps
+    # Replay forward to just-before the backfill (see tests/migration_utils.py:
+    # rolling backward is no longer possible past 0045).
+    old = at(("core", "0002_org_alter_workspace_slug_invitation_workspace_org_and_more"))
 
     User = old.get_model("core", "User")
     Workspace = old.get_model("core", "Workspace")
@@ -24,9 +20,7 @@ def test_backfill_creates_org_and_migrates_membership():
     Membership.objects.create(user=u, workspace=ws, role="owner")
 
     # Apply the backfill.
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0003_backfill_orgs")])
-    new = executor.loader.project_state([("core", "0003_backfill_orgs")]).apps
+    new = forward(("core", "0003_backfill_orgs"))
 
     Workspace = new.get_model("core", "Workspace")
     OrgMember = new.get_model("core", "OrgMember")
@@ -35,8 +29,7 @@ def test_backfill_creates_org_and_migrates_membership():
     assert OrgMember.objects.filter(user__email="a@b.com", org=ws.org, role="owner").exists()
 
     # Leave the DB migrated forward for the rest of the suite.
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    leave_migrated()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -45,12 +38,7 @@ def test_dismissed_workspace_backfilled_completed():
     Task 12), so this exercises the frozen 0012 migration function against
     the historical model state as of that migration, the same way
     test_backfill_creates_org_and_migrates_membership does above."""
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0012_workspace_onboarding_completed")])
-    executor.loader.build_graph()
-    historical_apps = executor.loader.project_state(
-        [("core", "0012_workspace_onboarding_completed")]
-    ).apps
+    historical_apps = at(("core", "0012_workspace_onboarding_completed"))
 
     Org = historical_apps.get_model("core", "Org")
     Workspace = historical_apps.get_model("core", "Workspace")
@@ -69,5 +57,4 @@ def test_dismissed_workspace_backfilled_completed():
     assert ws.onboarding_completed is True
 
     # Leave the DB migrated forward for the rest of the suite.
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    leave_migrated()

@@ -14,18 +14,13 @@ models, migrate forward, and assert it applies cleanly with data preserved
 import datetime
 
 import pytest
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
+
+from tests.migration_utils import at, forward, leave_migrated
 
 
 @pytest.mark.django_db(transaction=True)
 def test_dedup_resolves_legacy_multi_workspace_collisions():
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0021_workspace_fk_nullable")])
-    executor.loader.build_graph()
-    old = executor.loader.project_state(
-        [("core", "0021_workspace_fk_nullable")]
-    ).apps
+    old = at(("core", "0021_workspace_fk_nullable"))
 
     Org = old.get_model("core", "Org")
     Workspace = old.get_model("core", "Workspace")
@@ -53,9 +48,7 @@ def test_dedup_resolves_legacy_multi_workspace_collisions():
     assert Snapshot.objects.filter(org=org, date=same_day).count() == 2
 
     # Apply the fixed migration. Must NOT raise IntegrityError.
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0022_delete_workspace")])
-    new = executor.loader.project_state([("core", "0022_delete_workspace")]).apps
+    new = forward(("core", "0022_delete_workspace"))
 
     NewArea = new.get_model("core", "Area")
     NewTag = new.get_model("core", "Tag")
@@ -73,5 +66,4 @@ def test_dedup_resolves_legacy_multi_workspace_collisions():
     assert len(snapshots) == 1, "derived snapshots collapse to exactly one row per (org, date)"
 
     # Leave the DB migrated forward for the rest of the suite.
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    leave_migrated()

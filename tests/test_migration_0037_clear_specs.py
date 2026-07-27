@@ -8,30 +8,25 @@ Same MigrationExecutor pattern as test_migration_0033_lifecycle.py.
 """
 
 import pytest
-from django.db import connection
 from django.utils import timezone
-from django.db.migrations.executor import MigrationExecutor
+
+from tests.migration_utils import at, forward, leave_migrated
 
 BEFORE = ("core", "0036_ticket_slice_fk")
 AFTER = ("core", "0037_clear_copied_specs")
 
 
 def _at(state):
-    executor = MigrationExecutor(connection)
-    executor.migrate([state])
-    executor.loader.build_graph()
-    return executor.loader.project_state([state]).apps
+    return at(state)
 
 
 def _forward():
-    executor = MigrationExecutor(connection)
-    executor.migrate([AFTER])
-    return executor.loader.project_state([AFTER]).apps
+    return forward(AFTER)
 
 
 def _leave_migrated():
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    """Leave the DB at the leaf for the rest of the suite."""
+    leave_migrated()
 
 
 @pytest.mark.django_db(transaction=True)
