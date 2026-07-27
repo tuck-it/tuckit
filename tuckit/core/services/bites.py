@@ -12,7 +12,9 @@ def list_bites(plan_: Plan) -> QuerySet:
 
 
 def slice_bites(slice_: Slice) -> QuerySet:
-    return Bite.objects.filter(plan__slice=slice_)
+    """Bites hang directly off the Slice now (Task 3's Bite.slice), so this
+    reads the flat column instead of joining through plans__bites."""
+    return Bite.objects.filter(slice=slice_)
 
 
 def create_bite(
@@ -104,5 +106,5 @@ def delete_bite(bite: Bite) -> None:
 
 
 def bite_progress(slice_: Slice) -> tuple[int, int]:
-    qs = Bite.objects.filter(plan__slice=slice_).exclude(status="dropped")
+    qs = Bite.objects.filter(slice=slice_).exclude(status="dropped")
     return qs.filter(status="done").count(), qs.count()

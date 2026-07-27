@@ -8,10 +8,9 @@
   refresh_rollup turns into an HX-Refresh so the card visibly lands in its new
   column. slice.stage is attached by roadmap_board_view / area_board_view.
 
-  The meta line (.card-sub) is one row: area · (stage hint | bite count). The
-  needs_plan/needs_bites distinction is text here, not a pill — a Plan is the
-  container its Bites live in, so "no plan" and "empty plan" are one unfinished
-  moment the label tells apart. Tags live in the detail modal, not on the card.
+  The meta line (.card-sub) is one row: area · (stage hint | bite count).
+  needs_steps is text here, not a pill. Tags live in the detail modal, not on
+  the card.
 {% endcomment %}
 <div class="slice-card" data-slice-id="{{ slice.id }}"{% occupancy_attrs slice %}>
   <a class="slice-card-link" href="{% wurl 'web:slice' slice.id %}"
@@ -20,8 +19,7 @@
     <span class="card-sub">
       {% ref_of slice %}
       {% if show_area %}<span>{{ slice.area.name }}</span>{% endif %}
-      {% if slice.stage == "needs_plan" %}<span>needs plan</span>
-      {% elif slice.stage == "needs_bites" %}<span>needs bites</span>
+      {% if slice.stage == "needs_steps" %}<span>needs steps</span>
       {% elif slice.stage != "needs_design" %}<span>{% bite_progress slice %}</span>{% endif %}
     </span>
   </a>

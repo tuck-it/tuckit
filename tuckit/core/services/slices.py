@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
-from tuckit.core.models import Area, Org, Plan, Slice
+from tuckit.core.models import Area, Org, Slice
 from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.bites import bite_progress
 from tuckit.core.services.exceptions import InvalidValue
@@ -215,93 +215,75 @@ def set_slice_area(
 
 
 # Workflow order: what a slice needs next, from undesigned to done. Derived on
-# read and never stored — a column would need updating on every spec edit, plan
-# creation and bite transition, and would be wrong the first time anything wrote
-# around it.
+# read and never stored — a column would need updating on every spec edit and
+# bite transition, and would be wrong the first time anything wrote around it.
 SLICE_STAGES = (
-    "needs_design", "needs_plan", "needs_bites", "executing", "ready_to_ship",
+    "needs_design", "needs_steps", "executing", "ready_to_ship",
     "shipped", "dropped",
 )
 
 # Board columns for the stage pipeline. The board groups by derived stage, not
-# stored status. needs_bites folds into the needs_plan column: a Plan is the
-# container its Bites live in, so "no plan" and "empty plan" are one unfinished-
-# plan moment (the card shows a needs plan / needs bites badge to tell them
-# apart). dropped is not a column — the page surfaces it as a header count.
-BOARD_STAGE_COLUMNS = ("needs_design", "needs_plan", "executing", "ready_to_ship", "shipped")
+# stored status. dropped is not a column — the page surfaces it as a header
+# count.
+BOARD_STAGE_COLUMNS = ("needs_design", "needs_steps", "executing", "ready_to_ship", "shipped")
 
 
 def stage_column(stage: str) -> str | None:
     """The board column a derived stage belongs to, or None if it is not a
-    column (dropped). Pure — mirrors slice_stage()'s output onto five columns."""
-    if stage == "needs_bites":
-        return "needs_plan"
-    if stage in BOARD_STAGE_COLUMNS:
-        return stage
-    return None
+    column (dropped). There is no folding left to do — derived stage and board
+    column are 1:1."""
+    return stage if stage in BOARD_STAGE_COLUMNS else None
 
 
-def slice_stage(status: str, spec: str, plan_count: int,
-                bites_done: int, bites_total: int) -> str:
+def slice_stage(status: str, spec: str, bites_done: int, bites_total: int) -> str:
     """What to do next on this slice.
 
     Pure: every argument is a primitive, so the rules can be tested without a
     database. `bites_done`/`bites_total` must carry bite_progress() semantics —
     dropped bites excluded from both — or a slice whose last outstanding step
-    was dropped never leaves 'executing'."""
+    was dropped never leaves 'executing'.
+
+    The Plan layer is gone, so needs_plan/needs_bites collapse into a single
+    needs_steps — the board has drawn them as one column since v0.35.0."""
     if status in ("shipped", "dropped"):
         # A finished slice has no next step. Deriving anyway would tell you to
         # brainstorm something already deployed.
         return status
     if not spec:
         return "needs_design"
-    if plan_count == 0:
-        return "needs_plan"
     if bites_total == 0:
-        # NOT ready_to_ship: `done == total` is vacuously true at zero, and an
-        # empty plan means no work has been defined. Distinct from needs_plan so
-        # a caller fills the existing plan instead of creating a second one.
-        return "needs_bites"
+        return "needs_steps"
     if bites_done < bites_total:
         return "executing"
     return "ready_to_ship"
 
 
-def stage_counts(slice_) -> tuple[int, int, int]:
-    """(plan_count, bites_done, bites_total) for one slice — two queries.
-
-    Reuses bite_progress() so the dropped-bite exclusion is stated once on the
-    Python side."""
-    done, total = bite_progress(slice_)
-    return Plan.objects.filter(slice=slice_).count(), done, total
+def stage_counts(slice_) -> tuple[int, int]:
+    """(bites_done, bites_total) for one slice — reuses bite_progress() so the
+    dropped-bite exclusion is stated once on the Python side."""
+    return bite_progress(slice_)
 
 
 def annotate_stage_counts(qs):
-    """The same three numbers, computed in the database, so a list of slices
+    """The same two numbers, computed in the database, so a list of slices
     costs no extra queries.
 
-    distinct=True on every Count is load-bearing: plans__bites is a nested
-    multi-valued join, so the rows fan out to one per (plan, bite) pair and the
-    counts multiply each other without it. The failure is silent — the numbers
-    stay plausible."""
+    Bites hang directly off the Slice now, so the nested plans__bites join is
+    gone. distinct=True stays on every Count regardless — other multi-valued
+    joins (tags) can still be present on the same queryset, and without it
+    they would fan the rows out and multiply the counts. The failure is
+    silent — the numbers stay plausible."""
     return qs.annotate(
-        _plan_count=Count("plans", distinct=True),
-        _bites_total=Count(
-            "plans__bites", distinct=True,
-            filter=~Q(plans__bites__status="dropped"),
-        ),
-        _bites_done=Count(
-            "plans__bites", distinct=True,
-            filter=Q(plans__bites__status="done"),
-        ),
+        _bites_total=Count("bites", distinct=True, filter=~Q(bites__status="dropped")),
+        _bites_done=Count("bites", distinct=True, filter=Q(bites__status="done")),
     )
 
 
 def stage_of(slice_) -> str:
     """Stage for one slice. Uses annotate_stage_counts() output when present so
     list callers pay nothing, and falls back to querying for a bare instance."""
-    if hasattr(slice_, "_plan_count"):
-        counts = (slice_._plan_count, slice_._bites_done, slice_._bites_total)
+    if hasattr(slice_, "_bites_total"):
+        counts = (slice_._bites_done, slice_._bites_total)
     else:
         counts = stage_counts(slice_)
     return slice_stage(slice_.status, slice_.spec, *counts)
