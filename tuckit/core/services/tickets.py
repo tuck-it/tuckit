@@ -141,7 +141,7 @@ def _apply_status(ticket: Ticket, status: str, *, actor: str, to_value: str = ""
 
 @transaction.atomic
 def promote_ticket(ticket: Ticket, *, area=None, actor: str = "human") -> Slice:
-    """Promote a Ticket into a Slice (status=planned) that inherits the Ticket's
+    """Promote a Ticket into a Slice (status=open) that inherits the Ticket's
     number, so the ref survives the transition. This ENDS the Ticket's lifecycle
     (status='promoted'); from here the Slice is the source of truth for progress
     — read `ticket.slice.status`, which cannot drift.

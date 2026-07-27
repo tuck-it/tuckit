@@ -101,8 +101,8 @@ mcp = FastMCP(
 
 @mcp.tool()
 async def get_project_state(ctx: Context, area_id: int | None = None) -> dict:
-    """Current project state (shipped/building/roadmap/ideas/someday) plus the
-    caller's identity (user_email, org). Optionally scope to one area by id."""
+    """Current project state (shipped/roadmap) plus the caller's identity
+    (user_email, org). Optionally scope to one area by id."""
     org, user = await require_caller(ctx)
 
     def _run():
@@ -250,16 +250,18 @@ async def create_slice(
     area_id: int,
     title: str,
     spec: str = "",
-    status: str = "planned",
+    status: str = "open",
     tags: list[str] | None = None,
     assignee: str | None = None,
     external_key: str = "",
     after_id: int | None = None,
     before_id: int | None = None,
 ) -> dict:
-    """Create a slice directly in an area (default status 'planned'). For quick,
-    unfiled capture use create_ticket instead. external_key makes re-runs idempotent
-    (same key updates instead of duplicating). assignee = 'me' or an email. Optionally
+    """Create a slice directly in an area (default status 'open'). For quick,
+    unfiled capture use create_ticket instead. `status` carries the DECISION
+    only — open / shipped / dropped. Progress is derived: read `stage` to learn
+    what a slice needs next. external_key makes re-runs idempotent (same key
+    updates instead of duplicating). assignee = 'me' or an email. Optionally
     position with after_id/before_id (another slice's id in the same area)."""
     org, user = await require_caller(ctx)
 
@@ -389,7 +391,7 @@ async def update_ticket(
 
 @mcp.tool()
 async def promote_ticket(ctx: Context, ticket_id: int, area_id: int | None = None) -> dict:
-    """Promote a ticket into a planned slice (inherits the ticket's ref).
+    """Promote a ticket into a slice (inherits the ticket's ref).
     The slice starts with an EMPTY spec: that blank is how the workflow knows the
     work has not been designed yet, so write the design doc into it before
     planning. The ticket keeps its body — read it via get_ticket, or the 'From:'

@@ -42,7 +42,7 @@ async def test_promote_ticket_and_inbox_shrinks():
     t = await create_ticket(ctx, "Fix login")
     s = await promote_ticket(ctx, t["id"], area_id=area_id)
     assert s["ref"] == t["ref"]            # inherits the number
-    assert s["status"] == "planned"
+    assert s["status"] == "open"
     assert await list_tickets(ctx) == []    # promoted -> leaves the inbox
     state = await get_project_state(ctx)
     assert state["inbox"]["open_count"] == 0
@@ -77,9 +77,9 @@ async def test_promoted_ticket_reports_live_slice_status_not_a_stored_copy():
 
     listed = await list_tickets(ctx, status="promoted")
     assert listed[0]["status"] == "promoted"
-    assert listed[0]["slice_status"] == "planned"
+    assert listed[0]["slice_status"] == "open"
     md = await get_ticket(ctx, t["id"])
-    assert "Status: promoted → slice ACM-1 (planned)" in md
+    assert "Status: promoted → slice ACM-1 (open)" in md
     assert "buttons misaligned" in md          # captured context survived promotion
 
     slice_obj = await sync_to_async(Slice.objects.get)(pk=s["id"])
@@ -87,9 +87,9 @@ async def test_promoted_ticket_reports_live_slice_status_not_a_stored_copy():
     md = await get_ticket(ctx, t["id"])
     assert "Status: promoted → slice ACM-1 (shipped)" in md
 
-    await sync_to_async(set_slice_status)(slice_obj, "building")   # reopened
+    await sync_to_async(set_slice_status)(slice_obj, "open")   # reopened
     md = await get_ticket(ctx, t["id"])
-    assert "Status: promoted → slice ACM-1 (building)" in md
+    assert "Status: promoted → slice ACM-1 (open)" in md
 
 
 @pytest.mark.django_db(transaction=True)

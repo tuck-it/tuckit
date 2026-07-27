@@ -31,8 +31,8 @@ def _seed():
 async def test_create_list_and_render_slice():
     _org, _other_org, raw, area_id = await _seed()
     ctx = make_ctx(raw)
-    s = await create_slice(ctx, area_id, "Auth", spec="OAuth login.", status="building", tags=["feature"])
-    assert s["status"] == "building"
+    s = await create_slice(ctx, area_id, "Auth", spec="OAuth login.", status="shipped", tags=["feature"])
+    assert s["status"] == "shipped"
     listed = await list_slices(ctx, area_id)
     assert [x["title"] for x in listed] == ["Auth"]
     md = await get_slice(ctx, s["id"])
@@ -53,6 +53,28 @@ async def test_status_and_reorder():
     await update_slice(ctx, a["id"], title="A2")
     md = await get_slice(ctx, a["id"])
     assert "# A2" in md
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_create_slice_defaults_to_open():
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+
+    s = await create_slice(ctx, area_id, "New work")
+
+    assert s["status"] == "open"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_update_slice_rejects_retired_status():
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    s = await create_slice(ctx, area_id, "New work")
+
+    with pytest.raises(InvalidValue):
+        await update_slice(ctx, s["id"], status="building")
 
 
 @pytest.mark.django_db(transaction=True)
