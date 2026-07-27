@@ -31,9 +31,11 @@ class Area(models.Model):
 
 
 class Slice(models.Model):
+    # status는 사람이 내리는 결정만 담는다 — 진행도는 slice_stage()가 산출물에서
+    # 파생한다. 'building'은 관찰이라 stage의 'executing'과 겹쳤고, 자동으로
+    # 켜지지 않아 아무도 켜지 않았다(A0, 2026-07-27: 전 org 0건).
     STATUS_CHOICES = [
-        ("planned", "Planned"),
-        ("building", "Building"),
+        ("open", "Open"),
         ("shipped", "Shipped"),
         ("dropped", "Dropped"),
     ]
@@ -49,7 +51,7 @@ class Slice(models.Model):
     org = models.ForeignKey("core.Org", on_delete=models.CASCADE, related_name="slices")
     title = models.CharField(max_length=300)
     spec = models.TextField(blank=True, default="")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="planned")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="open")
     tags = models.ManyToManyField(Tag, blank=True, related_name="slices")
     rank = models.CharField(max_length=255)
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="human")

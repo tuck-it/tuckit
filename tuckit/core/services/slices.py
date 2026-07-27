@@ -51,7 +51,7 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
     return list(qs)
 
 
-STATUS_ORDER = ["planned", "building", "shipped", "dropped"]
+STATUS_ORDER = ["open", "shipped", "dropped"]
 
 
 def grouped_slices(area: Area) -> list[tuple[str, list[Slice]]]:
@@ -75,7 +75,7 @@ def create_slice(
     title: str,
     *,
     spec: str = "",
-    status: str = "planned",
+    status: str = "open",
     tags: list[str] | None = None,
     before: Slice | None = None,
     after: Slice | None = None,
@@ -88,7 +88,7 @@ def create_slice(
         existing = Slice.objects.filter(area__org=area.org, external_key=external_key).first()
         if existing is not None:
             # Idempotent: a re-run with the same key updates in place, no duplicate.
-            # Status is deliberately NOT touched here — create defaults to 'planned' and
+            # Status is deliberately NOT touched here — create defaults to 'open' and
             # would otherwise regress a slice that already progressed; use update_slice
             # to move status. Empty spec is treated as "unchanged" (spec or None).
             return update_slice(

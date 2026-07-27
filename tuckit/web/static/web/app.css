@@ -191,17 +191,15 @@ body { padding: 0; }
   background: var(--dot-open);
 }
 
-/* Untriaged Ticket — the Inbox's only dot. */
+/* "open" is shared vocabulary now — the Inbox's untriaged Ticket dot and a
+   backlog Slice's dot both render this rule (formerly two separate classes,
+   .status-dot--open for tickets and .status-dot--planned for slices, before
+   Slice.status dropped "planned" in favor of "open"). --dot-open, not
+   --dot-planned: "nothing has happened to this yet" is true of both, and the
+   Inbox's established gray appearance stays put rather than silently
+   turning blue. */
 .status-dot--open {
   background: var(--dot-open);
-}
-
-.status-dot--planned {
-  background: var(--dot-planned);
-}
-
-.status-dot--building {
-  background: var(--dot-building);
 }
 
 .status-dot--doing {
@@ -2150,6 +2148,8 @@ html.sidebar-collapsed .side-resize { display: none; }
 .action-spacer { flex: 1; }
 .action-drop { color: var(--warn); border-color: transparent; }
 .action-drop:hover { border-color: var(--warn); }
+.action-ship { color: var(--dot-shipped); border-color: transparent; }
+.action-ship:hover { border-color: var(--dot-shipped); }
 
 /* Timeline node — only visible inside a .timeline (slice panel Activity).
    The global activity feed renders the same partial but has no .timeline
@@ -2173,6 +2173,10 @@ html.sidebar-collapsed .side-resize { display: none; }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; text-transform: capitalize; }
 .status-pill:hover { border-color: var(--border); }
 .status-pill .icon { width: 12px; height: 12px; color: var(--ink-faint); }
+/* Stage pill in the slice detail's props — read-only, so it drops the
+   pointer cursor and hover feedback a clickable .status-pill implies. */
+.status-pill--static { cursor: default; }
+.status-pill--static:hover { border-color: var(--line); }
 .status-menu { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; min-width: 150px; padding: 4px; background: var(--paper-solid); border: 1px solid var(--line); border-radius: var(--radius-small); box-shadow: 0 8px 20px var(--shadow); }
 .status-opt { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; font-size: 12px; color: var(--ink); background: none; border: none; border-radius: var(--radius-small); cursor: pointer; text-align: left; text-transform: capitalize; }
 .status-opt:hover { background: var(--paper-deep); }

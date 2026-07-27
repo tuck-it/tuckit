@@ -7,8 +7,8 @@ from tuckit.core.services.slices import create_slice
 def test_area_view_groups_by_status(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    create_slice(a, "Payment integration", status="building")
-    create_slice(a, "Login XSS", status="planned")
+    create_slice(a, "Payment integration", status="open")
+    create_slice(a, "Login XSS", status="open")
     resp = client_local.get(f"{p}/areas/{a.slug}/")
     assert resp.status_code == 200
     body = resp.content.decode()
@@ -50,7 +50,7 @@ def test_area_header_omits_description_when_blank(client_local, org):
 @pytest.mark.django_db
 def test_area_board_omits_dropped_and_links_to_it(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "building one", status="building")
+    create_slice(a, "building one", status="open")
     create_slice(a, "dropped one", status="dropped")
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
@@ -64,7 +64,7 @@ def test_area_board_omits_dropped_and_links_to_it(client_local, org):
 @pytest.mark.django_db
 def test_area_board_hides_dropped_link_when_none(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "building one", status="building")
+    create_slice(a, "building one", status="open")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
     assert "Dropped (" not in body
 
@@ -133,7 +133,7 @@ def test_area_empty_copy_is_english(client_local, org):
 
 
 @pytest.mark.django_db
-def test_add_slice_creates_planned_slice_in_area(client_local, org):
+def test_add_slice_creates_open_slice_in_area(client_local, org):
     from tuckit.core.models import Slice
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
@@ -141,7 +141,7 @@ def test_add_slice_creates_planned_slice_in_area(client_local, org):
                              HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     s = Slice.objects.get(area=a, title="new idea")
-    assert s.status == "planned"
+    assert s.status == "open"
     body = resp.content.decode()
     assert 'id="board"' in body
     assert "new idea" in body
@@ -180,16 +180,19 @@ def test_add_slice_other_workspace_404(client_local, org):
 
 @pytest.mark.django_db
 def test_area_quick_add_accepts_rich_fields(client_local, org):
+    """Status is no longer one of the rich fields — the form doesn't offer it,
+    and a stray "status" in the POST is ignored (a new slice always starts
+    open; Ship/Drop are the only way to change it)."""
     from tuckit.core.models import Slice
     a = create_area(org, "Backend")
     client_local.post(
         f"/{org.slug}/areas/{a.slug}/slices",
-        {"title": "Retry webhooks", "status": "planned", "spec": "exp backoff", "tags": ["infra"]},
+        {"title": "Retry webhooks", "status": "shipped", "spec": "exp backoff", "tags": ["infra"]},
         HTTP_HX_REQUEST="true",
     )
     s = Slice.objects.get(title="Retry webhooks")
     assert s.area_id == a.id
-    assert s.status == "planned"
+    assert s.status == "open"
     assert s.spec == "exp backoff"
     assert {t.name for t in s.tags.all()} == {"infra"}
 
@@ -200,7 +203,7 @@ def test_area_quick_add_title_only_still_works(client_local, org):
     a = create_area(org, "Backend")
     client_local.post(f"/{org.slug}/areas/{a.slug}/slices", {"title": "just this"}, HTTP_HX_REQUEST="true")
     s = Slice.objects.get(title="just this")
-    assert s.area_id == a.id and s.status == "planned"
+    assert s.area_id == a.id and s.status == "open"
 
 
 @pytest.mark.django_db

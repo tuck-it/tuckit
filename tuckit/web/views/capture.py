@@ -21,7 +21,7 @@ from tuckit.core.services.tickets import absorb_ticket, origin_ticket, release_t
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import refresh_rollup, widget_oob
 
-_SLICE_STATUSES = ["planned", "building", "shipped"]
+_SLICE_STATUSES = ["open", "shipped"]
 
 
 def capture(request):
@@ -352,11 +352,13 @@ def area_slice_create(request, slug):
                 target = get_area(org, int(request.POST["area_id"]))
             except (NotFound, ValueError):
                 raise Http404
-        status = request.POST.get("status", "planned") or "planned"
+        # No status field on the form any more — a new slice always starts
+        # "open"; Ship/Drop are the only way to change it (create_slice's
+        # default already is "open").
         spec = request.POST.get("spec", "").strip()
         tags = [t.strip() for t in request.POST.getlist("tags") if t.strip()]
         try:
-            create_slice(target, title, spec=spec, status=status, tags=tags, source="human")
+            create_slice(target, title, spec=spec, tags=tags, source="human")
         except InvalidValue as e:
             return HttpResponse(str(e), status=400)
     board = area_board_view(area)

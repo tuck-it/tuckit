@@ -22,14 +22,14 @@ def area(db):
 def test_create_slice_defaults_and_append_order(area):
     a = create_slice(area, "Auth")
     b = create_slice(area, "Payments")
-    assert a.status == "planned"
+    assert a.status == "open"
     assert list(list_slices(area)) == [a, b]
     assert a.rank < b.rank
 
 
 @pytest.mark.django_db
 def test_create_slice_with_tags_and_agent_source(area):
-    s = create_slice(area, "Fix XSS", tags=["bug"], source="agent", status="planned")
+    s = create_slice(area, "Fix XSS", tags=["bug"], source="agent", status="open")
     assert s.source == "agent"
     assert {t.name for t in s.tags.all()} == {"bug"}
 
@@ -44,10 +44,10 @@ def test_create_slice_after_inserts_between(area):
 
 @pytest.mark.django_db
 def test_list_slices_filters_by_status_and_tag(area):
-    create_slice(area, "Building one", status="building")
-    planned = create_slice(area, "Planned bug", status="planned", tags=["bug"])
-    assert list(list_slices(area, status="planned")) == [planned]
-    assert list(list_slices(area, tag="bug")) == [planned]
+    create_slice(area, "Shipped one", status="shipped")
+    open_bug = create_slice(area, "Open bug", status="open", tags=["bug"])
+    assert list(list_slices(area, status="open")) == [open_bug]
+    assert list(list_slices(area, tag="bug")) == [open_bug]
 
 
 @pytest.mark.django_db
@@ -57,7 +57,7 @@ def test_set_status_shipped_sets_completed_at(area):
     s.refresh_from_db()
     assert s.status == "shipped"
     assert s.completed_at is not None
-    set_slice_status(s, "building")
+    set_slice_status(s, "open")
     s.refresh_from_db()
     assert s.completed_at is None
 

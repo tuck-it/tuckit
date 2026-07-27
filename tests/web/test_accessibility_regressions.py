@@ -31,7 +31,7 @@ def test_board_cards_are_links_not_divs(client_local, org):
     tab stops inside <main> on the Board were the Board/List toggles, so a
     keyboard user could not open any slice at all (WCAG 2.1.1)."""
     area = create_area(org, "Backend")
-    s = create_slice(area, "Retry webhooks", status="planned")
+    s = create_slice(area, "Retry webhooks", status="open")
     body = client_local.get(f"{_p(org)}/roadmap/?view=board").content.decode()
 
     assert 'class="slice-card-link"' in body
@@ -173,8 +173,8 @@ def test_area_delete_confirm_counts_what_it_destroys(client_local, org):
     decides whether you click OK. Dropped slices are excluded so this agrees
     with the count the Areas overview shows."""
     area = create_area(org, "Backend")
-    create_slice(area, "One", status="planned")
-    create_slice(area, "Two", status="planned")
+    create_slice(area, "One", status="open")
+    create_slice(area, "Two", status="open")
     create_slice(area, "Old", status="dropped")
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert "and its 2 slices? This cannot be undone." in body

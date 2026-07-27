@@ -101,7 +101,7 @@ def test_update_area_description_only_keeps_name(org):
 @pytest.mark.django_db
 def test_delete_area_removes_it_and_cascades_slices(org):
     a = create_area(org, "Doomed")
-    create_slice(a, "child planned", status="planned", source="human")
+    create_slice(a, "child planned", status="open", source="human")
     delete_area(a)
     assert not Area.objects.filter(org=org, name="Doomed").exists()
     from tuckit.core.models import Slice

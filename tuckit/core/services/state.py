@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
 from tuckit.core.services.activity import slice_activity
-from tuckit.core.services.bites import list_bites, slice_bites
+from tuckit.core.services.bites import list_bites
 from tuckit.core.services.plans import list_plans
 from tuckit.core.services.refs import ticket_ref
 from tuckit.core.services.slices import (
@@ -12,7 +12,6 @@ from tuckit.core.services.slices import (
 )
 from tuckit.core.services.tickets import origin_ticket
 
-_OPEN_BITE_STATUSES = ["todo", "doing"]
 STALE_DAYS = 7
 
 
@@ -27,34 +26,14 @@ def _slice_brief(slice_: Slice) -> dict:
 def _area_state(area: Area) -> dict:
     slices = list(list_slices(area).prefetch_related("tags"))
     shipped = [s for s in slices if s.status == "shipped"]
-    someday = [s for s in slices if "someday" in _tag_names(s) and s.status != "shipped"]
-    someday_ids = {s.id for s in someday}
-    building = [s for s in slices if s.status == "building" and s.id not in someday_ids]
-    planned = [s for s in slices if s.status == "planned" and s.id not in someday_ids]
-
-    building_out = []
-    open_bite_count = 0
-    for s in building:
-        open_bites = [b for b in slice_bites(s) if b.status in _OPEN_BITE_STATUSES]
-        open_bite_count += len(open_bites)
-        building_out.append(
-            {
-                "id": s.id,
-                "title": s.title,
-                "open_bites": [
-                    {"id": b.id, "title": b.title, "status": b.status} for b in open_bites
-                ],
-            }
-        )
+    open_ = [s for s in slices if s.status == "open"]
 
     return {
         "name": area.name,
         "slug": area.slug,
         "shipped": [_slice_brief(s) for s in shipped],
-        "building": building_out,
-        "roadmap": [_slice_brief(s) for s in planned],
-        "someday": [{"id": s.id, "title": s.title} for s in someday],
-        "counts": {"open_bites": open_bite_count, "shipped": len(shipped)},
+        "roadmap": [_slice_brief(s) for s in open_],
+        "counts": {"shipped": len(shipped)},
     }
 
 
@@ -152,25 +131,30 @@ def _render_activity(slice_: Slice) -> str:
 
 
 def home_state(org: Org) -> dict:
-    """Slice data for Home's `in progress` and `shipped` bands, plus the two
-    backlog counts the footer link needs.
+    """Slice data for Home's `in progress` and `shipped` bands, plus the open
+    count the footer link needs.
 
-    No hidden filters. Every `building` slice is in `building` — including ones
-    that also appear in your_turn() and ones tagged `someday`. The old version
-    removed both, so a slice could read `building` everywhere else in the app
-    and simply not be on Home.
-
-    The backlog is returned as counts, not rows: listing planned work here would
-    duplicate the Board, which is the surface for it.
+    `in_progress` is DERIVED (stage == 'executing'), not a stored flag. The old
+    version filtered `status == "building"`, a switch a human had to flip by
+    hand — nobody ever did, so the band was permanently empty while work was
+    visibly happening. Deriving it means Home and the Board can never disagree.
     """
+    from tuckit.core.services.slices import annotate_stage_counts, stage_of
+
+    # order_by는 명시적이다 — annotate_stage_counts가 GROUP BY를 붙여 Django가
+    # Meta.ordering을 버린다. sqlite는 rowid 순으로 돌려줘 로컬에선 멀쩡해 보이고
+    # Postgres에서만 깨진다.
     slices = list(
-        Slice.objects.filter(area__org=org)
-        .select_related("area", "org").prefetch_related("tags")
+        annotate_stage_counts(
+            Slice.objects.filter(area__org=org).select_related("area", "org")
+        )
+        .prefetch_related("tags")
+        .order_by("rank")
     )
     now = timezone.now()
     stale_cutoff = now - timedelta(days=STALE_DAYS)
-    building = sorted(
-        [s for s in slices if s.status == "building"],
+    in_progress = sorted(
+        [s for s in slices if stage_of(s) == "executing"],
         # False sorts before True, so stalled slices come first. Staleness is a
         # sort key here and nowhere a filter.
         key=lambda s: (s.updated_at >= stale_cutoff, s.area.name, s.rank),
@@ -181,13 +165,9 @@ def home_state(org: Org) -> dict:
     )
     week_ago = now - timedelta(days=7)
     return {
-        "building": building,
+        "in_progress": in_progress,
         "shipped": shipped,
-        "planned_ct": sum(1 for s in slices if s.status == "planned"),
-        "someday_ct": sum(
-            1 for s in slices
-            if s.status != "shipped" and "someday" in _tag_names(s)
-        ),
+        "open_ct": sum(1 for s in slices if s.status == "open"),
         "shipped_week_ct": sum(
             1 for s in shipped if s.completed_at and s.completed_at >= week_ago
         ),
@@ -210,8 +190,8 @@ def snapshot_today(org: Org, state: dict, your_turn_ct: int) -> None:
         org=org,
         date=timezone.localdate(),
         defaults={
-            "building_ct": len(state["building"]),
-            "backlog_ct": state["planned_ct"] + state["someday_ct"],
+            "building_ct": len(state["in_progress"]),
+            "backlog_ct": state["open_ct"],
             "shipped_week_ct": state["shipped_week_ct"],
             "attention_ct": your_turn_ct,
         },
@@ -226,9 +206,12 @@ def your_turn(org: Org) -> list[dict]:
     - `needs_plan` / `needs_bites` are excluded because an agent can do them —
       create_plan and add_bites exist for exactly that. Including them turns
       this band into a daily nag.
-    - `planned` slices with an empty spec are excluded because promote never
-      copies a ticket body, so every freshly promoted slice is specless.
-      Including them would empty the whole backlog onto Home.
+    - `open` 슬라이스 중 stage가 needs_design / ready_to_ship인 것만 든다.
+      needs_plan / needs_bites는 에이전트가 할 수 있어서 빠진다(create_plan,
+      add_bites가 그걸 위해 있다) — 넣으면 이 밴드가 매일의 잔소리가 된다.
+      예전에는 status='building'으로 한 번 더 걸렀는데, 그 스위치를 아무도 켜지
+      않아 밴드가 통째로 비어 있었다. 실측(2026-07-27) needs_design은 4건이라
+      백로그가 쏟아지지 않는다. 길어지면 그때 상한을 건다.
     - Open tickets collapse to ONE aggregate row. The Inbox is already a
       dedicated surface with its own badge; repeating twelve rows here is
       duplication, and a long list of things you haven't triaged reads as
@@ -247,7 +230,7 @@ def your_turn(org: Org) -> list[dict]:
     # Postgres.
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(area__org=org, status="building")
+            Slice.objects.filter(area__org=org, status="open")
             .select_related("area", "org")
         )
         .prefetch_related("tags")
@@ -298,14 +281,13 @@ def roadmap_state(org: Org) -> dict:
         reverse=True,
     )
     return {
-        "planned": bucket("planned"),
-        "building": bucket("building"),
+        "open": bucket("open"),
         "shipped": shipped,
     }
 
 
-ROADMAP_BOARD_ORDER = ["planned", "building", "shipped"]
-ROADMAP_STATUS_KEYS = {"planned", "building", "shipped"}
+ROADMAP_BOARD_ORDER = ["open", "shipped"]
+ROADMAP_STATUS_KEYS = {"open", "shipped"}
 STAGE_BOARD_ORDER = ["needs_design", "needs_plan", "executing", "ready_to_ship", "shipped"]
 
 
@@ -364,7 +346,7 @@ def roadmap_board_view(org: Org) -> dict:
     }
 
 
-AREA_BOARD_ORDER = ["planned", "building", "shipped"]
+AREA_BOARD_ORDER = ["open", "shipped"]
 AREA_STATUS_KEYS = ROADMAP_STATUS_KEYS | {"dropped"}
 
 

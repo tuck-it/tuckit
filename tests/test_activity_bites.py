@@ -11,7 +11,7 @@ def _org(slug="w"):
 
 
 def _slice(org):
-    return create_slice(create_area(org, "Backend"), "S", status="building")
+    return create_slice(create_area(org, "Backend"), "S", status="open")
 
 
 def _plan(org):

@@ -98,15 +98,19 @@ def areas(request):
     cards = []
     if org:
         from tuckit.core.services.areas import list_areas
+        from tuckit.core.services.slices import annotate_stage_counts, stage_of
         for a in list_areas(org):
-            counts = {}
-            for s in Slice.objects.filter(area=a).exclude(status="dropped").values_list("status", flat=True):
-                counts[s] = counts.get(s, 0) + 1
+            # order_by is explicit: annotate_stage_counts drops Meta.ordering.
+            slices = list(
+                annotate_stage_counts(
+                    Slice.objects.filter(area=a).exclude(status="dropped")
+                ).order_by("rank")
+            )
             cards.append({
                 "area": a,
-                "total": sum(counts.values()),
-                "building": counts.get("building", 0),
-                "shipped": counts.get("shipped", 0),
+                "total": len(slices),
+                "executing": sum(1 for s in slices if stage_of(s) == "executing"),
+                "shipped": sum(1 for s in slices if s.status == "shipped"),
             })
     return render(request, "web/areas.html", {"cards": cards, "is_empty": not cards})
 

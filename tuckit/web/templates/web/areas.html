@@ -30,7 +30,7 @@
       {% if c.area.description %}<div class="area-card-desc">{{ c.area.description }}</div>{% endif %}
       <div class="area-card-meta">
         <span>{{ c.total }} slice{{ c.total|pluralize }}</span>
-        {% if c.building %}<span class="area-card-dot"><span class="status-dot status-dot--building"></span>{{ c.building }}</span>{% endif %}
+        {% if c.executing %}<span class="area-card-dot"><span class="status-dot status-dot--executing"></span>{{ c.executing }}</span>{% endif %}
         {% if c.shipped %}<span class="area-card-dot"><span class="status-dot status-dot--shipped"></span>{{ c.shipped }}</span>{% endif %}
       </div>
     </a>

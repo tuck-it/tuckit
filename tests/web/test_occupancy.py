@@ -25,7 +25,7 @@ def member(db):
 @pytest.mark.django_db
 def test_recent_agent_work_seeds_the_slice_row(client, member):
     org, user = member
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
     create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
     client.force_login(user)
 
@@ -43,7 +43,7 @@ def test_agent_mark_is_aria_hidden(client, member):
     announcing it long after it stopped being visible — the toast already
     announced the same event once, which is the right number of times."""
     org, user = member
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="building")
+    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
     create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
     client.force_login(user)
 
@@ -56,7 +56,7 @@ def test_agent_mark_is_aria_hidden(client, member):
 def test_a_cold_slice_carries_no_occupancy_markup(client, member):
     """No attribute at all when cold — the client keys off its presence."""
     org, user = member
-    create_slice(create_area(org, "Backend"), "Login", status="building")  # human-created
+    create_slice(create_area(org, "Backend"), "Login", status="open")  # human-created
     client.force_login(user)
 
     html = client.get(reverse("web:home", args=[org.slug])).content.decode()
