@@ -62,7 +62,7 @@ def test_slice_modal_teaches_what_a_slice_is(client_local, org):
 @pytest.mark.django_db
 def test_widget_plan_step_links_to_newest_slice(client_local, org):
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="planned")
+    sl = create_slice(area, "Retry webhooks", status="open")
     body = client_local.get(f"/{org.slug}/").content.decode()
     # With a Slice but no Plan, the current step is Add-a-Plan → ?focus=plan.
     assert f"/slices/{sl.id}/?focus=plan" in body
@@ -72,7 +72,7 @@ def test_widget_plan_step_links_to_newest_slice(client_local, org):
 def test_widget_bite_step_links_after_plan_exists(client_local, org):
     from tuckit.core.services.plans import create_plan
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="planned")
+    sl = create_slice(area, "Retry webhooks", status="open")
     create_plan(sl, title="Plan")
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert f"/slices/{sl.id}/?focus=bite" in body
@@ -82,7 +82,7 @@ def test_widget_bite_step_links_after_plan_exists(client_local, org):
 def test_widget_hidden_when_all_done(client_local, org):
     from tuckit.core.models import ActivityEvent
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="planned")
+    sl = create_slice(area, "Retry webhooks", status="open")
     create_bite(create_plan(sl, title="Plan"), "Add backoff")
     ActivityEvent.objects.create(
         org=org, actor="agent", verb="created",
@@ -107,7 +107,7 @@ def test_step4_shows_generate_key_when_no_key(client_local, org):
     # Reach step 5 (onboarding.current == 5) by completing area/slice/plan/bite
     # first — the widget only renders the connect UI once current == 5.
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="planned")
+    sl = create_slice(area, "Retry webhooks", status="open")
     create_bite(create_plan(sl, title="Plan"), "Add backoff")
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert "/onboarding/connect-key" in body
@@ -118,7 +118,7 @@ def test_step4_shows_generate_key_when_no_key(client_local, org):
 def test_step4_shows_poller_when_key_exists(client_local, org):
     from tuckit.core.models import ApiToken
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="planned")
+    sl = create_slice(area, "Retry webhooks", status="open")
     create_bite(create_plan(sl, title="Plan"), "Add backoff")
     ApiToken.objects.create(org=org, name="a", token_hash="x")
     body = client_local.get(f"{_p(org)}/").content.decode()

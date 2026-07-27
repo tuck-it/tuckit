@@ -19,7 +19,7 @@ def test_areas_page_empty_state(client_local, org):
 @pytest.mark.django_db
 def test_areas_page_lists_areas(client_local, org):
     area = create_area(org, "Backend")
-    create_slice(area, "Retry webhooks", status="planned")
+    create_slice(area, "Retry webhooks", status="open")
     body = client_local.get(f"{_p(org)}/areas/").content.decode()
     assert "Backend" in body
     assert 'class="areas-empty"' not in body
@@ -29,8 +29,8 @@ def test_areas_page_lists_areas(client_local, org):
 @pytest.mark.django_db
 def test_areas_page_slice_count_excludes_dropped(client_local, org):
     area = create_area(org, "Backend")
-    create_slice(area, "Retry webhooks", status="planned")
-    create_slice(area, "Add metrics", status="planned")
+    create_slice(area, "Retry webhooks", status="open")
+    create_slice(area, "Add metrics", status="open")
     create_slice(area, "Old approach", status="dropped")
     body = client_local.get(f"{_p(org)}/areas/").content.decode()
     assert "2 slice" in body

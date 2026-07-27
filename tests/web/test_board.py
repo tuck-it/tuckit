@@ -12,7 +12,7 @@ from tuckit.core.models import Org, Slice
 def test_board_has_swap_target_id(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    create_slice(a, "one", status="building")
+    create_slice(a, "one", status="open")
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert 'id="board"' in body
     assert 'class="board"' in body
@@ -22,7 +22,7 @@ def test_board_has_swap_target_id(client_local, org):
 def test_board_view_renders_columns(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    create_slice(a, "Payment", status="building")
+    create_slice(a, "Payment", status="open")
     resp = client_local.get(f"{p}/areas/{a.slug}/")
     body = resp.content.decode()
     assert "Payment" in body
@@ -34,7 +34,7 @@ def test_board_column_head_has_dot_and_count(client_local, org):
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     a = create_area(org, "Product")
-    create_slice(a, "Card A", status="building")
+    create_slice(a, "Card A", status="open")
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert "board-col-head" in body
     assert "status-dot--needs_design" in body
@@ -43,56 +43,56 @@ def test_board_column_head_has_dot_and_count(client_local, org):
 def test_move_changes_status(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    s = create_slice(a, "Payment", status="planned")
-    resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "building"}, HTTP_HX_REQUEST="true")
+    s = create_slice(a, "Payment", status="open")
+    resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "shipped"}, HTTP_HX_REQUEST="true")
     assert resp.status_code in (200, 204)
-    assert Slice.objects.get(pk=s.id).status == "building"
+    assert Slice.objects.get(pk=s.id).status == "shipped"
 
 @pytest.mark.django_db
 def test_move_reorders_within_column(client_local, org):
     a = create_area(org, "B")
     p = f"/{org.slug}"
-    s1 = create_slice(a, "one", status="planned")
-    s2 = create_slice(a, "two", status="planned")
+    s1 = create_slice(a, "one", status="open")
+    s2 = create_slice(a, "two", status="open")
     # move s2 before s1
-    client_local.post(f"{p}/slices/{s2.id}/move", {"status": "planned", "before_id": s1.id}, HTTP_HX_REQUEST="true")
-    ordered = list(Slice.objects.filter(area=a, status="planned").order_by("rank"))
+    client_local.post(f"{p}/slices/{s2.id}/move", {"status": "open", "before_id": s1.id}, HTTP_HX_REQUEST="true")
+    ordered = list(Slice.objects.filter(area=a, status="open").order_by("rank"))
     assert [x.id for x in ordered] == [s2.id, s1.id]
 
 @pytest.mark.django_db
 def test_move_invalid_status_returns_400_and_unchanged(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    s = create_slice(a, "Payment", status="planned")
+    s = create_slice(a, "Payment", status="open")
     resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "blocked"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 400
-    assert Slice.objects.get(pk=s.id).status == "planned"
+    assert Slice.objects.get(pk=s.id).status == "open"
 
 @pytest.mark.django_db
 def test_move_foreign_neighbor_404s_without_change(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    s = create_slice(a, "Payment", status="planned")
+    s = create_slice(a, "Payment", status="open")
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     other_area = create_area(other_org, "Other Area")
-    n = create_slice(other_area, "foreign", status="planned")
+    n = create_slice(other_area, "foreign", status="open")
     resp = client_local.post(
         f"{p}/slices/{s.id}/move",
-        {"status": "building", "before_id": n.id},
+        {"status": "shipped", "before_id": n.id},
         HTTP_HX_REQUEST="true",
     )
     assert resp.status_code == 404
-    assert Slice.objects.get(pk=s.id).status == "planned"
+    assert Slice.objects.get(pk=s.id).status == "open"
 
 
 @pytest.mark.django_db
 def test_move_without_hx_returns_204(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    s = create_slice(a, "movable", status="planned")
-    resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "building"})
+    s = create_slice(a, "movable", status="open")
+    resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "shipped"})
     assert resp.status_code == 204
-    assert Slice.objects.get(pk=s.id).status == "building"
+    assert Slice.objects.get(pk=s.id).status == "shipped"
 
 
 @pytest.mark.django_db
@@ -119,7 +119,7 @@ def test_roadmap_tab_defaults_to_cross_area_board(client_local, org):
 def test_roadmap_tab_list_view_still_available(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    create_slice(a, "list-view slice", status="building")
+    create_slice(a, "list-view slice", status="open")
     body = client_local.get(f"{p}/roadmap/?view=list").content.decode()
     assert "roadmap-dist" in body                   # the distribution strip
     assert 'id="board"' not in body                 # not the kanban
@@ -159,11 +159,13 @@ def test_status_filter_shows_all_shipped_flat(client_local, org):
 
 @pytest.mark.django_db
 def test_status_filter_is_generic(client_local, org):
+    """The ?status= filter is shared by every real status value (open/shipped/
+    dropped) via the same flat-list surface, not a per-status route."""
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "building thing", status="building")
-    body = client_local.get(f"{p}/roadmap/?status=building").content.decode()
-    assert "building thing" in body
+    create_slice(a, "queued thing", status="open")
+    body = client_local.get(f"{p}/roadmap/?status=open").content.decode()
+    assert "queued thing" in body
     assert 'id="board"' not in body
 
 

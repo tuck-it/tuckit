@@ -48,12 +48,12 @@
   <section class="band">
     <div class="band-head">
       <span class="band-title"><span>in progress</span></span>
-      <span class="band-count">{{ state.building|length }}</span>
+      <span class="band-count">{{ state.in_progress|length }}</span>
     </div>
-    <p class="band-sub">Slices you're building right now</p>
-    {% if state.building %}
+    <p class="band-sub">Slices with work underway</p>
+    {% if state.in_progress %}
       <div class="list-card">
-        {% for slice in state.building %}
+        {% for slice in state.in_progress %}
           {% include "web/partials/_slice_row.html" with show_area=True show_desc=True %}
         {% endfor %}
       </div>
@@ -62,7 +62,7 @@
         <div class="all-clear"><span>Nothing in progress. Pick something from the Board.</span></div>
       </div>
     {% endif %}
-    <a class="band-more" href="{% wurl 'web:roadmap' %}?status=planned">{{ state.planned_ct }} planned &middot; {{ state.someday_ct }} someday &rarr; Board</a>
+    <a class="band-more" href="{% wurl 'web:roadmap' %}?status=open">{{ state.open_ct }} open &rarr; Board</a>
   </section>
 
   {% comment %}

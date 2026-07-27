@@ -21,7 +21,7 @@ def test_lens_routes_are_gone(client_local, org):
 @pytest.mark.django_db
 def test_roadmap_page_shows_distribution_and_slices(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "Roadmap item", status="planned")
+    create_slice(a, "Roadmap item", status="open")
     create_slice(a, "Dropped item", status="dropped")  # dropped never bucketed
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/roadmap/").content.decode()

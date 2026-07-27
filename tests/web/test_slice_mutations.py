@@ -7,18 +7,18 @@ from tuckit.core.models import Slice, Bite
 @pytest.mark.django_db
 def test_status_change_updates_and_returns_panel(client_local, org):
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "B"), "x", status="planned")
-    resp = client_local.post(f"{p}/slices/{s.id}/status", {"status": "building"}, HTTP_HX_REQUEST="true")
+    s = create_slice(create_area(org, "B"), "x", status="open")
+    resp = client_local.post(f"{p}/slices/{s.id}/status", {"status": "shipped"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
-    assert Slice.objects.get(pk=s.id).status == "building"
+    assert Slice.objects.get(pk=s.id).status == "shipped"
 
 @pytest.mark.django_db
 def test_invalid_status_rejected(client_local, org):
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "B"), "x", status="planned")
+    s = create_slice(create_area(org, "B"), "x", status="open")
     resp = client_local.post(f"{p}/slices/{s.id}/status", {"status": "blocked"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 400
-    assert Slice.objects.get(pk=s.id).status == "planned"
+    assert Slice.objects.get(pk=s.id).status == "open"
 
 @pytest.mark.django_db
 def test_bite_create_adds_to_plan(client_local, org):
@@ -144,14 +144,18 @@ def test_spec_edit(client_local, org):
     assert Slice.objects.get(pk=s.id).spec == "New spec"
 
 @pytest.mark.django_db
-def test_status_control_is_dropdown(client_local, org):
+def test_stage_pill_is_read_only(client_local, org):
+    """The status dropdown is gone — stage renders as a static pill, and it
+    re-renders correctly after a status change."""
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Product"), "X", status="building")
-    body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="status-menu"' in body           # status control re-rendered after change
-    assert "status-opt--on" in body                # active option marked
+    s = create_slice(create_area(org, "Product"), "X", status="open")
+    resp = client_local.post(f"{p}/slices/{s.id}/status", {"status": "shipped"}, HTTP_HX_REQUEST="true")
+    body = resp.content.decode()
+    assert "status-opt" not in body
+    assert 'class="status-pill status-pill--static"' in body
+    assert "status-dot--shipped" in body            # pill reflects the new stage
 
 @pytest.mark.django_db
 def test_bite_body_updates_and_renders(client_local, org):
@@ -202,7 +206,7 @@ def test_slice_detail_active_shows_drop_control(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Product"), "In-progress item", status="building")
+    s = create_slice(create_area(org, "Product"), "In-progress item", status="open")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert "Drop" in body
 
@@ -215,10 +219,10 @@ def test_slice_detail_dropped_shows_restore(client_local, org):
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert "Restore" in body
     # restoring puts it back into the flow
-    resp = client_local.post(f"{p}/slices/{s.id}/status", {"status": "planned"}, HTTP_HX_REQUEST="true")
+    resp = client_local.post(f"{p}/slices/{s.id}/status", {"status": "open"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     s.refresh_from_db()
-    assert s.status == "planned"
+    assert s.status == "open"
 
 @pytest.mark.django_db
 def test_slice_detail_shows_byline(client_local, org):

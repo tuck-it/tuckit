@@ -11,7 +11,7 @@ from tuckit.core.services.plans import create_plan
 def test_slice_full_page_renders_spec_and_bites(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment integration", spec="## Goal\nWire up Stripe", status="building")
+    s = create_slice(a, "Payment integration", spec="## Goal\nWire up Stripe", status="open")
     create_bite(create_plan(s, title="Plan"), "SDK integration", status="done")
     resp = client_local.get(f"{p}/slices/{s.id}/")
     body = resp.content.decode()
@@ -73,8 +73,8 @@ def test_slice_detail_shows_its_activity_thread(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    s = create_slice(a, "Thread slice", status="planned")   # logs created (slice)
-    set_slice_status(s, "building")                          # logs status_changed (slice)
+    s = create_slice(a, "Thread slice", status="open")       # logs created (slice)
+    set_slice_status(s, "shipped")                            # logs status_changed (slice)
     create_bite(create_plan(s, title="Plan"), "First bite")                             # logs created (bite)
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="slice-activity"' in body                  # thread section present
@@ -105,12 +105,14 @@ def test_slice_detail_context_flags_and_progress(org):
 
 
 @pytest.mark.django_db
-def test_panel_header_title_and_status_tabs(client_local, org):
+def test_panel_header_title_and_stage_pill(client_local, org):
+    """The old status dropdown (status-menu/status-opt) is gone: stage is a
+    read-only pill (A0 — nothing left to pick)."""
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    s = create_slice(a, "Dark mode policy", status="building")
+    s = create_slice(a, "Dark mode policy", status="open")
 
     # panel context
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
@@ -118,9 +120,8 @@ def test_panel_header_title_and_status_tabs(client_local, org):
     assert f'href="/{org.slug}/areas/{a.slug}/"' in body   # chip links to area
     assert "Design" in body
     assert 'class="props"' in body
-    assert 'class="status-menu"' in body
-    assert body.count('class="status-opt') == 3          # one option per status (planned/building/shipped)
-    assert "status-opt--on" in body                       # active (building) option marked
+    assert 'class="status-pill status-pill--static"' in body   # read-only stage pill
+    assert "status-opt" not in body                             # no status-picking menu
     assert "Created" in body and "Updated" in body        # properties rows
     assert 'class="section-label">Spec' in body          # spec is a labeled section
     # panel-only chrome present
@@ -172,7 +173,7 @@ def test_action_bar_has_copy_and_drop(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "Action", status="building")
+    s = create_slice(create_area(org, "Design"), "Action", status="open")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="action-bar"' in body
     assert "Copy link" in body
@@ -197,8 +198,8 @@ def test_activity_timeline_has_nodes(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice, set_slice_status
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "Timeline", status="planned")
-    set_slice_status(s, "building")
+    s = create_slice(create_area(org, "Design"), "Timeline", status="open")
+    set_slice_status(s, "shipped")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="timeline"' in body
     assert 'class="tl-node"' in body      # a node marker per activity row
@@ -210,9 +211,9 @@ def test_slice_activity_helper_is_chronological_and_scoped(org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice, set_slice_status
     a = create_area(org, "Backend")
-    s = create_slice(a, "A", status="planned")
-    set_slice_status(s, "building")
-    other = create_slice(a, "B", status="planned")              # unrelated slice's events excluded
+    s = create_slice(a, "A", status="open")
+    set_slice_status(s, "shipped")
+    other = create_slice(a, "B", status="open")                 # unrelated slice's events excluded
     events = slice_activity(s)
     times = [e.created_at for e in events]
     assert times == sorted(times) and len(events) >= 2        # oldest-first
@@ -364,3 +365,78 @@ def test_slice_spec_table_reaches_the_page(client_local, org):
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "<table>" in body
     assert "<th>col</th>" in body
+
+
+# --- A0: status is never a control, only a Ship/Drop consequence -----------
+
+
+@pytest.mark.django_db
+def test_slice_edit_form_offers_no_status_control(client_local, org):
+    """The create/edit slice form has no status select — Ship/Drop are the
+    only way a status changes."""
+    a = create_area(org, "Backend")
+    s = create_slice(a, "아무거나", spec="왜", status="open")
+
+    html = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert 'name="status"' not in html
+
+
+@pytest.mark.django_db
+def test_slice_detail_offers_no_status_menu(client_local, org):
+    """No status-picking menu — stage is read-only. (The Area picker also uses
+    a dropdown, but its option buttons carry `area-opt`, not `status-opt`, so
+    this stays a precise check on the status control specifically.)"""
+    a = create_area(org, "Backend")
+    s = create_slice(a, "아무거나", spec="왜", status="open")
+
+    html = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "status-opt" not in html
+    assert 'class="status-pill status-pill--static"' in html
+
+
+@pytest.mark.django_db
+def test_ready_to_ship_slice_can_ship_from_detail(client_local, org):
+    """Removing the status dropdown must not remove the ability to ship from
+    the modal — it was the only path there."""
+    a = create_area(org, "Backend")
+    s = create_slice(a, "다 됐다", spec="왜", status="open")
+    plan = create_plan(s, title="Plan")
+    b = create_bite(plan, "한 걸음")
+    from tuckit.core.services.bites import update_bite
+    update_bite(b, status="done")
+
+    html = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "Ship it" in html
+
+
+@pytest.mark.django_db
+def test_dropped_slice_restores_to_open(client_local, org):
+    """Restore used to send status='planned', now invalid — it must send
+    'open' or set_slice_status() 400s."""
+    a = create_area(org, "Backend")
+    s = create_slice(a, "접은 일", spec="왜", status="dropped")
+
+    resp = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "open"})
+
+    s.refresh_from_db()
+    assert resp.status_code == 200
+    assert s.status == "open"
+
+
+@pytest.mark.django_db
+def test_shipped_slice_can_reopen_from_detail(client_local, org):
+    """The old status dropdown could restore a shipped slice back to backlog;
+    that path is gone, so the action bar needs its own Reopen."""
+    a = create_area(org, "Backend")
+    s = create_slice(a, "출시됨", spec="왜", status="shipped")
+
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
+    assert "Reopen" in body
+
+    resp = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "open"})
+    s.refresh_from_db()
+    assert resp.status_code == 200
+    assert s.status == "open"

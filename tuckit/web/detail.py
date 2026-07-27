@@ -4,6 +4,7 @@ import nh3
 from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
 from tuckit.core.services.plans import list_plans
+from tuckit.core.services.slices import stage_of
 from tuckit.core.services.tickets import origin_ticket
 
 
@@ -44,10 +45,10 @@ def slice_detail_context(slice_, is_modal: bool = False) -> dict:
     origin = origin_ticket(slice_)
     return {
         "slice": slice_,
+        "stage": stage_of(slice_),
         "origin_ticket": origin,
         "absorbed_tickets": [t for t in linked if t != origin],
         "spec_html": render_markdown_html(slice_.spec),
-        "statuses": ["planned", "building", "shipped"],
         "activity": slice_activity(slice_),
         "is_modal": is_modal,
         # Appended to every mutation URL fired from inside the modal so the

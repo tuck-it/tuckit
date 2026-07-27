@@ -24,10 +24,10 @@ def test_ticket_promote_moves_out(client_local, org):
     p = f"/{org.slug}"
     backend = create_area(org, "Backend")
     t = create_ticket(org, "To move")
-    client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": backend.id, "status": "planned"}, HTTP_HX_REQUEST="true")
+    client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": backend.id, "status": "open"}, HTTP_HX_REQUEST="true")
     t.refresh_from_db()
     s = t.slice
-    assert s.area_id == backend.id and s.status == "planned"
+    assert s.area_id == backend.id and s.status == "open"
 
 @pytest.mark.django_db
 def test_area_create_makes_area(client_local, org):
@@ -108,10 +108,10 @@ def test_ticket_promote_status_only_keeps_area(client_local, org):
     p = f"/{org.slug}"
     area = create_area(org, "Backend")
     t = create_ticket(org, "Status only change")
-    resp = client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "planned"})
+    resp = client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "open"})
     assert resp.status_code in (200, 204)
     t.refresh_from_db()
-    assert t.slice.area_id == area.id and t.slice.status == "planned"
+    assert t.slice.area_id == area.id and t.slice.status == "open"
 
 @pytest.mark.django_db
 def test_ticket_promote_foreign_area_404s(client_local, org):
@@ -120,7 +120,7 @@ def test_ticket_promote_foreign_area_404s(client_local, org):
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     foreign_area = create_area(other_org, "Foreign")
     resp = client_local.post(
-        f"{p}/tickets/{t.id}/promote", {"area_id": foreign_area.id, "status": "planned"}, HTTP_HX_REQUEST="true"
+        f"{p}/tickets/{t.id}/promote", {"area_id": foreign_area.id, "status": "open"}, HTTP_HX_REQUEST="true"
     )
     assert resp.status_code == 404
     t.refresh_from_db()
@@ -190,7 +190,7 @@ def test_promoted_ticket_cannot_be_reopened(client_local, org):
     p = f"/{org.slug}"
     area = create_area(org, "Backend")
     t = create_ticket(org, "Already building", area=area)
-    client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "planned"},
+    client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "open"},
                       HTTP_HX_REQUEST="true")
     resp = client_local.post(f"{p}/tickets/{t.id}/reopen", HTTP_HX_REQUEST="true")
     assert resp.status_code == 400
@@ -202,7 +202,7 @@ def test_promote_refreshes_the_sidebar_count(client_local, org):
     p = f"/{org.slug}"
     area = create_area(org, "Backend")
     t = create_ticket(org, "To promote")
-    resp = client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "planned"},
+    resp = client_local.post(f"{p}/tickets/{t.id}/promote", {"area_id": area.id, "status": "open"},
                              HTTP_HX_REQUEST="true")
     body = resp.content.decode()
     assert 'id="ticket-count"' in body      # count followed the row out of the inbox
@@ -302,11 +302,11 @@ def test_promoted_ticket_modal_reads_status_off_the_slice(client_local, org):
     from tuckit.core.services.tickets import promote_ticket
     from tuckit.core.services.slices import set_slice_status
     s = promote_ticket(t)
-    set_slice_status(s, "building")
+    set_slice_status(s, "shipped")
     body = client_local.get(f"{p}/tickets/{t.id}/").content.decode()
     # The destination line reads area and status off the slice; "Promoted" is
     # the ticket's own status and lives in the meta line above it.
-    assert "Backend · building" in body                   # derived, never stored
+    assert "Backend · shipped" in body                    # derived, never stored
     assert "detail-meta-dest" in body
     assert f"/tickets/{t.id}/promote" not in body         # no re-promote affordance
     assert f"/tickets/{t.id}/triage" not in body

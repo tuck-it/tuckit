@@ -64,7 +64,7 @@ def test_ticket_modal_shows_a_copyable_ref(client_local, org):
 @pytest.mark.django_db
 def test_home_list_row_shows_the_ref(client_local, org):
     a = create_area(org, "OSS")
-    s = create_slice(a, "In flight", status="building")
+    s = create_slice(a, "In flight", status="open")
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert slice_ref(s) in body
 
@@ -121,7 +121,7 @@ def test_no_template_builds_a_ref_from_the_org_slug():
 def test_home_bands_do_not_n_plus_one_on_org(client_local, org):
     a = create_area(org, "OSS")
     for i in range(6):
-        create_slice(a, f"Building {i}", status="building")
+        create_slice(a, f"Building {i}", status="open")
     with CaptureQueriesContext(connection) as ctx:
         client_local.get(f"/{org.slug}/")
     assert _standalone_org_queries(ctx) <= 4

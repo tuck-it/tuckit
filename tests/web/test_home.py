@@ -42,7 +42,7 @@ def test_home_bands_carry_their_one_line_explanations(client_local, org):
     body = _body(client_local, org)
     assert "Nothing moves on these until you decide" in body
     assert "What changed since you last looked" in body
-    assert "Slices you're building right now" in body
+    assert "Slices with work underway" in body
     assert "What you've finished lately" in body
 
 
@@ -79,7 +79,7 @@ def test_every_home_opener_uses_the_detail_modal(client_local, org):
     pushes the request url — reloading then renders the full slice page.
     """
     a = create_area(org, "Product")
-    create_slice(a, "Building slice", status="building")
+    create_slice(a, "Building slice", status="open")
     create_slice(a, "Shipped slice", status="shipped")
     body = _body(client_local, org)
 
@@ -93,7 +93,7 @@ def test_every_home_opener_uses_the_detail_modal(client_local, org):
 @pytest.mark.django_db
 def test_specless_building_slice_is_your_turn(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "Undesigned work", status="building")
+    create_slice(a, "Undesigned work", status="open")
     body = _body(client_local, org)
     assert "Undesigned work" in body
     assert "write the spec" in body
@@ -118,20 +118,25 @@ def test_your_turn_empty_state_reads_as_good_news(client_local, org):
 
 
 @pytest.mark.django_db
-def test_building_slice_appears_in_progress_even_when_it_is_your_turn(client_local, org):
-    """Intentional duplication. Removing it from `in progress` is exactly the
-    hidden filter this redesign exists to kill."""
+def test_your_turn_and_in_progress_are_mutually_exclusive(client_local, org):
+    """Old behavior: `in progress` was a stored status="building" flag,
+    independent of whether the slice was actually ready to work on — so a
+    slice missing a spec could show up in BOTH bands at once (an
+    "intentional duplication" the old test guarded). `in progress` is now
+    DERIVED (stage == "executing"), which is mutually exclusive with
+    `your turn`'s needs_design/ready_to_ship stages, so the two bands can no
+    longer disagree about the same slice."""
     a = create_area(org, "Backend")
-    create_slice(a, "Undesigned work", status="building")
+    create_slice(a, "Undesigned work", status="open")   # needs_design -> your turn only
     body = _body(client_local, org)
     assert "Undesigned work" in _band(body, "your turn")
-    assert "Undesigned work" in _band(body, "in progress")
+    assert "Undesigned work" not in _band(body, "in progress")
 
 
 @pytest.mark.django_db
 def test_someday_tagged_building_slice_is_not_hidden(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "Parked but building", status="building",
+    create_slice(a, "Parked but building", status="open",
                  spec="designed", tags=["someday"])
     body = _body(client_local, org)
     assert "Parked but building" in body
@@ -140,7 +145,7 @@ def test_someday_tagged_building_slice_is_not_hidden(client_local, org):
 @pytest.mark.django_db
 def test_stalled_building_slice_stays_listed(client_local, org):
     a = create_area(org, "Backend")
-    s = create_slice(a, "Stalled work", status="building", spec="designed")
+    s = create_slice(a, "Stalled work", status="open", spec="designed")
     create_bite(create_plan(s, title="Plan"), "todo", status="todo")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=30))
     body = _body(client_local, org)
@@ -150,12 +155,12 @@ def test_stalled_building_slice_stays_listed(client_local, org):
 @pytest.mark.django_db
 def test_backlog_is_a_link_not_a_column(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "Queued work", status="planned")
+    create_slice(a, "Queued work", status="open")
     body = _body(client_local, org)
     flight = _band(body, "in progress")
     assert "Queued work" not in flight, "the backlog belongs to Board"
-    assert "1 planned" in flight
-    assert "status=planned" in flight
+    assert "1 open" in flight
+    assert "status=open" in flight
 
 
 @pytest.mark.django_db
@@ -163,7 +168,7 @@ def test_agent_activity_badges_new_on_a_second_visit(client_local, org):
     from tuckit.core.services.activity import record_activity
 
     a = create_area(org, "Backend")
-    s = create_slice(a, "Work", status="building", spec="designed")
+    s = create_slice(a, "Work", status="open", spec="designed")
 
     _body(client_local, org)                       # first visit sets the watermark
     record_activity(org, actor="agent", verb="shipped", target=s)
@@ -179,7 +184,7 @@ def test_first_visit_badges_nothing(client_local, org):
     from tuckit.core.services.activity import record_activity
 
     a = create_area(org, "Backend")
-    s = create_slice(a, "Distinctive title", status="building", spec="designed")
+    s = create_slice(a, "Distinctive title", status="open", spec="designed")
     record_activity(org, actor="agent", verb="shipped", target=s)
 
     body = _body(client_local, org)
@@ -209,3 +214,18 @@ def test_home_page_head_and_capture_button(client_local, org):
     assert 'class="page-head"' in body
     assert "What needs you, and what moved while you were away" in body
     assert 'class="button button-small"' in body
+
+
+@pytest.mark.django_db
+def test_home_in_progress_band_renders_executing_slice(client_local, org):
+    """`in progress` is derived from stage == "executing", not a stored status
+    flag — a slice only shows up once it actually has work underway (a plan
+    with at least one open bite)."""
+    a = create_area(org, "Backend")
+    s = create_slice(a, "진행 중인 일", spec="왜", status="open")
+    plan = create_plan(s, title="계획")
+    create_bite(plan, "한 걸음")
+
+    body = _body(client_local, org)
+
+    assert "진행 중인 일" in _band(body, "in progress")
