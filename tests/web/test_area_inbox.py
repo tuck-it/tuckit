@@ -58,7 +58,7 @@ def test_the_strip_is_absent_when_there_is_nothing_to_triage(client_local, org):
     """0건이면 줄 자체를 렌더하지 않는다. 빈 상태 문구는 노이즈다 — 보드가
     이미 그 area의 주된 내용이다."""
     area = create_area(org, "Backend")
-    create_slice(area, "a slice")
+    create_slice(area.org, area=area, title="a slice")
 
     body = client_local.get(f"{P(org)}/areas/{area.slug}/").content.decode()
 

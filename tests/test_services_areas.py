@@ -101,7 +101,7 @@ def test_update_area_description_only_keeps_name(org):
 @pytest.mark.django_db
 def test_delete_area_removes_it_and_sends_slices_to_inbox(org):
     a = create_area(org, "Doomed")
-    child = create_slice(a, "child planned", status="open", source="human")
+    child = create_slice(a.org, area=a, title="child planned", status="open", source="human")
     delete_area(a)
     assert not Area.objects.filter(org=org, name="Doomed").exists()
     child.refresh_from_db()

@@ -358,7 +358,7 @@ def area_slice_create(request, slug):
         spec = request.POST.get("spec", "").strip()
         tags = [t.strip() for t in request.POST.getlist("tags") if t.strip()]
         try:
-            create_slice(target, title, spec=spec, tags=tags, source="human")
+            create_slice(org, area=target, title=title, spec=spec, tags=tags, source="human")
         except InvalidValue as e:
             return HttpResponse(str(e), status=400)
     board = area_board_view(area)

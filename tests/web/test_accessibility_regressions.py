@@ -32,7 +32,7 @@ def test_board_cards_are_links_not_divs(client_local, org):
     tab stops inside <main> on the Board were the Board/List toggles, so a
     keyboard user could not open any slice at all (WCAG 2.1.1)."""
     area = create_area(org, "Backend")
-    s = create_slice(area, "Retry webhooks", status="open")
+    s = create_slice(area.org, area=area, title="Retry webhooks", status="open")
     body = client_local.get(f"{_p(org)}/roadmap/?view=board").content.decode()
 
     assert 'class="slice-card-link"' in body
@@ -50,7 +50,7 @@ def test_slice_detail_edit_surfaces_are_buttons(client_local, org):
     keyboard user could Drop the slice and Delete its plan but could not edit
     any of its text — every destructive action reachable, no authoring one."""
     area = create_area(org, "Backend")
-    s = create_slice(area, "Retry webhooks", spec="why")
+    s = create_slice(area.org, area=area, title="Retry webhooks", spec="why")
     create_plan(s, title="v1", actor="human")
     body = client_local.get(f"{_p(org)}/slices/{s.id}/").content.decode()
 
@@ -67,7 +67,7 @@ def test_bite_toggle_exposes_checkbox_state(client_local, org):
     """The toggle was <button aria-label="Toggle done"> with the state drawn
     only as a tick, so assistive tech could not tell done from not-done."""
     area = create_area(org, "Backend")
-    s = create_slice(area, "Retry webhooks")
+    s = create_slice(area.org, area=area, title="Retry webhooks")
     plan = create_plan(s, title="v1", actor="human")
     bite_under_plan(plan, s, "Write the test", source="human")
     body = client_local.get(f"{_p(org)}/slices/{s.id}/").content.decode()
@@ -174,9 +174,9 @@ def test_area_delete_confirm_counts_what_it_destroys(client_local, org):
     decides whether you click OK. Dropped slices are excluded so this agrees
     with the count the Areas overview shows."""
     area = create_area(org, "Backend")
-    create_slice(area, "One", status="open")
-    create_slice(area, "Two", status="open")
-    create_slice(area, "Old", status="dropped")
+    create_slice(area.org, area=area, title="One", status="open")
+    create_slice(area.org, area=area, title="Two", status="open")
+    create_slice(area.org, area=area, title="Old", status="dropped")
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert "and its 2 slices? This cannot be undone." in body
 
@@ -191,7 +191,7 @@ def test_board_actions_are_non_drag_and_keyboard_reachable(client_local, org):
     from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
     area = create_area(org, "Backend")
-    rts = create_slice(area, "Retry webhooks", spec="ship me")
+    rts = create_slice(area.org, area=area, title="Retry webhooks", spec="ship me")
     create_bite(rts, "b", status="done")  # → ready_to_ship
     body = client_local.get(f"{_p(org)}/roadmap/?view=board").content.decode()
     assert 'aria-label="Ship Retry webhooks"' in body   # real button, not a drag target

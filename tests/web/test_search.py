@@ -12,7 +12,7 @@ from tuckit.core.services.tickets import absorb_ticket, create_ticket, promote_t
 
 @pytest.mark.django_db
 def test_finds_a_slice_by_its_full_ref(client_local, org):
-    s = create_slice(create_area(org, "OSS"), "Board redesign")
+    s = create_slice(org, area=create_area(org, "OSS"), title="Board redesign")
     body = client_local.get(f"/{org.slug}/search", {"q": slice_ref(s)}).content.decode()
     assert "Board redesign" in body
 
@@ -20,14 +20,14 @@ def test_finds_a_slice_by_its_full_ref(client_local, org):
 @pytest.mark.django_db
 def test_finds_a_slice_by_a_bare_number(client_local, org):
     """Humans read the number off the screen without the prefix."""
-    s = create_slice(create_area(org, "OSS"), "Board redesign")
+    s = create_slice(org, area=create_area(org, "OSS"), title="Board redesign")
     body = client_local.get(f"/{org.slug}/search", {"q": str(s.number)}).content.decode()
     assert "Board redesign" in body
 
 
 @pytest.mark.django_db
 def test_finds_by_title_substring(client_local, org):
-    create_slice(create_area(org, "OSS"), "Board redesign")
+    create_slice(org, area=create_area(org, "OSS"), title="Board redesign")
     create_ticket(org, "Board is slow")
     body = client_local.get(f"/{org.slug}/search", {"q": "board"}).content.decode()
     assert "Board redesign" in body
@@ -37,7 +37,7 @@ def test_finds_by_title_substring(client_local, org):
 @pytest.mark.django_db
 def test_does_not_leak_another_orgs_work(client_local, org):
     other = Org.objects.create(name="Other", slug="other-org")
-    create_slice(create_area(other, "Secret"), "Confidential thing")
+    create_slice(other, area=create_area(other, "Secret"), title="Confidential thing")
     body = client_local.get(f"/{org.slug}/search", {"q": "Confidential"}).content.decode()
     assert "Confidential thing" not in body
 
@@ -46,7 +46,7 @@ def test_does_not_leak_another_orgs_work(client_local, org):
 def test_an_absorbed_ticket_ref_says_where_it_went(client_local, org):
     """absorb_ticket does NOT hand its number over, so the ticket's ref resolves
     to a slice carrying a DIFFERENT ref. Landing there silently reads as a bug."""
-    s = create_slice(create_area(org, "OSS"), "Auth overhaul")
+    s = create_slice(org, area=create_area(org, "OSS"), title="Auth overhaul")
     t = create_ticket(org, "Login is broken")
     absorb_ticket(t, into=s)
 
@@ -94,6 +94,6 @@ def test_an_open_ticket_has_no_resolved_marker(client_local, org):
 
 @pytest.mark.django_db
 def test_an_empty_query_returns_no_rows(client_local, org):
-    create_slice(create_area(org, "OSS"), "Board redesign")
+    create_slice(org, area=create_area(org, "OSS"), title="Board redesign")
     body = client_local.get(f"/{org.slug}/search", {"q": ""}).content.decode()
     assert "Board redesign" not in body

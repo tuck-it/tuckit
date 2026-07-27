@@ -12,7 +12,7 @@ from tests.web.conftest import bite_under_plan
 def test_slice_full_page_renders_spec_and_bites(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment integration", spec="## Goal\nWire up Stripe", status="open")
+    s = create_slice(a.org, area=a, title="Payment integration", spec="## Goal\nWire up Stripe", status="open")
     plan = create_plan(s, title="Plan")
     bite_under_plan(plan, s, "SDK integration", status="done")
     resp = client_local.get(f"{p}/slices/{s.id}/")
@@ -27,7 +27,7 @@ def test_slice_full_page_renders_spec_and_bites(client_local, org):
 def test_slice_detail_is_partial(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    s = create_slice(a, "X")
+    s = create_slice(a.org, area=a, title="X")
     resp = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true")
     body = resp.content.decode()
     assert "<!doctype html>" not in body.lower()   # partial, not full page
@@ -38,11 +38,7 @@ def test_slice_detail_is_partial(client_local, org):
 def test_spec_html_is_sanitized(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    s = create_slice(
-        a,
-        "Risky spec",
-        spec="## Title\n<script>alert(1)</script>\n<img src=x onerror=alert(1)>",
-    )
+    s = create_slice(a.org, area=a, title="Risky spec", spec="## Title\n<script>alert(1)</script>\n<img src=x onerror=alert(1)>")
     resp = client_local.get(f"{p}/slices/{s.id}/")
     body = resp.content.decode()
     assert resp.status_code == 200
@@ -63,7 +59,7 @@ def test_slice_other_workspace_404(client_local, org):
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     other_org = Org.objects.create(name="Other Org", slug="other-org")
-    s = create_slice(create_area(other_org, "A"), "secret")
+    s = create_slice(other_org, area=create_area(other_org, "A"), title="secret")
     assert client_local.get(f"{p}/slices/{s.id}/").status_code == 404
 
 
@@ -75,7 +71,7 @@ def test_slice_detail_shows_its_activity_thread(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    s = create_slice(a, "Thread slice", status="open")       # logs created (slice)
+    s = create_slice(a.org, area=a, title="Thread slice", status="open")       # logs created (slice)
     set_slice_status(s, "shipped")                            # logs status_changed (slice)
     create_bite(s, "First bite")                              # logs created (bite)
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
@@ -91,7 +87,7 @@ def test_slice_detail_context_flags_and_progress(org):
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
     from tuckit.core.services.plans import create_plan
-    s = create_slice(create_area(org, "Design"), "T")
+    s = create_slice(org, area=create_area(org, "Design"), title="T")
     create_plan(s, title="Plan")
     create_bite(s, "a", status="done")
     create_bite(s, "b")  # 1 of 2 done -> 50%
@@ -114,7 +110,7 @@ def test_panel_header_title_and_stage_pill(client_local, org):
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    s = create_slice(a, "Dark mode policy", status="open")
+    s = create_slice(a.org, area=a, title="Dark mode policy", status="open")
 
     # panel context
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
@@ -137,7 +133,7 @@ def test_full_page_hides_panel_only_chrome(client_local, org):
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    s = create_slice(a, "Full page")
+    s = create_slice(a.org, area=a, title="Full page")
     body = client_local.get(f"{p}/slices/{s.id}/").content.decode()   # full page, no modal=1
     assert "crumb-close" not in body        # no close button on the full page
     assert "Open full page" not in body     # no self-link on the full page
@@ -152,7 +148,7 @@ def test_bites_progress_and_empty_state(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    s = create_slice(a, "S")
+    s = create_slice(a.org, area=a, title="S")
 
     # empty: PLAN empty-state shown, no count
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
@@ -183,7 +179,7 @@ def test_action_bar_has_copy_and_drop(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "Action", status="open")
+    s = create_slice(org, area=create_area(org, "Design"), title="Action", status="open")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="action-bar"' in body
     assert "Copy link" in body
@@ -195,7 +191,7 @@ def test_tags_live_in_properties_not_a_context_section(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "Tag")
+    s = create_slice(org, area=create_area(org, "Design"), title="Tag")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="section-label">Context' not in body   # standalone Context section removed
     assert '<span class="prop-key">Tags' in body          # tags now a property row
@@ -208,7 +204,7 @@ def test_activity_timeline_has_nodes(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice, set_slice_status
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "Timeline", status="open")
+    s = create_slice(org, area=create_area(org, "Design"), title="Timeline", status="open")
     set_slice_status(s, "shipped")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="timeline"' in body
@@ -221,9 +217,9 @@ def test_slice_activity_helper_is_chronological_and_scoped(org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice, set_slice_status
     a = create_area(org, "Backend")
-    s = create_slice(a, "A", status="open")
+    s = create_slice(a.org, area=a, title="A", status="open")
     set_slice_status(s, "shipped")
-    other = create_slice(a, "B", status="open")                 # unrelated slice's events excluded
+    other = create_slice(a.org, area=a, title="B", status="open")                 # unrelated slice's events excluded
     events = slice_activity(s)
     times = [e.created_at for e in events]
     assert times == sorted(times) and len(events) >= 2        # oldest-first
@@ -236,7 +232,7 @@ def test_spec_is_boxed_inline_edit(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Design"), "spec slice")
+    s = create_slice(org, area=create_area(org, "Design"), title="spec slice")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="section-label">Spec' in body          # labeled section
     # Substring, not the whole class attribute: spec is a long-form surface, so
@@ -253,7 +249,7 @@ def test_spec_is_boxed_inline_edit(client_local, org):
 def test_slice_detail_shows_plans_and_add_plan(client_local, org):
     from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
-    a = create_area(org, "B"); s = create_slice(a, "S")
+    a = create_area(org, "B"); s = create_slice(a.org, area=a, title="S")
     p = create_plan(s, title="Backend", body="overview")
     bite_under_plan(p, s, "step one")
     url = f"/{org.slug}"
@@ -272,7 +268,7 @@ def test_plan_edit_updates_body_and_constraints(client_local, org):
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.plans import create_plan, get_plan
     a = create_area(org, "B")
-    s = create_slice(a, "S")
+    s = create_slice(a.org, area=a, title="S")
     plan = create_plan(s, title="Plan")
     p = f"/{org.slug}"
 
@@ -293,7 +289,7 @@ def test_plan_delete_removes_plan_and_its_bites(client_local, org):
     from tuckit.core.services.bites import create_bite
     from tuckit.core.models import Plan, Bite
     a = create_area(org, "B")
-    s = create_slice(a, "S")
+    s = create_slice(a.org, area=a, title="S")
     plan = create_plan(s, title="Doomed")
     bite_under_plan(plan, s, "will vanish")
     p = f"/{org.slug}"
@@ -346,7 +342,7 @@ def test_promoted_slice_empty_spec_points_at_the_capture(client_local, org):
 
 @pytest.mark.django_db
 def test_unlinked_slice_keeps_the_generic_prompt(client_local, org):
-    s = create_slice(create_area(org, "Backend"), "Direct")
+    s = create_slice(org, area=create_area(org, "Backend"), title="Direct")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "Add a spec" in body
     assert "No design doc yet" not in body
@@ -372,7 +368,7 @@ def test_slice_spec_table_reaches_the_page(client_local, org):
     """The renderer is unit-tested; this proves the rendered table actually
     survives the template + autoescaping path onto the page."""
     a = create_area(org, "Backend")
-    s = create_slice(a, "Has a table", spec="| col | val |\n| --- | --- |\n| a | 1 |")
+    s = create_slice(a.org, area=a, title="Has a table", spec="| col | val |\n| --- | --- |\n| a | 1 |")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "<table>" in body
     assert "<th>col</th>" in body
@@ -386,7 +382,7 @@ def test_slice_edit_form_offers_no_status_control(client_local, org):
     """The create/edit slice form has no status select — Ship/Drop are the
     only way a status changes."""
     a = create_area(org, "Backend")
-    s = create_slice(a, "아무거나", spec="왜", status="open")
+    s = create_slice(a.org, area=a, title="아무거나", spec="왜", status="open")
 
     html = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
@@ -399,7 +395,7 @@ def test_slice_detail_offers_no_status_menu(client_local, org):
     a dropdown, but its option buttons carry `area-opt`, not `status-opt`, so
     this stays a precise check on the status control specifically.)"""
     a = create_area(org, "Backend")
-    s = create_slice(a, "아무거나", spec="왜", status="open")
+    s = create_slice(a.org, area=a, title="아무거나", spec="왜", status="open")
 
     html = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
@@ -415,7 +411,7 @@ def test_stage_pill_shows_human_label_not_raw_key(client_local, org):
     legitimately still appears inside the dot's `status-dot--needs_design`
     CSS class — ">needs_design<" pins the rendered TEXT, not the class.)"""
     a = create_area(org, "Backend")
-    s = create_slice(a, "no spec yet")   # stage: needs_design
+    s = create_slice(a.org, area=a, title="no spec yet")   # stage: needs_design
 
     html = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
@@ -428,7 +424,7 @@ def test_ready_to_ship_slice_can_ship_from_detail(client_local, org):
     """Removing the status dropdown must not remove the ability to ship from
     the modal — it was the only path there."""
     a = create_area(org, "Backend")
-    s = create_slice(a, "다 됐다", spec="왜", status="open")
+    s = create_slice(a.org, area=a, title="다 됐다", spec="왜", status="open")
     create_plan(s, title="Plan")
     b = create_bite(s, "한 걸음")
     from tuckit.core.services.bites import update_bite
@@ -444,7 +440,7 @@ def test_dropped_slice_restores_to_open(client_local, org):
     """Restore used to send status='planned', now invalid — it must send
     'open' or set_slice_status() 400s."""
     a = create_area(org, "Backend")
-    s = create_slice(a, "접은 일", spec="왜", status="dropped")
+    s = create_slice(a.org, area=a, title="접은 일", spec="왜", status="dropped")
 
     resp = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "open"})
 
@@ -458,7 +454,7 @@ def test_shipped_slice_can_reopen_from_detail(client_local, org):
     """The old status dropdown could restore a shipped slice back to backlog;
     that path is gone, so the action bar needs its own Reopen."""
     a = create_area(org, "Backend")
-    s = create_slice(a, "출시됨", spec="왜", status="shipped")
+    s = create_slice(a.org, area=a, title="출시됨", spec="왜", status="shipped")
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert "Reopen" in body

@@ -23,15 +23,23 @@ def list_slices(area: Area, status: str | None = None, tag: str | None = None) -
 
 
 def query_slices(org, *, area=None, status=None, tag=None, query=None,
-                 assignee_member=None, limit=None) -> list[Slice]:
+                 assignee_member=None, include_inbox=False, limit=None) -> list[Slice]:
     """Org-wide slice query used by the MCP list_slices tool. All filters optional;
-    with no `area` it searches the whole org. `query` = icontains on title/spec."""
+    with no `area` it searches the whole org. `query` = icontains on title/spec.
+
+    Inbox slices (area IS NULL) are excluded by default — the board and this
+    query are not where the Inbox is read from; use inbox_slices() for that, or
+    pass include_inbox=True to opt back in. Asking for a specific `area`
+    implies you already know inbox items can't match, so the exclusion is
+    skipped rather than filtering twice."""
     # Annotated here so list_slices can report each row's stage without two
     # queries per row. Must precede the .distinct() and the slice below —
     # annotating an already-sliced queryset raises.
     qs = annotate_stage_counts(
         Slice.objects.filter(org=org).select_related("area", "assignee__user", "org")
     )
+    if not include_inbox and area is None:
+        qs = qs.filter(area__isnull=False)
     if area is not None:
         qs = qs.filter(area=area)
     if status:
@@ -71,10 +79,12 @@ def allocate_number(org: Org) -> int:
 
 
 def create_slice(
-    area: Area,
-    title: str,
+    org: Org,
     *,
+    area: Area | None = None,
+    title: str,
     spec: str = "",
+    constraints: str = "",
     status: str = "open",
     tags: list[str] | None = None,
     before: Slice | None = None,
@@ -83,9 +93,16 @@ def create_slice(
     assignee_member=None,
     external_key: str = "",
     number: int | None = None,
+    created_by=None,
 ) -> Slice:
+    """Create a slice. `area` is optional — omit it (or pass None) and the
+    slice lands in the Inbox, picked up by inbox_slices(). `org` is the first
+    argument because a slice may have no area, so org can no longer be
+    derived by dereferencing area.org."""
+    if area is not None and area.org_id != org.id:
+        raise InvalidValue("area belongs to a different org")
     if external_key:
-        existing = Slice.objects.filter(area__org=area.org, external_key=external_key).first()
+        existing = Slice.objects.filter(org=org, external_key=external_key).first()
         if existing is not None:
             # Idempotent: a re-run with the same key updates in place, no duplicate.
             # Status is deliberately NOT touched here — create defaults to 'open' and
@@ -100,23 +117,25 @@ def create_slice(
     rank = rank_for(Slice, {"area": area}, before=before, after=after)
     with transaction.atomic():
         if number is None:
-            number = allocate_number(area.org)
+            number = allocate_number(org)
         slice_ = Slice.objects.create(
             area=area,
-            org=area.org,
+            org=org,
             title=title,
             spec=spec,
+            constraints=constraints,
             status=status,
             rank=rank,
             source=source,
             number=number,
             external_key=external_key,
             assignee=assignee_member,
+            created_by=created_by,
             completed_at=timezone.now() if status == "shipped" else None,
         )
         if tags:
-            slice_.tags.set(get_or_create_tags(area.org, tags))
-        record_activity(area.org, actor=source, verb="created", target=slice_)
+            slice_.tags.set(get_or_create_tags(org, tags))
+        record_activity(org, actor=source, verb="created", target=slice_)
     return slice_
 
 
@@ -125,8 +144,10 @@ def update_slice(
     *,
     title: str | None = None,
     spec: str | None = None,
+    constraints: str | None = None,
     status: str | None = None,
     tags: list[str] | None = None,
+    duplicate_of: Slice | None = None,
     assignee=None,
     assignee_member=None,
     before: Slice | None = None,
@@ -142,6 +163,10 @@ def update_slice(
         slice_.title = title
     if spec is not None:
         slice_.spec = spec
+    if constraints is not None:
+        slice_.constraints = constraints
+    if duplicate_of is not None:
+        slice_.duplicate_of = duplicate_of
     if status is not None:
         validate_choice(status, Slice.STATUS_CHOICES, "status")
         _apply_status(slice_, status)
@@ -195,23 +220,35 @@ def reorder_slice(slice_: Slice, *, before: Slice | None = None, after: Slice | 
     return slice_
 
 
-def set_slice_area(
-    slice_: Slice, area: Area, *, before: Slice | None = None, after: Slice | None = None,
-    actor: str = "human",
-) -> Slice:
-    old_area = slice_.area
-    if area.org_id != old_area.org_id:
+def set_slice_area(slice_: Slice, area: Area | None, *, actor: str = "human") -> Slice:
+    """File a slice into `area`, or clear it (area=None) to send it back to the
+    Inbox. Both directions are fully reversible — there is no one-way "promote"
+    left; triage is just picking an area, and un-triage is un-picking one."""
+    if area is not None and area.org_id != slice_.org_id:
         raise InvalidValue("cannot move a slice across orgs")
+    old_area = slice_.area
+    same = (area.id if area else None) == (old_area.id if old_area else None)
     slice_.area = area
-    slice_.rank = rank_for(Slice, {"area": area}, before=before, after=after)
+    slice_.rank = rank_for(Slice, {"area": area})
     with transaction.atomic():
         slice_.save(update_fields=["area", "rank", "updated_at"])
-        if area.id != old_area.id:  # no spurious event when the area didn't change (e.g. concurrent resubmit)
+        if not same:  # no spurious event when the area didn't change (e.g. concurrent resubmit)
             record_activity(
-                area.org, actor=actor, verb="moved",
-                target=slice_, from_value=old_area.name, to_value=area.name,
+                slice_.org, actor=actor, verb="moved", target=slice_,
+                from_value=old_area.name if old_area else "Inbox",
+                to_value=area.name if area else "Inbox",
             )
     return slice_
+
+
+def inbox_slices(org: Org) -> QuerySet:
+    """Untriaged captures — the sole source for the Inbox screen. A slice with
+    no area IS an inbox item; there is no separate model for it any more."""
+    return (
+        Slice.objects.filter(org=org, area__isnull=True, status="open")
+        .select_related("org")
+        .order_by("-created_at")
+    )
 
 
 # Workflow order: what a slice needs next, from undesigned to done. Derived on

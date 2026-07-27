@@ -178,7 +178,7 @@ def promote_ticket(ticket: Ticket, *, area=None, actor: str = "human") -> Slice:
     # sends the next reader straight to planning. The body stays on the Ticket
     # and is reached through the link, so there is exactly one copy of the text.
     slice_ = create_slice(
-        target_area, ticket.title, spec="", status="open",
+        ticket.org, area=target_area, title=ticket.title, spec="", status="open",
         source=actor, number=ticket.number,
     )
     ticket.slice = slice_

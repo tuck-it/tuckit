@@ -271,7 +271,7 @@ async def create_slice(
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
         s = _create_slice(
-            area, title, spec=spec, status=status, tags=tags,
+            org, area=area, title=title, spec=spec, status=status, tags=tags,
             after=after, before=before, source="agent",
             assignee_member=member, external_key=external_key,
         )

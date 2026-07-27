@@ -11,7 +11,7 @@ from tuckit.core.services.tickets import create_ticket
 @pytest.mark.django_db
 def test_slice_ref_uses_the_org_key():
     org = Org.objects.create(name="Tuckit Projects", slug="tuckit-projects")
-    s = create_slice(create_area(org, "OSS"), "MCP search")
+    s = create_slice(org, area=create_area(org, "OSS"), title="MCP search")
     assert slice_ref(s) == f"TP-{s.number}"
     assert parse_ref(org, slice_ref(s)) == s.number
 
@@ -56,7 +56,7 @@ def test_parse_ref_rejects_a_bare_number():
 @pytest.mark.django_db
 def test_ref_for_dispatches_on_type():
     org = Org.objects.create(name="Tuckit", slug="tuckit")
-    s = create_slice(create_area(org, "OSS"), "One")
+    s = create_slice(org, area=create_area(org, "OSS"), title="One")
     t = create_ticket(org, "Two")
     assert ref_for(s) == slice_ref(s)
     assert ref_for(t) == ticket_ref(t)

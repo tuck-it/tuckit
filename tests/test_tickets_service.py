@@ -215,7 +215,7 @@ def test_slice_default_status_is_open():
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
     from tuckit.core.services.slices import create_slice
-    s = create_slice(area, "S")
+    s = create_slice(area.org, area=area, title="S")
     assert s.status == "open"
 
 
@@ -292,7 +292,7 @@ def test_origin_is_none_for_a_directly_created_slice():
     from tuckit.core.services.slices import create_slice
 
     org = Org.objects.create(name="Acme", slug="acme")
-    assert origin_ticket(create_slice(create_area(org, "Backend"), "Direct")) is None
+    assert origin_ticket(create_slice(org, area=create_area(org, "Backend"), title="Direct")) is None
 
 
 @pytest.mark.django_db

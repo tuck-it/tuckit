@@ -20,7 +20,7 @@ def _seed_two_plans():
     org = Org.objects.create(name="Acme", slug="acme")
     _, raw = generate_token(org, "t")
     area = create_area(org, "Backend")
-    s = create_slice(area, "Auth")
+    s = create_slice(area.org, area=area, title="Auth")
     p1 = create_plan(s, title="Plan one")
     p2 = create_plan(s, title="Plan two")
     return raw, p1.id, p2.id
@@ -31,7 +31,7 @@ def _seed():
     org = Org.objects.create(name="Acme", slug="acme")
     _, raw = generate_token(org, "t")
     area = create_area(org, "Backend")
-    s = create_slice(area, "Auth")
+    s = create_slice(area.org, area=area, title="Auth")
     p = create_plan(s, title="Plan")
     return raw, p.id, s.id
 

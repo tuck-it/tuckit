@@ -71,7 +71,7 @@ def populated(org):
     An empty page renders no overlays and would pass this test vacuously.
     """
     area = create_area(org, "Backend")
-    create_slice(area, "Retry failed webhooks")
+    create_slice(area.org, area=area, title="Retry failed webhooks")
     return org, area
 
 

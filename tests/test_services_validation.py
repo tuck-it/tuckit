@@ -17,26 +17,26 @@ def area(db):
 @pytest.mark.django_db
 def test_create_slice_rejects_bad_status(area):
     with pytest.raises(InvalidValue):
-        create_slice(area, "X", status="blocked")
+        create_slice(area.org, area=area, title="X", status="blocked")
 
 
 @pytest.mark.django_db
 def test_set_slice_status_rejects_bad_status(area):
-    s = create_slice(area, "X")
+    s = create_slice(area.org, area=area, title="X")
     with pytest.raises(InvalidValue):
         set_slice_status(s, "nope")
 
 
 @pytest.mark.django_db
 def test_update_slice_rejects_bad_status(area):
-    s = create_slice(area, "X")
+    s = create_slice(area.org, area=area, title="X")
     with pytest.raises(InvalidValue):
         update_slice(s, status="nope")
 
 
 @pytest.mark.django_db
 def test_valid_status_still_works(area):
-    s = create_slice(area, "X", status="open")
+    s = create_slice(area.org, area=area, title="X", status="open")
     set_slice_status(s, "shipped")
     s.refresh_from_db()
     assert s.status == "shipped"
@@ -44,7 +44,7 @@ def test_valid_status_still_works(area):
 
 @pytest.mark.django_db
 def test_bite_status_validation(area):
-    s = create_slice(area, "X")
+    s = create_slice(area.org, area=area, title="X")
     create_plan(s, title="Plan")
     with pytest.raises(InvalidValue):
         create_bite(s, "B", status="wip")

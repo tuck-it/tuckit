@@ -26,7 +26,6 @@ def test_no_area_org_joins_remain_in_services():
         for i, line in enumerate(text.splitlines(), 1):
             if "area__org" in line or ".area.org" in line:
                 offenders.append(f"{p.name}:{i}")
-    # create_slice/set_slice_area는 Task 6에서 정리된다
-    allowed_prefixes = ("slices.py",)
-    remaining = [o for o in offenders if not o.startswith(allowed_prefixes)]
-    assert remaining == [], f"area 조인이 남아 있다: {remaining}"
+    # Task 6에서 create_slice/set_slice_area가 정리되어, slices.py도 더는
+    # 예외가 필요 없다 — 이제 area.org에 의존하는 서비스 함수는 없다.
+    assert offenders == [], f"area 조인이 남아 있다: {offenders}"

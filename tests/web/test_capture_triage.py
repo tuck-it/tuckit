@@ -394,7 +394,7 @@ def test_ticket_triage_rejects_a_slice_outside_the_chosen_area(client_local, org
 def test_ticket_triage_rejects_a_slice_from_another_org(client_local, org):
     p = f"/{org.slug}"
     other = Org.objects.create(name="Beta", slug="beta")
-    foreign = create_slice(create_area(other, "X"), "Foreign")
+    foreign = create_slice(other, area=create_area(other, "X"), title="Foreign")
     area = create_area(org, "Backend")
     t = create_ticket(org, "Child", area=area)
 
@@ -423,8 +423,8 @@ def test_slice_options_are_scoped_to_the_chosen_area(client_local, org):
     p = f"/{org.slug}"
     backend = create_area(org, "Backend")
     frontend = create_area(org, "Frontend")
-    create_slice(backend, "In backend")
-    create_slice(frontend, "In frontend")
+    create_slice(backend.org, area=backend, title="In backend")
+    create_slice(frontend.org, area=frontend, title="In frontend")
 
     # Plain area_id now: there is one triage form, so the field name that used
     # to collide with the promote form's has nothing left to collide with.

@@ -55,7 +55,7 @@ def test_plan_create_oob_refreshes_widget(client_local, org):
     # Plan step ticks immediately (previously stale until a full reload).
     from tuckit.core.services.slices import create_slice
 
-    slice_ = create_slice(create_area(org, "Backend"), "Retry webhooks")
+    slice_ = create_slice(org, area=create_area(org, "Backend"), title="Retry webhooks")
     r = client_local.post(
         f"{_p(org)}/slices/{slice_.id}/plans", {"title": "v1"},
         HTTP_HX_REQUEST="true",
@@ -72,7 +72,7 @@ def test_bite_create_oob_refreshes_widget(client_local, org):
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.plans import create_plan
 
-    slice_ = create_slice(create_area(org, "Backend"), "Retry webhooks")
+    slice_ = create_slice(org, area=create_area(org, "Backend"), title="Retry webhooks")
     plan = create_plan(slice_, title="v1")
     r = client_local.post(
         f"{_p(org)}/plans/{plan.id}/bites", {"title": "Write the retry test"},
@@ -90,7 +90,7 @@ def test_panel_mutation_no_widget_when_dismissed(client_local, org):
 
     org.onboarding_dismissed = True
     org.save(update_fields=["onboarding_dismissed"])
-    slice_ = create_slice(create_area(org, "Backend"), "Retry webhooks")
+    slice_ = create_slice(org, area=create_area(org, "Backend"), title="Retry webhooks")
     r = client_local.post(
         f"{_p(org)}/slices/{slice_.id}/plans", {"title": "v1"},
         HTTP_HX_REQUEST="true",

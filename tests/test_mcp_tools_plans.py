@@ -13,7 +13,7 @@ from tests.test_mcp_tools_state import make_ctx
 def _seed():
     org = Org.objects.create(name="Acme", slug="acme")
     _, raw = generate_token(org, "t")
-    s = create_slice(create_area(org, "Backend"), "Auth")
+    s = create_slice(org, area=create_area(org, "Backend"), title="Auth")
     return raw, s.id
 
 

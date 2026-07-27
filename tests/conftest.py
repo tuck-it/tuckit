@@ -18,14 +18,8 @@ def area(org):
 
 @pytest.fixture
 def slice_(org, area):
-    """area에 속한 슬라이스 하나. Task 6에서 create_slice의 시그니처가 바뀌면
-    이 픽스처도 같이 바뀐다 — 그때까지는 모델을 직접 쓴다."""
-    from tuckit.core.models import Slice
-    from tuckit.core.services.slices import allocate_number
-    return Slice.objects.create(
-        org=org, area=area, title="테스트 슬라이스", spec="설계됨",
-        rank="m", number=allocate_number(org),
-    )
+    """area에 속한 슬라이스 하나."""
+    return _create_slice(org, area=area, title="테스트 슬라이스", spec="설계됨")
 
 
 @pytest.fixture

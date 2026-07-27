@@ -16,7 +16,7 @@ def data(db):
     # so "rejects other tenant" must use a genuinely different org.
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     area = create_area(org, "Backend")
-    slice_ = create_slice(area, "Auth")
+    slice_ = create_slice(area.org, area=area, title="Auth")
     create_plan(slice_, title="Plan")
     bite = create_bite(slice_, "JWT")
     return org, other_org, area, slice_, bite
@@ -64,7 +64,7 @@ def test_get_slice_by_ref_and_flexible():
     from tuckit.core.services.resolve import get_slice_by_ref, get_slice_flexible
 
     org = Org.objects.create(name="Acme", slug="acme")
-    s = create_slice(create_area(org, "B"), "Auth")
+    s = create_slice(org, area=create_area(org, "B"), title="Auth")
     assert get_slice_by_ref(org, slice_ref(s)).id == s.id
     assert get_slice_flexible(org, slice_ref(s)).id == s.id
     assert get_slice_flexible(org, s.id).id == s.id

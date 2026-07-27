@@ -32,7 +32,7 @@ def test_slice_detail_order_and_close_aria(client_local, org):
     from tuckit.core.services.plans import create_plan
     from tests.web.conftest import bite_under_plan
     a = create_area(org, "Backend")
-    s = create_slice(a, "panel order", status="open", tags=["billing"])
+    s = create_slice(a.org, area=a, title="panel order", status="open", tags=["billing"])
     plan = create_plan(s, title="Plan")
     bite_under_plan(plan, s, "step one")
     p = f"/{org.slug}"
@@ -52,7 +52,7 @@ def test_slice_detail_renders_stage_pill(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Backend"), "seg", status="open")
+    s = create_slice(org, area=create_area(org, "Backend"), title="seg", status="open")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="status-pill status-pill--static"' in body
     assert "status-opt" not in body

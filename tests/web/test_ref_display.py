@@ -31,7 +31,7 @@ def test_board_card_shows_the_ref_even_when_the_meta_line_would_be_empty(client_
     reads context["request"] and raises KeyError without one.
     """
     a = create_area(org, "OSS")
-    s = create_slice(a, "Board redesign")
+    s = create_slice(a.org, area=a, title="Board redesign")
     assert s.spec == ""
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
     assert slice_ref(s) in body
@@ -40,7 +40,7 @@ def test_board_card_shows_the_ref_even_when_the_meta_line_would_be_empty(client_
 @pytest.mark.django_db
 def test_slice_detail_shows_a_copyable_ref(client_local, org):
     a = create_area(org, "OSS")
-    s = create_slice(a, "Detail")
+    s = create_slice(a.org, area=a, title="Detail")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert slice_ref(s) in body
     assert "ref--copy" in body
@@ -64,7 +64,7 @@ def test_ticket_modal_shows_a_copyable_ref(client_local, org):
 @pytest.mark.django_db
 def test_home_list_row_shows_the_ref(client_local, org):
     a = create_area(org, "OSS")
-    s = create_slice(a, "In flight", status="open")
+    s = create_slice(a.org, area=a, title="In flight", status="open")
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert slice_ref(s) in body
 
@@ -121,7 +121,7 @@ def test_no_template_builds_a_ref_from_the_org_slug():
 def test_home_bands_do_not_n_plus_one_on_org(client_local, org):
     a = create_area(org, "OSS")
     for i in range(6):
-        create_slice(a, f"Building {i}", status="open")
+        create_slice(a.org, area=a, title=f"Building {i}", status="open")
     with CaptureQueriesContext(connection) as ctx:
         client_local.get(f"/{org.slug}/")
     assert _standalone_org_queries(ctx) <= 4
@@ -131,7 +131,7 @@ def test_home_bands_do_not_n_plus_one_on_org(client_local, org):
 def test_board_does_not_n_plus_one_on_org(client_local, org):
     a = create_area(org, "OSS")
     for i in range(6):
-        create_slice(a, f"Slice {i}")
+        create_slice(a.org, area=a, title=f"Slice {i}")
     with CaptureQueriesContext(connection) as ctx:
         client_local.get(f"/{org.slug}/roadmap/")
     assert _standalone_org_queries(ctx) <= 4
@@ -150,7 +150,7 @@ def test_inbox_does_not_n_plus_one_on_org(client_local, org):
 def test_area_board_does_not_n_plus_one_on_org(client_local, org):
     a = create_area(org, "OSS")
     for i in range(6):
-        create_slice(a, f"Slice {i}")
+        create_slice(a.org, area=a, title=f"Slice {i}")
     with CaptureQueriesContext(connection) as ctx:
         client_local.get(f"/{org.slug}/areas/{a.slug}/")
     assert _standalone_org_queries(ctx) <= 5

@@ -9,7 +9,7 @@ from tuckit.core.services.slices import create_slice
 @pytest.mark.django_db
 def test_slice_detail_labels_field_spec_not_description(client_local, org):
     a = create_area(org, "Backend")
-    s = create_slice(a, "labelled slice", spec="some detail")
+    s = create_slice(a.org, area=a, title="labelled slice", spec="some detail")
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/slices/{s.id}/").content.decode()
     assert '<div class="section-label">Spec</div>' in body
@@ -19,7 +19,7 @@ def test_slice_detail_labels_field_spec_not_description(client_local, org):
 @pytest.mark.django_db
 def test_slice_detail_uses_english_copy(client_local, org):
     a = create_area(org, "Backend")
-    s = create_slice(a, "empty slice")  # no spec, no bites → empty states show
+    s = create_slice(a.org, area=a, title="empty slice")  # no spec, no bites → empty states show
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/slices/{s.id}/").content.decode()
     # English replacements present (empty slice → PLAN empty state)
@@ -33,7 +33,7 @@ def test_add_plan_and_bite_inputs_show_examples(client_local, org):
     from tuckit.core.services.plans import create_plan
 
     a = create_area(org, "Backend")
-    s = create_slice(a, "Retry webhooks")
+    s = create_slice(a.org, area=a, title="Retry webhooks")
     create_plan(s, title="v1")  # a plan exists → the add-bite row renders
     body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     # add-plan input carries an example, not a bare "Plan title…"

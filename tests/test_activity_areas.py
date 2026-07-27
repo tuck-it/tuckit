@@ -38,7 +38,7 @@ def test_delete_area_records_deleted_before_cascade():
 @pytest.mark.django_db
 def test_delete_bite_records_deleted():
     org = _org("bd")
-    s = create_slice(create_area(org, "A"), "S", status="open")
+    s = create_slice(org, area=create_area(org, "A"), title="S", status="open")
     create_plan(s, title="P")
     bite = create_bite(s, "Impl")
     ActivityEvent.objects.filter(verb="deleted").delete()

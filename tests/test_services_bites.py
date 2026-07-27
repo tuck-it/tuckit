@@ -18,7 +18,7 @@ from tuckit.core.services.slices import create_slice
 def slice_(db):
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
-    return create_slice(area, "Auth")
+    return create_slice(area.org, area=area, title="Auth")
 
 
 @pytest.mark.django_db
@@ -106,7 +106,7 @@ def test_delete_bite_removes_it(slice_):
 def test_bite_progress_counts_done_over_non_dropped():
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "A")
-    s = create_slice(area, "S")
+    s = create_slice(area.org, area=area, title="S")
     create_bite(s, "a", status="done")
     create_bite(s, "b", status="todo")
     create_bite(s, "c", status="dropped")

@@ -12,7 +12,7 @@ from tuckit.core.models import Org, Slice
 def test_board_has_swap_target_id(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    create_slice(a, "one", status="open")
+    create_slice(a.org, area=a, title="one", status="open")
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert 'id="board"' in body
     assert 'class="board"' in body
@@ -22,7 +22,7 @@ def test_board_has_swap_target_id(client_local, org):
 def test_board_view_renders_columns(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    create_slice(a, "Payment", status="open")
+    create_slice(a.org, area=a, title="Payment", status="open")
     resp = client_local.get(f"{p}/areas/{a.slug}/")
     body = resp.content.decode()
     assert "Payment" in body
@@ -34,7 +34,7 @@ def test_board_column_head_has_dot_and_count(client_local, org):
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     a = create_area(org, "Product")
-    create_slice(a, "Card A", status="open")
+    create_slice(a.org, area=a, title="Card A", status="open")
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert "board-col-head" in body
     assert "status-dot--needs_design" in body
@@ -43,7 +43,7 @@ def test_board_column_head_has_dot_and_count(client_local, org):
 def test_move_changes_status(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    s = create_slice(a, "Payment", status="open")
+    s = create_slice(a.org, area=a, title="Payment", status="open")
     resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "shipped"}, HTTP_HX_REQUEST="true")
     assert resp.status_code in (200, 204)
     assert Slice.objects.get(pk=s.id).status == "shipped"
@@ -52,8 +52,8 @@ def test_move_changes_status(client_local, org):
 def test_move_reorders_within_column(client_local, org):
     a = create_area(org, "B")
     p = f"/{org.slug}"
-    s1 = create_slice(a, "one", status="open")
-    s2 = create_slice(a, "two", status="open")
+    s1 = create_slice(a.org, area=a, title="one", status="open")
+    s2 = create_slice(a.org, area=a, title="two", status="open")
     # move s2 before s1
     client_local.post(f"{p}/slices/{s2.id}/move", {"status": "open", "before_id": s1.id}, HTTP_HX_REQUEST="true")
     ordered = list(Slice.objects.filter(area=a, status="open").order_by("rank"))
@@ -63,7 +63,7 @@ def test_move_reorders_within_column(client_local, org):
 def test_move_invalid_status_returns_400_and_unchanged(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    s = create_slice(a, "Payment", status="open")
+    s = create_slice(a.org, area=a, title="Payment", status="open")
     resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "blocked"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 400
     assert Slice.objects.get(pk=s.id).status == "open"
@@ -72,10 +72,10 @@ def test_move_invalid_status_returns_400_and_unchanged(client_local, org):
 def test_move_foreign_neighbor_404s_without_change(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    s = create_slice(a, "Payment", status="open")
+    s = create_slice(a.org, area=a, title="Payment", status="open")
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     other_area = create_area(other_org, "Other Area")
-    n = create_slice(other_area, "foreign", status="open")
+    n = create_slice(other_area.org, area=other_area, title="foreign", status="open")
     resp = client_local.post(
         f"{p}/slices/{s.id}/move",
         {"status": "shipped", "before_id": n.id},
@@ -89,7 +89,7 @@ def test_move_foreign_neighbor_404s_without_change(client_local, org):
 def test_move_without_hx_returns_204(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "B")
-    s = create_slice(a, "movable", status="open")
+    s = create_slice(a.org, area=a, title="movable", status="open")
     resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "shipped"})
     assert resp.status_code == 204
     assert Slice.objects.get(pk=s.id).status == "shipped"
@@ -103,9 +103,9 @@ def test_roadmap_tab_defaults_to_cross_area_board(client_local, org):
     p = f"/{org.slug}"
     design = create_area(org, "Design")
     core = create_area(org, "Core")
-    ex = create_slice(design, "polish empty states", spec="s")
+    ex = create_slice(design.org, area=design, title="polish empty states", spec="s")
     create_bite(ex, "b", status="doing")   # executing
-    create_slice(core, "slice move api")                            # needs_design
+    create_slice(core.org, area=core, title="slice move api")                            # needs_design
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert 'id="board"' in body
     assert 'data-stage="executing"' in body
@@ -118,7 +118,7 @@ def test_roadmap_tab_defaults_to_cross_area_board(client_local, org):
 def test_roadmap_tab_list_view_still_available(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    create_slice(a, "list-view slice", status="open")
+    create_slice(a.org, area=a, title="list-view slice", status="open")
     body = client_local.get(f"{p}/roadmap/?view=list").content.decode()
     assert "roadmap-dist" in body                   # the distribution strip
     assert 'id="board"' not in body                 # not the kanban
@@ -132,8 +132,8 @@ def test_board_caps_shipped_and_links_to_all(client_local, org):
     org.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    create_slice(a, "shipped one", status="shipped")
-    create_slice(a, "shipped two", status="shipped")
+    create_slice(a.org, area=a, title="shipped one", status="shipped")
+    create_slice(a.org, area=a, title="shipped two", status="shipped")
     body = client_local.get(f"{p}/roadmap/").content.decode()
     # Shipped is off-board now: the header link shows the TOTAL (cap no longer
     # governs a board column), pointing at the ?status=shipped filter view.
@@ -148,8 +148,8 @@ def test_status_filter_shows_all_shipped_flat(client_local, org):
     org.save(update_fields=["shipped_board_limit", "updated_at"])
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    create_slice(a, "shipped one", status="shipped")
-    create_slice(a, "shipped two", status="shipped")
+    create_slice(a.org, area=a, title="shipped one", status="shipped")
+    create_slice(a.org, area=a, title="shipped two", status="shipped")
     body = client_local.get(f"{p}/roadmap/?view=list&status=shipped").content.decode()
     assert "shipped one" in body and "shipped two" in body   # uncapped
     assert 'id="board"' not in body                          # not the kanban
@@ -162,7 +162,7 @@ def test_status_filter_is_generic(client_local, org):
     dropped) via the same flat-list surface, not a per-status route."""
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "queued thing", status="open")
+    create_slice(a.org, area=a, title="queued thing", status="open")
     body = client_local.get(f"{p}/roadmap/?status=open").content.decode()
     assert "queued thing" in body
     assert 'id="board"' not in body
@@ -176,7 +176,7 @@ def test_shipped_link_shows_regardless_of_cap(client_local, org):
     org.save(update_fields=["shipped_board_limit", "updated_at"])
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    create_slice(a, "only one", status="shipped")
+    create_slice(a.org, area=a, title="only one", status="shipped")
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert "Shipped (1)" in body
     assert 'data-stage="shipped"' not in body
@@ -187,7 +187,7 @@ def test_ready_to_ship_card_has_ship_button(client_local, org):
     from tuckit.core.services.bites import create_bite
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    rts = create_slice(a, "all done", spec="s")
+    rts = create_slice(a.org, area=a, title="all done", spec="s")
     create_bite(rts, "b", status="done")
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert "Ship it" in body
@@ -199,7 +199,7 @@ def test_ready_to_ship_card_has_ship_button(client_local, org):
 def test_every_active_card_has_a_drop_action(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    s = create_slice(a, "no spec")   # needs_design
+    s = create_slice(a.org, area=a, title="no spec")   # needs_design
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert ">Drop<" in body
     assert '"status": "dropped"' in body
@@ -213,8 +213,8 @@ def test_needs_steps_column_badges_needs_steps(client_local, org):
     from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "spec only", spec="s")             # needs_steps
-    empty = create_slice(a, "has an empty plan", spec="s")
+    create_slice(a.org, area=a, title="spec only", spec="s")             # needs_steps
+    empty = create_slice(a.org, area=a, title="has an empty plan", spec="s")
     create_plan(empty, title="P")                      # still needs_steps
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert body.count("needs steps") == 2
@@ -224,7 +224,7 @@ def test_needs_steps_column_badges_needs_steps(client_local, org):
 def test_board_partial_has_no_drag_script(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "one")
+    create_slice(a.org, area=a, title="one")
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert "board.js" not in body
     assert "data-move-url" not in body
@@ -250,7 +250,7 @@ def test_board_days_mode_shipped_outside_window_still_counts_as_slice(client_loc
     org.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    s = create_slice(a, "old shipped one", status="shipped")
+    s = create_slice(a.org, area=a, title="old shipped one", status="shipped")
     s.completed_at = timezone.now() - timedelta(days=90)
     s.save(update_fields=["completed_at"])
     body = client_local.get(f"{p}/roadmap/").content.decode()
@@ -264,7 +264,7 @@ def test_roadmap_status_filter_uses_shared_partial(client_local, org):
     back-link is the only per-page difference, supplied as back_url."""
     p = f"/{org.slug}"
     a = create_area(org, "Design")
-    create_slice(a, "shipped one", status="shipped")
+    create_slice(a.org, area=a, title="shipped one", status="shipped")
     body = client_local.get(f"{p}/roadmap/?status=shipped").content.decode()
     assert "← Board" in body
     assert f'href="/{org.slug}/roadmap/"' in body
@@ -277,8 +277,8 @@ def test_board_renders_stage_columns_and_labels(client_local, org):
     from tuckit.core.services.bites import create_bite
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "no spec")                                   # needs_design
-    rts = create_slice(a, "all done", spec="s")
+    create_slice(a.org, area=a, title="no spec")                                   # needs_design
+    rts = create_slice(a.org, area=a, title="all done", spec="s")
     create_bite(rts, "b", status="done")                         # ready_to_ship
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert 'data-stage="needs_design"' in body
@@ -291,8 +291,8 @@ def test_board_renders_stage_columns_and_labels(client_local, org):
 def test_board_dropped_link_appears_with_count(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "live one")
-    create_slice(a, "gone", status="dropped")
+    create_slice(a.org, area=a, title="live one")
+    create_slice(a.org, area=a, title="gone", status="dropped")
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert "Dropped (1)" in body
     assert 'href="?status=dropped"' in body
@@ -302,7 +302,7 @@ def test_board_dropped_link_appears_with_count(client_local, org):
 def test_roadmap_dropped_status_filter_lists_dropped(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "gone one", status="dropped")
+    create_slice(a.org, area=a, title="gone one", status="dropped")
     body = client_local.get(f"{p}/roadmap/?status=dropped").content.decode()
     assert "gone one" in body
     assert 'id="board"' not in body     # flat filter list, not the kanban
@@ -321,7 +321,7 @@ def test_board_view_is_viewport_bounded(client_local, org):
 def test_shipped_is_offboard_not_a_column(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "shipped one", status="shipped")
+    create_slice(a.org, area=a, title="shipped one", status="shipped")
     body = client_local.get(f"{p}/roadmap/?view=board").content.decode()
     assert 'data-stage="shipped"' not in body      # no shipped column
     assert 'href="?status=shipped"' in body        # off-board filter link
@@ -332,7 +332,7 @@ def test_shipped_is_offboard_not_a_column(client_local, org):
 def test_card_is_title_centric_no_pills(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a, "spec only", spec="s")          # needs_steps
+    create_slice(a.org, area=a, title="spec only", spec="s")          # needs_steps
     body = client_local.get(f"{p}/roadmap/?view=board").content.decode()
     assert "card-topline" not in body               # no nested pill row
     assert 'class="card-badge"' not in body         # stage is text, not a pill

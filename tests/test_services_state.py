@@ -39,9 +39,9 @@ def test_project_state_buckets_by_status(product_org):
     product_org.description = "A demo product"
     product_org.save(update_fields=["description", "updated_at"])
     area = create_area(product_org, "Backend")
-    create_slice(area, "Auth", status="shipped")
-    create_slice(area, "Payments", status="open")
-    create_slice(area, "Notifications", status="open")
+    create_slice(area.org, area=area, title="Auth", status="shipped")
+    create_slice(area.org, area=area, title="Payments", status="open")
+    create_slice(area.org, area=area, title="Notifications", status="open")
 
     state = get_project_state(product_org)
     assert state["org"]["description"] == "A demo product"
@@ -55,7 +55,7 @@ def test_project_state_buckets_by_status(product_org):
 def test_project_state_can_scope_to_one_area(product_org):
     a1 = create_area(product_org, "Backend")
     create_area(product_org, "Frontend")
-    create_slice(a1, "Auth", status="shipped")
+    create_slice(a1.org, area=a1, title="Auth", status="shipped")
     state = get_project_state(product_org, area=a1)
     assert len(state["areas"]) == 1
     assert state["areas"][0]["slug"] == a1.slug
@@ -75,7 +75,7 @@ def _bite_under_plan(plan_, slice_, title, **kw):
 @pytest.mark.django_db
 def test_render_slice_markdown_includes_spec_and_bites(product_org):
     area = create_area(product_org, "Backend")
-    s = create_slice(area, "Auth", spec="Support OAuth login.", status="open", tags=["feature"])
+    s = create_slice(area.org, area=area, title="Auth", spec="Support OAuth login.", status="open", tags=["feature"])
     p = create_plan(s, title="Plan")
     _bite_under_plan(p, s, "JWT", status="done")
     _bite_under_plan(p, s, "Social login", status="todo")
@@ -91,7 +91,7 @@ def test_render_slice_markdown_includes_spec_and_bites(product_org):
 @pytest.mark.django_db
 def test_render_slice_markdown_includes_bite_body(product_org):
     area = create_area(product_org, "Backend")
-    s = create_slice(area, "Auth")
+    s = create_slice(area.org, area=area, title="Auth")
     p = create_plan(s, title="Plan")
     _bite_under_plan(p, s, "JWT", body="use RS256 keys")
     md = render_slice_markdown(s)
@@ -105,7 +105,7 @@ def test_render_slice_markdown_shows_plan_less_bites_under_a_steps_header(produc
     they must still surface somewhere in get_slice() output — otherwise an
     agent's own add_bites() call would vanish from its next get_slice()."""
     area = create_area(product_org, "Backend")
-    s = create_slice(area, "Auth", spec="design")
+    s = create_slice(area.org, area=area, title="Auth", spec="design")
     create_bite(s, "JWT", status="done")
     create_bite(s, "Social login", body="use RS256 keys")
 
@@ -120,7 +120,7 @@ def test_render_slice_markdown_shows_plan_less_bites_under_a_steps_header(produc
 @pytest.mark.django_db
 def test_render_slice_markdown_omits_steps_header_when_every_bite_has_a_plan(product_org):
     area = create_area(product_org, "Backend")
-    s = create_slice(area, "Auth", spec="design")
+    s = create_slice(area.org, area=area, title="Auth", spec="design")
     p = create_plan(s, title="Plan")
     _bite_under_plan(p, s, "JWT")
 
@@ -135,7 +135,7 @@ def test_render_slice_markdown_shows_both_plan_sections_and_steps(product_org):
     and agent-added plan-less ones — and render_slice_markdown must show all
     of them, not just one or the other."""
     area = create_area(product_org, "Backend")
-    s = create_slice(area, "Auth", spec="design")
+    s = create_slice(area.org, area=area, title="Auth", spec="design")
     p = create_plan(s, title="Plan")
     _bite_under_plan(p, s, "Nested bite")
     create_bite(s, "Direct bite")
@@ -151,8 +151,8 @@ def test_someday_tag_no_longer_buckets_separately(product_org):
     """someday is a plain tag again — the special-casing that pulled
     #someday slices into their own bucket is gone (state.py _area_state)."""
     area = create_area(product_org, "Backend")
-    create_slice(area, "Planned someday", status="open", tags=["someday"])
-    create_slice(area, "Plain planned", status="open")
+    create_slice(area.org, area=area, title="Planned someday", status="open", tags=["someday"])
+    create_slice(area.org, area=area, title="Plain planned", status="open")
     state = get_project_state(product_org)
     a = state["areas"][0]
     assert "someday" not in a
@@ -170,7 +170,7 @@ def test_home_state_keeps_every_in_progress_slice_visible():
     a = create_area(org, "Backend")
 
     def executing(title, **kw):
-        s = create_slice(a, title, spec="design", **kw)
+        s = create_slice(a.org, area=a, title=title, spec="design", **kw)
         create_bite(s, "step", status="doing")
         return s
 
@@ -190,8 +190,8 @@ def test_home_state_keeps_every_in_progress_slice_visible():
 def test_home_state_counts_backlog_without_listing_it():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    create_slice(a, "queued", status="open")
-    create_slice(a, "someday one", status="open", tags=["someday"])
+    create_slice(a.org, area=a, title="queued", status="open")
+    create_slice(a.org, area=a, title="someday one", status="open", tags=["someday"])
     st = home_state(org)
     assert st["open_ct"] == 2
     assert "open" not in st, "the backlog is Board's job — Home links to it"
@@ -201,9 +201,9 @@ def test_home_state_counts_backlog_without_listing_it():
 def test_roadmap_state_buckets_by_status():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    create_slice(a, "open one", status="open")
-    create_slice(a, "shipped one", status="shipped")
-    create_slice(a, "dropped one", status="dropped")
+    create_slice(a.org, area=a, title="open one", status="open")
+    create_slice(a.org, area=a, title="shipped one", status="shipped")
+    create_slice(a.org, area=a, title="dropped one", status="dropped")
     rs = roadmap_state(org)
     assert [s.title for s in rs["open"]] == ["open one"]
     assert [s.title for s in rs["shipped"]] == ["shipped one"]
@@ -218,8 +218,8 @@ def test_roadmap_sorts_by_area_name():
     alpha = create_area(org, "Alpha")
     # Created Zeta-first, but must come back Alpha-first (sort key is
     # (area name, rank)). Guards against the sort key being dropped/reversed.
-    create_slice(zeta, "z open", status="open")
-    create_slice(alpha, "a open", status="open")
+    create_slice(zeta.org, area=zeta, title="z open", status="open")
+    create_slice(alpha.org, area=alpha, title="a open", status="open")
     assert [s.title for s in roadmap_state(org)["open"]] == ["a open", "z open"]
 
 
@@ -229,7 +229,7 @@ def test_cap_shipped_count_mode(product_org):
     product_org.shipped_board_limit = 2
     a = create_area(product_org, "A")
     for i in range(5):
-        create_slice(a, f"s{i}", status="shipped")
+        create_slice(a.org, area=a, title=f"s{i}", status="shipped")
     shipped = roadmap_state(product_org)["shipped"]
     visible, total = cap_shipped(product_org, shipped)
     assert total == 5
@@ -241,8 +241,8 @@ def test_cap_shipped_days_mode_excludes_old(product_org):
     product_org.shipped_board_mode = "days"
     product_org.shipped_board_limit = 30
     a = create_area(product_org, "A")
-    recent = create_slice(a, "recent", status="shipped")
-    old = create_slice(a, "old", status="shipped")
+    recent = create_slice(a.org, area=a, title="recent", status="shipped")
+    old = create_slice(a.org, area=a, title="old", status="shipped")
     old.completed_at = timezone.now() - timedelta(days=90)
     old.save(update_fields=["completed_at"])
     shipped = roadmap_state(product_org)["shipped"]
@@ -255,8 +255,8 @@ def test_cap_shipped_days_mode_excludes_old(product_org):
 @pytest.mark.django_db
 def test_shipped_sorted_newest_first(product_org):
     a = create_area(product_org, "A")
-    first = create_slice(a, "first", status="shipped")
-    second = create_slice(a, "second", status="shipped")
+    first = create_slice(a.org, area=a, title="first", status="shipped")
+    second = create_slice(a.org, area=a, title="second", status="shipped")
     first.completed_at = timezone.now() - timedelta(days=5)
     first.save(update_fields=["completed_at"])
     shipped = roadmap_state(product_org)["shipped"]
@@ -268,8 +268,8 @@ def test_roadmap_board_view_reports_overflow(product_org):
     product_org.shipped_board_mode = "count"
     product_org.shipped_board_limit = 1
     a = create_area(product_org, "A")
-    create_slice(a, "s1", status="shipped")
-    create_slice(a, "s2", status="shipped")
+    create_slice(a.org, area=a, title="s1", status="shipped")
+    create_slice(a.org, area=a, title="s2", status="shipped")
     view = roadmap_board_view(product_org)
     assert view["shipped_total"] == 2
     assert view["shipped_hidden"] == 1
@@ -282,14 +282,14 @@ def test_roadmap_board_view_buckets_by_stage(product_org):
     from tuckit.core.services.bites import create_bite
 
     a = create_area(product_org, "Backend")
-    create_slice(a, "no spec")                                   # needs_design
-    create_slice(a, "spec only", spec="s")                      # needs_steps
-    ex = create_slice(a, "in progress", spec="s")
+    create_slice(a.org, area=a, title="no spec")                                   # needs_design
+    create_slice(a.org, area=a, title="spec only", spec="s")                      # needs_steps
+    ex = create_slice(a.org, area=a, title="in progress", spec="s")
     create_bite(ex, "b", status="doing")                        # executing
-    rts = create_slice(a, "all done", spec="s")
+    rts = create_slice(a.org, area=a, title="all done", spec="s")
     create_bite(rts, "b", status="done")                        # ready_to_ship
-    create_slice(a, "done", status="shipped")                   # shipped
-    create_slice(a, "abandoned", status="dropped")              # dropped (counted, not shown)
+    create_slice(a.org, area=a, title="done", status="shipped")                   # shipped
+    create_slice(a.org, area=a, title="abandoned", status="dropped")              # dropped (counted, not shown)
 
     view = roadmap_board_view(product_org)
     groups = dict(view["groups"])
@@ -312,8 +312,8 @@ def test_roadmap_board_view_attaches_raw_stage_to_each_slice(product_org):
     from tuckit.core.services.plans import create_plan
 
     a = create_area(product_org, "Backend")
-    create_slice(a, "spec only", spec="s")                      # needs_steps
-    empty = create_slice(a, "has an empty plan", spec="s")
+    create_slice(a.org, area=a, title="spec only", spec="s")                      # needs_steps
+    empty = create_slice(a.org, area=a, title="has an empty plan", spec="s")
     create_plan(empty, title="P")                               # still needs_steps
 
     groups = dict(roadmap_board_view(product_org)["groups"])
@@ -329,7 +329,7 @@ def test_snapshot_today_still_accrues_history(product_org):
     from tuckit.core.models import OrgStatSnapshot
 
     a = create_area(product_org, "A")
-    s = create_slice(a, "b", spec="design")
+    s = create_slice(a.org, area=a, title="b", spec="design")
     create_bite(s, "step", status="doing")
     snapshot_today(product_org, home_state(product_org), 0)
     snapshot_today(product_org, home_state(product_org), 0)
@@ -342,7 +342,7 @@ def test_snapshot_today_still_accrues_history(product_org):
 def test_render_slice_markdown_includes_plan_and_constraints(product_org):
     from tuckit.core.services.plans import create_plan
     area = create_area(product_org, "Backend")
-    s = create_slice(area, "Auth", spec="design")
+    s = create_slice(area.org, area=area, title="Auth", spec="design")
     create_plan(s, body="Goal: ship auth", constraints="no billing")
     md = render_slice_markdown(s)
     assert "## Plan" in md and "Goal: ship auth" in md
@@ -353,7 +353,7 @@ def test_render_slice_markdown_includes_plan_and_constraints(product_org):
 def test_render_slice_markdown_renders_every_plan(product_org):
     from tuckit.core.services.plans import create_plan
     area = create_area(product_org, "Backend")
-    s = create_slice(area, "Auth", spec="design")
+    s = create_slice(area.org, area=area, title="Auth", spec="design")
     p1 = create_plan(s, title="Backend plan", body="Backend goal", constraints="no billing")
     p2 = create_plan(s, title="Frontend plan", body="Frontend goal")
     _bite_under_plan(p1, s, "Backend bite")
@@ -410,7 +410,7 @@ def test_slice_markdown_omits_provenance_when_unlinked():
     from tuckit.core.services.state import render_slice_markdown
 
     org = Org.objects.create(name="Acme", slug="acme")
-    s = create_slice(create_area(org, "Backend"), "Direct")
+    s = create_slice(org, area=create_area(org, "Backend"), title="Direct")
     assert "From:" not in render_slice_markdown(s)
 
 
@@ -422,7 +422,7 @@ def test_slice_markdown_reports_the_stage_under_status():
     from tuckit.core.services.state import render_slice_markdown
 
     org = Org.objects.create(name="Acme", slug="acme")
-    s = create_slice(create_area(org, "Backend"), "Blank")
+    s = create_slice(org, area=create_area(org, "Backend"), title="Blank")
 
     lines = render_slice_markdown(s).splitlines()
     assert "Stage: needs_design" in lines
@@ -439,7 +439,7 @@ def test_shipped_slice_markdown_does_not_ask_for_a_design_doc():
     from tuckit.core.services.state import render_slice_markdown
 
     org = Org.objects.create(name="Acme", slug="acme")
-    s = create_slice(create_area(org, "Backend"), "Done", status="shipped")
+    s = create_slice(org, area=create_area(org, "Backend"), title="Done", status="shipped")
 
     md = render_slice_markdown(s)
     assert "Stage: shipped" in md
@@ -449,8 +449,8 @@ def test_shipped_slice_markdown_does_not_ask_for_a_design_doc():
 @pytest.mark.django_db
 def test_area_board_view_excludes_dropped_and_counts_it(product_org):
     a = create_area(product_org, "A")
-    create_slice(a, "live one", status="open")
-    create_slice(a, "gone one", status="dropped")
+    create_slice(a.org, area=a, title="live one", status="open")
+    create_slice(a.org, area=a, title="gone one", status="dropped")
     view = area_board_view(a)
     assert "dropped" not in dict(view["groups"])
     titles = {s.title for _, group in view["groups"] for s in group}
@@ -467,8 +467,8 @@ def test_area_board_view_caps_shipped_by_recency_not_rank(product_org):
     product_org.shipped_board_limit = 1
     product_org.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
     a = create_area(product_org, "A")
-    first = create_slice(a, "older", status="shipped")
-    create_slice(a, "newer", status="shipped")
+    first = create_slice(a.org, area=a, title="older", status="shipped")
+    create_slice(a.org, area=a, title="newer", status="shipped")
     first.completed_at = timezone.now() - timedelta(days=5)
     first.save(update_fields=["completed_at"])
     view = area_board_view(a)
@@ -487,11 +487,11 @@ def test_area_board_view_has_any_slice_counts_capped_and_dropped(product_org):
     product_org.shipped_board_limit = 0
     product_org.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
     a = create_area(product_org, "A")
-    create_slice(a, "capped out", status="shipped")
+    create_slice(a.org, area=a, title="capped out", status="shipped")
     assert area_board_view(a)["has_any_slice"] is True
 
     b = create_area(product_org, "B")
-    create_slice(b, "dropped only", status="dropped")
+    create_slice(b.org, area=b, title="dropped only", status="dropped")
     assert area_board_view(b)["has_any_slice"] is True
 
     c = create_area(product_org, "C")
@@ -509,11 +509,11 @@ def test_area_board_view_buckets_by_stage_and_scopes_to_area(product_org):
 
     a = create_area(product_org, "A")
     other = create_area(product_org, "B")
-    create_slice(a, "no spec")                                  # needs_design
-    rts = create_slice(a, "all done", spec="s")
+    create_slice(a.org, area=a, title="no spec")                                  # needs_design
+    rts = create_slice(a.org, area=a, title="all done", spec="s")
     create_bite(rts, "b", status="done")                        # ready_to_ship
-    create_slice(a, "gone", status="dropped")                   # dropped
-    create_slice(other, "elsewhere")                            # different area
+    create_slice(a.org, area=a, title="gone", status="dropped")                   # dropped
+    create_slice(other.org, area=other, title="elsewhere")                            # different area
 
     view = area_board_view(a)
     groups = dict(view["groups"])
@@ -532,7 +532,7 @@ def test_area_board_view_buckets_by_stage_and_scopes_to_area(product_org):
 def test_your_turn_includes_specless_open_slice():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "started but undesigned", status="open")  # spec=""
+    s = create_slice(a.org, area=a, title="started but undesigned", status="open")  # spec=""
     items = your_turn(org)
     hit = [it for it in items if it.get("slice") and it["slice"].id == s.id]
     assert hit, "an open slice with no spec is blocked on a human"
@@ -543,7 +543,7 @@ def test_your_turn_includes_specless_open_slice():
 def test_your_turn_includes_slice_whose_bites_are_all_done():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "finished work", status="open", spec="designed")
+    s = create_slice(a.org, area=a, title="finished work", status="open", spec="designed")
     create_bite(s, "one", status="done")
     items = your_turn(org)
     hit = [it for it in items if it.get("slice") and it["slice"].id == s.id]
@@ -558,8 +558,8 @@ def test_your_turn_excludes_stages_an_agent_can_do():
     that — the Plan layer no longer factors into stage at all (Task 4)."""
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    bare = create_slice(a, "designed, no bites", status="open", spec="designed")
-    with_empty_plan = create_slice(a, "designed, has an empty plan", status="open", spec="designed")
+    bare = create_slice(a.org, area=a, title="designed, no bites", status="open", spec="designed")
+    with_empty_plan = create_slice(a.org, area=a, title="designed, has an empty plan", status="open", spec="designed")
     create_plan(with_empty_plan, title="Empty plan")
     ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
     assert bare.id not in ids
@@ -584,8 +584,8 @@ def test_your_turn_sorts_longest_blocked_first():
     would be a guilt list that only ever grows."""
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    recent = create_slice(a, "recent", status="open")
-    old = create_slice(a, "old", status="open")
+    recent = create_slice(a.org, area=a, title="recent", status="open")
+    old = create_slice(a.org, area=a, title="old", status="open")
     Slice.objects.filter(pk=old.pk).update(updated_at=timezone.now() - timedelta(days=30))
     titles = [it["slice"].title for it in your_turn(org) if it.get("slice")]
     assert titles == ["old", "recent"]
@@ -596,7 +596,7 @@ def test_your_turn_sorts_longest_blocked_first():
 def test_your_turn_is_empty_when_nothing_is_blocked():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "moving along", status="open", spec="designed")
+    s = create_slice(a.org, area=a, title="moving along", status="open", spec="designed")
     create_bite(s, "in flight", status="todo")
     assert your_turn(org) == []
 
@@ -613,7 +613,7 @@ def test_since_last_visit_badges_nothing_on_a_first_visit():
 
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "work", status="open")
+    s = create_slice(a.org, area=a, title="work", status="open")
     record_activity(org, actor="agent", verb="created", target=s)
 
     out = since_last_visit(org, _member(org))
@@ -630,7 +630,7 @@ def test_since_last_visit_counts_only_agent_events_as_new():
 
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "work", status="open")
+    s = create_slice(a.org, area=a, title="work", status="open")
     m = _member(org)
     mark_home_seen(m)
 
@@ -666,7 +666,7 @@ def test_since_last_visit_is_capped_and_newest_first():
 
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
-    s = create_slice(a, "work", status="open")
+    s = create_slice(a.org, area=a, title="work", status="open")
     for i in range(15):
         record_activity(org, actor="agent", verb="noted", target=s, body=f"n{i}")
 
@@ -681,7 +681,7 @@ def test_in_progress_band_follows_stage_not_status(org, area):
     """status를 손대지 않아도 bite가 진행 중이면 in progress에 나타난다.
     예전에는 status='building'을 사람이 켜야 했고, 아무도 안 켜서 밴드가
     상시 비어 있었다 (A0)."""
-    s = create_slice(area, "spec 있는 일", spec="왜 하는지", status="open")
+    s = create_slice(area.org, area=area, title="spec 있는 일", spec="왜 하는지", status="open")
     add_bites(s, [{"title": "첫 단계"}, {"title": "둘째 단계"}])
     update_bite(s.bites.first(), status="done")
 
@@ -696,8 +696,8 @@ def test_in_progress_band_follows_stage_not_status(org, area):
 def test_your_turn_lists_specless_open_slices(org, area):
     """spec이 비면 사람이 써야 한다 — 그게 '내 차례'다. 예전에는
     status='building'인 것만 봐서 이 밴드도 비어 있었다."""
-    create_slice(area, "설계 필요", spec="", status="open")
-    create_slice(area, "설계 끝남", spec="왜 하는지", status="open")
+    create_slice(area.org, area=area, title="설계 필요", spec="", status="open")
+    create_slice(area.org, area=area, title="설계 끝남", spec="왜 하는지", status="open")
 
     rows = [r for r in your_turn(area.org) if "slice" in r]
 
@@ -709,6 +709,6 @@ def test_your_turn_lists_specless_open_slices(org, area):
 @pytest.mark.django_db
 def test_shipped_slices_never_reach_your_turn(org, area):
     """끝난 일은 내 차례가 아니다."""
-    create_slice(area, "이미 나감", spec="", status="shipped")
+    create_slice(area.org, area=area, title="이미 나감", spec="", status="shipped")
 
     assert [r for r in your_turn(area.org) if "slice" in r] == []

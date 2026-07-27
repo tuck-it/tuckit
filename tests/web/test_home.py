@@ -79,8 +79,8 @@ def test_every_home_opener_uses_the_detail_modal(client_local, org):
     pushes the request url — reloading then renders the full slice page.
     """
     a = create_area(org, "Product")
-    create_slice(a, "Building slice", status="open")
-    create_slice(a, "Shipped slice", status="shipped")
+    create_slice(a.org, area=a, title="Building slice", status="open")
+    create_slice(a.org, area=a, title="Shipped slice", status="shipped")
     body = _body(client_local, org)
 
     assert "Building slice" in body and "Shipped slice" in body
@@ -93,7 +93,7 @@ def test_every_home_opener_uses_the_detail_modal(client_local, org):
 @pytest.mark.django_db
 def test_specless_building_slice_is_your_turn(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "Undesigned work", status="open")
+    create_slice(a.org, area=a, title="Undesigned work", status="open")
     body = _body(client_local, org)
     assert "Undesigned work" in body
     assert "write the spec" in body
@@ -127,7 +127,7 @@ def test_your_turn_and_in_progress_are_mutually_exclusive(client_local, org):
     `your turn`'s needs_design/ready_to_ship stages, so the two bands can no
     longer disagree about the same slice."""
     a = create_area(org, "Backend")
-    create_slice(a, "Undesigned work", status="open")   # needs_design -> your turn only
+    create_slice(a.org, area=a, title="Undesigned work", status="open")   # needs_design -> your turn only
     body = _body(client_local, org)
     assert "Undesigned work" in _band(body, "your turn")
     assert "Undesigned work" not in _band(body, "in progress")
@@ -138,8 +138,7 @@ def test_someday_tagged_executing_slice_is_not_hidden(client_local, org):
     """A `someday` tag must not hide a slice from `in progress` — staleness/
     someday is never a filter, only ever a sort key."""
     a = create_area(org, "Backend")
-    s = create_slice(a, "Parked but executing", status="open",
-                      spec="designed", tags=["someday"])
+    s = create_slice(a.org, area=a, title="Parked but executing", status="open", spec="designed", tags=["someday"])
     create_plan(s, title="Plan")
     create_bite(s, "step")
     body = _body(client_local, org)
@@ -149,7 +148,7 @@ def test_someday_tagged_executing_slice_is_not_hidden(client_local, org):
 @pytest.mark.django_db
 def test_stalled_building_slice_stays_listed(client_local, org):
     a = create_area(org, "Backend")
-    s = create_slice(a, "Stalled work", status="open", spec="designed")
+    s = create_slice(a.org, area=a, title="Stalled work", status="open", spec="designed")
     create_plan(s, title="Plan")
     create_bite(s, "todo", status="todo")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=30))
@@ -160,7 +159,7 @@ def test_stalled_building_slice_stays_listed(client_local, org):
 @pytest.mark.django_db
 def test_backlog_is_a_link_not_a_column(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "Queued work", status="open")
+    create_slice(a.org, area=a, title="Queued work", status="open")
     body = _body(client_local, org)
     flight = _band(body, "in progress")
     assert "Queued work" not in flight, "the backlog belongs to Board"
@@ -173,7 +172,7 @@ def test_agent_activity_badges_new_on_a_second_visit(client_local, org):
     from tuckit.core.services.activity import record_activity
 
     a = create_area(org, "Backend")
-    s = create_slice(a, "Work", status="open", spec="designed")
+    s = create_slice(a.org, area=a, title="Work", status="open", spec="designed")
 
     _body(client_local, org)                       # first visit sets the watermark
     record_activity(org, actor="agent", verb="shipped", target=s)
@@ -189,7 +188,7 @@ def test_first_visit_badges_nothing(client_local, org):
     from tuckit.core.services.activity import record_activity
 
     a = create_area(org, "Backend")
-    s = create_slice(a, "Distinctive title", status="open", spec="designed")
+    s = create_slice(a.org, area=a, title="Distinctive title", status="open", spec="designed")
     record_activity(org, actor="agent", verb="shipped", target=s)
 
     body = _body(client_local, org)
@@ -227,7 +226,7 @@ def test_home_in_progress_band_renders_executing_slice(client_local, org):
     flag — a slice only shows up once it actually has work underway (a plan
     with at least one open bite)."""
     a = create_area(org, "Backend")
-    s = create_slice(a, "진행 중인 일", spec="왜", status="open")
+    s = create_slice(a.org, area=a, title="진행 중인 일", spec="왜", status="open")
     create_plan(s, title="계획")
     create_bite(s, "한 걸음")
 

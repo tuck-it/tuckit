@@ -86,7 +86,7 @@ def test_slice_modal_card_declares_its_dialog_contract(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment integration")
+    s = create_slice(a.org, area=a, title="Payment integration")
     body = client_local.get(
         f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true"
     ).content.decode()
@@ -104,7 +104,7 @@ def test_slice_full_page_is_not_a_dialog(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment integration")
+    s = create_slice(a.org, area=a, title="Payment integration")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     # Only <main>. The skeleton <template> further down the page legitimately
     # contains .detail-card markup that is never rendered.
@@ -254,6 +254,6 @@ def test_long_form_editors_get_the_tall_modifier(client_local, org):
     assert 'class="spec-edit spec-edit--tall"' in body
 
     area = create_area(org, "Backend")
-    s = create_slice(area, "a slice")
+    s = create_slice(area.org, area=area, title="a slice")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="spec-edit spec-edit--tall"' in body

@@ -48,7 +48,7 @@ _INITIALIZE = {
 
 def _seed_token():
     org = Org.objects.create(name="Acme", slug="acme", description="demo product")
-    create_slice(create_area(org, "Backend"), "Auth", status="shipped")
+    create_slice(org, area=create_area(org, "Backend"), title="Auth", status="shipped")
     _token, raw_token = generate_token(org, "stateless-token")
     return raw_token
 
