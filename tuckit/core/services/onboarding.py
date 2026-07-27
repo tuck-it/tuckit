@@ -41,14 +41,14 @@ class OnboardingState:
 
 def onboarding_state(org: Org) -> OnboardingState:
     newest = (
-        Slice.objects.filter(area__org=org)
+        Slice.objects.filter(org=org)
         .order_by("-id").values_list("id", flat=True).first()
     )
     return OnboardingState(
         has_area=Area.objects.filter(org=org).exists(),
-        has_slice=Slice.objects.filter(area__org=org).exists(),
-        has_plan=Plan.objects.filter(slice__area__org=org).exists(),
-        has_bite=Bite.objects.filter(plan__slice__area__org=org).exists(),
+        has_slice=Slice.objects.filter(org=org).exists(),
+        has_plan=Plan.objects.filter(slice__org=org).exists(),
+        has_bite=Bite.objects.filter(plan__slice__org=org).exists(),
         connected=ActivityEvent.objects.filter(org=org, actor="agent").exists(),
         has_key=ApiToken.objects.filter(org=org).exists(),
         newest_slice_id=newest,

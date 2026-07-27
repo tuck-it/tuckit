@@ -31,7 +31,7 @@ def create_bite(
         b = Bite.objects.create(
             plan=plan_, title=title, body=body, status=status, rank=rank, source=source,
         )
-        record_activity(plan_.slice.area.org, actor=source, verb="created", target=b)
+        record_activity(plan_.slice.org, actor=source, verb="created", target=b)
     return b
 
 
@@ -72,7 +72,7 @@ def update_bite(
         bite.save()
         if status is not None and status != old_status:
             record_activity(
-                bite.plan.slice.area.org, actor=actor, verb=status_verb(status),
+                bite.plan.slice.org, actor=actor, verb=status_verb(status),
                 target=bite, from_value=old_status, to_value=status,
             )
     return bite
@@ -86,7 +86,7 @@ def set_bite_status(bite: Bite, status: str, *, actor: str = "human") -> Bite:
         bite.save(update_fields=["status", "updated_at"])
         if status != old_status:
             record_activity(
-                bite.plan.slice.area.org, actor=actor, verb=status_verb(status),
+                bite.plan.slice.org, actor=actor, verb=status_verb(status),
                 target=bite, from_value=old_status, to_value=status,
             )
     return bite
@@ -99,7 +99,7 @@ def reorder_bite(bite: Bite, *, before: Bite | None = None, after: Bite | None =
 
 
 def delete_bite(bite: Bite) -> None:
-    record_activity(bite.plan.slice.area.org, actor="human", verb="deleted", target=bite)
+    record_activity(bite.plan.slice.org, actor="human", verb="deleted", target=bite)
     bite.delete()
 
 

@@ -146,7 +146,7 @@ def home_state(org: Org) -> dict:
     # Postgres에서만 깨진다.
     slices = list(
         annotate_stage_counts(
-            Slice.objects.filter(area__org=org).select_related("area", "org")
+            Slice.objects.filter(org=org).select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("rank")
@@ -230,7 +230,7 @@ def your_turn(org: Org) -> list[dict]:
     # Postgres.
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(area__org=org, status="open")
+            Slice.objects.filter(org=org, status="open")
             .select_related("area", "org")
         )
         .prefetch_related("tags")
@@ -263,7 +263,7 @@ def roadmap_state(org: Org) -> dict:
     """Non-dropped slices grouped by roadmap status — powers the Roadmap board
     and its distribution counts."""
     slices = list(
-        Slice.objects.filter(area__org=org)
+        Slice.objects.filter(org=org)
         .exclude(status="dropped")
         .select_related("area", "org")
         .prefetch_related("tags")
@@ -314,7 +314,7 @@ def roadmap_board_view(org: Org) -> dict:
     # it). area__name, rank matches roadmap_state's within-column order.
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(area__org=org).select_related("area", "org")
+            Slice.objects.filter(org=org).select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("area__name", "rank")

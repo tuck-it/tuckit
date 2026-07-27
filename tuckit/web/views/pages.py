@@ -58,7 +58,7 @@ def roadmap(request):
         # Focused single-status flat list — the "view all" / archive surface.
         if status == "dropped":
             filter_slices = list(
-                Slice.objects.filter(area__org=org, status="dropped")
+                Slice.objects.filter(org=org, status="dropped")
                 .select_related("area", "org").prefetch_related("tags")
                 .order_by("area__name", "rank")
             )

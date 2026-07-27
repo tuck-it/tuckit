@@ -30,7 +30,7 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
     # queries per row. Must precede the .distinct() and the slice below —
     # annotating an already-sliced queryset raises.
     qs = annotate_stage_counts(
-        Slice.objects.filter(area__org=org).select_related("area", "assignee__user", "org")
+        Slice.objects.filter(org=org).select_related("area", "assignee__user", "org")
     )
     if area is not None:
         qs = qs.filter(area=area)
@@ -152,10 +152,10 @@ def update_slice(
     with transaction.atomic():
         slice_.save()
         if tags is not None:
-            slice_.tags.set(get_or_create_tags(slice_.area.org, tags))
+            slice_.tags.set(get_or_create_tags(slice_.org, tags))
         if status is not None and status != old_status:
             record_activity(
-                slice_.area.org, actor=actor, verb=status_verb(status),
+                slice_.org, actor=actor, verb=status_verb(status),
                 target=slice_, from_value=old_status, to_value=status,
             )
     return slice_
@@ -183,7 +183,7 @@ def set_slice_status(slice_: Slice, status: str, *, actor: str = "human") -> Sli
         slice_.save(update_fields=["status", "completed_at", "updated_at"])
         if status != old_status:
             record_activity(
-                slice_.area.org, actor=actor, verb=status_verb(status),
+                slice_.org, actor=actor, verb=status_verb(status),
                 target=slice_, from_value=old_status, to_value=status,
             )
     return slice_

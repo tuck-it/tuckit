@@ -12,7 +12,7 @@ def get_plan(slice_):
 
 def create_plan(slice_, *, title="", body="", constraints="", actor="human"):
     plan = Plan.objects.create(slice=slice_, title=title, body=body, constraints=constraints, source=actor)
-    record_activity(slice_.area.org, actor=actor, verb="planned", target=slice_)
+    record_activity(slice_.org, actor=actor, verb="planned", target=slice_)
     return plan
 
 
@@ -24,7 +24,7 @@ def update_plan(plan, *, title=None, body=None, constraints=None, actor="human")
             changed = True
     if changed:
         plan.save()
-        record_activity(plan.slice.area.org, actor=actor, verb="planned", target=plan.slice)
+        record_activity(plan.slice.org, actor=actor, verb="planned", target=plan.slice)
     return plan
 
 
