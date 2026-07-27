@@ -67,6 +67,10 @@ class Slice(models.Model):
     duplicate_of = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="duplicates",
     )
+    created_by = models.ForeignKey(
+        "core.OrgMember", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="created_slices",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -192,7 +196,11 @@ class Bite(models.Model):
     ]
     SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
 
-    plan = models.ForeignKey("Plan", on_delete=models.CASCADE, related_name="bites")
+    # Nullable so Slice-direct bites (no Plan) can exist — column removal is
+    # deferred to 0047; this release only loosens the constraint.
+    plan = models.ForeignKey(
+        "Plan", null=True, blank=True, on_delete=models.CASCADE, related_name="bites",
+    )
     slice = models.ForeignKey(
         "Slice", null=True, blank=True, on_delete=models.CASCADE, related_name="bites",
     )

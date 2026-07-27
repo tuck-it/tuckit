@@ -436,3 +436,60 @@ def test_backward_refuses_to_run():
     mod = importlib.import_module("tuckit.core.migrations.0045_fold_tickets_and_plans")
     with pytest.raises(RuntimeError, match="되돌릴 수 없다"):
         mod.backward(None, None)
+
+
+# --- 0046: created_by 백필 -------------------------------------------------
+
+BEFORE_0046 = ("core", "0045_fold_tickets_and_plans")
+AFTER_0046 = ("core", "0046_schema_repair")
+
+
+@pytest.mark.django_db
+def test_created_by_is_backfilled_from_the_origin_ticket(migrator: Migrator):
+    """0045가 만든 슬라이스는 티켓의 작성자를 물려받아야 한다.
+
+    0046 시점에 Ticket 테이블은 아직 살아 있으므로(파괴적 제거는 마지막
+    마이그레이션), number로 짝지어 백필할 수 있다."""
+    old = migrator.apply_initial_migration(BEFORE_0046)
+    Org = old.apps.get_model("core", "Org")
+    User = old.apps.get_model("core", "User")
+    OrgMember = old.apps.get_model("core", "OrgMember")
+    Ticket = old.apps.get_model("core", "Ticket")
+    Slice = old.apps.get_model("core", "Slice")
+
+    org = Org.objects.create(name="O", slug="o", key="O", next_slice_number=9)
+    user = User.objects.create(email="a@b.com")
+    member = OrgMember.objects.create(user=user, org=org, role="owner")
+    Ticket.objects.create(
+        org=org, title="캡처", body="", status="open", number=7, rank="m",
+        created_by=member,
+    )
+    # 0045가 이미 적용된 상태에서 시작하므로, 0045가 만들었을 슬라이스를 직접 재현한다.
+    Slice.objects.create(org=org, title="캡처", spec="", rank="m", number=7)
+
+    new = migrator.apply_tested_migration(AFTER_0046)
+    NewSlice = new.apps.get_model("core", "Slice")
+    s = NewSlice.objects.get(number=7)
+    assert s.created_by_id == member.id
+
+
+@pytest.mark.django_db
+def test_created_by_stays_null_when_the_ticket_never_had_one(migrator: Migrator):
+    old = migrator.apply_initial_migration(BEFORE_0046)
+    Org = old.apps.get_model("core", "Org")
+    Ticket = old.apps.get_model("core", "Ticket")
+    Slice = old.apps.get_model("core", "Slice")
+
+    org = Org.objects.create(name="O", slug="o", key="O", next_slice_number=9)
+    Ticket.objects.create(org=org, title="캡처", body="", status="open", number=7, rank="m")
+    Slice.objects.create(org=org, title="캡처", spec="", rank="m", number=7)
+
+    new = migrator.apply_tested_migration(AFTER_0046)
+    NewSlice = new.apps.get_model("core", "Slice")
+    assert NewSlice.objects.get(number=7).created_by_id is None
+
+
+def test_0046_backward_is_a_safe_no_op():
+    """필드를 지우면 값도 사라지지만, 원본(Ticket)이 그대로 남아 있어 정보 손실이 없다."""
+    mod = importlib.import_module("tuckit.core.migrations.0046_schema_repair")
+    assert mod.backward(None, None) is None

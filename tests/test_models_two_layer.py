@@ -33,3 +33,13 @@ def test_blank_external_keys_do_not_collide(org, area):
     Slice.objects.create(org=org, area=area, title="a", rank="m", number=1, external_key="")
     Slice.objects.create(org=org, area=area, title="b", rank="n", number=2, external_key="")
     assert Slice.objects.filter(external_key="").count() == 2
+
+
+@pytest.mark.django_db
+def test_bite_can_exist_without_a_plan(org, area):
+    """Task 5의 전제. plan이 NOT NULL이면 Slice 직결 자체가 불가능하다."""
+    from tuckit.core.models import Bite, Slice
+
+    s = Slice.objects.create(org=org, area=area, title="s", rank="m", number=1)
+    b = Bite.objects.create(slice=s, plan=None, title="단계", rank="a0")
+    assert b.plan_id is None and b.slice_id == s.id
