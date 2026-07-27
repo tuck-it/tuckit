@@ -566,74 +566,47 @@ body { padding: 0; }
 }
 .slice-add-input:focus { border-color: var(--blue); outline: 2px solid var(--blue); outline-offset: 1px; }
 
-/* Triage row — bare flex row inside .list-card (which supplies surface + dividers);
-   the Area/Status selects are quiet until the row is hovered/focused. */
-.ticket-row {
+/* Inbox row — bare flex row inside .list-card (which supplies surface +
+   dividers). One click target (open the slice) and one control (the Area
+   picker); there is no separate controls-on-hover reveal any more because
+   there is nothing to hide until hovered — a single always-visible select
+   is not visual noise the way a row of Promote/Dismiss buttons was. */
+.inbox-row {
+  min-height: 62px;
   line-height: 1.5;
   padding: 9px var(--space-14);
   display: flex;
   align-items: center;
   gap: 11px;
 }
-.ticket-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  opacity: 0.7;
-  transition: opacity 0.15s var(--ease);
+.inbox-row:hover { background: var(--paper-deep); }
+/* The row's click target for opening the slice modal. Reset to read as text,
+   not a control — it carries .inbox-row-title/.inbox-row-when. */
+.inbox-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
 }
-.ticket-row:hover .ticket-controls,
-.ticket-row:focus-within .ticket-controls { opacity: 1; }
-.ticket-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--ink-faint);
-  font-size: 12px;
-}
-.ticket-select {
+.inbox-row-main:hover .inbox-row-title { color: var(--blue); }
+.inbox-row-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-row-when { margin-left: auto; flex: 0 0 auto; }
+.inbox-area-select {
+  flex: 0 0 auto;
+  min-height: 30px;
   background: var(--paper-raised);
   border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--ink);
   font: inherit;
   font-size: 12px;
-  padding: 3px 6px;
+  padding: 4px 8px;
 }
-.ticket-select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
-/* Dismiss — quiet icon action; rides the same hover-reveal as the selects. */
-.ticket-dismiss {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-small);
-  color: var(--ink-faint);
-  cursor: pointer;
-  padding: var(--space-4);
-}
-.ticket-dismiss:hover { border-color: var(--line); }
-.ticket-dismiss:hover .icon { stroke: var(--ink); }
-.ticket-dismiss .icon { width: 14px; height: 14px; }
-
-/* Title + body preview: the row's click target for opening the ticket modal.
-   Reset to read as text, not a control — it carries .row-title/.row-desc. */
-.ticket-open {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  overflow: hidden;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.ticket-open:hover .row-title { color: var(--blue); }
+.inbox-area-select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 
 /* Ticket contents. The box itself (size, surface, border) comes from
    .detail-card, the same one a slice gets — that is the whole point of the
@@ -694,8 +667,9 @@ body { padding: 0; }
    34px button under align-items:center, and that height spread is what made
    three parts of one sentence read as three unrelated things.
 
-   Deliberately NOT .ticket-field/.ticket-select — the Inbox row shares those,
-   and its control heights belong to the control-height slice, not this one. */
+   Deliberately its own classes, not .inbox-area-select — this select's
+   control height belongs to the triage form's own height scale, not the
+   Inbox row's (dense list vs. a modal that wants a bigger target). */
 .triage-row {
   display: flex;
   align-items: center;
@@ -1426,20 +1400,16 @@ body.modal-open { overflow: hidden; }
   overflow: hidden;
 }
 .list-card .slice-row,
-.list-card .ticket-row {
+.list-card .inbox-row {
   border-bottom: 1px solid var(--line);
   border-radius: 0;
 }
 .list-card .slice-row:last-child,
-.list-card .ticket-row:last-child { border-bottom: 0; }
+.list-card .inbox-row:last-child { border-bottom: 0; }
 
 /* Inbox is an operation queue. Preserve the row scanline while making each
    assignment control feel like an intentional decision, not stray metadata. */
 .group--inbox .list-card { box-shadow: 0 1px 2px var(--shadow); }
-.ticket-row { min-height: 62px; }
-.ticket-row:hover { background: var(--paper-deep); }
-.ticket-controls { margin-left: auto; }
-.ticket-select { min-height: 30px; padding: 4px 8px; }
 
 /* Attention reason: plain warm text, never a badge. */
 .row-reason {
@@ -2355,10 +2325,10 @@ html.sidebar-collapsed .side-resize { display: none; }
    a pseudo-element instead of the painted box — nothing moves, everything
    becomes hittable. The bite checkbox is the most-pressed control in the
    product and was the smallest at 16x16. --- */
-.checkbox, .bite-chev, .ticket-dismiss, .area-act, .tag-x, .crumb-close, .gs-dismiss {
+.checkbox, .bite-chev, .area-act, .tag-x, .crumb-close, .gs-dismiss {
   position: relative;
 }
-.checkbox::after, .bite-chev::after, .ticket-dismiss::after,
+.checkbox::after, .bite-chev::after,
 .area-act::after, .tag-x::after, .crumb-close::after, .gs-dismiss::after {
   content: "";
   position: absolute;
@@ -2585,7 +2555,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: none; }
 }
-.slice-row, .slice-card, .ticket-row, .area-inbox-row { animation: item-enter .28s var(--ease); }
+.slice-row, .slice-card, .inbox-row, .area-inbox-row { animation: item-enter .28s var(--ease); }
 
 /* Shape ④ exit: morph adds this class just before it removes the node, then
    waits for the animation. Without morph the node is already gone here. */
@@ -2598,7 +2568,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 /* Motion is the decoration; the state is not. Under reduced-motion the warmth
    still shows and the label still reads — only the tweening stops. */
 @media (prefers-reduced-motion: reduce) {
-  .slice-row, .slice-card, .ticket-row, .area-inbox-row { animation: none; }
+  .slice-row, .slice-card, .inbox-row, .area-inbox-row { animation: none; }
   .is-leaving { animation: none; opacity: 0; }
   .row-prog-track i { transition: none; }
   .slice-card { transition: none; }

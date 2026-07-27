@@ -4,9 +4,9 @@ import pytest
 
 @pytest.mark.django_db
 def test_inbox_heading_has_count_and_capture(client_local, org):
-    from tuckit.core.services.tickets import create_ticket
+    from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    create_ticket(org, "loose end")
+    create_slice(org, title="loose end")
     body = client_local.get(f"{p}/inbox/").content.decode()
     assert 'class="page-head"' in body
     assert 'class="page-count"' in body
@@ -14,14 +14,16 @@ def test_inbox_heading_has_count_and_capture(client_local, org):
 
 
 @pytest.mark.django_db
-def test_ticket_row_shows_provenance_and_english_controls(client_local, org):
-    from tuckit.core.services.tickets import create_ticket
+def test_inbox_row_shows_the_area_picker_in_english(client_local, org):
+    """Task 9: the Inbox lists Slices, not Tickets — one control (the Area
+    picker), no separate Status field, no legacy em-dash placeholder."""
+    from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    create_ticket(org, "loose end")
+    create_slice(org, title="loose end")
     body = client_local.get(f"{p}/inbox/").content.decode()
-    assert 'class="ticket-controls"' in body        # controls grouped for reveal
+    assert 'class="inbox-area-select"' in body
     assert "Choose area" in body
-    assert ">Status" in body
+    assert ">Status" not in body
     assert "— Choose an area —" not in body
 
 

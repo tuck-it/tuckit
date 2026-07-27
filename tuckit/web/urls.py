@@ -104,9 +104,13 @@ app_patterns = [
     path(f"{P}slices/<int:slice_id>/tags", mutations.slice_tags, name="slice_tags"),
     path(f"{P}slices/<int:slice_id>/reassign", mutations.slice_reassign, name="slice_reassign"),
     path(f"{P}slices/<int:slice_id>/move", board.slice_move, name="slice_move"),
+    # Triage = picking an Area (reversible: an empty area_id sends the slice
+    # back to the Inbox). Replaces the old Ticket-based promote/dismiss flow
+    # for the Inbox screen; the Ticket routes below stay live for the
+    # still-existing Area-page triage strip and Ticket modal (Task 10/11).
+    path(f"{P}slices/<int:slice_id>/area", mutations.slice_area, name="slice_area"),
     path(f"{P}tickets/<int:ticket_id>/", capture.ticket_detail, name="ticket"),
     path(f"{P}tickets/<int:ticket_id>/edit", capture.ticket_edit, name="ticket_edit"),
-    path(f"{P}tickets/<int:ticket_id>/promote", capture.ticket_promote, name="ticket_promote"),
     path(f"{P}tickets/<int:ticket_id>/dismiss", capture.ticket_dismiss, name="ticket_dismiss"),
     path(f"{P}tickets/<int:ticket_id>/reopen", capture.ticket_reopen, name="ticket_reopen"),
     path(f"{P}tickets/slice-options", capture.ticket_slice_options, name="ticket_slice_options"),

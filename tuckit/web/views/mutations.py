@@ -1,5 +1,7 @@
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.resolve import get_slice, get_bite, get_plan as resolve_plan, get_area
@@ -64,6 +66,42 @@ def slice_reassign(request, slice_id):
         raise Http404
     set_slice_area(slice_, area)
     return _detail(request, slice_)
+
+
+@require_POST
+def slice_area(request, slice_id):
+    """The Inbox row's one control: file a slice into an Area, or clear it
+    (empty area_id) to send it back to the Inbox. Both directions are the
+    same endpoint on purpose — un-triaging is un-picking an area, not a
+    separate "undo promote" action, because there is no promotion left to
+    undo.
+
+    Reuses capture._inbox_result() for the toast + OOB list/count refresh
+    rather than re-rendering the detail panel the way slice_reassign() does:
+    this fires from the Inbox list, not a slice's own page, so there is no
+    detail panel on screen to update."""
+    from tuckit.web.views.capture import _inbox_result
+
+    org = get_current_org(request)
+    slice_ = _slice_or_404(request, slice_id)
+    raw = request.POST.get("area_id") or ""
+    try:
+        area = get_area(org, int(raw)) if raw else None
+    except (NotFound, ValueError):
+        raise Http404
+    old = slice_.area
+    set_slice_area(slice_, area)
+    message = f"Filed in {area.name}." if area else "Moved back to Inbox."
+    return _inbox_result(
+        request, org, message,
+        undo_url=reverse("web:slice_area", args=[org.slug, slice_.id]),
+        undo_label="Undo",
+        # A bare re-POST to undo_url clears the area (area_id defaults to "").
+        # That is correct for undoing a *file*, but undoing a *clear* needs to
+        # restore whatever area it left — hence the old area rides along as
+        # the value Undo will submit.
+        undo_area_id=old.id if old else "",
+    )
 
 
 def plan_create(request, slice_id):

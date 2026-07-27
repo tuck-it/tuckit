@@ -8,20 +8,15 @@ from django.urls import reverse
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.areas import create_area, list_areas, update_area, delete_area, reorder_area
-from tuckit.core.services.slices import create_slice, set_slice_status
+from tuckit.core.services.slices import create_slice, inbox_slices
 from tuckit.core.services.state import area_board_view
-from tuckit.core.services.tickets import (
-    query_tickets, ticket_queryset, promote_ticket, reopen_ticket,
-    resolve_ticket, update_ticket,
-)
+from tuckit.core.services.tickets import promote_ticket, reopen_ticket, resolve_ticket, update_ticket
 from tuckit.web.detail import render_markdown_html
 from tuckit.core.services.resolve import get_area, get_ticket, get_area_by_slug, get_slice
 from tuckit.core.services.slices import query_slices
 from tuckit.core.services.tickets import absorb_ticket, origin_ticket, release_ticket
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import refresh_rollup, widget_oob
-
-_SLICE_STATUSES = ["open", "shipped"]
 
 
 def capture(request):
@@ -58,44 +53,41 @@ def capture(request):
                          f"Captured in {area.name}." if area else "Captured to Inbox.")
 
 
-_REVIEWABLE_TICKET_STATUSES = {"dismissed", "duplicate"}
-
-
 def inbox(request):
-    """The Inbox (open tickets), plus a ?status= review surface for tickets that
-    were triaged away — same URL, same list, mirroring the Board's shipped
-    archive. Without it a dismissal is a one-way door with nothing on the
-    other side."""
+    """The Inbox: area-less open Slices, newest first (inbox_slices() in
+    core/services/slices.py is the single predicate for "is this unfiled").
+    Triage is picking an Area on the row — reversible, since clearing it
+    (set_slice_area(slice_, None)) sends the slice right back here. There is
+    no dismiss/duplicate review surface any more: those were Ticket-only
+    concepts and a Slice has nothing equivalent to review."""
     org = get_current_org(request)
-    status = request.GET.get("status")
-    resolved_view = status if status in _REVIEWABLE_TICKET_STATUSES else ""
     return render(request, "web/inbox.html", {
-        "tickets": query_tickets(org, status=resolved_view or "open"),
+        "slices": list(inbox_slices(org)),
         "areas": list(list_areas(org)),
-        "statuses": _SLICE_STATUSES,
-        "resolved_view": resolved_view,
-        "dismissed_count": ticket_queryset(org, status="dismissed").count(),
     })
 
 
-def _inbox_result(request, org, message, *, resolved_view="", undo_url="", undo_label="Undo"):
-    """Response for an action that moves a ticket out of (or back into) the
+def _inbox_result(request, org, message, *, undo_url="", undo_label="Undo", undo_area_id=None):
+    """Response for an action that moves a Slice out of (or back into) the
     Inbox: OOB-swap the whole list — so the empty state reappears — plus the
     sidebar count and a toast. The row itself needs no target; the caller uses
     hx-swap="none".
 
-    `resolved_view` names the list the user is looking at, so restoring from
-    ?status=dismissed re-renders the dismissed list rather than swapping the
-    open one in under a "Dismissed" heading."""
+    `undo_area_id` is the area the slice is leaving (None -> Inbox, else that
+    area's id). A bare re-POST to `undo_url` with no body always clears the
+    area — correct for undoing a file, but a no-op for undoing a clear. Passing
+    it lets the toast's Undo button carry the OLD area back as `area_id`, so
+    Undo reverses whichever direction actually happened, not just one of them.
+
+    Also reused by the (still-live) Ticket triage modal's actions — those OOB
+    targets are simply absent outside the Inbox page, and htmx silently skips
+    an OOB swap with no matching target on screen."""
     resp = render(request, "web/partials/_capture_result.html", {
-        "tickets": query_tickets(org, status=resolved_view or "open"),
-        "areas": list(list_areas(org)),
-        "statuses": _SLICE_STATUSES,
-        "resolved_view": resolved_view,
-        "dismissed_count": ticket_queryset(org, status="dismissed").count(),
+        "slices": list(inbox_slices(org)),
         "toast_message": message,
         "undo_url": undo_url,
         "undo_label": undo_label,
+        "undo_area_id": undo_area_id,
     })
     # Home/Board show derived counts that these OOB swaps do not touch.
     return refresh_rollup(request, resp)
@@ -143,27 +135,16 @@ def ticket_edit(request, ticket_id):
         kwargs["body"] = request.POST["body"]
     if kwargs:
         ticket = update_ticket(ticket, actor="human", **kwargs)
-    html = render_to_string("web/partials/_ticket_modal.html", {
-        "ticket": ticket,
-        "areas": list(list_areas(org)),
-        "body_html": render_markdown_html(ticket.body),
-        "promoted_slice": getattr(ticket, "slice", None),
-        # Release is offered only on absorbed tickets: the origin gave the
-        # slice its ref and release_ticket() refuses it.
-        "is_origin": ticket.slice is not None and origin_ticket(ticket.slice) == ticket,
-    }, request=request)
-    # The row behind the modal shows title and a body preview — keep it in step.
-    return HttpResponse(html + render_to_string(
-        "web/partials/_ticket_list.html",
-        {"tickets": query_tickets(org), "areas": list(list_areas(org)),
-         "statuses": _SLICE_STATUSES, "oob": True},
-        request=request,
-    ))
+    # No more row-behind-the-modal to keep in sync: the Inbox no longer lists
+    # Tickets at all (Task 9), so _ticket_modal() alone is the whole response.
+    return _ticket_modal(request, org, ticket)
 
 
 def ticket_dismiss(request, ticket_id):
-    """Triage a ticket away without building it. Recoverable: it stays readable
-    under ?status=dismissed and can be restored from there."""
+    """Triage a ticket away without building it. Recoverable via Restore in
+    the modal itself (ticket_reopen) — there is no browsable review list any
+    more (that was the old Ticket-based Inbox's ?status=dismissed, retired
+    along with the rest of that screen in Task 9)."""
     org = get_current_org(request)
     ticket = _ticket_or_404(org, ticket_id)
     resolve_ticket(ticket, "dismissed", actor="human")
@@ -179,42 +160,7 @@ def ticket_reopen(request, ticket_id):
         reopen_ticket(_ticket_or_404(org, ticket_id), actor="human")
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
-    # Restore is only reachable from the dismissed review list — stay on it.
-    return _inbox_result(request, org, "Back in the Inbox.", resolved_view="dismissed")
-
-
-def ticket_promote(request, ticket_id):
-    """Promote an Inbox Ticket into a Slice, in one action: pick the area (and
-    optionally set an initial status other than the promoted default). Status
-    is validated before anything is mutated, so an invalid status 400s without
-    leaving the ticket half-promoted."""
-    from tuckit.core.models import Slice
-    from tuckit.core.services.validation import validate_choice
-
-    org = get_current_org(request)
-    area_id = request.POST.get("area_id")
-    status = request.POST.get("status")
-    try:
-        ticket = get_ticket(org, ticket_id)
-        area = get_area(org, int(area_id)) if area_id else None
-    except NotFound:
-        raise Http404
-    if area is None:
-        return HttpResponse("Choose an area", status=400)
-    if status:
-        try:
-            validate_choice(status, Slice.STATUS_CHOICES, "status")
-        except InvalidValue as e:
-            return HttpResponse(str(e), status=400)
-    try:
-        # Idempotent for a double-submit; only a non-open ticket (already
-        # dismissed) reaches the error path.
-        slice_ = promote_ticket(ticket, area=area, actor="human")
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-    if status and status != slice_.status:
-        set_slice_status(slice_, status, actor="human")
-    return _inbox_result(request, org, "Promoted to a slice.")
+    return _inbox_result(request, org, "Back in the Inbox.")
 
 
 def area_create(request):
@@ -402,8 +348,12 @@ def ticket_triage(request, ticket_id):
     filtered a list of slices. That is a single decision ("where does this
     go?"), so it is now one form and one endpoint, and `slice_id` is its branch.
 
-    Note this is NOT ticket_promote: the Inbox row still posts there, with its
-    own area+status pair and its own irreversibility confirm."""
+    This is the Ticket modal's own triage action (still live — see
+    _ticket_modal.html, reachable from the Area page's Inbox strip). It is
+    unrelated to the Slice-based Inbox screen's Area picker (slice_area() in
+    mutations.py, POST /slices/<id>/area) — the old ticket_promote() this
+    docstring used to distinguish itself from was that screen's one-way
+    promote button, retired in Task 9 along with the rest of that row."""
     org = get_current_org(request)
     try:
         ticket = get_ticket(org, ticket_id)

@@ -14,7 +14,6 @@ from tuckit.core.services.areas import create_area, list_areas
 from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.tickets import create_ticket
 from tests.web.conftest import bite_under_plan
 
 STATIC = Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web"
@@ -152,20 +151,26 @@ def test_dialogs_focus_themselves_without_a_cross_scope_ref(client_local, org):
 # --- Destructive / one-way actions -----------------------------------------
 
 @pytest.mark.django_db
-def test_inbox_row_does_not_auto_promote(client_local, org):
-    """Changing the Area select alone used to promote the ticket immediately.
-    promote_ticket() ends a ticket's lifecycle and reopen_ticket() refuses
-    promoted tickets, so a stray dropdown change was unrecoverable."""
+def test_inbox_row_change_immediately_files_with_no_confirm(client_local, org):
+    """Task 9 superseded the guard this test used to enforce (a stray Area
+    select change must not silently promote a Ticket, because promote_ticket()
+    ended the ticket's lifecycle and reopen_ticket() refused a promoted one —
+    unrecoverable, so it needed an explicit disabled-until-chosen button and an
+    hx-confirm saying so).
+
+    The Inbox now lists Slices, and a Slice's Area is fully reversible in both
+    directions (set_slice_area(slice_, None) undoes it) — so there is nothing
+    left to confirm, and an immediate hx-trigger="change" is the correct,
+    intended behavior rather than the bug this test used to catch."""
     create_area(org, "Backend")
-    create_ticket(org, "Invoice PDF is blank", source="human")
+    create_slice(org, title="Invoice PDF is blank")
     body = client_local.get(f"{_p(org)}/inbox/").content.decode()
 
-    row = re.search(r'<div class="ticket-row"[^>]*>', body).group(0)
-    assert 'hx-trigger="change"' not in row, "a select change must not mutate anything"
-    assert "<form class=\"ticket-row\"" not in body, "the row must not be a self-submitting form"
-    assert ">Promote</button>" in body, "promotion needs an explicit control"
-    assert ":disabled=\"!area\"" in body, "and it stays disabled until an area is chosen"
-    assert "cannot be undone" in body, "the confirm must say the action is one-way"
+    row = re.search(r'<div class="inbox-row"[^>]*>', body).group(0)
+    assert row, "the Inbox row markup must be present"
+    select = re.search(r'<select class="inbox-area-select"[^>]*>', body).group(0)
+    assert 'hx-trigger="change"' in select, "picking an area files it immediately — no separate submit"
+    assert "hx-confirm" not in select, "filing/clearing an area is reversible, so nothing needs confirming"
 
 
 @pytest.mark.django_db

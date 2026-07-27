@@ -1,0 +1,10 @@
+{% comment %}
+  The Inbox list. #inbox-list is the OOB target: capture and the Area picker
+  both swap this whole container back in — not just the one row that
+  changed — so the empty state reappears the instant the last item leaves.
+  Mirrors the old Ticket-based list's id="ticket-list" pattern.
+{% endcomment %}
+<div class="list-card" id="inbox-list"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% for slice in slices %}{% include "web/partials/_inbox_row.html" %}{% endfor %}
+  {% if not slices %}<div class="all-clear" id="inbox-empty"><span>Inbox is empty. Everything is filed.</span></div>{% endif %}
+</div>

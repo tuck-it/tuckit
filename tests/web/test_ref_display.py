@@ -47,10 +47,11 @@ def test_slice_detail_shows_a_copyable_ref(client_local, org):
 
 
 @pytest.mark.django_db
-def test_inbox_row_shows_the_ticket_ref(client_local, org):
-    t = create_ticket(org, "Captured thing")
+def test_inbox_row_shows_the_slice_ref(client_local, org):
+    """Task 9: the Inbox lists area-less Slices, not Tickets."""
+    s = create_slice(org, title="Captured thing")
     body = client_local.get(f"/{org.slug}/inbox/").content.decode()
-    assert ticket_ref(t) in body
+    assert slice_ref(s) in body
 
 
 @pytest.mark.django_db

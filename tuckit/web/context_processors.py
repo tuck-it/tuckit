@@ -30,15 +30,19 @@ def sidebar_areas(request):
 
 
 def inbox_count(request):
-    """Expose the org's open (untriaged) Ticket count to every template so
-    the sidebar can show a muted count badge next to Inbox. Runs on every
-    request, so it counts in the DB rather than hydrating the rows."""
-    from tuckit.core.services.tickets import ticket_queryset
+    """Expose the org's Inbox (area-less, open) Slice count to every template
+    so the sidebar can show a muted count badge next to Inbox. Runs on every
+    request, so it counts in the DB rather than hydrating the rows.
+
+    Was Ticket-based until Task 9: capture had already switched to creating
+    Slices (Task 8), so this badge sat frozen — reading inbox_slices() here is
+    what makes it move again."""
+    from tuckit.core.services.slices import inbox_slices
 
     org = current_org_or_fallback(request)
     if not org:
         return {}
-    return {"inbox_count": ticket_queryset(org).count()}
+    return {"inbox_count": inbox_slices(org).count()}
 
 
 def switchable_orgs(request):
