@@ -1,13 +1,15 @@
-"""캡처는 언제나 Ticket을 만든다. Area는 분기 장치가 아니라 선택적 분류이므로,
-area를 골라도 티켓은 open인 채로 Inbox에 남는다. Slice는 Area 페이지의
-"+ New slice" 또는 티켓 promote로만 생긴다.
+"""캡처는 이제 언제나 Slice를 만든다 — Slice가 유일한 작업 단위이므로 더는
+분기할 Ticket이 없다. Area는 분류가 아니라 목적지 그 자체다: 고르면 그
+자리에 바로 파일링되고, 비우면 area 없는 Slice로 Inbox에 남는다. 둘 다 진짜
+목적지이지, 어느 한쪽이 "아직 결정 안 된" 임시 상태인 게 아니다.
 
-이전 버전은 정반대였다 — area를 채우면 Slice가 만들어지고 그 슬라이스로
-리다이렉트됐다. 그래서 "area는 아는데 아직 할지는 모르겠는" 아이디어를
-넣을 방법이 아예 없었다."""
+Task 8 이전에는 정반대였다 — 캡처는 언제나 Ticket을 만들었고, area를 골라도
+그 Ticket은 여전히 open인 채로 Inbox에 남았다(파일링과 커밋은 다른 축이라는
+전제). 그 전제가 이제 이 화면에서는 사라졌다: 유닛이 하나(Slice)뿐이므로
+파일링이 곧 커밋이다."""
 import pytest
 
-from tuckit.core.models import Org, Slice, Ticket
+from tuckit.core.models import Org, Slice
 from tuckit.core.services.areas import create_area
 
 
@@ -15,58 +17,63 @@ P = lambda org: f"/{org.slug}"
 
 
 @pytest.mark.django_db
+def test_capture_without_area_creates_an_inbox_slice(client_local, org):
+    r = client_local.post(f"/{org.slug}/capture", {"title": "떠오른 것", "spec": "본문"})
+    assert r.status_code == 200
+    s = Slice.objects.get(title="떠오른 것")
+    assert s.area_id is None and s.spec == "본문"
+
+
+@pytest.mark.django_db
+def test_capture_with_area_files_it_immediately(client_local, org, area):
+    client_local.post(
+        f"/{org.slug}/capture", {"title": "정리됨", "spec": "", "area_id": area.id},
+    )
+    assert Slice.objects.get(title="정리됨").area_id == area.id
+
+
+@pytest.mark.django_db
+def test_capture_modal_says_slice_not_ticket(client_local, org):
+    body = client_local.get(f"/{org.slug}/").content.decode()
+    assert "New slice" in body
+    assert "New ticket" not in body
+
+
+@pytest.mark.django_db
 def test_capture_title_only_stays_quick(client_local, org):
-    """Title만: unfiled Ticket, 200 토스트 번들, 리다이렉트 없음."""
+    """Title만: area 없는 open Slice, 200 토스트 번들, 리다이렉트 없음."""
     resp = client_local.post(f"{P(org)}/capture", {"title": "quick one"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     assert "HX-Redirect" not in resp
-    t = Ticket.objects.get(title="quick one")
-    assert t.area is None and t.status == "open"
+    s = Slice.objects.get(title="quick one")
+    assert s.area is None and s.status == "open"
 
 
 @pytest.mark.django_db
-def test_capture_with_an_area_still_makes_an_open_ticket(client_local, org):
-    """핵심 반전. area를 고르는 것은 분류이지 약속이 아니다 — 티켓은 open으로
-    남고 Slice는 생기지 않는다."""
-    backend = create_area(org, "Backend")
-    resp = client_local.post(
-        f"{P(org)}/capture", {"title": "in area", "area_id": backend.id}, HTTP_HX_REQUEST="true"
-    )
-    assert resp.status_code == 200
-    assert "HX-Redirect" not in resp
-    t = Ticket.objects.get(title="in area")
-    assert t.area_id == backend.id and t.status == "open"
-    assert not Slice.objects.filter(title="in area").exists()
-
-
-@pytest.mark.django_db
-def test_capture_note_without_area_makes_a_ticket_with_a_body(client_local, org):
-    """note는 ticket.body로 간다. 이게 없으면 body는 MCP로만 쓸 수 있고,
-    Inbox를 트리아지하는 사람은 제목 하나로 결정해야 한다."""
+def test_capture_note_without_area_makes_a_slice_with_a_spec(client_local, org):
+    """note는 이제 slice.spec으로 간다(예전엔 ticket.body)."""
     resp = client_local.post(
         f"{P(org)}/capture",
         {"title": "OAuth screen is ugly", "spec": "buttons misaligned on mobile"},
         HTTP_HX_REQUEST="true",
     )
     assert resp.status_code == 200
-    t = Ticket.objects.get(org=org, title="OAuth screen is ugly")
-    assert t.body == "buttons misaligned on mobile"
-    assert t.area is None and t.status == "open"
-    assert not Slice.objects.filter(title="OAuth screen is ugly").exists()
+    s = Slice.objects.get(org=org, title="OAuth screen is ugly")
+    assert s.spec == "buttons misaligned on mobile"
+    assert s.area is None and s.status == "open"
 
 
 @pytest.mark.django_db
 def test_capture_note_with_an_area_keeps_both(client_local, org):
-    area = create_area(org, "Backend")
+    backend = create_area(org, "Backend")
     resp = client_local.post(
         f"{P(org)}/capture",
-        {"title": "Retry webhooks", "spec": "exponential backoff", "area_id": area.id},
+        {"title": "Retry webhooks", "spec": "exponential backoff", "area_id": backend.id},
         HTTP_HX_REQUEST="true",
     )
     assert resp.status_code == 200
-    t = Ticket.objects.get(title="Retry webhooks")
-    assert t.body == "exponential backoff" and t.area_id == area.id
-    assert not Slice.objects.filter(title="Retry webhooks").exists()
+    s = Slice.objects.get(title="Retry webhooks")
+    assert s.spec == "exponential backoff" and s.area_id == backend.id
 
 
 @pytest.mark.django_db
@@ -75,25 +82,24 @@ def test_capture_requires_title(client_local, org):
         f"{P(org)}/capture", {"title": "   ", "spec": "orphan"}, HTTP_HX_REQUEST="true"
     )
     assert resp.status_code == 400
-    assert not Ticket.objects.filter(body="orphan").exists()
+    assert not Slice.objects.filter(spec="orphan").exists()
 
 
 @pytest.mark.django_db
 def test_capture_ignores_a_stale_status_or_tags_post(client_local, org):
-    """status/tags는 폼에서 사라졌다. 옛 클라이언트나 손으로 만든 POST가 보내도
-    400이 아니라 조용히 무시한다 — Ticket에 담을 곳이 없을 뿐, 캡처 자체를
-    거부할 이유는 없다. (예전에는 400이었고, 그 가드는 필드가 존재했기 때문에
-    필요했다.)"""
-    area = create_area(org, "Backend")
+    """status/tags는 이 폼에 없다. 옛 클라이언트나 손으로 만든 POST가 보내도
+    400이 아니라 조용히 무시하고 create_slice의 기본값(status="open", 태그
+    없음)이 적용된다."""
+    backend = create_area(org, "Backend")
     resp = client_local.post(
         f"{P(org)}/capture",
-        {"title": "stale client", "area_id": area.id, "status": "building", "tags": ["x"]},
+        {"title": "stale client", "area_id": backend.id, "status": "shipped", "tags": ["x"]},
         HTTP_HX_REQUEST="true",
     )
     assert resp.status_code == 200
-    t = Ticket.objects.get(title="stale client")
-    assert t.status == "open" and t.area_id == area.id
-    assert not Slice.objects.filter(title="stale client").exists()
+    s = Slice.objects.get(title="stale client")
+    assert s.status == "open" and s.area_id == backend.id
+    assert not s.tags.exists()
 
 
 @pytest.mark.django_db
@@ -106,7 +112,7 @@ def test_capture_foreign_area_404s(client_local, org):
         HTTP_HX_REQUEST="true",
     )
     assert resp.status_code == 404
-    assert not Ticket.objects.filter(title="cross tenant").exists()
+    assert not Slice.objects.filter(title="cross tenant").exists()
 
 
 def _capture_form(page_html):
@@ -119,9 +125,9 @@ def _capture_form(page_html):
 
 
 @pytest.mark.django_db
-def test_capture_modal_offers_no_slice_only_fields(client_local, org):
-    """Ticket에 없는 필드는 폼에도 없다. status/tags를 내주는 것이 애초에
-    'area를 고르면 planned가 된다'를 만든 원인이었다."""
+def test_capture_modal_offers_no_status_or_tags_fields(client_local, org):
+    """이 대화상자는 Title/Description/Area만 받는다. status/tags는 여기 없다
+    — 만드는 순간 고르는 값이 아니라 Ship/Drop 같은 후속 행동의 결과다."""
     create_area(org, "Backend")
     form = _capture_form(client_local.get(f"{P(org)}/inbox/").content.decode())
     assert 'name="title"' in form
@@ -129,8 +135,9 @@ def test_capture_modal_offers_no_slice_only_fields(client_local, org):
     assert 'name="area_id"' in form
     assert 'name="status"' not in form
     assert 'name="tags"' not in form
-    # Inbox는 Area와 같은 층위가 아니다 — 드롭다운의 선택지가 될 수 없다.
-    assert ">Unfiled<" in form
+    # Inbox는 Area와 같은 층위가 아니다 — 드롭다운의 선택지가 될 수 없다, 대신
+    # 비워두면 그리로 간다는 것을 옵션 자체가 말한다.
+    assert ">Keep in Inbox<" in form
     assert ">Inbox<" not in form
     assert "Backend" in form
 

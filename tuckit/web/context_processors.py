@@ -81,8 +81,9 @@ def capture_area(request):
     Resolved from request.resolver_match rather than by parsing the path, the
     same way onboarding() decides whether you are already on the newest slice.
 
-    Filing a capture is not the same as committing to it: the preselected area
-    only labels the Ticket, it does not turn it into a Slice.
+    The preselected area is the destination itself now, not just a label:
+    submitting with it files the created Slice there immediately; clearing it
+    (or standing on a non-Area page) leaves the slice in the Inbox instead.
     """
     from tuckit.core.services.exceptions import NotFound
     from tuckit.core.services.resolve import get_area_by_slug
@@ -96,7 +97,7 @@ def capture_area(request):
     try:
         return {"capture_area": get_area_by_slug(org, match.kwargs["slug"])}
     except (NotFound, KeyError):
-        # A 404-ing slug still renders the shell; falling back to Unfiled is
+        # A 404-ing slug still renders the shell; falling back to the Inbox is
         # right, and raising here would turn a bad URL into a 500.
         return {}
 

@@ -11,7 +11,7 @@ from tuckit.core.services.areas import create_area, list_areas, update_area, del
 from tuckit.core.services.slices import create_slice, set_slice_status
 from tuckit.core.services.state import area_board_view
 from tuckit.core.services.tickets import (
-    create_ticket, query_tickets, ticket_queryset, promote_ticket, reopen_ticket,
+    query_tickets, ticket_queryset, promote_ticket, reopen_ticket,
     resolve_ticket, update_ticket,
 )
 from tuckit.web.detail import render_markdown_html
@@ -25,20 +25,20 @@ _SLICE_STATUSES = ["open", "shipped"]
 
 
 def capture(request):
-    """Capture always creates a Ticket.
+    """Capture always creates a Slice — Slice is the only unit of work now, so
+    there is no Ticket to fork into. Area decides the destination directly:
+    pick one and the slice files there immediately; leave it empty and the
+    slice lands area-less in the Inbox (inbox_slices() in
+    core/services/slices.py is what reads that back out).
 
-    Area answers "which part of the product", not "are we doing this" — two
-    different axes. So picking one files the ticket without committing to it:
-    the ticket stays `open` in the Inbox either way. The Area select used to BE
-    the Ticket/Slice fork, which meant an idea you had already filed became a
-    `planned` Slice the moment you said where it belonged, and there was no way
-    to just park it.
+    status/tags are not read here: they are not offered on this form, so a
+    stale or hand-rolled POST carrying them is ignored rather than refused —
+    create_slice's own defaults (status "open", no tags) apply.
 
-    status/tags are not read here. A Ticket has neither, so the form no longer
-    offers them; a stale or hand-rolled POST carrying them is ignored rather
-    than refused — there is nowhere to put them, but that is no reason to throw
-    the capture away. Slices are authored from an Area's "+ New slice" or by
-    promoting a ticket."""
+    The note rides along as `spec` — the whole point of the Inbox is deciding,
+    and you cannot decide on a bare title. The response is a bundle of
+    out-of-band swaps (toast, live count) so one response works from any page;
+    htmx drops OOB targets that are not on screen."""
     org = get_current_org(request)
 
     title = request.POST.get("title", "").strip()
@@ -52,14 +52,10 @@ def capture(request):
         except (NotFound, ValueError):
             raise Http404
 
-    # The note rides along in `body` — the whole point of the Inbox is deciding,
-    # and you cannot decide on a bare title. The response is a bundle of
-    # out-of-band swaps (toast, live count, Inbox list) so one response works
-    # from any page; htmx drops OOB targets that are not on screen.
-    create_ticket(org, title, body=request.POST.get("spec", "").strip(),
-                  area=area, source="human")
+    create_slice(org, area=area, title=title, spec=request.POST.get("spec", "").strip(),
+                 source="human")
     return _inbox_result(request, org,
-                         f"Captured in {area.name if area else 'Inbox'}.")
+                         f"Captured in {area.name}." if area else "Captured to Inbox.")
 
 
 _REVIEWABLE_TICKET_STATUSES = {"dismissed", "duplicate"}

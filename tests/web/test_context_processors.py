@@ -151,8 +151,8 @@ def test_capture_modal_preselects_the_area_you_are_standing_on(client_local, org
 
     body = client_local.get(f"{p}/areas/{area.slug}/").content.decode()
     assert f'<option value="{area.id}" selected>Backend</option>' in body
-    assert '<option value="" selected>Unfiled</option>' not in body
+    assert '<option value="" selected>Keep in Inbox</option>' not in body
 
-    # 다른 페이지에서는 Unfiled가 기본이다
+    # 다른 페이지에서는 Keep in Inbox가 기본이다
     body = client_local.get(f"{p}/inbox/").content.decode()
-    assert '<option value="" selected>Unfiled</option>' in body
+    assert '<option value="" selected>Keep in Inbox</option>' in body

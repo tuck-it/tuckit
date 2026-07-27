@@ -6,11 +6,12 @@ from tuckit.core.models import Slice, Ticket
 from tuckit.core.models.org import Org
 
 @pytest.mark.django_db
-def test_capture_lands_in_inbox_as_ticket(client_local, org):
+def test_capture_lands_in_inbox_as_a_slice(client_local, org):
+    """Task 8: capture creates a Slice now, not a Ticket."""
     p = f"/{org.slug}"
     client_local.post(f"{p}/capture", {"title": "Retry queue"}, HTTP_HX_REQUEST="true")
-    t = Ticket.objects.get(org=org, title="Retry queue")
-    assert t.area is None and t.status == "open" and t.source == "human"
+    s = Slice.objects.get(org=org, title="Retry queue")
+    assert s.area is None and s.status == "open" and s.source == "human"
 
 @pytest.mark.django_db
 def test_inbox_lists_captures(client_local, org):
@@ -36,27 +37,28 @@ def test_area_create_makes_area(client_local, org):
     assert org.areas.filter(name="Backend").exists()
 
 @pytest.mark.django_db
-def test_capture_returns_toast_count_and_row(client_local, org):
-    # No full-page reload: capture returns OOB swaps for toast, count, and the new row.
+def test_capture_returns_toast_and_count_bundle(client_local, org):
+    # No full-page reload: capture always returns OOB swaps for toast + count.
+    # Capture creates a Slice now (Task 8), not a Ticket, so the Ticket-based
+    # Inbox list (#ticket-list) does NOT gain a row for it — that list only
+    # starts reading Slices once Task 9 rebuilds the Inbox screen. Until then
+    # the list target still renders (it is an always-present OOB target), it
+    # just stays exactly as it was.
     p = f"/{org.slug}"
     resp = client_local.post(f"{p}/capture", {"title": "Quick note"}, HTTP_HX_REQUEST="true")
     assert resp.status_code == 200
     body = resp.content.decode()
     # count badge
     assert 'id="ticket-count"' in body
-    assert ">1<" in body
     # toast
     assert 'id="toast"' in body
-    assert "Captured" in body
-    # The Inbox list is OOB re-rendered (id-matched, reliable) with the new row;
-    # it lands only if that page is open. Three elements carry hx-swap-oob="true";
-    # #toast, #ticket-count, and #ticket-list. The form is hx-swap="none", so
-    # anything without hx-swap-oob would be silently dropped in the browser.
+    assert "Captured to Inbox." in body
+    # OOB targets still present; #toast, #ticket-count, and #ticket-list.
     assert 'id="ticket-list"' in body
     assert body.count('hx-swap-oob="true"') >= 3
-    assert "Quick note" in body
-    # list is non-empty now, so the "Triage clean" placeholder must be gone
-    assert 'id="ticket-empty"' not in body
+    assert "Quick note" not in body
+    # no Ticket was created, so the empty state is still there
+    assert 'id="ticket-empty"' in body
 
 @pytest.mark.django_db
 def test_area_create_returns_oob_area_nav(client_local, org):
