@@ -58,24 +58,39 @@ def test_reorder_bite_to_front(slice_):
 
 
 @pytest.mark.django_db
-def test_reorder_bite_is_scoped_to_its_own_slice(slice_, org):
-    """reorder_bite must rank a plan-less bite among its own slice's siblings,
-    not among every plan-less bite in the database — plan is no longer a
-    meaningful scope now that bites hang off the Slice directly (Task 5)."""
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
+def test_reorder_bite_is_scoped_to_its_own_slice(slice_):
+    """reorder_bite must rank a bite among ALL of its slice's siblings, not
+    just the ones sharing its own `plan` value.
 
-    # A bite in a different slice, also plan-less, ranked far out — if
-    # reorder_bite scoped by plan (None) instead of slice, this row would
-    # leak into the neighbor lookup below.
-    other_slice = create_slice(create_area(org, "Other"), "Other slice")
-    create_bite(other_slice, "unrelated", before=None)
+    A slice can mix a legacy plan-having bite (migrated data, or one added
+    through the still-live bite_create web path, which still reparents onto a
+    plan — see web/views/mutations.py) with new plan-less ones (Task 5).
+    Scoping the rank lookup by `{"plan": bite.plan}` instead of
+    `{"slice": bite.slice}` silently drops the plan-having sibling from the
+    neighbor search.
 
-    a = create_bite(slice_, "A")
-    b = create_bite(slice_, "B")
-    reorder_bite(b, before=a)
-    assert list(list_bites(slice_)) == [b, a]
-    assert [x.title for x in list_bites(other_slice)] == ["unrelated"]  # untouched
+    Concretely: A(plan=P, rank a0), B(plan=None, rank a1), C(plan=None, rank
+    a2); reorder(C, before=B). The buggy plan-scoped lookup only sees {B, C}
+    (A is excluded — different plan), finds no rank below B's, and hands back
+    a fresh rank that collides with A's ("a0" == "a0") — a duplicate rank,
+    undefined order on Postgres. The fix scopes by slice, sees A too, and
+    lands C strictly between A and B.
+
+    Title-order assertions cannot tell these apart (reorder_bite only ever
+    touches C's own row), so this asserts on the actual rank values."""
+    from tuckit.core.services.plans import create_plan
+
+    plan = create_plan(slice_, title="P")
+    a = create_bite(slice_, "A")             # rank a0
+    a.plan = plan
+    a.save(update_fields=["plan"])
+    b = create_bite(slice_, "B")             # rank a1, plan=None
+    c = create_bite(slice_, "C")             # rank a2, plan=None
+
+    reorder_bite(c, before=b)
+
+    a.refresh_from_db(); b.refresh_from_db(); c.refresh_from_db()
+    assert a.rank < c.rank < b.rank, (a.rank, c.rank, b.rank)
 
 
 @pytest.mark.django_db

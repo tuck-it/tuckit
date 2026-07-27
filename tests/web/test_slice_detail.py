@@ -159,15 +159,23 @@ def test_bites_progress_and_empty_state(client_local, org):
     assert "No plan yet" in body
     assert 'class="row-prog-track"' not in body   # no progress bar when there are no bites
 
-    # with bites: count + progress shown, empty state gone
-    create_plan(s, title="Plan")
-    create_bite(s, "a", status="done")
-    create_bite(s, "b")
+    # with bites: count + progress shown, empty state gone, AND the bites
+    # actually render as rows (not just the header count) — the panel's plan
+    # card only shows bites nested under a plan today (Task 10 adds a
+    # slice-direct section), so a plan-less bite would inflate bites_done/
+    # bites_total in the header while the plan card still claims "No bites
+    # yet" underneath it: a visible contradiction in the same panel (C2).
+    plan_ = create_plan(s, title="Plan")
+    bite_under_plan(plan_, s, "a", status="done")
+    bite_under_plan(plan_, s, "b")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert "No plan yet" not in body
+    assert "No bites yet" not in body
     assert "1/2" in body
     assert 'class="row-prog-track"' in body
     assert "width: 50%" in body
+    assert 'aria-label="a"' in body   # bite row actually rendered, not just counted
+    assert 'aria-label="b"' in body
 
 
 @pytest.mark.django_db

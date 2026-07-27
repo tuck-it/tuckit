@@ -100,6 +100,53 @@ def test_render_slice_markdown_includes_bite_body(product_org):
 
 
 @pytest.mark.django_db
+def test_render_slice_markdown_shows_plan_less_bites_under_a_steps_header(product_org):
+    """Bites created via add_bites() (Task 5) have no plan to nest under, so
+    they must still surface somewhere in get_slice() output — otherwise an
+    agent's own add_bites() call would vanish from its next get_slice()."""
+    area = create_area(product_org, "Backend")
+    s = create_slice(area, "Auth", spec="design")
+    create_bite(s, "JWT", status="done")
+    create_bite(s, "Social login", body="use RS256 keys")
+
+    md = render_slice_markdown(s)
+
+    assert "## Steps" in md
+    assert "- [x] JWT" in md
+    assert "- [ ] Social login" in md
+    assert "use RS256 keys" in md
+
+
+@pytest.mark.django_db
+def test_render_slice_markdown_omits_steps_header_when_every_bite_has_a_plan(product_org):
+    area = create_area(product_org, "Backend")
+    s = create_slice(area, "Auth", spec="design")
+    p = create_plan(s, title="Plan")
+    _bite_under_plan(p, s, "JWT")
+
+    md = render_slice_markdown(s)
+
+    assert "## Steps" not in md
+
+
+@pytest.mark.django_db
+def test_render_slice_markdown_shows_both_plan_sections_and_steps(product_org):
+    """A slice can carry both kinds at once — legacy/human-plan-nested bites
+    and agent-added plan-less ones — and render_slice_markdown must show all
+    of them, not just one or the other."""
+    area = create_area(product_org, "Backend")
+    s = create_slice(area, "Auth", spec="design")
+    p = create_plan(s, title="Plan")
+    _bite_under_plan(p, s, "Nested bite")
+    create_bite(s, "Direct bite")
+
+    md = render_slice_markdown(s)
+
+    assert "## Plan" in md and "- [ ] Nested bite" in md
+    assert "## Steps" in md and "- [ ] Direct bite" in md
+
+
+@pytest.mark.django_db
 def test_someday_tag_no_longer_buckets_separately(product_org):
     """someday is a plain tag again — the special-casing that pulled
     #someday slices into their own bucket is gone (state.py _area_state)."""

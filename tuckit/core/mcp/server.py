@@ -439,13 +439,15 @@ async def release_ticket(ctx: Context, ticket_id: int) -> dict:
 
 @mcp.tool()
 async def list_bites(ctx: Context, plan_id: int) -> list[dict]:
-    """List the bites (implementation steps) of a plan."""
+    """List the bites (implementation steps) of plan_id's slice.
+
+    Bites hang off the Slice now, not the Plan (Task 5) — plan_id still
+    picks which slice's steps to list, it just resolves one hop further, so
+    two plans on the same slice return the same full list."""
     org = await require_org(ctx)
 
     def _run():
         plan = _resolve_plan(org, plan_id)
-        # Bites hang off the Slice now, not the Plan (Task 5) — plan_id still
-        # picks the slice whose steps to list, it just resolves one hop further.
         return [bite_dict(b) for b in _list_bites(plan.slice)]
 
     return await sync_to_async(_run, thread_sensitive=True)()
@@ -459,7 +461,18 @@ async def add_bites(ctx: Context, plan_id: int, bites: list[dict]) -> list[dict]
 
     def _run():
         plan = _resolve_plan(org, plan_id)
-        return [bite_dict(b) for b in _add_bites(plan.slice, bites, source="agent")]
+        # create_bite() no longer accepts a Plan (Task 5) — it only ever
+        # attaches to the Slice. The slice detail modal's bite rows still only
+        # render bites nested under a plan (Task 10 adds a slice-direct
+        # section), so this reparents each new bite onto the resolved plan
+        # afterward — the same shim web/views/mutations.py:bite_create uses —
+        # otherwise an agent-created step would be created correctly but stay
+        # invisible in the panel a human has open.
+        made = _add_bites(plan.slice, bites, source="agent")
+        for b in made:
+            b.plan = plan
+            b.save(update_fields=["plan"])
+        return [bite_dict(b) for b in made]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
