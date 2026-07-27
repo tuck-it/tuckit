@@ -8,7 +8,6 @@ from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
 from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
-from tuckit.core.services.tickets import create_ticket
 
 
 def _body(client, org):
@@ -100,14 +99,17 @@ def test_specless_building_slice_is_your_turn(client_local, org):
 
 
 @pytest.mark.django_db
-def test_open_tickets_collapse_to_one_row_linking_to_inbox(client_local, org):
+def test_unfiled_inbox_captures_collapse_to_one_row_linking_to_inbox(client_local, org):
+    """Task 7: Home's your_turn no longer reads Ticket at all — an unfiled
+    (area-less) Slice IS the Inbox capture now, aggregated the same way the
+    old open-Ticket count used to be."""
     for i in range(3):
-        create_ticket(org, f"capture {i}")
+        create_slice(org, title=f"capture {i}", status="open")   # no area
     body = _body(client_local, org)
     turn = _band(body, "your turn")
-    assert "3 waiting for triage" in turn
+    assert "3 in Inbox" in turn
     assert f'href="/{org.slug}/inbox/"' in turn
-    assert "capture 0" not in turn, "the Inbox lists tickets; Home only counts them"
+    assert "capture 0" not in turn, "the Inbox lists captures; Home only counts them"
 
 
 @pytest.mark.django_db
@@ -198,18 +200,16 @@ def test_first_visit_badges_nothing(client_local, org):
 
 
 @pytest.mark.django_db
-def test_home_ok_with_stale_open_ticket(client_local, org):
-    """A stale open Ticket collapses into the aggregate triage row. The panel
-    must render it without reversing web:slice on a null id — otherwise Home
-    500s (NoReverseMatch)."""
-    from tuckit.core.models import Ticket
-
-    t = create_ticket(org, "Stale ticket")
-    Ticket.objects.filter(pk=t.pk).update(
+def test_home_ok_with_stale_unfiled_capture(client_local, org):
+    """A stale unfiled (Inbox) Slice collapses into the aggregate triage row.
+    The panel must render it without reversing web:slice on a null id —
+    otherwise Home 500s (NoReverseMatch)."""
+    s = create_slice(org, title="Stale capture", status="open")   # no area
+    Slice.objects.filter(pk=s.pk).update(
         created_at=timezone.now() - timedelta(days=30)
     )
     body = _body(client_local, org)
-    assert "1 waiting for triage" in body
+    assert "1 in Inbox" in body
 
 
 @pytest.mark.django_db

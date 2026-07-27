@@ -2,12 +2,11 @@ import pytest
 from datetime import timedelta
 from django.utils import timezone
 
-from tuckit.core.models import Org, Slice, Ticket
+from tuckit.core.models import Org, Slice
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import add_bites, create_bite, update_bite
 from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
-from tuckit.core.services.tickets import create_ticket
 from tuckit.core.services.state import (
     AREA_STATUS_KEYS,
     area_board_view,
@@ -608,15 +607,18 @@ def test_your_turn_excludes_inbox_slices():
 
 
 @pytest.mark.django_db
-def test_your_turn_aggregates_open_tickets_into_one_row():
+def test_your_turn_aggregates_unfiled_captures_into_one_row():
+    """Unfiled (area-less) slices are the Inbox now (Task 6/7) — there is no
+    separate Ticket count to aggregate any more. The same "one row, not N"
+    contract applies: the Inbox already lists captures individually."""
     org = Org.objects.create(name="Acme", slug="acme")
     for i in range(3):
-        create_ticket(org, f"capture {i}")
-    rows = [it for it in your_turn(org) if "tickets" in it]
-    assert len(rows) == 1, "the Inbox already lists tickets individually"
-    assert rows[0]["tickets"] == 3
-    assert rows[0]["action"] == "3 waiting for triage"
-    assert "tickets" in your_turn(org)[-1], "the aggregate row sorts last"
+        create_slice(org, title=f"capture {i}", status="open")   # no area
+    rows = [it for it in your_turn(org) if "inbox" in it]
+    assert len(rows) == 1, "the Inbox already lists captures individually"
+    assert rows[0]["inbox"] == 3
+    assert rows[0]["action"] == "3 in Inbox"
+    assert "inbox" in your_turn(org)[-1], "the aggregate row sorts last"
 
 
 @pytest.mark.django_db

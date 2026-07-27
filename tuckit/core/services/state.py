@@ -226,10 +226,10 @@ def your_turn(org: Org) -> list[dict]:
       예전에는 status='building'으로 한 번 더 걸렀는데, 그 스위치를 아무도 켜지
       않아 밴드가 통째로 비어 있었다. 실측(2026-07-27) needs_design은 4건이라
       백로그가 쏟아지지 않는다. 길어지면 그때 상한을 건다.
-    - Open tickets collapse to ONE aggregate row. The Inbox is already a
-      dedicated surface with its own badge; repeating twelve rows here is
-      duplication, and a long list of things you haven't triaged reads as
-      accusation rather than information.
+    - Unfiled Inbox captures collapse to ONE aggregate row. The Inbox is
+      already a dedicated surface with its own badge; repeating twelve rows
+      here is duplication, and a long list of things you haven't triaged
+      reads as accusation rather than information.
 
     Staleness is not an inclusion rule — it is the sort key. A "stale" section
     is a guilt list: it only grows, and it can never be cleared.
@@ -239,8 +239,7 @@ def your_turn(org: Org) -> list[dict]:
     the wrong ask — triaging it (giving it an area) is the actual next step,
     and that lives on the Inbox screen, not here.
     """
-    from tuckit.core.services.slices import annotate_stage_counts, filed_slices, stage_of
-    from tuckit.core.services.tickets import ticket_queryset
+    from tuckit.core.services.slices import annotate_stage_counts, filed_slices, inbox_slices, stage_of
 
     now = timezone.now()
     # order_by is explicit: annotate_stage_counts adds a GROUP BY and Django
@@ -269,11 +268,11 @@ def your_turn(org: Org) -> list[dict]:
         })
     items.sort(key=lambda it: it["since"])
 
-    open_tickets = ticket_queryset(org).count()
-    if open_tickets:
+    inbox_count = inbox_slices(org).count()
+    if inbox_count:
         items.append({
-            "tickets": open_tickets,
-            "action": f"{open_tickets} waiting for triage",
+            "inbox": inbox_count,
+            "action": f"{inbox_count} in Inbox",
         })
     return items
 

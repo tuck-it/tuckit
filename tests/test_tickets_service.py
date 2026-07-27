@@ -205,11 +205,6 @@ def test_slice_status_never_writes_back_to_the_ticket():
     assert t.slice.status == "open"
 
 
-from datetime import timedelta
-from django.utils import timezone
-from tuckit.core.services.state import your_turn
-
-
 @pytest.mark.django_db
 def test_slice_default_status_is_open():
     org = Org.objects.create(name="Acme", slug="acme")
@@ -219,27 +214,11 @@ def test_slice_default_status_is_open():
     assert s.status == "open"
 
 
-def _triage_rows(org):
-    return [it for it in your_turn(org) if "tickets" in it]
-
-
-@pytest.mark.django_db
-def test_an_open_ticket_is_your_turn_regardless_of_age():
-    """Triage is a human decision from the moment of capture. The old rule only
-    spoke up after seven days, i.e. once the backlog had already festered."""
-    org = Org.objects.create(name="Acme", slug="acme")
-    create_ticket(org, "Fresh idea")
-    assert _triage_rows(org) == [{"tickets": 1, "action": "1 waiting for triage"}]
-
-
-@pytest.mark.django_db
-def test_promoted_ticket_leaves_the_triage_count():
-    org = Org.objects.create(name="Acme", slug="acme")
-    area = create_area(org, "Backend")
-    t = create_ticket(org, "Old idea", area=area)
-    Ticket.objects.filter(pk=t.pk).update(created_at=timezone.now() - timedelta(days=10))
-    promote_ticket(Ticket.objects.get(pk=t.pk))
-    assert _triage_rows(org) == []
+# The your_turn() "open tickets" aggregate row was retired in Task 7: Home no
+# longer reads Ticket at all — an unfiled Slice IS the Inbox now, and
+# your_turn() aggregates via inbox_slices() instead. See
+# tests/test_services_state.py::test_your_turn_aggregates_unfiled_captures_into_one_row
+# for the equivalent coverage on the new predicate.
 
 
 @pytest.mark.django_db

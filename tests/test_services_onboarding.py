@@ -4,15 +4,25 @@ from tuckit.core.models import ApiToken
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.onboarding import onboarding_state
+
+
+@pytest.mark.django_db
+def test_onboarding_has_four_steps_without_the_plan_gate(org):
+    """Task 7: the Plan step is gone, so onboarding is Area → Slice → Steps →
+    Connect agent (4 steps, not 5). OnboardingState is a frozen dataclass, not
+    a dict — `total`/`hasattr` are the real equivalents of the brief's
+    illustrative `st["total"]`/`"has_plan" not in st` sketch."""
+    st = onboarding_state(org)
+    assert st.total == 4
+    assert not hasattr(st, "has_plan")
 
 
 @pytest.mark.django_db
 def test_fresh_workspace_all_incomplete(org):
     st = onboarding_state(org)
-    assert (st.has_area, st.has_slice, st.has_plan, st.has_bite, st.connected) == (
-        False, False, False, False, False,
+    assert (st.has_area, st.has_slice, st.has_bite, st.connected) == (
+        False, False, False, False,
     )
     assert st.done is False and st.completed == 0 and st.current == 1
 
@@ -33,22 +43,12 @@ def test_slice_marks_has_slice(org):
 
 
 @pytest.mark.django_db
-def test_plan_marks_has_plan(org):
-    area = create_area(org, "Backend")
-    sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
-    create_plan(sl, title="Plan")
-    st = onboarding_state(org)
-    assert st.has_plan is True and st.has_bite is False and st.current == 4
-
-
-@pytest.mark.django_db
 def test_bite_marks_has_bite(org):
     area = create_area(org, "Backend")
     sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
-    create_plan(sl, title="Plan")
     create_bite(sl, "Add backoff")
     st = onboarding_state(org)
-    assert st.has_bite is True and st.current == 5
+    assert st.has_bite is True and st.current == 4
 
 
 @pytest.mark.django_db
@@ -87,11 +87,10 @@ def test_all_done(org):
     from tuckit.core.models import ActivityEvent
     area = create_area(org, "Backend")
     sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
-    create_plan(sl, title="Plan")
     create_bite(sl, "Add backoff")
     ActivityEvent.objects.create(
         org=org, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,
     )
     st = onboarding_state(org)
-    assert st.done is True and st.completed == 5 and st.current == 0
+    assert st.done is True and st.completed == 4 and st.current == 0
