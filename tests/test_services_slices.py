@@ -408,3 +408,22 @@ def test_query_slices_excludes_inbox_by_default(org, area):
     create_slice(org, title="inbox item")
     assert query_slices(org) == [filed]
     assert {s.title for s in query_slices(org, include_inbox=True)} == {"filed", "inbox item"}
+
+
+@pytest.mark.django_db
+def test_inbox_filter_is_the_one_definition_both_readers_use(org, area):
+    """inbox_slices() (the screen) and query_slices(inbox_only=True) (the MCP
+    tool) must never disagree on membership. Sharing inbox_filter() is what
+    guarantees it; this asserts the two actually return the same ids rather
+    than merely calling something with the same name."""
+    from tuckit.core.services.slices import inbox_slices, query_slices
+
+    waiting = create_slice(org, title="still waiting")
+    create_slice(org, area=area, title="filed")
+    create_slice(org, title="shipped before triage", status="shipped")
+    create_slice(org, title="dropped before triage", status="dropped")
+
+    from_screen = {s.id for s in inbox_slices(org)}
+    from_tool = {s.id for s in query_slices(org, inbox_only=True)}
+
+    assert from_screen == from_tool == {waiting.id}

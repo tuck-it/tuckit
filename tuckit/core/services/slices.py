@@ -34,11 +34,18 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
     implies you already know inbox items can't match, so the exclusion is
     skipped rather than filtering twice.
 
-    `inbox_only=True` inverts the split: only area-less slices, with the other
-    filters (status/tag/query/assignee) still applied. inbox_slices() is the
-    Inbox *screen's* source and hardcodes status='open' plus its own ordering;
-    this is the searchable form the MCP tool needs, which is why the two are
-    not one function."""
+    `inbox_only=True` inverts the split: the Inbox and nothing else, via the
+    shared inbox_filter() predicate, with tag/query/assignee still applied on
+    top. It is the searchable form of the same set inbox_slices() gives the
+    Inbox screen — the two differ only in ordering and select_related, never in
+    membership.
+
+    Because inbox_filter() pins status='open', combining `inbox_only` with a
+    `status` of anything else returns nothing: a capture that was shipped or
+    dropped has LEFT the Inbox, so asking for a dropped Inbox item is asking
+    for a contradiction. Those slices are still reachable — drop `inbox_only`
+    and filter by status, which searches the whole org including unfiled work.
+    """
     # Annotated here so list_slices can report each row's stage without two
     # queries per row. Must precede the .distinct() and the slice below —
     # annotating an already-sliced queryset raises.
@@ -46,7 +53,7 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
         Slice.objects.filter(org=org).select_related("area", "assignee__user", "org")
     )
     if inbox_only:
-        qs = qs.filter(area__isnull=True)
+        qs = inbox_filter(qs)
     elif not include_inbox and area is None:
         qs = filed_slices(qs)
     if area is not None:
@@ -250,11 +257,29 @@ def set_slice_area(slice_: Slice, area: Area | None, *, actor: str = "human") ->
     return slice_
 
 
+def inbox_filter(qs: QuerySet) -> QuerySet:
+    """The Inbox as a predicate: no area AND still open.
+
+    The single definition of "is this in the Inbox", and the exact mirror of
+    filed_slices(). Both halves of the split now read from one place:
+    inbox_slices() is this plus the screen's ordering, and
+    query_slices(inbox_only=True) is this plus the search filters.
+
+    Status is part of the definition, not an extra filter one caller happens to
+    apply. Dropping the `status="open"` half here would mean an agent that
+    reads `inbox.open_count` from get_project_state() and then lists the Inbox
+    to work through it gets two different sets the moment any unfiled capture
+    was shipped or dropped — the second call silently contradicting the first,
+    with nothing on either surface admitting they disagree.
+    """
+    return qs.filter(area__isnull=True, status="open")
+
+
 def inbox_slices(org: Org) -> QuerySet:
     """Untriaged captures — the sole source for the Inbox screen. A slice with
     no area IS an inbox item; there is no separate model for it any more."""
     return (
-        Slice.objects.filter(org=org, area__isnull=True, status="open")
+        inbox_filter(Slice.objects.filter(org=org))
         .select_related("org")
         .order_by("-created_at")
     )

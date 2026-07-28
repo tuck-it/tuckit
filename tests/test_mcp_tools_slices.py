@@ -283,3 +283,49 @@ async def test_an_area_name_in_area_id_says_what_to_do():
         await create_slice(make_ctx(raw), "X", area_id="Backend")
 
     assert "list_areas" in str(e.value)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_the_inbox_is_the_same_set_from_every_surface():
+    """get_project_state()['inbox'] and list_slices(area_id='') must return the
+    same slices. An agent reads the count from the first at session start and
+    then works through the second — if they disagree it is chasing a number it
+    can never reach, and neither surface admits the difference.
+
+    They disagreed before this fix: get_project_state used inbox_slices()
+    (unfiled AND open) while list_slices' inbox branch filtered on area alone,
+    so any capture shipped or dropped before triage showed up in one and not
+    the other. Both go through inbox_filter() now."""
+    from tuckit.core.services.state import get_project_state
+
+    org, _other, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    await create_slice(ctx, "still waiting")
+    await create_slice(ctx, "filed", area_id=area_id)
+    dropped = await create_slice(ctx, "dropped before triage")
+    await update_slice(ctx, dropped["id"], status="dropped")
+
+    listed = {row["title"] for row in await list_slices(ctx, area_id="")}
+    state = await sync_to_async(get_project_state)(org)
+
+    assert listed == {"still waiting"}
+    assert state["inbox"]["open_count"] == len(listed)
+    assert {row["title"] for row in state["inbox"]["recent"]} == listed
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_an_unfiled_dropped_capture_is_still_reachable_without_the_inbox():
+    """Narrowing the Inbox to open-only must not strand anything: dropping
+    `area_id` searches the whole org, unfiled work included, so a capture
+    dropped before triage is one `status` filter away."""
+    _org, _other, raw, _area_id = await _seed()
+    ctx = make_ctx(raw)
+    dropped = await create_slice(ctx, "dropped before triage")
+    await update_slice(ctx, dropped["id"], status="dropped")
+
+    rows = await list_slices(ctx, status="dropped")
+
+    assert [r["title"] for r in rows] == ["dropped before triage"]
+    assert rows[0]["area_id"] is None

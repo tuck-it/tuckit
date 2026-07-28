@@ -139,7 +139,12 @@ async def get_project_state(ctx: Context, area_id: int | None = None) -> dict:
 
 @mcp.tool()
 async def list_areas(ctx: Context) -> list[dict]:
-    """List the org's areas (long-lived responsibility domains, e.g. backend/frontend)."""
+    """List the org's areas, with the id of each.
+
+    Call this first whenever you are about to file something. Areas are the
+    only destination a slice can be filed into, and their ids are what
+    `create_slice`/`update_slice` take — an agent that guesses instead of
+    looking either fails or invents a duplicate area."""
     org = await require_org(ctx)
 
     def _run():
@@ -150,7 +155,20 @@ async def list_areas(ctx: Context) -> list[dict]:
 
 @mcp.tool()
 async def create_area(ctx: Context, name: str, description: str = "") -> dict:
-    """Create a new area in the org."""
+    """Create an area — a long-lived domain of responsibility that slices get
+    filed into (backend, frontend, docs, infra).
+
+    Call `list_areas` first and use what is already there. An org has a handful
+    of areas and keeps them for years; they are not labels, milestones, or a
+    folder per feature. If the work you are filing plausibly belongs under an
+    existing area, it does — file it there and let the slice's own title say
+    what it is.
+
+    Create one only when a genuinely new standing concern appears and nothing
+    on the list covers it. A near-duplicate of an existing area is worse than
+    leaving a slice in the Inbox: the Inbox is a visible queue someone will
+    triage, while a junk area quietly splits one area's work in two and nobody
+    notices for months."""
     org = await require_org(ctx)
 
     def _run():
@@ -172,10 +190,16 @@ async def list_slices(
     """List/search slices — the one unit of work. All filters optional.
 
     `area_id`: omit it to search the whole org, INCLUDING slices that have no
-    area yet; pass an id to scope to one area; pass '' to see only the
-    area-less ones — that set IS the Inbox, the captures nobody has filed. Do
-    that before assuming the org has nothing waiting: unfiled work is the
-    easiest to miss and usually the oldest.
+    area yet; pass an id to scope to one area; pass '' for the Inbox — the
+    still-open captures nobody has filed. Do that before assuming the org has
+    nothing waiting: unfiled work is the easiest to miss and usually the
+    oldest, and this returns exactly the slices get_project_state() counted in
+    `inbox.open_count`.
+
+    Being in the Inbox means two things at once: no area AND still open. A
+    capture that was shipped or dropped without ever being filed has left it,
+    so `area_id=''` will not return one — omit `area_id` and pass `status`
+    instead to go looking for those.
 
     query = text match on title/spec. assignee = 'me' or an email.
 
@@ -233,8 +257,20 @@ async def get_slice(ctx: Context, slice: int | str, with_activity: bool = False)
 
 @mcp.tool()
 async def add_note(ctx: Context, slice: int | str, body: str) -> dict:
-    """Append a free-text note to a slice's activity thread (what you did, blockers,
-    PR links). `slice` may be an id or a ref."""
+    """Append a note to a slice's activity thread. `slice` may be an id or a ref.
+
+    A note is what HAPPENED — what you tried, what broke, what you decided and
+    why, a PR link, why this is blocked. It is timestamped and append-only, so
+    it is the right place for anything that is true of a moment rather than of
+    the work.
+
+    Choose between the three by asking who the reader is. `spec` is the design
+    doc: what we are building and why, rewritten as understanding improves.
+    `constraints` is the standing warning to whoever picks this up next —
+    landmines and invariants that outlive any one session. A note is neither;
+    it is the record of the session itself. Discovering a landmine is worth
+    both: note that you hit it, and put the rule in `constraints` so the next
+    agent never has to."""
     org = await require_org(ctx)
 
     def _run():
