@@ -5,7 +5,6 @@ from django.utils import timezone
 from tuckit.core.models import Org, Slice
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import add_bites, create_bite, update_bite
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.state import (
     AREA_STATUS_KEYS,
@@ -51,6 +50,36 @@ def test_project_state_buckets_by_status(product_org):
 
 
 @pytest.mark.django_db
+def test_project_state_inbox_counts_area_less_slices(product_org):
+    """The `inbox` aggregate reads area-less Slices, not Tickets. This is the
+    only place get_project_state reports untriaged work, and it is how an agent
+    that calls one tool at the start of a session learns the Inbox is not
+    empty — before this it counted a table nothing writes to any more."""
+    area = create_area(product_org, "Backend")
+    create_slice(product_org, area=area, title="filed work")
+    create_slice(product_org, title="unfiled capture")
+    create_slice(product_org, title="another capture")
+
+    inbox = get_project_state(product_org)["inbox"]
+
+    assert inbox["open_count"] == 2
+    assert {row["title"] for row in inbox["recent"]} == {"unfiled capture", "another capture"}
+
+
+@pytest.mark.django_db
+def test_project_state_inbox_ignores_shipped_and_dropped_captures(product_org):
+    """inbox_slices() is status='open' only — a capture someone dropped without
+    filing is a closed decision, not a thing still waiting on you."""
+    create_slice(product_org, title="still waiting")
+    create_slice(product_org, title="dropped capture", status="dropped")
+
+    inbox = get_project_state(product_org)["inbox"]
+
+    assert inbox["open_count"] == 1
+    assert [row["title"] for row in inbox["recent"]] == ["still waiting"]
+
+
+@pytest.mark.django_db
 def test_project_state_can_scope_to_one_area(product_org):
     a1 = create_area(product_org, "Backend")
     create_area(product_org, "Frontend")
@@ -60,13 +89,15 @@ def test_project_state_can_scope_to_one_area(product_org):
     assert state["areas"][0]["slug"] == a1.slug
 
 
-def _bite_under_plan(plan_, slice_, title, **kw):
-    """render_slice_markdown still groups bites by Plan (Task 7 retires this).
-    create_bite() no longer sets bite.plan (Task 5), so a bite that must show
-    up under a specific plan section has to be reparented onto it explicitly
-    after creation."""
+def _migrated_bite(slice_, title, **kw):
+    """A bite in the shape migration 0045 left behind: reparented onto the
+    slice but with Bite.plan still populated (0045 sets `slice`, it does not
+    null `plan`; the column lives until 0047). Every step that existed before
+    this release looks like this in production, so the renderer has to show
+    them — the old `plan__isnull=True` filter would have hidden all of them."""
+    from tuckit.core.models import Plan
     b = create_bite(slice_, title, **kw)
-    b.plan = plan_
+    b.plan = Plan.objects.create(slice=slice_, title="P")
     b.save(update_fields=["plan"])
     return b
 
@@ -75,9 +106,8 @@ def _bite_under_plan(plan_, slice_, title, **kw):
 def test_render_slice_markdown_includes_spec_and_bites(product_org):
     area = create_area(product_org, "Backend")
     s = create_slice(area.org, area=area, title="Auth", spec="Support OAuth login.", status="open", tags=["feature"])
-    p = create_plan(s, title="Plan")
-    _bite_under_plan(p, s, "JWT", status="done")
-    _bite_under_plan(p, s, "Social login", status="todo")
+    create_bite(s, "JWT", status="done")
+    create_bite(s, "Social login", status="todo")
 
     md = render_slice_markdown(s)
     assert "# Auth" in md
@@ -91,8 +121,7 @@ def test_render_slice_markdown_includes_spec_and_bites(product_org):
 def test_render_slice_markdown_includes_bite_body(product_org):
     area = create_area(product_org, "Backend")
     s = create_slice(area.org, area=area, title="Auth")
-    p = create_plan(s, title="Plan")
-    _bite_under_plan(p, s, "JWT", body="use RS256 keys")
+    create_bite(s, "JWT", body="use RS256 keys")
     md = render_slice_markdown(s)
     assert "- [ ] JWT" in md
     assert "use RS256 keys" in md
@@ -147,32 +176,35 @@ def test_render_slice_markdown_shows_plan_less_bites_under_a_steps_header(produc
 
 
 @pytest.mark.django_db
-def test_render_slice_markdown_omits_steps_header_when_every_bite_has_a_plan(product_org):
+def test_render_slice_markdown_omits_the_steps_header_when_there_are_no_bites(product_org):
     area = create_area(product_org, "Backend")
     s = create_slice(area.org, area=area, title="Auth", spec="design")
-    p = create_plan(s, title="Plan")
-    _bite_under_plan(p, s, "JWT")
 
-    md = render_slice_markdown(s)
-
-    assert "## Steps" not in md
+    assert "## Steps" not in render_slice_markdown(s)
 
 
 @pytest.mark.django_db
-def test_render_slice_markdown_shows_both_plan_sections_and_steps(product_org):
-    """A slice can carry both kinds at once — legacy/human-plan-nested bites
-    and agent-added plan-less ones — and render_slice_markdown must show all
-    of them, not just one or the other."""
+def test_render_slice_markdown_lists_migrated_and_new_bites_in_one_checklist(product_org):
+    """The whole slice, one list. A slice can hold both a bite migration 0045
+    left with Bite.plan populated and one added after this release with no
+    plan at all; get_slice() must show both. This is the case the old
+    `plan__isnull=True` filter got wrong — with the Plan sections deleted it
+    would have silently dropped every pre-release step.
+
+    There must be no per-plan heading: `## Plan` reappearing here would put the
+    retired layer back in front of the one reader who cannot see anything else.
+    """
     area = create_area(product_org, "Backend")
     s = create_slice(area.org, area=area, title="Auth", spec="design")
-    p = create_plan(s, title="Plan")
-    _bite_under_plan(p, s, "Nested bite")
-    create_bite(s, "Direct bite")
+    _migrated_bite(s, "Migrated bite")
+    create_bite(s, "New bite")
 
     md = render_slice_markdown(s)
 
-    assert "## Plan" in md and "- [ ] Nested bite" in md
-    assert "## Steps" in md and "- [ ] Direct bite" in md
+    assert md.count("## Steps") == 1
+    assert "- [ ] Migrated bite" in md
+    assert "- [ ] New bite" in md
+    assert "## Plan" not in md
 
 
 @pytest.mark.django_db
@@ -353,12 +385,12 @@ def test_roadmap_board_view_buckets_by_stage(product_org):
 def test_roadmap_board_view_attaches_raw_stage_to_each_slice(product_org):
     """A slice with a Plan already attached but no bites still lands in
     needs_steps — the Plan layer no longer factors into stage at all (Task 4)."""
-    from tuckit.core.services.plans import create_plan
+    from tuckit.core.models import Plan
 
     a = create_area(product_org, "Backend")
     create_slice(a.org, area=a, title="spec only", spec="s")                      # needs_steps
     empty = create_slice(a.org, area=a, title="has an empty plan", spec="s")
-    create_plan(empty, title="P")                               # still needs_steps
+    Plan.objects.create(slice=empty, title="P")                 # still needs_steps
 
     groups = dict(roadmap_board_view(product_org)["groups"])
     by_title = {s.title: s.stage for s in groups["needs_steps"]}
@@ -397,39 +429,6 @@ def test_snapshot_today_still_accrues_history(product_org):
 
 
 @pytest.mark.django_db
-def test_render_slice_markdown_includes_plan_and_constraints(product_org):
-    from tuckit.core.services.plans import create_plan
-    area = create_area(product_org, "Backend")
-    s = create_slice(area.org, area=area, title="Auth", spec="design")
-    create_plan(s, body="Goal: ship auth", constraints="no billing")
-    md = render_slice_markdown(s)
-    assert "## Plan" in md and "Goal: ship auth" in md
-    assert "### Constraints" in md and "no billing" in md
-
-
-@pytest.mark.django_db
-def test_render_slice_markdown_renders_every_plan(product_org):
-    from tuckit.core.services.plans import create_plan
-    area = create_area(product_org, "Backend")
-    s = create_slice(area.org, area=area, title="Auth", spec="design")
-    p1 = create_plan(s, title="Backend plan", body="Backend goal", constraints="no billing")
-    p2 = create_plan(s, title="Frontend plan", body="Frontend goal")
-    _bite_under_plan(p1, s, "Backend bite")
-    _bite_under_plan(p2, s, "Frontend bite")
-
-    md = render_slice_markdown(s)
-
-    assert "## Backend plan" in md
-    assert "Backend goal" in md
-    assert "### Constraints" in md and "no billing" in md
-    assert "- [ ] Backend bite" in md
-
-    assert "## Frontend plan" in md
-    assert "Frontend goal" in md
-    assert "- [ ] Frontend bite" in md
-
-
-@pytest.mark.django_db
 def test_project_state_names_the_org_not_a_product(org):
     org.description = "our company"
     org.save(update_fields=["description", "updated_at"])
@@ -439,37 +438,24 @@ def test_project_state_names_the_org_not_a_product(org):
 
 
 @pytest.mark.django_db
-def test_slice_markdown_lists_provenance_with_origin_first():
-    from tuckit.core.models import Org
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.state import render_slice_markdown
-    from tuckit.core.services.tickets import absorb_ticket, create_ticket, promote_ticket
-
-    org = Org.objects.create(name="Acme", slug="acme")
-    area = create_area(org, "Backend")
-    origin = create_ticket(org, "Origin", area=area)
-    s = promote_ticket(origin)
-    extra = create_ticket(org, "Extra", area=area)
-    absorb_ticket(extra, s)
-
-    md = render_slice_markdown(s)
-    line = next(l for l in md.splitlines() if l.startswith("From:"))
-    assert f"ACM-{origin.number} (origin)" in line
-    assert f"ACM-{extra.number}" in line
-    # origin leads, so the ref that names the slice reads first
-    assert line.index(f"ACM-{origin.number}") < line.index(f"ACM-{extra.number}")
-
-
-@pytest.mark.django_db
-def test_slice_markdown_omits_provenance_when_unlinked():
+def test_slice_markdown_carries_no_ticket_provenance_line():
+    """The `From: ACM-n` line is gone. It pointed at Tickets, and 0045 already
+    appended every captured body into the slice's own spec — so the line named
+    a row an agent has no tool to read and no reason to. The slice is the whole
+    record now."""
     from tuckit.core.models import Org
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.state import render_slice_markdown
+    from tests.legacy_tickets import legacy_promoted
 
     org = Org.objects.create(name="Acme", slug="acme")
-    s = create_slice(org, area=create_area(org, "Backend"), title="Direct")
-    assert "From:" not in render_slice_markdown(s)
+    area = create_area(org, "Backend")
+    _origin, promoted = legacy_promoted(org, "Origin", area=area)
+    direct = create_slice(org, area=area, title="Direct")
+
+    assert "From:" not in render_slice_markdown(promoted)
+    assert "From:" not in render_slice_markdown(direct)
 
 
 @pytest.mark.django_db
@@ -614,11 +600,13 @@ def test_your_turn_excludes_stages_an_agent_can_do():
     """needs_steps is agent work — add_bites exists for exactly that. Listing
     it here would nag daily. Having an (empty) Plan attached must not change
     that — the Plan layer no longer factors into stage at all (Task 4)."""
+    from tuckit.core.models import Plan
+
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
     bare = create_slice(a.org, area=a, title="designed, no bites", status="open", spec="designed")
     with_empty_plan = create_slice(a.org, area=a, title="designed, has an empty plan", status="open", spec="designed")
-    create_plan(with_empty_plan, title="Empty plan")
+    Plan.objects.create(slice=with_empty_plan, title="Empty plan")
     ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
     assert bare.id not in ids
     assert with_empty_plan.id not in ids

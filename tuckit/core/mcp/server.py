@@ -5,39 +5,59 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from tuckit.core.mcp.auth import require_caller, require_org
-from tuckit.core.mcp.serializers import activity_event_dict, area_dict, bite_dict, plan_dict, slice_dict, ticket_dict
+from tuckit.core.mcp.serializers import activity_event_dict, area_dict, bite_dict, slice_dict
 from tuckit.core.services.activity import add_note as _add_note
 from tuckit.core.services.areas import create_area as _create_area
 from tuckit.core.services.areas import list_areas as _list_areas
+from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.bites import (
     add_bites as _add_bites,
     list_bites as _list_bites,
     update_bite as _update_bite,
 )
-from tuckit.core.services.plans import create_plan as _create_plan
-from tuckit.core.services.plans import list_plans as _list_plans
-from tuckit.core.services.plans import update_plan as _update_plan
 from tuckit.core.services.resolve import get_area
 from tuckit.core.services.resolve import get_bite as _resolve_bite
-from tuckit.core.services.resolve import get_plan as _resolve_plan
 from tuckit.core.services.resolve import get_slice as _resolve_slice
 from tuckit.core.services.resolve import get_slice_flexible as _resolve_slice_flexible
-from tuckit.core.services.resolve import get_ticket as _resolve_ticket
 from tuckit.core.services.members import resolve_member
 from tuckit.core.services.slices import create_slice as _create_slice
 from tuckit.core.services.slices import query_slices as _query_slices
+from tuckit.core.services.slices import set_slice_area as _set_slice_area
 from tuckit.core.services.slices import stage_of
 from tuckit.core.services.slices import update_slice as _update_slice
 from tuckit.core.services.state import get_project_state as _get_project_state
-from tuckit.core.services.state import render_slice_markdown, render_ticket_markdown
-from tuckit.core.services.tickets import (
-    create_ticket as _create_ticket,
-    query_tickets as _query_tickets,
-    update_ticket as _update_ticket,
-    promote_ticket as _promote_ticket,
-    absorb_ticket as _absorb_ticket,
-    release_ticket as _release_ticket,
-)
+from tuckit.core.services.state import render_slice_markdown
+
+# `area_id` is `int | str | None` on every tool that can move or filter by area.
+# There is no way to say "clear this field" with a plain `int | None` — None
+# already means "leave it alone" — and clearing an area is not an edge case
+# here: it is how a slice goes back to the Inbox, the reverse of filing it.
+# Empty string means "the Inbox / no area", matching the `assignee=''` clears
+# convention the same tools already use.
+
+
+def _area_arg(org, area_id):
+    """Resolve an `area_id` argument to (touched, area).
+
+    `None` -> (False, None): omitted, leave whatever is there.
+    `''`   -> (True, None):  the Inbox, i.e. no area.
+    an id  -> (True, Area)."""
+    if area_id is None:
+        return False, None
+    if isinstance(area_id, str):
+        text = area_id.strip()
+        if text == "":
+            return True, None
+        if not text.isdigit():
+            # An area NAME, most likely. Say so instead of raising ValueError
+            # out of int(), which reaches the caller as an opaque 500.
+            raise InvalidValue(
+                f"area_id must be an area id or '' for the Inbox, not {area_id!r} "
+                f"— call list_areas to get the id"
+            )
+        area_id = int(text)
+    return True, get_area(org, area_id)
+
 
 # FastMCP's Streamable HTTP transport enables DNS-rebinding protection (Host/Origin
 # header allowlisting) by default whenever `host` is unset/loopback (see
@@ -102,7 +122,12 @@ mcp = FastMCP(
 @mcp.tool()
 async def get_project_state(ctx: Context, area_id: int | None = None) -> dict:
     """Current project state (shipped/roadmap) plus the caller's identity
-    (user_email, org). Optionally scope to one area by id."""
+    (user_email, org). Optionally scope to one area by id.
+
+    `inbox` counts the slices that have no area yet — things someone decided
+    mattered before deciding where they belong. They are real slices, not a
+    separate kind of object: give one an area (update_slice) and it joins that
+    area's roadmap; clear the area and it comes back."""
     org, user = await require_caller(ctx)
 
     def _run():
@@ -137,28 +162,42 @@ async def create_area(ctx: Context, name: str, description: str = "") -> dict:
 @mcp.tool()
 async def list_slices(
     ctx: Context,
-    area_id: int | None = None,
+    area_id: int | str | None = None,
     status: str | None = None,
     tag: str | None = None,
     query: str | None = None,
     assignee: str | None = None,
     limit: int | None = 50,
 ) -> list[dict]:
-    """List/search slices. All filters optional; with no area_id it searches the
-    whole org. query = text match on title/spec. assignee = 'me' or an email.
+    """List/search slices — the one unit of work. All filters optional.
+
+    `area_id`: omit it to search the whole org, INCLUDING slices that have no
+    area yet; pass an id to scope to one area; pass '' to see only the
+    area-less ones — that set IS the Inbox, the captures nobody has filed. Do
+    that before assuming the org has nothing waiting: unfiled work is the
+    easiest to miss and usually the oldest.
+
+    query = text match on title/spec. assignee = 'me' or an email.
 
     Each row carries `stage` — what that slice needs next, derived from its own
     state: needs_design (spec is empty — brainstorm and write the design doc into
     it), needs_steps (spec is written but it has no bites yet), executing,
-    ready_to_ship, or shipped/dropped for finished work."""
+    ready_to_ship, or shipped/dropped for finished work. Read progress from
+    `stage`; `status` only ever records a decision (open/shipped/dropped)."""
     org, user = await require_caller(ctx)
 
     def _run():
-        area = get_area(org, area_id) if area_id is not None else None
+        touched, area = _area_arg(org, area_id)
         member = resolve_member(org, assignee, caller_user=user) if assignee else None
         rows = _query_slices(
             org, area=area, status=status, tag=tag, query=query,
             assignee_member=member, limit=limit,
+            # An omitted area_id means "everything", not "everything already
+            # filed": the service default hides area-less slices because the
+            # Board cannot render them, and an agent inheriting that default
+            # would be blind to the Inbox.
+            include_inbox=not touched,
+            inbox_only=touched and area is None,
         )
         # Merged here rather than inside slice_dict(): that serializer is shared
         # with create/update/promote, which already know what they just wrote.
@@ -169,13 +208,20 @@ async def list_slices(
 
 @mcp.tool()
 async def get_slice(ctx: Context, slice: int | str, with_activity: bool = False) -> str:
-    """Return a slice rendered as markdown (spec + bite checklist). `slice` may be
-    a numeric id or a ref like 'tuck-it-42'. Set with_activity=true to append the
-    activity/notes thread.
+    """Return a slice rendered as markdown — everything known about one unit of
+    work. `slice` may be a numeric id or a ref like 'ACM-42'. Set
+    with_activity=true to append the activity/notes thread.
+
+    Read this before touching the work. The sections are, in order: the spec
+    (the design doc — what we are building and why), `## Constraints` (what you
+    must not get wrong: landmines, invariants, the real definition of done —
+    treat it as binding, it was written for exactly this moment), and
+    `## Steps` (the bite checklist, with `[x]` for what is already done).
 
     The `Stage:` line says what to do next: needs_design (spec is empty —
     brainstorm and write the design doc into it), needs_steps (spec is written
-    but it has no bites yet), executing, ready_to_ship, or shipped/dropped."""
+    but it has no bites yet), executing, ready_to_ship, or shipped/dropped.
+    That line, not `Status:`, is where progress lives."""
     org = await require_org(ctx)
 
     def _run():
@@ -199,57 +245,12 @@ async def add_note(ctx: Context, slice: int | str, body: str) -> dict:
 
 
 @mcp.tool()
-async def create_plan(
-    ctx: Context, slice_id: int, title: str = "", body: str = "", constraints: str = ""
-) -> dict:
-    """Create a plan under a slice (a slice may hold multiple plans, each with its
-    own title, overview `body`, and `constraints`)."""
-    org = await require_org(ctx)
-
-    def _run():
-        s = _resolve_slice(org, slice_id)
-        return plan_dict(_create_plan(s, title=title, body=body, constraints=constraints, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def list_plans(ctx: Context, slice_id: int) -> list[dict]:
-    """List the plans under a slice."""
-    org = await require_org(ctx)
-
-    def _run():
-        s = _resolve_slice(org, slice_id)
-        return [plan_dict(p) for p in _list_plans(s)]
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def update_plan(
-    ctx: Context,
-    plan_id: int,
-    title: str | None = None,
-    body: str | None = None,
-    constraints: str | None = None,
-) -> dict:
-    """Update a plan's title, overview `body`, and/or `constraints`. Omitted fields
-    are left unchanged."""
-    org = await require_org(ctx)
-
-    def _run():
-        plan = _resolve_plan(org, plan_id)
-        return plan_dict(_update_plan(plan, title=title, body=body, constraints=constraints, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
 async def create_slice(
     ctx: Context,
-    area_id: int,
     title: str,
+    area_id: int | str | None = None,
     spec: str = "",
+    constraints: str = "",
     status: str = "open",
     tags: list[str] | None = None,
     assignee: str | None = None,
@@ -257,22 +258,40 @@ async def create_slice(
     after_id: int | None = None,
     before_id: int | None = None,
 ) -> dict:
-    """Create a slice directly in an area (default status 'open'). For quick,
-    unfiled capture use create_ticket instead. `status` carries the DECISION
-    only — open / shipped / dropped. Progress is derived: read `stage` to learn
-    what a slice needs next. external_key makes re-runs idempotent (same key
-    updates instead of duplicating). assignee = 'me' or an email. Optionally
-    position with after_id/before_id (another slice's id in the same area)."""
+    """Create a slice — the one unit of work in tuckit.
+
+    A slice is a thing worth doing, from the moment someone thinks it matters
+    through to the moment it ships. There is no lighter object to capture into
+    and no heavier one to graduate to; this is the whole vocabulary.
+
+    Leave `area_id` empty to park it in the Inbox (you know it matters, not yet
+    where it belongs) — capturing without filing is a first-class path, not a
+    fallback. Setting an area later files it, and clearing the area sends it
+    back; both directions are reversible, so nothing here is a one-way door.
+
+    `spec` is the design doc — what we are building and why. Leave it blank if
+    the work has not been thought through: an empty spec is the signal that
+    reads back as stage 'needs_design', and pre-filling it with a rough capture
+    makes undesigned work look designed to the next agent.
+
+    `constraints` is what a later agent must not get wrong — landmines,
+    invariants, and what "done" actually means. It is the field that survives
+    you: write what you would tell someone starting this work cold.
+
+    `status` carries the DECISION only — open / shipped / dropped. Progress is
+    read from `stage`, never from `status`. external_key makes re-runs
+    idempotent (same key updates instead of duplicating). assignee = 'me' or an
+    email. Optionally position with after_id/before_id (another slice's id)."""
     org, user = await require_caller(ctx)
 
     def _run():
-        area = get_area(org, area_id)
+        _, area = _area_arg(org, area_id)
         member = resolve_member(org, assignee, caller_user=user) if assignee else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
         s = _create_slice(
-            org, area=area, title=title, spec=spec, status=status, tags=tags,
-            after=after, before=before, source="agent",
+            org, area=area, title=title, spec=spec, constraints=constraints,
+            status=status, tags=tags, after=after, before=before, source="agent",
             assignee_member=member, external_key=external_key,
         )
         return slice_dict(s)
@@ -286,188 +305,82 @@ async def update_slice(
     slice_id: int,
     title: str | None = None,
     spec: str | None = None,
+    constraints: str | None = None,
     status: str | None = None,
+    area_id: int | str | None = None,
     tags: list[str] | None = None,
     assignee: str | None = None,
     after_id: int | None = None,
     before_id: int | None = None,
 ) -> dict:
-    """Update a slice. `status` folds in the old set_slice_status; after_id/before_id
-    fold in reorder. `assignee`: '' clears, 'me' = you, '<email>' = that member."""
+    """Update a slice. Omitted fields are left alone.
+
+    `spec` is the design doc; write it here once the work has been thought
+    through — that is what moves a slice off stage 'needs_design'.
+    `constraints` is what a later agent must not get wrong: landmines,
+    invariants, and what "done" means.
+
+    `area_id` files the slice: pass an area's id to file it, or '' to send it
+    back to the Inbox. Filing is reversible in both directions — it is a
+    decision about where work belongs, never about whether it survives.
+
+    `status` records a DECISION (open / shipped / dropped) and nothing else;
+    it folds in the old set_slice_status. Never read progress from it — read
+    `stage` (list_slices/get_slice report it). after_id/before_id fold in
+    reorder. `assignee`: '' clears, 'me' = you, '<email>' = that member."""
     org, user = await require_caller(ctx)
 
     def _run():
         s = _resolve_slice(org, slice_id)
+        moved, area = _area_arg(org, area_id)
         member = resolve_member(org, assignee, caller_user=user) if assignee is not None else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
-        return slice_dict(_update_slice(
-            s, title=title, spec=spec, status=status, tags=tags,
-            assignee=assignee, assignee_member=member, before=before, after=after,
-            actor="agent",
-        ))
+        s = _update_slice(
+            s, title=title, spec=spec, constraints=constraints, status=status,
+            tags=tags, assignee=assignee, assignee_member=member,
+            before=before, after=after, actor="agent",
+        )
+        if moved:
+            # Filing goes through set_slice_area, not a bare field write: it
+            # re-ranks the slice into its new area's ordering and records the
+            # move on the activity thread. A plain assignment would leave the
+            # slice ranked against siblings it no longer has.
+            s = _set_slice_area(s, area, actor="agent")
+        return slice_dict(s)
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
 
 @mcp.tool()
-async def list_tickets(
-    ctx: Context,
-    status: str = "open",
-    area_id: int | None = None,
-    query: str | None = None,
-    limit: int | None = 50,
-) -> list[dict]:
-    """List backlog tickets (default: open = the Inbox). A ticket is a lightweight
-    capture upstream of a slice; promote one to start work. status: 'open',
-    'promoted', 'dismissed', 'duplicate' — or '' for all."""
+async def list_bites(ctx: Context, slice_id: int) -> list[dict]:
+    """List a slice's bites — the ordered implementation steps it was broken
+    into, with the status of each. Read this before continuing work someone
+    (or some earlier session) already started, so you resume rather than
+    restart."""
     org = await require_org(ctx)
 
     def _run():
-        area = get_area(org, area_id) if area_id is not None else None
-        rows = _query_tickets(org, status=status, area=area, query=query, limit=limit)
-        return [ticket_dict(t) for t in rows]
+        s = _resolve_slice(org, slice_id)
+        return [bite_dict(b) for b in _list_bites(s)]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
 
 @mcp.tool()
-async def create_ticket(
-    ctx: Context, title: str, body: str = "", area_id: int | None = None,
-    external_key: str = "",
-) -> dict:
-    """Capture a backlog ticket (title + optional markdown body). Lands in the
-    Inbox (no area) unless area_id is given. Promote it later to create a slice.
-    external_key makes re-runs idempotent — pass a stable id (e.g. the source
-    TODO or issue key) and a repeat call returns the same ticket."""
-    org, user = await require_caller(ctx)
+async def add_bites(ctx: Context, slice_id: int, bites: list[dict]) -> list[dict]:
+    """Break a slice into ordered implementation steps. Each item:
+    {title, body?, status?}; they are appended in the order given.
 
-    def _run():
-        area = get_area(org, area_id) if area_id is not None else None
-        member = resolve_member(org, "me", caller_user=user) if user is not None else None
-        t = _create_ticket(org, title, body=body, area=area, source="agent",
-                           created_by=member, external_key=external_key)
-        return ticket_dict(t)
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def get_ticket(ctx: Context, ticket_id: int) -> str:
-    """Return a ticket rendered as markdown (title + body + status)."""
+    Do this once the slice has a spec — a slice with a spec and no bites reads
+    back as stage 'needs_steps', and adding them is what moves it to
+    'executing'. Mark each one done with update_bite as you go: that is how a
+    human, and the next agent session, can see where the work actually is."""
     org = await require_org(ctx)
 
     def _run():
-        t = _resolve_ticket(org, ticket_id)
-        return render_ticket_markdown(t)
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def update_ticket(
-    ctx: Context,
-    ticket_id: int,
-    title: str | None = None,
-    body: str | None = None,
-    status: str | None = None,
-    area_id: int | None = None,
-) -> dict:
-    """Update a ticket. status: 'dismissed' (decided against) or 'duplicate' —
-    both end the ticket. Use promote_ticket to turn one into a slice; a ticket's
-    status never tracks delivery. area_id files it under a project (omit to
-    leave unchanged)."""
-    org = await require_org(ctx)
-
-    def _run():
-        t = _resolve_ticket(org, ticket_id)
-        kwargs = {"title": title, "body": body, "status": status, "actor": "agent"}
-        if area_id is not None:
-            kwargs["area"] = get_area(org, area_id)
-        return ticket_dict(_update_ticket(t, **kwargs))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def promote_ticket(ctx: Context, ticket_id: int, area_id: int | None = None) -> dict:
-    """Promote a ticket into a slice (inherits the ticket's ref).
-    The slice starts with an EMPTY spec: that blank is how the workflow knows the
-    work has not been designed yet, so write the design doc into it before
-    planning. The ticket keeps its body — read it via get_ticket, or the 'From:'
-    line on the slice. The ticket becomes 'promoted' and the slice owns progress
-    from then on. Idempotent — re-promoting returns the existing slice. area_id
-    is required only if the ticket has no area yet."""
-    org = await require_org(ctx)
-
-    def _run():
-        t = _resolve_ticket(org, ticket_id)
-        area = get_area(org, area_id) if area_id is not None else None
-        return slice_dict(_promote_ticket(t, area=area, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def absorb_ticket(ctx: Context, ticket_id: int, into_slice: int | str) -> dict:
-    """Fold an open ticket into an EXISTING slice instead of giving it its own.
-    Use when a capture turns out to be part of work already planned. The ticket
-    becomes 'promoted' and keeps its own ref; no slice is created and no number
-    changes hands. `into_slice` may be an id or a ref."""
-    org = await require_org(ctx)
-
-    def _run():
-        t = _resolve_ticket(org, ticket_id)
-        s = _resolve_slice_flexible(org, into_slice)
-        return ticket_dict(_absorb_ticket(t, s, actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def release_ticket(ctx: Context, ticket_id: int) -> dict:
-    """Undo an absorb: detach the ticket from its slice and return it to the
-    Inbox. Absorbed tickets only — the origin ticket gave the slice its ref and
-    cannot be released; drop the slice instead."""
-    org = await require_org(ctx)
-
-    def _run():
-        return ticket_dict(_release_ticket(_resolve_ticket(org, ticket_id), actor="agent"))
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def list_bites(ctx: Context, plan_id: int) -> list[dict]:
-    """List the bites (implementation steps) of plan_id's slice.
-
-    Bites hang off the Slice now, not the Plan (Task 5) — plan_id still
-    picks which slice's steps to list, it just resolves one hop further, so
-    two plans on the same slice return the same full list."""
-    org = await require_org(ctx)
-
-    def _run():
-        plan = _resolve_plan(org, plan_id)
-        return [bite_dict(b) for b in _list_bites(plan.slice)]
-
-    return await sync_to_async(_run, thread_sensitive=True)()
-
-
-@mcp.tool()
-async def add_bites(ctx: Context, plan_id: int, bites: list[dict]) -> list[dict]:
-    """Add one or more bites (implementation steps) to a plan, in order.
-    Each item: {title, body?, status?}."""
-    org = await require_org(ctx)
-
-    def _run():
-        # `plan_id` is resolved one hop to its slice and then ignored: bites
-        # hang off the Slice (Task 5). The shim that reparented each new bite
-        # back onto the plan is gone with the panel that grouped steps by plan
-        # (Task 10) — the panel now lists every bite on the slice, so an
-        # agent's step is visible without a Plan existing at all. Task 13
-        # replaces this parameter with slice_id.
-        plan = _resolve_plan(org, plan_id)
-        made = _add_bites(plan.slice, bites, source="agent")
+        s = _resolve_slice(org, slice_id)
+        made = _add_bites(s, bites, source="agent")
         return [bite_dict(b) for b in made]
 
     return await sync_to_async(_run, thread_sensitive=True)()
@@ -483,7 +396,10 @@ async def update_bite(
     after_id: int | None = None,
     before_id: int | None = None,
 ) -> dict:
-    """Update a bite. status folds in set_bite_status; after_id/before_id fold in reorder."""
+    """Update one implementation step. `status`: todo / doing / done / dropped —
+    keep it current as you work, because a slice's stage is derived from how
+    many of its bites are done, so a stale checklist misreports the whole
+    slice. after_id/before_id fold in reorder."""
     org = await require_org(ctx)
 
     def _run():

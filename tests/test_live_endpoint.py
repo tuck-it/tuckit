@@ -3,7 +3,6 @@ from django.urls import reverse
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite, delete_bite
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.activity import latest_activity_id
 
@@ -62,7 +61,6 @@ def test_bite_event_carries_its_own_id_and_label(client, member):
     org, user = member
     client.force_login(user)
     slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
-    create_plan(slice_, title="Plan")
     cursor = latest_activity_id(org)
     bite = create_bite(slice_, "Wire the form", source="agent")
 

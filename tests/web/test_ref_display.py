@@ -6,16 +6,15 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
 from tuckit.core.services.areas import create_area
-from tuckit.core.services.refs import slice_ref, ticket_ref
+from tuckit.core.services.refs import slice_ref
 from tuckit.core.services.slices import create_slice
-from tuckit.core.services.tickets import create_ticket
 
 
 def _standalone_org_queries(ctx) -> int:
     """How many captured queries hit core_org as their own SELECT (i.e. the
-    lazy `slice.org` / `ticket.org` fetch a missing select_related causes) —
-    as opposed to a JOIN that pulls org columns into the same query as the
-    slice/ticket row. Django always double-quotes identifiers on both sqlite
+    lazy `slice.org` fetch a missing select_related causes) — as opposed to a
+    JOIN that pulls org columns into the same query as the slice row.
+    Django always double-quotes identifiers on both sqlite
     and Postgres, so 'FROM "core_org"' only appears for the standalone form."""
     return sum(1 for q in ctx.captured_queries if 'FROM "core_org"' in q["sql"])
 
@@ -63,18 +62,16 @@ def test_home_list_row_shows_the_ref(client_local, org):
 
 
 @pytest.mark.django_db
-def test_provenance_link_uses_the_new_format(client_local, org):
-    """The slice detail's "promoted from" link built its ref by hand from the
-    org SLUG. After the key switch that renders the wrong format — two ref
-    shapes on one screen."""
-    from tuckit.core.services.tickets import promote_ticket
-
+def test_slice_detail_ref_uses_the_key_not_the_slug(client_local, org):
+    """The detail panel used to build its ref by hand from the org SLUG. After
+    the key switch that renders the wrong format — two ref shapes on one
+    screen. (This covered the "promoted from" link too, until Task 10 removed
+    provenance from the panel; the slice's own ref is the surviving reader.)"""
     a = create_area(org, "OSS")
-    t = create_ticket(org, "Original capture")
-    s = promote_ticket(t, area=a)
+    s = create_slice(a.org, area=a, title="Original capture")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-    assert ticket_ref(t) in body
-    assert f"{org.slug}-{t.number}" not in body
+    assert slice_ref(s) in body
+    assert f"{org.slug}-{s.number}" not in body
 
 
 @pytest.mark.django_db
@@ -100,9 +97,9 @@ def test_no_template_builds_a_ref_from_the_org_slug():
 
 # --- Important 1: no N+1 on Org across list surfaces -----------------------
 #
-# refs.py reads slice_.org.key / ticket.org.key on every row. None of these
-# surfaces select_related("org") on purpose in this test — an area, several
-# slices and a ticket are enough rows that a per-row org fetch would show up
+# refs.py reads slice_.org.key on every row. None of these surfaces
+# select_related("org") on purpose in this test — an area and several
+# slices are enough rows that a per-row org fetch would show up
 # as query count scaling with row count. Each surface asserts a fixed ceiling
 # a couple above its own measured baseline, so it survives an unrelated query
 # being added elsewhere on the page without going stale, but still fails hard
@@ -132,8 +129,10 @@ def test_board_does_not_n_plus_one_on_org(client_local, org):
 
 @pytest.mark.django_db
 def test_inbox_does_not_n_plus_one_on_org(client_local, org):
+    # The Inbox lists area-less SLICES now (Task 9). Seeding Tickets here
+    # would leave the page empty and the ceiling would pass vacuously.
     for i in range(6):
-        create_ticket(org, f"Ticket {i}")
+        create_slice(org, title=f"Capture {i}")
     with CaptureQueriesContext(connection) as ctx:
         client_local.get(f"/{org.slug}/inbox/")
     assert _standalone_org_queries(ctx) <= 4

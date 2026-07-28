@@ -2,14 +2,12 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from tuckit.core.models import Area, Bite, Org, Slice, OrgStatSnapshot
+from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
 from tuckit.core.services.activity import slice_activity
-from tuckit.core.services.plans import list_plans
-from tuckit.core.services.refs import ticket_ref
+from tuckit.core.services.bites import list_bites
 from tuckit.core.services.slices import (
-    annotate_stage_counts, filed_slices, list_slices, stage_column, stage_of,
+    annotate_stage_counts, filed_slices, inbox_slices, list_slices, stage_column, stage_of,
 )
-from tuckit.core.services.tickets import origin_ticket
 
 STALE_DAYS = 7
 
@@ -37,9 +35,12 @@ def _area_state(area: Area) -> dict:
 
 
 def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> dict:
-    from tuckit.core.services.tickets import ticket_queryset
     areas = [area] if area is not None else list(Area.objects.filter(org=org, archived=False))
-    inbox_qs = ticket_queryset(org)
+    # The Inbox is area-less Slices now, not a separate Ticket table — same
+    # aggregate, one model. inbox_slices() is the single definition of the
+    # predicate (see slices.py); spelling `area__isnull=True` here again is how
+    # the two halves of the split drift apart.
+    inbox_qs = inbox_slices(org)
     return {
         "caller": {
             "user_email": caller_user.email if caller_user is not None else None,
@@ -65,16 +66,6 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     # caller needs, and the reason get_slice is worth calling before anything
     # else. Never stored; see slice_stage().
     lines.append(f"Stage: {stage_of(slice_)}")
-    # Where this work came from. The captured bodies live on the tickets, not
-    # copied into spec, so this line is how an agent reaches the original text.
-    linked = list(slice_.tickets.all())
-    if linked:
-        origin = origin_ticket(slice_)
-        ordered = sorted(linked, key=lambda t: (t != origin, t.number or 0))
-        lines.append("From: " + " · ".join(
-            f"{ticket_ref(t)} (origin)" if t == origin else ticket_ref(t)
-            for t in ordered
-        ))
     lines.append("")
     if slice_.spec:
         lines += [slice_.spec, ""]
@@ -85,29 +76,16 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     # it exists for.
     if slice_.constraints:
         lines += ["## Constraints", "", slice_.constraints, ""]
-    for plan in list_plans(slice_):
-        lines.append(f"## {plan.title or 'Plan'}")
-        if plan.body:
-            lines += [plan.body, ""]
-        if plan.constraints:
-            lines += ["### Constraints", plan.constraints, ""]
-        # list_bites() is slice-scoped now (Task 5); a per-plan filter still
-        # has to go through the model directly until this plan-based render
-        # is retired.
-        for b in Bite.objects.filter(plan=plan):
-            check = "x" if b.status == "done" else " "
-            lines.append(f"- [{check}] {b.title}")
-            if b.body:
-                lines += [f"      {line}" for line in b.body.splitlines()]
-        lines.append("")
-    # Bites created directly on the slice (Task 5 — add_bites no longer needs
-    # a Plan) have no plan section to nest under, so they render as a flat
-    # checklist. Without this an agent's own add_bites() call would vanish
-    # from the next get_slice() it makes.
-    direct = Bite.objects.filter(slice=slice_, plan__isnull=True)
-    if direct.exists():
+    # ONE flat checklist of every bite on the slice. The old renderer grouped
+    # steps under Plan headings and then appended plan-less ones separately;
+    # with the Plan layer gone that split has no meaning, and keeping the
+    # `plan__isnull=True` filter would have hidden every bite migration 0045
+    # reparented (it sets Bite.slice but leaves Bite.plan populated) — i.e.
+    # every step that existed before this release.
+    bites = list(list_bites(slice_))
+    if bites:
         lines.append("## Steps")
-        for b in direct:
+        for b in bites:
             check = "x" if b.status == "done" else " "
             lines.append(f"- [{check}] {b.title}")
             if b.body:
@@ -117,23 +95,6 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     if with_activity:
         out += _render_activity(slice_)
     return out
-
-
-def render_ticket_markdown(ticket) -> str:
-    """A ticket as markdown. For a promoted ticket the delivery status is read
-    live off the slice rather than stored here, so this is the one place an
-    agent needs to look to find out where a capture ended up."""
-    lines = [f"# {ticket.title}", "", f"Status: {ticket.status}"]
-    # Reverse OneToOne raises RelatedObjectDoesNotExist, which subclasses
-    # AttributeError — so getattr's default covers the unpromoted case.
-    promoted = getattr(ticket, "slice", None)
-    if promoted is not None:
-        from tuckit.core.services.refs import slice_ref
-        lines[-1] += f" → slice {slice_ref(promoted)} ({promoted.status})"
-    lines.append("")
-    if ticket.body:
-        lines += [ticket.body, ""]
-    return "\n".join(lines).rstrip() + "\n"
 
 
 def _render_activity(slice_: Slice) -> str:

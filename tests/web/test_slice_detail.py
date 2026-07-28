@@ -244,11 +244,10 @@ def test_spec_is_boxed_inline_edit(client_local, org):
 
 @pytest.mark.django_db
 def test_panel_shows_no_ticket_provenance(client_local, org):
-    from tuckit.core.services.tickets import create_ticket, promote_ticket
+    from tests.legacy_tickets import legacy_promoted
 
     area = create_area(org, "Backend")
-    origin = create_ticket(org, "Origin", body="the capture", area=area)
-    s = promote_ticket(origin, area=area)
+    origin, s = legacy_promoted(org, "Origin", body="the capture", area=area)
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "From:" not in body

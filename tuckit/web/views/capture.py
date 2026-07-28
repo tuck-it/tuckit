@@ -12,7 +12,7 @@ from tuckit.core.services.areas import create_area, list_areas, update_area, del
 from tuckit.core.services.slices import create_slice, inbox_slices
 from tuckit.core.services.state import area_board_view
 from tuckit.core.services.resolve import get_area, get_area_by_slug
-from tuckit.core.services.tickets import slice_for_ticket
+from tuckit.core.services.resolve import slice_for_ticket
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import refresh_rollup, widget_oob
 from tuckit.web.views._feedback import _action_result

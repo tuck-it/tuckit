@@ -10,7 +10,6 @@ import tuckit.web
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 
 

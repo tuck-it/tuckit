@@ -61,7 +61,7 @@ class LegacyTicketLinkMiddleware:
         return self.get_response(request)
 
     def process_view(self, request, view_func, view_args, view_kwargs):
-        from tuckit.core.services.tickets import slice_for_ticket
+        from tuckit.core.services.resolve import slice_for_ticket
 
         raw = request.GET.get("ticket", "")
         org = getattr(request, "org", None)

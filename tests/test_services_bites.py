@@ -62,9 +62,9 @@ def test_reorder_bite_is_scoped_to_its_own_slice(slice_):
     """reorder_bite must rank a bite among ALL of its slice's siblings, not
     just the ones sharing its own `plan` value.
 
-    A slice can mix a legacy plan-having bite (migrated data, or one added
-    through the still-live bite_create web path, which still reparents onto a
-    plan — see web/views/mutations.py) with new plan-less ones (Task 5).
+    A slice can mix a legacy plan-having bite (rows migration 0045 reparented
+    onto the slice while leaving Bite.plan populated) with plan-less ones. The
+    column survives until 0047 drops it, so the mix is real production data.
     Scoping the rank lookup by `{"plan": bite.plan}` instead of
     `{"slice": bite.slice}` silently drops the plan-having sibling from the
     neighbor search.
@@ -78,9 +78,9 @@ def test_reorder_bite_is_scoped_to_its_own_slice(slice_):
 
     Title-order assertions cannot tell these apart (reorder_bite only ever
     touches C's own row), so this asserts on the actual rank values."""
-    from tuckit.core.services.plans import create_plan
+    from tuckit.core.models import Plan
 
-    plan = create_plan(slice_, title="P")
+    plan = Plan.objects.create(slice=slice_, title="P")
     a = create_bite(slice_, "A")             # rank a0
     a.plan = plan
     a.save(update_fields=["plan"])

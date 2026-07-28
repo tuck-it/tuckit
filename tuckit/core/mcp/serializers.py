@@ -1,4 +1,4 @@
-from tuckit.core.services.refs import slice_ref, ticket_ref
+from tuckit.core.services.refs import slice_ref
 
 
 def tag_names(slice_) -> list[str]:
@@ -18,45 +18,20 @@ def slice_dict(slice_) -> dict:
 
 
 def bite_dict(bite) -> dict:
+    # No plan_id. The Plan layer is gone from the agent-facing surface, and a
+    # key that names it would keep the word alive in the one vocabulary an
+    # agent actually reads. The column survives until 0047 drops it.
     return {
         "id": bite.id,
         "title": bite.title,
         "body": bite.body,
         "status": bite.status,
-        "plan_id": bite.plan_id,
         "slice_id": bite.slice_id,
-    }
-
-
-def plan_dict(plan) -> dict:
-    return {
-        "id": plan.id,
-        "slice_id": plan.slice_id,
-        "title": plan.title,
-        "body": plan.body,
-        "constraints": plan.constraints,
     }
 
 
 def area_dict(area) -> dict:
     return {"id": area.id, "name": area.name, "slug": area.slug}
-
-
-def ticket_dict(ticket) -> dict:
-    # A promoted ticket's delivery status is derived from its slice, never
-    # stored — expose it here so one read answers "where did this end up?".
-    promoted = getattr(ticket, "slice", None)
-    return {
-        "id": ticket.id,
-        "ref": ticket_ref(ticket),
-        "title": ticket.title,
-        "status": ticket.status,
-        "area_id": ticket.area_id,
-        "created_by": (ticket.created_by.user.email if ticket.created_by_id else None),
-        "source": ticket.source,
-        "slice_id": promoted.id if promoted else None,
-        "slice_status": promoted.status if promoted else None,
-    }
 
 
 def activity_event_dict(ev) -> dict:

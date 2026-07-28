@@ -3,7 +3,6 @@ from tuckit.core.models import ActivityEvent, Org
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite, set_bite_status, update_bite
-from tuckit.core.services.plans import create_plan
 
 
 def _org(slug="w"):
@@ -12,10 +11,6 @@ def _org(slug="w"):
 
 def _slice(org):
     return create_slice(org, area=create_area(org, "Backend"), title="S", status="open")
-
-
-def _plan(org):
-    return create_plan(_slice(org), title="Plan")
 
 
 @pytest.mark.django_db

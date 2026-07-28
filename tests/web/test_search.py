@@ -7,7 +7,7 @@ from tuckit.core.models import Org
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.refs import slice_ref, ticket_ref
 from tuckit.core.services.slices import create_slice
-from tuckit.core.services.tickets import absorb_ticket, create_ticket, promote_ticket, resolve_ticket
+from tests.legacy_tickets import legacy_absorbed, legacy_promoted, legacy_resolved, legacy_ticket
 
 
 @pytest.mark.django_db
@@ -28,7 +28,7 @@ def test_finds_a_slice_by_a_bare_number(client_local, org):
 @pytest.mark.django_db
 def test_finds_by_title_substring(client_local, org):
     create_slice(org, area=create_area(org, "OSS"), title="Board redesign")
-    create_ticket(org, "Board is slow")
+    legacy_ticket(org, "Board is slow")
     body = client_local.get(f"/{org.slug}/search", {"q": "board"}).content.decode()
     assert "Board redesign" in body
     assert "Board is slow" in body
@@ -44,11 +44,12 @@ def test_does_not_leak_another_orgs_work(client_local, org):
 
 @pytest.mark.django_db
 def test_an_absorbed_ticket_ref_says_where_it_went(client_local, org):
-    """absorb_ticket does NOT hand its number over, so the ticket's ref resolves
-    to a slice carrying a DIFFERENT ref. Landing there silently reads as a bug."""
+    """An absorb did NOT hand the ticket's number over, so the ticket's ref
+    resolves to a slice carrying a DIFFERENT ref. Landing there silently reads
+    as a bug."""
     s = create_slice(org, area=create_area(org, "OSS"), title="Auth overhaul")
-    t = create_ticket(org, "Login is broken")
-    absorb_ticket(t, into=s)
+    t = legacy_ticket(org, "Login is broken")
+    legacy_absorbed(t, s)
 
     body = client_local.get(f"/{org.slug}/search", {"q": ticket_ref(t)}).content.decode()
     assert "Auth overhaul" in body
@@ -59,13 +60,12 @@ def test_an_absorbed_ticket_ref_says_where_it_went(client_local, org):
 
 @pytest.mark.django_db
 def test_a_promoted_tickets_row_is_marked_resolved_but_its_slice_is_not(client_local, org):
-    """promote_ticket copies the title onto the new Slice verbatim, and the
-    Ticket row lives on afterward — so a title search returns both, with
-    identical titles (and, since promote also hands over the number, identical
-    refs). Nothing but a marker on the ticket row tells them apart."""
+    """Promotion copied the title onto the new Slice verbatim and the Ticket
+    row lived on afterward — so a title search returns both, with identical
+    titles (and, since promotion also handed over the number, identical refs).
+    Nothing but a marker on the ticket row tells them apart."""
     area = create_area(org, "OSS")
-    t = create_ticket(org, "Board redesign", area=area)
-    promote_ticket(t)
+    legacy_promoted(org, "Board redesign", area=area)
 
     body = client_local.get(f"/{org.slug}/search", {"q": "Board redesign"}).content.decode()
     assert body.count('cmdk-result-title">Board redesign') == 2  # slice row AND the dead ticket row
@@ -75,8 +75,7 @@ def test_a_promoted_tickets_row_is_marked_resolved_but_its_slice_is_not(client_l
 
 @pytest.mark.django_db
 def test_a_dismissed_ticket_is_marked_resolved(client_local, org):
-    t = create_ticket(org, "Login is broken")
-    resolve_ticket(t, "dismissed")
+    legacy_resolved(legacy_ticket(org, "Login is broken"), "dismissed")
 
     body = client_local.get(f"/{org.slug}/search", {"q": "Login is broken"}).content.decode()
     assert "Login is broken" in body
@@ -85,7 +84,7 @@ def test_a_dismissed_ticket_is_marked_resolved(client_local, org):
 
 @pytest.mark.django_db
 def test_an_open_ticket_has_no_resolved_marker(client_local, org):
-    create_ticket(org, "Something new")
+    legacy_ticket(org, "Something new")
 
     body = client_local.get(f"/{org.slug}/search", {"q": "Something new"}).content.decode()
     assert "Something new" in body

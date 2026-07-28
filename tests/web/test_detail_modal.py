@@ -120,11 +120,10 @@ def test_a_ticket_deep_link_no_longer_opens_a_second_card(client_local, org):
     it forwards to the slice now, so the overlay can never be handed a card
     with a different dialog contract."""
     from tuckit.core.services.areas import create_area
-    from tuckit.core.services.tickets import create_ticket, promote_ticket
+    from tests.legacy_tickets import legacy_promoted
 
     area = create_area(org, "Backend")
-    t = create_ticket(org, "Something broke", area=area)
-    s = promote_ticket(t, area=area)
+    t, s = legacy_promoted(org, "Something broke", area=area)
 
     resp = client_local.get(f"/{org.slug}/tickets/{t.id}/")
     assert resp.status_code == 302

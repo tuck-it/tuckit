@@ -6,7 +6,6 @@ from django.utils import timezone
 from tuckit.core.models import Slice
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 
 
@@ -141,7 +140,6 @@ def test_someday_tagged_executing_slice_is_not_hidden(client_local, org):
     someday is never a filter, only ever a sort key."""
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Parked but executing", status="open", spec="designed", tags=["someday"])
-    create_plan(s, title="Plan")
     create_bite(s, "step")
     body = _body(client_local, org)
     assert "Parked but executing" in _band(body, "in progress")
@@ -151,7 +149,6 @@ def test_someday_tagged_executing_slice_is_not_hidden(client_local, org):
 def test_stalled_building_slice_stays_listed(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Stalled work", status="open", spec="designed")
-    create_plan(s, title="Plan")
     create_bite(s, "todo", status="todo")
     Slice.objects.filter(pk=s.pk).update(updated_at=timezone.now() - timedelta(days=30))
     body = _body(client_local, org)
@@ -223,11 +220,10 @@ def test_home_page_head_and_capture_button(client_local, org):
 @pytest.mark.django_db
 def test_home_in_progress_band_renders_executing_slice(client_local, org):
     """`in progress` is derived from stage == "executing", not a stored status
-    flag — a slice only shows up once it actually has work underway (a plan
-    with at least one open bite)."""
+    flag — a slice only shows up once it actually has work underway (a spec
+    plus at least one open bite)."""
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="진행 중인 일", spec="왜", status="open")
-    create_plan(s, title="계획")
     create_bite(s, "한 걸음")
 
     body = _body(client_local, org)

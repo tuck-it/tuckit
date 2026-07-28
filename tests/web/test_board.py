@@ -291,12 +291,15 @@ def test_needs_steps_column_badges_needs_steps(client_local, org):
     """needs_plan and needs_bites collapsed into one needs_steps stage (Task 4)
     — a slice with a Plan already attached but no bites still badges the same
     as one with no Plan at all, because Plan no longer factors into stage."""
-    from tuckit.core.services.plans import create_plan
+    from tuckit.core.models import Plan
     p = f"/{org.slug}"
     a = create_area(org, "Core")
     create_slice(a.org, area=a, title="spec only", spec="s")             # needs_steps
     empty = create_slice(a.org, area=a, title="has an empty plan", spec="s")
-    create_plan(empty, title="P")                      # still needs_steps
+    # Built through the model: nothing in the product creates a Plan any more
+    # (the service went with the MCP tools in Task 13), but the rows survive
+    # until 0047 and must still not move a slice's stage.
+    Plan.objects.create(slice=empty, title="P")        # still needs_steps
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert body.count("needs steps") == 2
 

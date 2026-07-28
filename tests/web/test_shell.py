@@ -23,8 +23,8 @@ def test_current_org_resolves(client_local, org):
 
 @pytest.mark.django_db
 def test_sidebar_shows_icons_and_inbox_count(client_local, org):
-    from tuckit.core.services.tickets import create_ticket
-    create_ticket(org, "Uncategorized 1")
+    from tuckit.core.services.slices import create_slice
+    create_slice(org, title="Uncategorized 1")   # area-less = Inbox
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/").content.decode()
     assert "<svg" in body                 # line icons present
@@ -46,8 +46,8 @@ def test_sidebar_grouped_with_english_labels_and_capture(client_local, org):
 
 @pytest.mark.django_db
 def test_sidebar_inbox_count_and_no_lens_tabs(client_local, org):
-    from tuckit.core.services.tickets import create_ticket
-    create_ticket(org, "Uncategorized")
+    from tuckit.core.services.slices import create_slice
+    create_slice(org, title="Uncategorized")     # area-less = Inbox
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/").content.decode()
     assert ">Inbox<" in body

@@ -23,7 +23,8 @@ def list_slices(area: Area, status: str | None = None, tag: str | None = None) -
 
 
 def query_slices(org, *, area=None, status=None, tag=None, query=None,
-                 assignee_member=None, include_inbox=False, limit=None) -> list[Slice]:
+                 assignee_member=None, include_inbox=False, inbox_only=False,
+                 limit=None) -> list[Slice]:
     """Org-wide slice query used by the MCP list_slices tool. All filters optional;
     with no `area` it searches the whole org. `query` = icontains on title/spec.
 
@@ -31,14 +32,22 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
     query are not where the Inbox is read from; use inbox_slices() for that, or
     pass include_inbox=True to opt back in. Asking for a specific `area`
     implies you already know inbox items can't match, so the exclusion is
-    skipped rather than filtering twice."""
+    skipped rather than filtering twice.
+
+    `inbox_only=True` inverts the split: only area-less slices, with the other
+    filters (status/tag/query/assignee) still applied. inbox_slices() is the
+    Inbox *screen's* source and hardcodes status='open' plus its own ordering;
+    this is the searchable form the MCP tool needs, which is why the two are
+    not one function."""
     # Annotated here so list_slices can report each row's stage without two
     # queries per row. Must precede the .distinct() and the slice below —
     # annotating an already-sliced queryset raises.
     qs = annotate_stage_counts(
         Slice.objects.filter(org=org).select_related("area", "assignee__user", "org")
     )
-    if not include_inbox and area is None:
+    if inbox_only:
+        qs = qs.filter(area__isnull=True)
+    elif not include_inbox and area is None:
         qs = filed_slices(qs)
     if area is not None:
         qs = qs.filter(area=area)

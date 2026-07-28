@@ -1,10 +1,11 @@
 """`?ticket=<id>` — the last irreversible path in the product, closed.
 
 Until Task 10 that param armed the old Ticket modal (base.html), and that
-modal's Promote was one-way: `reopen_ticket()` refuses a promoted ticket, so a
-misfire could not be walked back. No screen generates such a link any more, but
-bookmarks and ~27 URLs already sent to people do — so the param now 302s to the
-Slice that capture became instead of resurrecting the modal.
+modal's Promote was one-way: `reopen_ticket()` refused a promoted ticket, so a
+misfire could not be walked back. No screen generates such a link any more, and
+neither the modal nor the promote path exists at all now — but bookmarks and
+~27 URLs already sent to people do, so the param 302s to the Slice that capture
+became.
 
 The mapping exists because 0045 folded every ticket into a slice: a promoted
 ticket carries `ticket.slice`, and an untriaged one became a NEW slice that
@@ -15,14 +16,13 @@ import pytest
 
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
-from tuckit.core.services.tickets import create_ticket, promote_ticket
+from tests.legacy_tickets import legacy_promoted, legacy_ticket
 
 
 @pytest.mark.django_db
 def test_promoted_ticket_deep_link_lands_on_its_slice(client_local, org):
     area = create_area(org, "Backend")
-    t = create_ticket(org, "옛 캡처", area=area)
-    s = promote_ticket(t, area=area)
+    t, s = legacy_promoted(org, "옛 캡처", area=area)
 
     resp = client_local.get(f"/{org.slug}/inbox/?ticket={t.id}")
 
@@ -34,7 +34,7 @@ def test_promoted_ticket_deep_link_lands_on_its_slice(client_local, org):
 def test_untriaged_ticket_deep_link_lands_on_the_slice_it_was_folded_into(client_local, org):
     """0045 gave the new slice the ticket's own `number`. That is the only
     thread back to a capture that was never promoted."""
-    t = create_ticket(org, "정리 안 된 캡처")
+    t = legacy_ticket(org, "정리 안 된 캡처")
     folded = create_slice(org, title="정리 안 된 캡처", number=t.number)
 
     resp = client_local.get(f"/{org.slug}/inbox/?ticket={t.id}")
@@ -47,7 +47,7 @@ def test_untriaged_ticket_deep_link_lands_on_the_slice_it_was_folded_into(client
 def test_a_ticket_with_no_slice_at_all_just_loses_the_param(client_local, org):
     """Nothing to land on — the reader still gets the page they bookmarked
     rather than a modal that cannot be closed or a 404."""
-    t = create_ticket(org, "고아")
+    t = legacy_ticket(org, "고아")
 
     resp = client_local.get(f"/{org.slug}/inbox/?ticket={t.id}")
 
@@ -58,7 +58,7 @@ def test_a_ticket_with_no_slice_at_all_just_loses_the_param(client_local, org):
 
 @pytest.mark.django_db
 def test_the_deep_link_keeps_the_rest_of_the_query(client_local, org):
-    t = create_ticket(org, "고아")
+    t = legacy_ticket(org, "고아")
 
     resp = client_local.get(f"/{org.slug}/areas/?ticket={t.id}&focus=bite")
 
@@ -75,7 +75,7 @@ def test_a_junk_or_foreign_ticket_param_renders_the_page(client_local, org):
     from tuckit.core.models import Org
 
     other = Org.objects.create(name="Other", slug="other-org")
-    foreign = create_ticket(other, "남의 것")
+    foreign = legacy_ticket(other, "남의 것")
 
     for raw in ("²", "abc", ""):
         assert client_local.get(f"/{org.slug}/inbox/?ticket={raw}").status_code == 200
@@ -91,8 +91,7 @@ def test_the_ticket_route_itself_redirects_to_the_slice(client_local, org):
     reader to the slice — including from htmx, where a bare 302 would splice a
     whole page into the overlay."""
     area = create_area(org, "Backend")
-    t = create_ticket(org, "옛 캡처", area=area)
-    s = promote_ticket(t, area=area)
+    t, s = legacy_promoted(org, "옛 캡처", area=area)
 
     plain = client_local.get(f"/{org.slug}/tickets/{t.id}/")
     assert plain.status_code == 302
@@ -107,7 +106,7 @@ def test_every_one_way_ticket_route_is_gone(client_local, org):
     """promote/triage was the one action in the product that could not be
     undone. Deleting the modal without deleting its endpoints would leave it
     reachable by a hand-made POST."""
-    t = create_ticket(org, "옛 캡처")
+    t = legacy_ticket(org, "옛 캡처")
     for path in (f"tickets/{t.id}/triage", f"tickets/{t.id}/dismiss",
                  f"tickets/{t.id}/reopen", f"tickets/{t.id}/release",
                  f"tickets/{t.id}/edit", "tickets/slice-options"):
@@ -129,12 +128,12 @@ def test_base_html_no_longer_arms_a_ticket_modal():
 
 @pytest.mark.django_db
 def test_a_ticket_created_after_this_release_lands_on_the_inbox_not_a_404(client_local, org):
-    """`create_ticket` is still a live MCP tool, so an agent can mint a Ticket
-    that 0045 never folded — nothing maps it to a slice. Two live surfaces link
-    this route (the Area page's Inbox strip, Cmd+K), and in htmx a 404 parks
-    the loading skeleton in the overlay with no message. Send the reader to the
-    Inbox and say why."""
-    t = create_ticket(org, "에이전트가 방금 만든 티켓", area=create_area(org, "Backend"))
+    """A Ticket that 0045 never folded — nothing maps it to a slice. Nothing
+    can mint one any more (create_ticket went with the rest of the ticket
+    tools), but the rows exist and old links point at them, and in htmx a 404
+    parks the loading skeleton in the overlay with no message. Send the reader
+    to the Inbox and say why."""
+    t = legacy_ticket(org, "에이전트가 방금 만든 티켓", area=create_area(org, "Backend"))
 
     resp = client_local.get(f"/{org.slug}/tickets/{t.id}/", follow=True)
 
@@ -145,7 +144,7 @@ def test_a_ticket_created_after_this_release_lands_on_the_inbox_not_a_404(client
 
 @pytest.mark.django_db
 def test_the_same_dead_end_over_htmx_navigates_instead_of_404ing(client_local, org):
-    t = create_ticket(org, "고아", area=create_area(org, "Backend"))
+    t = legacy_ticket(org, "고아", area=create_area(org, "Backend"))
 
     resp = client_local.get(f"/{org.slug}/tickets/{t.id}/", HTTP_HX_REQUEST="true")
 

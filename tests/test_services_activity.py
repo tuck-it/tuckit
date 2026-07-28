@@ -61,7 +61,6 @@ def test_active_targets_folds_bite_activity_onto_its_slice():
     activity belongs to the slice card the viewer can actually see."""
     from tuckit.core.services.activity import active_targets
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
 
     org = Org.objects.create(name="Acme", slug="acme-at1")
     slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
@@ -79,7 +78,6 @@ def test_active_targets_folds_bite_activity_onto_its_slice():
 def test_active_targets_keeps_only_the_most_recent_touch_per_slice():
     from tuckit.core.services.activity import active_targets
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
 
     org = Org.objects.create(name="Acme", slug="acme-at2")
     slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
@@ -145,7 +143,6 @@ def test_active_targets_skips_a_bite_whose_slice_is_gone():
     from tuckit.core.models import ActivityEvent
     from tuckit.core.services.activity import active_targets
     from tuckit.core.services.bites import create_bite, delete_bite
-    from tuckit.core.services.plans import create_plan
 
     org = Org.objects.create(name="Acme", slug="acme-at6")
     slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
