@@ -99,6 +99,36 @@ def test_render_slice_markdown_includes_bite_body(product_org):
 
 
 @pytest.mark.django_db
+def test_render_slice_markdown_emits_the_slices_own_constraints(product_org):
+    """Constraints is a Slice field now (Task 10 gave it a first-class editor).
+    Promoting it is only worth anything if a later agent session can READ it:
+    get_slice() is that path, so the section has to be here, after the spec and
+    before the steps a caller is about to work through."""
+    area = create_area(product_org, "Backend")
+    s = create_slice(
+        area.org, area=area, title="Auth", spec="Support OAuth login.",
+        constraints="hx-swap을 명시할 것 — 아니면 200이 조용히 버려진다.",
+    )
+    create_bite(s, "JWT")
+
+    md = render_slice_markdown(s)
+
+    assert "## Constraints" in md
+    assert "hx-swap을 명시할 것" in md
+    assert md.index("Support OAuth login.") < md.index("## Constraints") < md.index("## Steps")
+    assert "- [ ] JWT" in md
+
+
+@pytest.mark.django_db
+def test_render_slice_markdown_omits_the_constraints_header_when_empty(product_org):
+    """An empty section would teach every agent that the field is decoration."""
+    area = create_area(product_org, "Backend")
+    s = create_slice(area.org, area=area, title="Auth", spec="design")
+
+    assert "## Constraints" not in render_slice_markdown(s)
+
+
+@pytest.mark.django_db
 def test_render_slice_markdown_shows_plan_less_bites_under_a_steps_header(product_org):
     """Bites created via add_bites() (Task 5) have no plan to nest under, so
     they must still surface somewhere in get_slice() output — otherwise an

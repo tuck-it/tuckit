@@ -520,3 +520,94 @@ def test_the_panel_area_picker_declares_its_own_hx_swap(client_local, org, area)
     tag = body[body.rindex("<select", 0, start):body.index(">", start)]
     assert 'hx-swap="none"' in tag
     assert f"/slices/{s.id}/area" in tag
+
+
+# --- Fix round 1 -----------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_a_dropped_slice_says_so_even_with_no_area(client_local, org):
+    """0045 turned every dismissed/duplicate ticket into a dropped slice while
+    copying its area — NULL for anything dismissed before it was filed. Those
+    rows are in no Inbox (inbox_slices() takes open only) and on no Area board,
+    and the ?ticket= redirect is the one path that reaches them. Gated behind
+    `slice.area` the panel greeted them as a fresh capture: no "dropped" tag,
+    no Restore, and a picker inviting you to file something someone threw
+    away."""
+    s = create_slice(org, title="기각된 것", spec="본문", status="dropped")
+
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "dropped" in body
+    assert "Restore" in body
+
+    resp = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "open"})
+    s.refresh_from_db()
+    assert resp.status_code == 200
+    assert s.status == "open"           # ...and Restore actually restores it
+
+
+@pytest.mark.django_db
+def test_an_area_less_shipped_slice_can_still_be_reopened(client_local, org):
+    s = create_slice(org, title="출시됨", spec="본문", status="shipped")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "Reopen" in body
+
+
+@pytest.mark.django_db
+def test_filing_from_the_panel_returns_the_grown_panel(client_local, org, area):
+    """The interaction this release is built on, asserted on the RESPONSE —
+    what the browser is actually handed — not on a later GET. The panel grows
+    in place (OOB over .detail-body) and the modal must NOT be closed out from
+    under the reader."""
+    s = create_slice(org, title="정리 안 됨", spec="본문")
+
+    body = client_local.post(
+        f"/{org.slug}/slices/{s.id}/area?modal=1",
+        {"area_id": area.id, "from": "detail"}, HTTP_HX_REQUEST="true",
+    ).content.decode()
+
+    assert 'hx-swap-oob="outerHTML:.detail-body"' in body
+    assert "detail-card" in body                     # re-rendered AS a modal card
+    assert "Stage" in body and "Constraints" in body and "Steps" in body
+    assert "Drop slice" in body
+    # the modal-clearing OOB must be absent, or the panel would be swapped into
+    # a container that was just emptied
+    assert 'hx-swap-oob="innerHTML:#detail-modal"' not in body
+    # ...and the feedback the Inbox path gives is still there
+    assert f"Filed in {area.name}." in body
+    assert "Undo" in body
+
+
+@pytest.mark.django_db
+def test_clearing_the_area_from_the_panel_collapses_it_in_place(client_local, org, area):
+    s = create_slice(org, area=area, title="정리됨", spec="본문")
+
+    body = client_local.post(
+        f"/{org.slug}/slices/{s.id}/area?modal=1",
+        {"area_id": "", "from": "detail"}, HTTP_HX_REQUEST="true",
+    ).content.decode()
+
+    assert 'hx-swap-oob="outerHTML:.detail-body"' in body
+    assert "Steps" not in body and "Constraints" not in body and "Stage" not in body
+    assert "inbox-area-select" in body               # collapsed back to the picker
+    assert "Moved back to Inbox." in body
+    # Undo must reverse the direction that actually happened AND re-render the
+    # panel the same way, or the slice moves while the panel on screen lies.
+    assert f'"area_id": "{area.id}"' in body
+    assert '"from": "detail"' in body
+
+
+@pytest.mark.django_db
+def test_the_inbox_row_path_still_closes_the_modal_and_sends_no_panel(client_local, org, area):
+    """The row fires the same endpoint from a page where the only `.detail-body`
+    could be some OTHER slice's panel — so the panel is gated on `from=detail`,
+    not sent to everyone."""
+    s = create_slice(org, title="정리 안 됨")
+
+    body = client_local.post(
+        f"/{org.slug}/slices/{s.id}/area", {"area_id": area.id}, HTTP_HX_REQUEST="true",
+    ).content.decode()
+
+    assert 'hx-swap-oob="outerHTML:.detail-body"' not in body
+    assert 'hx-swap-oob="innerHTML:#detail-modal"' in body
+    assert f"Filed in {area.name}." in body

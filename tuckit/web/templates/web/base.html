@@ -196,6 +196,15 @@
       }, tone === "err" ? 6000 : (undo ? 8000 : 1800));
     }
 
+    {% if messages %}
+    /* Server-queued notices, played through the SAME toast every htmx path
+       uses — one notification surface, not two. Used by a redirect, where no
+       htmx response exists to carry an OOB toast or a trigger header: the
+       legacy /tickets/<id>/ link forwarding a reader who has no slice to land
+       on. Rendered after showToast is defined, so it can run inline. */
+    {% for m in messages %}showToast("{{ m|escapejs }}", "{% if m.level_tag == 'error' %}err{% endif %}");{% endfor %}
+    {% endif %}
+
     /* Every 4xx/5xx used to vanish silently: htmx does not swap error responses,
        and the views answer with a plain-text reason ("Choose an area", "Title is
        required"). Surface that text — it is already written for a human. */

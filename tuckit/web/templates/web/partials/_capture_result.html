@@ -5,13 +5,18 @@
    `undo_area_id` (may be the empty string, meaning "back to Inbox") is the
    area the slice is LEAVING. A bare re-POST to undo_url with no body always
    clears the area, which only undoes a *file*; carrying the old area along as
-   area_id lets Undo also reverse a *clear*, restoring where it came from. {% endcomment %}
+   area_id lets Undo also reverse a *clear*, restoring where it came from.
+
+   `from=detail` rides along too when the action came from the detail panel, so
+   the undo response re-renders that panel the same way the original did —
+   otherwise Undo would put the slice back in the Inbox while the panel on
+   screen went on showing the grown surface. {% endcomment %}
 <div id="toast" hx-swap-oob="true" class="toast" role="status" aria-live="polite" aria-atomic="true"
      x-data="{show:true}"
      x-init="setTimeout(() => show=false, {% if undo_url %}8000{% else %}1800{% endif %})"
      x-show="show" x-transition x-cloak>{{ toast_message|default:"Captured in Inbox." }}{% if undo_url %}
   <button type="button" class="toast-undo" hx-post="{{ undo_url }}" hx-swap="none"
-          {% if undo_area_id is not None %}hx-vals='{"area_id": "{{ undo_area_id }}"}'{% endif %}
+          {% if undo_area_id is not None %}hx-vals='{"area_id": "{{ undo_area_id }}"{% if not close_detail %}, "from": "detail"{% endif %}}'{% endif %}
           x-on:click="show=false">{{ undo_label|default:"Undo" }}</button>{% endif %}</div>
 
 {# Count badge — always refreshed (context processor supplies inbox_count). #}
@@ -33,9 +38,13 @@
 {% include "web/partials/_inbox_head_count.html" with oob=True %}
 
 {% comment %}
-  Close the detail modal if it happens to be open — filing/clearing an Area
-  can be fired from inside the slice modal (its Inbox-shaped Area picker), and
-  the row it was showing has just left (or re-entered) the list. innerHTML (not
-  outerHTML) so the container keeps its Alpine handlers.
+  Close the detail modal if it happens to be open — the slice it was showing
+  has just left (or re-entered) the list. innerHTML (not outerHTML) so the
+  container keeps its Alpine handlers.
+
+  NOT for the panel's own Area picker: that action's whole point is that the
+  panel grows in place, so slice_area() passes close_detail=False and sends
+  the re-rendered panel instead. Wiping the modal here would also destroy the
+  `.detail-body` that panel is OOB-swapped into.
 {% endcomment %}
-<div hx-swap-oob="innerHTML:#detail-modal"></div>
+{% if close_detail %}<div hx-swap-oob="innerHTML:#detail-modal"></div>{% endif %}

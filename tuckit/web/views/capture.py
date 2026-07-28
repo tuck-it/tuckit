@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
@@ -64,7 +65,8 @@ def inbox(request):
     })
 
 
-def _inbox_result(request, org, message, *, undo_url="", undo_label="Undo", undo_area_id=None):
+def _inbox_result(request, org, message, *, undo_url="", undo_label="Undo", undo_area_id=None,
+                  close_detail=True, lead_html=""):
     """Response for an action that moves a Slice out of (or back into) the
     Inbox: OOB-swap the whole list — so the empty state reappears — plus the
     sidebar count and a toast. The row itself needs no target; the caller uses
@@ -79,16 +81,22 @@ def _inbox_result(request, org, message, *, undo_url="", undo_label="Undo", undo
     Every caller is now a Slice action (capture, and the Area picker on the
     Inbox row or in the detail panel): the Ticket triage actions that also
     used this are gone. OOB targets that are not on screen — every one of them
-    outside the Inbox page — are silently skipped by htmx."""
-    resp = render(request, "web/partials/_capture_result.html", {
+    outside the Inbox page — are silently skipped by htmx.
+
+    `lead_html` rides in front of the OOB bundle; `close_detail=False` keeps the
+    open detail panel alive. Both exist for the Area picker INSIDE the panel:
+    that action has to grow (or collapse) the panel the user is looking at, so
+    the panel comes back re-rendered instead of the panel being wiped."""
+    html = lead_html + render_to_string("web/partials/_capture_result.html", {
         "slices": list(inbox_slices(org)),
         "toast_message": message,
         "undo_url": undo_url,
         "undo_label": undo_label,
         "undo_area_id": undo_area_id,
-    })
+        "close_detail": close_detail,
+    }, request=request)
     # Home/Board show derived counts that these OOB swaps do not touch.
-    return refresh_rollup(request, resp)
+    return refresh_rollup(request, HttpResponse(html))
 
 
 def ticket_detail(request, ticket_id):
@@ -102,12 +110,20 @@ def ticket_detail(request, ticket_id):
 
     HX-Redirect rather than a bare 302 for htmx callers: an htmx GET follows a
     redirect transparently, which would splice a whole page into the overlay
-    that asked for a card. The header makes the browser navigate instead."""
+    that asked for a card. The header makes the browser navigate instead — and
+    a full navigation is also what lets a queued message reach the next page."""
     org = get_current_org(request)
     slice_ = slice_for_ticket(org, ticket_id)
     if slice_ is None:
-        raise Http404
-    url = reverse("web:slice", args=[org.slug, slice_.id])
+        # A Ticket that 0045 never folded — i.e. one an agent created after
+        # this release through the (still live) create_ticket MCP tool. 404ing
+        # would park the loading skeleton in the overlay with no explanation,
+        # and the Area strip + Cmd+K both still link here. Send the reader to
+        # the Inbox and say why.
+        messages.info(request, "That capture has no slice — showing the Inbox instead.")
+        url = reverse("web:inbox", args=[org.slug])
+    else:
+        url = reverse("web:slice", args=[org.slug, slice_.id])
     if request.headers.get("HX-Request"):
         resp = HttpResponse(status=204)
         resp["HX-Redirect"] = url

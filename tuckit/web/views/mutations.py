@@ -1,5 +1,6 @@
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
@@ -72,10 +73,20 @@ def slice_area(request, slice_id):
     separate "undo promote" action, because there is no promotion left to
     undo.
 
-    Reuses capture._inbox_result() for the toast + OOB list/count refresh
-    rather than re-rendering the detail panel the way slice_reassign() does:
-    this fires from the Inbox list, not a slice's own page, so there is no
-    detail panel on screen to update."""
+    Reuses capture._inbox_result() for the toast + OOB list/count refresh.
+
+    `from=detail` (sent by the picker inside the detail panel) adds the
+    re-rendered panel to that same response, OOB-swapped over `.detail-body`.
+    That is the interaction this release is built on: pick an area and the
+    panel GROWS — stage, constraints, steps, activity, Ship/Drop — clear it and
+    it collapses back, with the modal staying open through both. Without it the
+    modal closed on you and the full page kept showing the un-grown panel while
+    the toast said "Filed in Backend", i.e. the screen contradicted itself.
+
+    htmx skips an OOB swap whose target is not on screen, but the panel is
+    still gated on the marker rather than sent always: the Inbox row fires the
+    same endpoint, and a `.detail-body` on that page could only be some OTHER
+    slice's panel."""
     from tuckit.web.views.capture import _inbox_result
 
     org = get_current_org(request)
@@ -88,15 +99,28 @@ def slice_area(request, slice_id):
     old = slice_.area
     set_slice_area(slice_, area)
     message = f"Filed in {area.name}." if area else "Moved back to Inbox."
+    from_detail = request.POST.get("from") == "detail"
+    is_modal = request.GET.get("modal") == "1"
+    lead_html = ""
+    if from_detail:
+        ctx = slice_detail_context(slice_, is_modal=is_modal)
+        ctx["oob"] = True
+        lead_html = render_to_string("web/partials/_slice_detail.html", ctx, request=request)
+        lead_html += widget_oob(request)
     return _inbox_result(
         request, org, message,
-        undo_url=reverse("web:slice_area", args=[org.slug, slice_.id]),
+        # ?modal=1 has to survive onto the Undo URL as well, or undoing from an
+        # open modal re-renders the panel without its card chrome.
+        undo_url=reverse("web:slice_area", args=[org.slug, slice_.id])
+                 + ("?modal=1" if from_detail and is_modal else ""),
         undo_label="Undo",
         # A bare re-POST to undo_url clears the area (area_id defaults to "").
         # That is correct for undoing a *file*, but undoing a *clear* needs to
         # restore whatever area it left — hence the old area rides along as
         # the value Undo will submit.
         undo_area_id=old.id if old else "",
+        close_detail=not from_detail,
+        lead_html=lead_html,
     )
 
 

@@ -125,3 +125,31 @@ def test_base_html_no_longer_arms_a_ticket_modal():
     html = (Path(tuckit.web.__file__).parent / "templates/web/base.html").read_text()
     assert "request.GET.ticket" not in html
     assert "web:ticket" not in html
+
+
+@pytest.mark.django_db
+def test_a_ticket_created_after_this_release_lands_on_the_inbox_not_a_404(client_local, org):
+    """`create_ticket` is still a live MCP tool, so an agent can mint a Ticket
+    that 0045 never folded — nothing maps it to a slice. Two live surfaces link
+    this route (the Area page's Inbox strip, Cmd+K), and in htmx a 404 parks
+    the loading skeleton in the overlay with no message. Send the reader to the
+    Inbox and say why."""
+    t = create_ticket(org, "에이전트가 방금 만든 티켓", area=create_area(org, "Backend"))
+
+    resp = client_local.get(f"/{org.slug}/tickets/{t.id}/", follow=True)
+
+    assert resp.status_code == 200
+    assert resp.redirect_chain == [(f"/{org.slug}/inbox/", 302)]
+    assert "That capture has no slice" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_the_same_dead_end_over_htmx_navigates_instead_of_404ing(client_local, org):
+    t = create_ticket(org, "고아", area=create_area(org, "Backend"))
+
+    resp = client_local.get(f"/{org.slug}/tickets/{t.id}/", HTTP_HX_REQUEST="true")
+
+    assert resp.status_code == 204
+    assert resp["HX-Redirect"] == f"/{org.slug}/inbox/"
+    # the message is queued for the page the browser is about to load
+    assert "That capture has no slice" in client_local.get(f"/{org.slug}/inbox/").content.decode()
