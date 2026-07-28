@@ -227,13 +227,69 @@ def test_bite_source_time_renders_english(client_local, org):
     assert "hours" in body and "minutes" in body
 
 
+# --- One endpoint for "which area is this slice in" -------------------------
+#
+# The filed panel's area menu used to post to web:slice_reassign, a second
+# endpoint that could only SET an area (int(request.POST["area_id"]), so an
+# empty value 404'd) and answered with a bare panel — no toast, no Undo. That
+# left the toast's 8-second Undo as the only way a human could send a filed
+# slice back to the Inbox, while an agent could un-file forever. Both
+# directions now go through web:slice_area, which is where the reversibility
+# guarantee lives.
+
+
 @pytest.mark.django_db
-def test_slice_reassign_moves_area(client_local, org):
+def test_the_reassign_endpoint_is_gone(client_local, org):
+    """The route itself, not just its caller — a hand-made POST must not find a
+    second, non-reversible way to set a slice's area."""
+    from django.urls import NoReverseMatch, reverse
+    a = create_area(org, "A")
+    s = create_slice(a.org, area=a, title="s", source="human")
+    with pytest.raises(NoReverseMatch):
+        reverse("web:slice_reassign", args=[org.slug, s.id])
+    assert client_local.post(
+        f"/{org.slug}/slices/{s.id}/reassign", {"area_id": a.id}, HTTP_HX_REQUEST="true"
+    ).status_code == 404
+
+
+@pytest.mark.django_db
+def test_panel_area_menu_posts_to_slice_area_and_offers_move_to_inbox(client_local, org):
+    """The standing UI — not a toast that disappears — must be able to un-file."""
+    a = create_area(org, "A")
+    b = create_area(org, "B")
+    s = create_slice(a.org, area=a, title="s", source="human")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
+
+    assert f"/slices/{s.id}/reassign" not in body
+    # every menu item fires the reversible endpoint, with from=detail so the
+    # panel re-renders in place
+    assert body.count(f'hx-post="/{org.slug}/slices/{s.id}/area?modal=1"') == 3   # A, B, Move to Inbox
+    assert f'hx-vals=\'{{"area_id": "{b.id}", "from": "detail"}}\'' in body
+    assert 'hx-vals=\'{"area_id": "", "from": "detail"}\'' in body
+    assert "Move to Inbox" in body
+
+
+@pytest.mark.django_db
+def test_area_menu_move_to_inbox_clears_the_area(client_local, org):
+    a = create_area(org, "A")
+    s = create_slice(a.org, area=a, title="move me", source="human")
+    resp = client_local.post(
+        f"/{org.slug}/slices/{s.id}/area", {"area_id": "", "from": "detail"},
+        HTTP_HX_REQUEST="true",
+    )
+    assert resp.status_code == 200
+    s.refresh_from_db()
+    assert s.area_id is None
+
+
+@pytest.mark.django_db
+def test_area_menu_can_still_move_between_areas(client_local, org):
     a = create_area(org, "A")
     b = create_area(org, "B")
     s = create_slice(a.org, area=a, title="move me", source="human")
     resp = client_local.post(
-        f"/{org.slug}/slices/{s.id}/reassign", {"area_id": b.id}, HTTP_HX_REQUEST="true"
+        f"/{org.slug}/slices/{s.id}/area", {"area_id": b.id, "from": "detail"},
+        HTTP_HX_REQUEST="true",
     )
     assert resp.status_code == 200
     s.refresh_from_db()
@@ -241,25 +297,19 @@ def test_slice_reassign_moves_area(client_local, org):
 
 
 @pytest.mark.django_db
-def test_slice_reassign_foreign_area_404s(client_local, org):
+def test_area_menu_foreign_area_404s(client_local, org):
     from tuckit.core.models import Org
     a = create_area(org, "A")
     s = create_slice(a.org, area=a, title="s", source="human")
     other = Org.objects.create(name="Other", slug="other")
     foreign = create_area(other, "Foreign")
     resp = client_local.post(
-        f"/{org.slug}/slices/{s.id}/reassign", {"area_id": foreign.id}, HTTP_HX_REQUEST="true"
+        f"/{org.slug}/slices/{s.id}/area", {"area_id": foreign.id, "from": "detail"},
+        HTTP_HX_REQUEST="true",
     )
     assert resp.status_code == 404
-
-
-@pytest.mark.django_db
-def test_panel_shows_area_reassign_control(client_local, org):
-    a = create_area(org, "A")
-    create_area(org, "B")
-    s = create_slice(a.org, area=a, title="s", source="human")
-    body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
-    assert f"/slices/{s.id}/reassign" in body
+    s.refresh_from_db()
+    assert s.area_id == a.id
 
 
 # --- Task 12: Ship/Drop/Restore/Reopen announce themselves ------------------

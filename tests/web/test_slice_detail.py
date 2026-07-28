@@ -5,6 +5,14 @@ from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
 
+# The panel's own markup for the three blocks that appear only once a slice has
+# an area. Bare substrings ("Steps", "Stage") also match the onboarding widget's
+# copy and various CSS class names, so a rename of the visible section label
+# would slip through unnoticed.
+SECTION_STEPS = '<div class="section-label">Steps</div>'
+SECTION_CONSTRAINTS = '<div class="section-label">Constraints</div>'
+PROP_STAGE = '<span class="prop-key">Stage</span>'
+
 
 @pytest.mark.django_db
 def test_slice_full_page_renders_spec_and_bites(client_local, org):
@@ -392,9 +400,11 @@ def test_inbox_slice_modal_hides_steps_and_stage(client_local, org):
     s = create_slice(org, title="정리 안 됨", spec="본문")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1").content.decode()
     assert "본문" in body
-    assert "Steps" not in body
-    assert "Constraints" not in body
-    assert "Stage" not in body
+    # 패널의 실제 마크업을 집는다. 맨 문자열 "Steps"/"Constraints"는 페이지의
+    # 다른 것들(온보딩 위젯의 "Break it into Steps" 등)에도 걸린다.
+    assert SECTION_STEPS not in body
+    assert SECTION_CONSTRAINTS not in body
+    assert PROP_STAGE not in body
 
 
 @pytest.mark.django_db
@@ -454,12 +464,12 @@ def test_picking_an_area_grows_the_same_modal(client_local, org, area):
 
     client_local.post(f"/{org.slug}/slices/{s.id}/area", {"area_id": area.id})
     grown = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-    assert "Steps" in grown and "Constraints" in grown and "Stage" in grown
+    assert SECTION_STEPS in grown and SECTION_CONSTRAINTS in grown and PROP_STAGE in grown
 
     # ...and clearing it collapses back. Nothing here is one-way.
     client_local.post(f"/{org.slug}/slices/{s.id}/area", {"area_id": ""})
     back = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-    assert "Steps" not in back
+    assert SECTION_STEPS not in back
 
 
 @pytest.mark.django_db
@@ -532,12 +542,19 @@ def test_a_dropped_slice_says_so_even_with_no_area(client_local, org):
     and the ?ticket= redirect is the one path that reaches them. Gated behind
     `slice.area` the panel greeted them as a fresh capture: no "dropped" tag,
     no Restore, and a picker inviting you to file something someone threw
-    away."""
+    away.
+
+    단언은 마크업을 콕 집는다. 예전 버전은 `"Restore" in body` /
+    `"dropped" in body` 였는데, 전자는 base.html의 `htmx:historyRestore`
+    핸들러에, 후자는 CSS 클래스 `dropped-tag`에 걸려 있었다 — 화면에 보이는
+    글자를 통째로 바꿔도 통과했다."""
     s = create_slice(org, title="기각된 것", spec="본문", status="dropped")
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-    assert "dropped" in body
-    assert "Restore" in body
+    assert '<span class="dropped-tag">dropped</span>' in body
+    assert re.search(r"<button[^>]*/status[^>]*>Restore</button>", body), (
+        "Restore 버튼이 status 엔드포인트를 가리키며 그 이름으로 보여야 한다"
+    )
 
     resp = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "open"})
     s.refresh_from_db()
@@ -567,7 +584,7 @@ def test_filing_from_the_panel_returns_the_grown_panel(client_local, org, area):
 
     assert 'hx-swap-oob="outerHTML:.detail-body"' in body
     assert "detail-card" in body                     # re-rendered AS a modal card
-    assert "Stage" in body and "Constraints" in body and "Steps" in body
+    assert PROP_STAGE in body and SECTION_CONSTRAINTS in body and SECTION_STEPS in body
     assert "Drop slice" in body
     # the modal-clearing OOB must be absent, or the panel would be swapped into
     # a container that was just emptied
@@ -579,6 +596,10 @@ def test_filing_from_the_panel_returns_the_grown_panel(client_local, org, area):
 
 @pytest.mark.django_db
 def test_clearing_the_area_from_the_panel_collapses_it_in_place(client_local, org, area):
+    """The filed panel's "Move to Inbox" — the standing control that gives the
+    reversibility claim a second half. Asserted on the RESPONSE the browser is
+    actually handed, since this is a bundle of OOB swaps with no follow-up GET
+    to fall back on."""
     s = create_slice(org, area=area, title="정리됨", spec="본문")
 
     body = client_local.post(
@@ -586,14 +607,25 @@ def test_clearing_the_area_from_the_panel_collapses_it_in_place(client_local, or
         {"area_id": "", "from": "detail"}, HTTP_HX_REQUEST="true",
     ).content.decode()
 
+    s.refresh_from_db()
+    assert s.area_id is None
     assert 'hx-swap-oob="outerHTML:.detail-body"' in body
-    assert "Steps" not in body and "Constraints" not in body and "Stage" not in body
+    assert SECTION_STEPS not in body and SECTION_CONSTRAINTS not in body and PROP_STAGE not in body
     assert "inbox-area-select" in body               # collapsed back to the picker
+    # the modal must NOT be wiped, or the panel is swapped into a container
+    # that was just emptied
+    assert 'hx-swap-oob="innerHTML:#detail-modal"' not in body
     assert "Moved back to Inbox." in body
-    # Undo must reverse the direction that actually happened AND re-render the
-    # panel the same way, or the slice moves while the panel on screen lies.
+    # Undo must be a real button in this response, and it must reverse the
+    # direction that actually happened AND re-render the panel the same way,
+    # or the slice moves while the panel on screen lies.
+    assert re.search(
+        r'<button type="button" class="toast-undo" hx-post="[^"]*/slices/%d/area\?modal=1"' % s.id,
+        body,
+    )
     assert f'"area_id": "{area.id}"' in body
     assert '"from": "detail"' in body
+    assert ">Undo</button>" in body
 
 
 @pytest.mark.django_db

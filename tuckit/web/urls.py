@@ -101,7 +101,6 @@ app_patterns = [
     path(f"{P}slices/<int:slice_id>/status", mutations.slice_status, name="slice_status"),
     path(f"{P}slices/<int:slice_id>/edit", mutations.slice_edit, name="slice_edit"),
     path(f"{P}slices/<int:slice_id>/tags", mutations.slice_tags, name="slice_tags"),
-    path(f"{P}slices/<int:slice_id>/reassign", mutations.slice_reassign, name="slice_reassign"),
     path(f"{P}slices/<int:slice_id>/move", board.slice_move, name="slice_move"),
     # Triage = picking an Area (reversible: an empty area_id sends the slice
     # back to the Inbox). It replaced the old Ticket promote/dismiss flow, and

@@ -110,21 +110,21 @@ def slice_edit(request, slice_id):
     return _detail(request, slice_)
 
 
-def slice_reassign(request, slice_id):
-    slice_ = _slice_or_404(request, slice_id)
-    try:
-        area = get_area(get_current_org(request), int(request.POST["area_id"]))
-    except (NotFound, ValueError, KeyError):
-        raise Http404
-    set_slice_area(slice_, area)
-    return _detail(request, slice_)
+# slice_reassign() is gone. It was a second "set this slice's area" endpoint
+# reachable only from the filed panel's area menu, and it could only SET one:
+# int(request.POST["area_id"]) meant an empty value 404'd, and its bare
+# _detail() response carried no toast and no Undo. Having two endpoints meant
+# two reversibility stories; the menu now posts to slice_area() below, like
+# every other area control in the product.
 
 
 @require_POST
 def slice_area(request, slice_id):
-    """The Inbox row's one control: file a slice into an Area, or clear it
-    (empty area_id) to send it back to the Inbox. Both directions are the
-    same endpoint on purpose — un-triaging is un-picking an area, not a
+    """The one control for "which area is this slice in", on every surface that
+    has one: the Inbox row, the unfiled panel's picker, and the filed panel's
+    area menu (including its "Move to Inbox" item). File a slice into an Area,
+    or clear it (empty area_id) to send it back to the Inbox. Both directions
+    are the same endpoint on purpose — un-triaging is un-picking an area, not a
     separate "undo promote" action, because there is no promotion left to
     undo.
 
@@ -178,10 +178,10 @@ def slice_area(request, slice_id):
 
 
 # The three plan mutations (create/edit/delete) are gone with the plan card
-# that was their only caller. Nothing in the product creates a Plan any more:
-# `constraints` is a Slice field and steps hang off the Slice. The model and
-# its service survive this release only so 0045's data stays readable until
-# 0047 drops the table (Task 13 retires the MCP tools).
+# that was their only caller, and so is plans.py (Task 13). Nothing in the
+# product creates a Plan any more: `constraints` is a Slice field and steps
+# hang off the Slice. Only the model survives this release, so 0045's data
+# stays readable until 0047 drops the table.
 
 
 def slice_tags(request, slice_id):

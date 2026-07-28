@@ -61,15 +61,41 @@
         <button type="button" class="status-pill area-pill" aria-haspopup="menu" x-on:click="open=!open" :aria-expanded="open">
           {% icon "area" "icon" %}{{ slice.area.name }}{% icon "chevron" "icon" %}
         </button>
+        {% comment %}
+          ONE endpoint for "set this slice's area" — web:slice_area, the same
+          one the unfiled panel's <select> and the Inbox row post to, and the
+          same one that toasts and offers Undo.
+
+          This menu used to post to web:slice_reassign, which could only SET an
+          area: it read int(request.POST["area_id"]), so an empty value 404'd,
+          it listed real Areas only, and it answered with a bare panel — no
+          toast, no Undo. Nothing in the standing UI could send a filed slice
+          back to the Inbox, so the reversal the release is named for lived for
+          the 8 seconds the toast was on screen, while an agent could un-file
+          forever. "Move to Inbox" below is the missing half.
+
+          hx-swap="none" is declared explicitly (htmx INHERITS hx-swap): the
+          response is a bundle of OOB swaps — the re-rendered panel keyed to
+          `.detail-body`, plus toast/Inbox list/counts — so there is nothing to
+          place as main content, and an inherited swap would splice the whole
+          bundle into the panel.
+        {% endcomment %}
         <div class="status-menu" role="menu" x-show="open" x-cloak x-on:click.outside="open=false">
           {% for a in areas %}
           <button type="button" class="area-opt {% if a.id == slice.area_id %}area-opt--on{% endif %}" role="menuitem"
                   x-on:click="open=false"
-                  hx-post="{% wurl 'web:slice_reassign' slice.id %}{{ modal_qs }}" hx-vals='{"area_id": "{{ a.id }}"}'
-                  hx-target="closest .detail-body" hx-swap="outerHTML">
+                  hx-post="{% wurl 'web:slice_area' slice.id %}{{ modal_qs }}"
+                  hx-vals='{"area_id": "{{ a.id }}", "from": "detail"}' hx-swap="none">
             {{ a.name }}{% if a.id == slice.area_id %}<span class="status-check">✓</span>{% endif %}
           </button>
           {% endfor %}
+          <div class="ws-menu-sep"></div>
+          <button type="button" class="area-opt" role="menuitem"
+                  x-on:click="open=false"
+                  hx-post="{% wurl 'web:slice_area' slice.id %}{{ modal_qs }}"
+                  hx-vals='{"area_id": "", "from": "detail"}' hx-swap="none">
+            Move to Inbox
+          </button>
         </div>
       </div>
     </div>
@@ -84,7 +110,14 @@
     {% endif %}
     <div class="prop-row">
       <span class="prop-key">Created</span>
-      <span class="prop-val">{% if slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
+      {% comment %}
+        created_by (an OrgMember) when we know it, `source` otherwise. "you" is
+        a guess that is wrong for everyone but the one person who typed it, and
+        an org with two members has no other way to tell two identical captures
+        apart. NULL for everything 0046 could not backfill and for machine-token
+        agents, hence the fallback.
+      {% endcomment %}
+      <span class="prop-val">{% if slice.created_by %}{{ slice.created_by.user.email }}{% elif slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
     </div>
     <div class="prop-row">
       <span class="prop-key">Updated</span>
@@ -125,7 +158,8 @@
     </div>
     <div class="prop-row">
       <span class="prop-key">Captured</span>
-      <span class="prop-val">{% if slice.source == 'agent' %}by agent{% else %}by you{% endif %} · {{ slice.created_at|timesince }} ago</span>
+      {# created_by first, `source` as the fallback — see the filed panel's Created row. #}
+      <span class="prop-val">{% if slice.created_by %}by {{ slice.created_by.user.email }}{% elif slice.source == 'agent' %}by agent{% else %}by you{% endif %} · {{ slice.created_at|timesince }} ago</span>
     </div>
   </div>
   {% endif %}
