@@ -189,6 +189,31 @@ def promote_ticket(ticket: Ticket, *, area=None, actor: str = "human") -> Slice:
     return slice_
 
 
+def slice_for_ticket(org: Org, ticket_id: int) -> Slice | None:
+    """The Slice a Ticket became, or None.
+
+    Legacy read path, for links that were handed out before Tickets stopped
+    being a surface (`?ticket=<id>` bookmarks, refs in commit messages and
+    memory). Two threads lead back:
+
+    - a ticket that was promoted or absorbed carries `ticket.slice`;
+    - a ticket that was never triaged became a NEW slice in migration 0045,
+      which inherited its `number` (uniq_slice_number_per_org makes that
+      lookup unambiguous).
+
+    Both are readable only while the Ticket table survives — 0047 drops it,
+    and this function goes with it.
+    """
+    ticket = Ticket.objects.filter(org=org, pk=ticket_id).first()
+    if ticket is None:
+        return None
+    # Reverse OneToOne raises RelatedObjectDoesNotExist (an AttributeError
+    # subclass), so getattr's default covers the never-promoted case.
+    return getattr(ticket, "slice", None) or Slice.objects.filter(
+        org=org, number=ticket.number
+    ).first()
+
+
 def origin_ticket(slice_) -> Ticket | None:
     """The Ticket that gave `slice_` its ref, or None for a directly-created
     slice. Derived rather than stored: promotion reuses the origin's number, and

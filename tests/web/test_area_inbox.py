@@ -40,7 +40,7 @@ def test_triaged_tickets_leave_the_strip(org):
 
 
 @pytest.mark.django_db
-def test_area_page_shows_the_strip_and_opens_the_ticket_modal(client_local, org):
+def test_area_page_shows_the_strip_and_its_rows_open_the_work(client_local, org):
     area = create_area(org, "Backend")
     create_ticket(org, "retry webhooks", area=area)
 
@@ -48,8 +48,9 @@ def test_area_page_shows_the_strip_and_opens_the_ticket_modal(client_local, org)
 
     assert "retry webhooks" in body
     assert "untriaged" in body
-    # 행은 기존 티켓 상세 모달을 연다 — 트리아지 컨트롤을 세 번째 장소에
-    # 복제하지 않는다.
+    # 행은 여전히 web:ticket을 부르지만 그 라우트는 이제 모달이 아니라
+    # 그 캡처가 된 슬라이스로 보낸다 (Task 10). 스트립 자체는 Task 11이
+    # 걷어낸다 — 트리아지 컨트롤을 세 번째 장소에 복제하지 않는다.
     assert 'hx-target="#detail-modal"' in body
 
 

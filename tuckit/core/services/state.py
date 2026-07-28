@@ -78,6 +78,13 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     lines.append("")
     if slice_.spec:
         lines += [slice_.spec, ""]
+    # Constraints is a Slice field now (Task 10 gave it a first-class editor).
+    # Rendering it here is the whole point of promoting it: a human writes the
+    # minefield map once and every later agent session reads it back through
+    # get_slice. Left out, the field would be invisible to exactly the reader
+    # it exists for.
+    if slice_.constraints:
+        lines += ["## Constraints", "", slice_.constraints, ""]
     for plan in list_plans(slice_):
         lines.append(f"## {plan.title or 'Plan'}")
         if plan.body:

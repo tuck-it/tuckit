@@ -11,10 +11,8 @@ from pathlib import Path
 import pytest
 
 from tuckit.core.services.areas import create_area, list_areas
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
-from tests.web.conftest import bite_under_plan
 
 STATIC = Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web"
 
@@ -45,15 +43,14 @@ def test_board_cards_are_links_not_divs(client_local, org):
 
 @pytest.mark.django_db
 def test_slice_detail_edit_surfaces_are_buttons(client_local, org):
-    """Title/spec/overview/constraints were <span>/<div> with x-on:click, so a
-    keyboard user could Drop the slice and Delete its plan but could not edit
-    any of its text — every destructive action reachable, no authoring one."""
+    """Title/spec/constraints were <span>/<div> with x-on:click, so a keyboard
+    user could Drop the slice but could not edit any of its text — every
+    destructive action reachable, no authoring one."""
     area = create_area(org, "Backend")
     s = create_slice(area.org, area=area, title="Retry webhooks", spec="why")
-    create_plan(s, title="v1", actor="human")
     body = client_local.get(f"{_p(org)}/slices/{s.id}/").content.decode()
 
-    for label in ("Edit spec", "Edit plan overview", "Edit plan constraints"):
+    for label in ("Edit spec", "Edit constraints"):
         assert re.search(rf'<button[^>]*aria-label="{label}"', body), f"{label} must be a button"
     assert re.search(r'<button[^>]*class="detail-title edit-surface"', body), \
         "the slice title must be focusable"
@@ -67,8 +64,7 @@ def test_bite_toggle_exposes_checkbox_state(client_local, org):
     only as a tick, so assistive tech could not tell done from not-done."""
     area = create_area(org, "Backend")
     s = create_slice(area.org, area=area, title="Retry webhooks")
-    plan = create_plan(s, title="v1", actor="human")
-    bite_under_plan(plan, s, "Write the test", source="human")
+    create_bite(s, "Write the test", source="human")
     body = client_local.get(f"{_p(org)}/slices/{s.id}/").content.decode()
 
     box = re.search(r'<button class="checkbox[^"]*"[^>]*>', body).group(0)
@@ -193,7 +189,6 @@ def test_board_actions_are_non_drag_and_keyboard_reachable(client_local, org):
     """WCAG 2.5.7: the board must not require dragging. It is now a read-only
     stage X-ray — cards auto-flow; the only manual actions are Ship (on a
     ready-to-ship slice) and Drop, both real <button>s, not drag targets."""
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
     area = create_area(org, "Backend")
     rts = create_slice(area.org, area=area, title="Retry webhooks", spec="ship me")
@@ -368,31 +363,25 @@ def test_org_general_never_reads_alpine_state_from_htmx_attributes(client_local,
 
 # --- Overlays that outgrow the screen --------------------------------------
 
-def test_a_long_ticket_modal_can_be_scrolled_to_its_actions():
+def test_a_long_detail_modal_can_be_scrolled_to_its_actions():
     """.modal-overlay is fixed and inset:0, and it carried no overflow rule
-    while .ticket-card had no height cap. An agent-written body of a few screens
-    pushed Promote/Dismiss/Merge past the fold with nothing on the page able
-    to scroll — a fixed overlay does not grow the document behind it — so the
-    decision the modal exists to make was unreachable (WCAG 2.1.1).
+    while the card had no height cap. An agent-written spec of a few screens
+    pushed the actions past the fold with nothing on the page able to scroll —
+    a fixed overlay does not grow the document behind it — so the decisions
+    the modal exists to make were unreachable (WCAG 2.1.1).
 
-    The card is capped to the viewport and the body scrolls inside it, which
-    keeps the actions on screen instead of a full screen-height below the
-    note; the overlay scrolls too, as a floor for viewports too short even for
-    the head and actions.
+    There is one card class now (the ticket card is gone), so the cap and the
+    scroll live on it: the card is capped to the viewport and scrolls its own
+    content, and the action bar is sticky inside it. The overlay scrolls too,
+    as a floor for viewports too short even for the head and actions.
     """
     app = (STATIC / "app.css").read_text(encoding="utf-8")
     overlay = re.search(r"\.overlay\s*\{(.*?)\}", app, re.S).group(1)
     assert "overflow-y: auto" in overlay, "a fixed overlay must scroll its own content"
 
-    # The cap moved from .ticket-card to the shared .detail-card box, which is
-    # the point of the unification: a slice and a ticket get the same one.
     card = re.search(r"\.detail-card\s*\{(.*?)\}", app, re.S).group(1)
     assert "85vh" in card, "the card must not be allowed to exceed the viewport"
-    assert re.search(r"\.ticket-card\.detail-card\s*\{[^}]*overflow:\s*hidden", app), \
-        "the ticket card scrolls its note, so the box itself must not scroll too"
+    assert "overflow-y: auto" in card, "the card is what scrolls its own content"
 
-    body = re.search(r"\.ticket-body\s*\{(.*?)\}", app, re.S)
-    assert body is not None, ".ticket-body needs a rule of its own to take the scroll"
-    assert "overflow-y: auto" in body.group(1), "the note is what scrolls, not the actions"
-    assert "min-height: 0" in body.group(1), \
-        "a flex child will not shrink below its content without this"
+    bar = re.search(r"\n\.action-bar\s*\{(.*?)\}", app, re.S).group(1)
+    assert "position: sticky" in bar, "the actions must stay on screen while the spec scrolls"

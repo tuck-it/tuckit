@@ -34,12 +34,8 @@
 
 {% comment %}
   Close the detail modal if it happens to be open — filing/clearing an Area
-  can be fired from inside the slice modal, and the row it was showing has
-  just left (or re-entered) the list. innerHTML (not outerHTML) so the
-  container keeps its Alpine handlers.
-
-  This is also reused by the still-live Ticket triage modal's actions
-  (promote/dismiss/restore/release), which need the same modal-clearing —
-  see capture._inbox_result().
+  can be fired from inside the slice modal (its Inbox-shaped Area picker), and
+  the row it was showing has just left (or re-entered) the list. innerHTML (not
+  outerHTML) so the container keeps its Alpine handlers.
 {% endcomment %}
 <div hx-swap-oob="innerHTML:#detail-modal"></div>

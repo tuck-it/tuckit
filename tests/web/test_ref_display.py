@@ -55,14 +55,6 @@ def test_inbox_row_shows_the_slice_ref(client_local, org):
 
 
 @pytest.mark.django_db
-def test_ticket_modal_shows_a_copyable_ref(client_local, org):
-    t = create_ticket(org, "Captured thing")
-    body = client_local.get(f"/{org.slug}/tickets/{t.id}/").content.decode()
-    assert ticket_ref(t) in body
-    assert "ref--copy" in body
-
-
-@pytest.mark.django_db
 def test_home_list_row_shows_the_ref(client_local, org):
     a = create_area(org, "OSS")
     s = create_slice(a.org, area=a, title="In flight", status="open")

@@ -31,19 +31,17 @@ def test_inbox_row_shows_the_area_picker_in_english(client_local, org):
 def test_slice_detail_order_and_close_aria(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.plans import create_plan
-    from tests.web.conftest import bite_under_plan
+    from tuckit.core.services.bites import create_bite
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="panel order", status="open", tags=["billing"])
-    plan = create_plan(s, title="Plan")
-    bite_under_plan(plan, s, "step one")
+    create_bite(s, "step one")
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'aria-label="Close panel"' in body
     assert "Open full" in body
     assert "Backend" in body                         # Area context near title
-    # blueprint order: tags (a property row) appear before the plan's bites;
-    # bites (inside the plan card) come before the destructive drop
+    # blueprint order: tags (a property row) appear before the Steps list;
+    # steps come before the destructive drop
     assert body.index("billing") < body.index("step one") < body.index("Drop")
 
 

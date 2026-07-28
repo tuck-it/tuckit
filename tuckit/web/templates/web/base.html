@@ -88,12 +88,16 @@
     the card (clicking the page behind an undimmed slide-over did exactly
     that). The innerHTML guard is equally required, because .window also fires
     when nothing is open.
+
+    There is one deep-link param left. `?ticket=<id>` used to arm a second
+    modal here; it is resolved on the server now
+    (LegacyTicketLinkMiddleware 302s it to the slice that capture became), so
+    an old bookmark can no longer reach the retired one-way Promote.
   {% endcomment %}
   <div id="detail-modal" class="overlay overlay--detail"
        data-detail-params="{% detail_params %}"
-       {% with sid=request.GET.slice|ascii_int tid=request.GET.ticket|ascii_int %}
-       {% if sid %}hx-get="{% wurl 'web:slice' sid %}?modal=1" hx-trigger="load" hx-target="#detail-modal"
-       {% elif tid %}hx-get="{% wurl 'web:ticket' tid %}" hx-trigger="load" hx-target="#detail-modal"{% endif %}
+       {% with sid=request.GET.slice|ascii_int %}
+       {% if sid %}hx-get="{% wurl 'web:slice' sid %}?modal=1" hx-trigger="load" hx-target="#detail-modal"{% endif %}
        {% endwith %}
        x-on:click.self="closeDetail()"
        x-on:keydown.escape.window="$el.innerHTML.trim() && !dialogAboveDetail() && closeDetail()"

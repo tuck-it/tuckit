@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 
@@ -10,11 +10,8 @@ from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.areas import create_area, list_areas, update_area, delete_area, reorder_area
 from tuckit.core.services.slices import create_slice, inbox_slices
 from tuckit.core.services.state import area_board_view
-from tuckit.core.services.tickets import promote_ticket, reopen_ticket, resolve_ticket, update_ticket
-from tuckit.web.detail import render_markdown_html
-from tuckit.core.services.resolve import get_area, get_ticket, get_area_by_slug, get_slice
-from tuckit.core.services.slices import query_slices
-from tuckit.core.services.tickets import absorb_ticket, origin_ticket, release_ticket
+from tuckit.core.services.resolve import get_area, get_area_by_slug
+from tuckit.core.services.tickets import slice_for_ticket
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import refresh_rollup, widget_oob
 
@@ -79,9 +76,10 @@ def _inbox_result(request, org, message, *, undo_url="", undo_label="Undo", undo
     it lets the toast's Undo button carry the OLD area back as `area_id`, so
     Undo reverses whichever direction actually happened, not just one of them.
 
-    Also reused by the (still-live) Ticket triage modal's actions — those OOB
-    targets are simply absent outside the Inbox page, and htmx silently skips
-    an OOB swap with no matching target on screen."""
+    Every caller is now a Slice action (capture, and the Area picker on the
+    Inbox row or in the detail panel): the Ticket triage actions that also
+    used this are gone. OOB targets that are not on screen — every one of them
+    outside the Inbox page — are silently skipped by htmx."""
     resp = render(request, "web/partials/_capture_result.html", {
         "slices": list(inbox_slices(org)),
         "toast_message": message,
@@ -93,74 +91,28 @@ def _inbox_result(request, org, message, *, undo_url="", undo_label="Undo", undo
     return refresh_rollup(request, resp)
 
 
-def _ticket_or_404(org, ticket_id):
-    try:
-        return get_ticket(org, ticket_id)
-    except NotFound:
-        raise Http404
-
-
-def _ticket_modal(request, org, ticket):
-    """The one place a Ticket's full body is readable and editable. Rendered
-    into #ticket-modal by htmx, and reachable directly via ?ticket=<id> so
-    Attention rows and refreshes can land on a specific ticket."""
-    return render(request, "web/partials/_ticket_modal.html", {
-        "ticket": ticket,
-        "areas": list(list_areas(org)),
-        "body_html": render_markdown_html(ticket.body),
-        "promoted_slice": getattr(ticket, "slice", None),
-        # Release is offered only on absorbed tickets: the origin gave the
-        # slice its ref and release_ticket() refuses it.
-        "is_origin": ticket.slice is not None and origin_ticket(ticket.slice) == ticket,
-    })
-
-
 def ticket_detail(request, ticket_id):
+    """A Ticket has no surface of its own any more — this route only forwards
+    to the Slice that capture became (slice_for_ticket()).
+
+    It used to return the triage modal, whose Promote was the one action in
+    the product that could not be undone. Deleting the modal without deleting
+    the endpoint would have left that action reachable by a hand-made POST, so
+    ticket_edit/dismiss/reopen/triage/release went with it.
+
+    HX-Redirect rather than a bare 302 for htmx callers: an htmx GET follows a
+    redirect transparently, which would splice a whole page into the overlay
+    that asked for a card. The header makes the browser navigate instead."""
     org = get_current_org(request)
-    return _ticket_modal(request, org, _ticket_or_404(org, ticket_id))
-
-
-def ticket_edit(request, ticket_id):
-    """Autosaved title/body edits from the modal — humans author tickets too,
-    not just agents (the same reversal Bites got)."""
-    org = get_current_org(request)
-    ticket = _ticket_or_404(org, ticket_id)
-    kwargs = {}
-    if "title" in request.POST:
-        title = request.POST["title"].strip()
-        if not title:
-            return HttpResponse("Title is required", status=400)
-        kwargs["title"] = title
-    if "body" in request.POST:
-        kwargs["body"] = request.POST["body"]
-    if kwargs:
-        ticket = update_ticket(ticket, actor="human", **kwargs)
-    # No more row-behind-the-modal to keep in sync: the Inbox no longer lists
-    # Tickets at all (Task 9), so _ticket_modal() alone is the whole response.
-    return _ticket_modal(request, org, ticket)
-
-
-def ticket_dismiss(request, ticket_id):
-    """Triage a ticket away without building it. Recoverable via Restore in
-    the modal itself (ticket_reopen) — there is no browsable review list any
-    more (that was the old Ticket-based Inbox's ?status=dismissed, retired
-    along with the rest of that screen in Task 9)."""
-    org = get_current_org(request)
-    ticket = _ticket_or_404(org, ticket_id)
-    resolve_ticket(ticket, "dismissed", actor="human")
-    return _inbox_result(
-        request, org, "Dismissed.",
-        undo_url=reverse("web:ticket_reopen", args=[org.slug, ticket.id]),
-    )
-
-
-def ticket_reopen(request, ticket_id):
-    org = get_current_org(request)
-    try:
-        reopen_ticket(_ticket_or_404(org, ticket_id), actor="human")
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-    return _inbox_result(request, org, "Back in the Inbox.")
+    slice_ = slice_for_ticket(org, ticket_id)
+    if slice_ is None:
+        raise Http404
+    url = reverse("web:slice", args=[org.slug, slice_.id])
+    if request.headers.get("HX-Request"):
+        resp = HttpResponse(status=204)
+        resp["HX-Redirect"] = url
+        return resp
+    return redirect(url)
 
 
 def area_create(request):
@@ -311,84 +263,3 @@ def area_slice_create(request, slug):
         "shipped_hidden": board["shipped_hidden"],
     }, request=request)
     return refresh_rollup(request, HttpResponse(html + widget_oob(request)))
-
-
-def ticket_slice_options(request):
-    """`<option>` list for the triage slice select, scoped to one area. An
-    org-wide slice dropdown would be unusable within months; scoping keeps it
-    bounded without introducing a search widget.
-
-    "New slice" leads the list in every response, so the select is valid before
-    an area is picked and promoting costs no interaction with it at all."""
-    from tuckit.core.services.refs import ref_for
-
-    org = get_current_org(request)
-    area_id = request.GET.get("area_id")
-    slices = []
-    if area_id:
-        try:
-            # query_slices takes org first; `area` is keyword-only.
-            slices = list(query_slices(org, area=get_area(org, int(area_id))))
-        except (NotFound, ValueError):
-            slices = []
-    # An <option> cannot hold the markup {% ref_of %} renders, so attach the ref
-    # as a plain string. ref_for() keeps the format in services/refs.py, which is
-    # the rule that tag exists to enforce.
-    for s in slices:
-        s.ref = ref_for(s)
-    return render(request, "web/partials/_slice_options.html", {"slices": slices})
-
-
-def ticket_triage(request, ticket_id):
-    """Send a ticket somewhere: into a NEW slice in the chosen area, or into an
-    EXISTING one.
-
-    These were two endpoints behind two identical-looking "Choose area" selects
-    that meant different things — one named where to build, the other only
-    filtered a list of slices. That is a single decision ("where does this
-    go?"), so it is now one form and one endpoint, and `slice_id` is its branch.
-
-    This is the Ticket modal's own triage action (still live — see
-    _ticket_modal.html, reachable from the Area page's Inbox strip). It is
-    unrelated to the Slice-based Inbox screen's Area picker (slice_area() in
-    mutations.py, POST /slices/<id>/area) — the old ticket_promote() this
-    docstring used to distinguish itself from was that screen's one-way
-    promote button, retired in Task 9 along with the rest of that row."""
-    org = get_current_org(request)
-    try:
-        ticket = get_ticket(org, ticket_id)
-        area = get_area(org, int(request.POST["area_id"]))
-    except (NotFound, KeyError, ValueError):
-        raise Http404
-
-    # Absent means "new". A form that loses the field must not fall through to
-    # merging into some arbitrary slice.
-    slice_id = request.POST.get("slice_id") or "new"
-    try:
-        if slice_id == "new":
-            promote_ticket(ticket, area=area, actor="human")
-            message = "Promoted to a slice."
-        else:
-            target = get_slice(org, int(slice_id))
-            if target.area_id != area.id:
-                # The area select scopes the slice list, so a mismatch means a
-                # stale form rather than a deliberate cross-area merge.
-                return HttpResponse("That slice is not in the chosen area", status=400)
-            absorb_ticket(ticket, target, actor="human")
-            message = "Merged."
-    except (NotFound, ValueError):
-        raise Http404
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-    return _inbox_result(request, org, message)
-
-
-def ticket_release(request, ticket_id):
-    """Undo a merge: detach an absorbed ticket and send it back to the Inbox."""
-    org = get_current_org(request)
-    ticket = _ticket_or_404(org, ticket_id)
-    try:
-        release_ticket(ticket, actor="human")
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-    return _inbox_result(request, org, "Released to Inbox.")

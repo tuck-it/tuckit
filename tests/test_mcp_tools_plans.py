@@ -33,16 +33,17 @@ async def test_create_plan_list_plans_create_bite_get_slice_roundtrip():
     assert [p["title"] for p in plans] == ["Backend plan"]
 
     (bite,) = await add_bites(ctx, plan["id"], [{"title": "JWT"}])
-    # create_bite() itself only attaches to the Slice now (Task 5), but the
-    # add_bites tool reparents the new bite onto plan_id afterward (C2 fix)
-    # so it keeps showing up grouped under that plan.
-    assert bite["plan_id"] == plan["id"]
+    # The bite hangs off the Slice (Task 5) and nothing reparents it onto the
+    # plan any more (Task 10), so it renders in the slice-level Steps section
+    # rather than nested under the plan heading.
+    assert bite["plan_id"] is None
     assert bite["slice_id"] == slice_id
 
     md = await get_slice(ctx, slice_id)
     assert "## Backend plan" in md
     assert "Goal: X" in md
     assert "### Constraints" in md and "no billing" in md
+    assert "## Steps" in md
     assert "- [ ] JWT" in md
 
 

@@ -4,8 +4,6 @@ import pytest
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import create_plan
-from tests.web.conftest import bite_under_plan
 
 
 @pytest.mark.django_db
@@ -13,8 +11,7 @@ def test_slice_full_page_renders_spec_and_bites(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Payment integration", spec="## Goal\nWire up Stripe", status="open")
-    plan = create_plan(s, title="Plan")
-    bite_under_plan(plan, s, "SDK integration", status="done")
+    create_bite(s, "SDK integration", status="done")
     resp = client_local.get(f"{p}/slices/{s.id}/")
     body = resp.content.decode()
     assert resp.status_code == 200
@@ -68,7 +65,6 @@ def test_slice_detail_shows_its_activity_thread(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice, set_slice_status
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Thread slice", status="open")       # logs created (slice)
@@ -86,9 +82,7 @@ def test_slice_detail_context_flags_and_progress(org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
     s = create_slice(org, area=create_area(org, "Design"), title="T")
-    create_plan(s, title="Plan")
     create_bite(s, "a", status="done")
     create_bite(s, "b")  # 1 of 2 done -> 50%
 
@@ -141,32 +135,27 @@ def test_full_page_hides_panel_only_chrome(client_local, org):
 
 
 @pytest.mark.django_db
-def test_bites_progress_and_empty_state(client_local, org):
+def test_steps_progress_and_empty_state(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
     p = f"/{org.slug}"
     a = create_area(org, "Design")
     s = create_slice(a.org, area=a, title="S")
 
-    # empty: PLAN empty-state shown, no count
+    # empty: the Steps empty-state is shown, and no progress bar
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
-    assert "No plan yet" in body
+    assert "No steps yet" in body
     assert 'class="row-prog-track"' not in body   # no progress bar when there are no bites
 
     # with bites: count + progress shown, empty state gone, AND the bites
-    # actually render as rows (not just the header count) — the panel's plan
-    # card only shows bites nested under a plan today (Task 10 adds a
-    # slice-direct section), so a plan-less bite would inflate bites_done/
-    # bites_total in the header while the plan card still claims "No bites
-    # yet" underneath it: a visible contradiction in the same panel (C2).
-    plan_ = create_plan(s, title="Plan")
-    bite_under_plan(plan_, s, "a", status="done")
-    bite_under_plan(plan_, s, "b")
+    # actually render as rows (not just the header count). Bites hang off the
+    # Slice now, so there is no plan to nest them under and no way for the
+    # header count and the list underneath it to disagree.
+    create_bite(s, "a", status="done")
+    create_bite(s, "b")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
-    assert "No plan yet" not in body
-    assert "No bites yet" not in body
+    assert "No steps yet" not in body
     assert "1/2" in body
     assert 'class="row-prog-track"' in body
     assert "width: 50%" in body
@@ -245,99 +234,27 @@ def test_spec_is_boxed_inline_edit(client_local, org):
     assert ".spec, .spec-edit {" in css                  # shared box rule present
 
 
-@pytest.mark.django_db
-def test_slice_detail_shows_plans_and_add_plan(client_local, org):
-    from tuckit.core.services.plans import create_plan
-    from tuckit.core.services.bites import create_bite
-    a = create_area(org, "B"); s = create_slice(a.org, area=a, title="S")
-    p = create_plan(s, title="Backend", body="overview")
-    bite_under_plan(p, s, "step one")
-    url = f"/{org.slug}"
-    body = client_local.get(f"{url}/slices/{s.id}/").content.decode()
-    assert "Backend" in body and "overview" in body and "step one" in body
-    assert 'class="bites-add' not in body        # no hand-add-bite control
-    # add-plan affordance present; POST creates a plan
-    assert "Add plan" in body
-    client_local.post(f"{url}/slices/{s.id}/plans", {"title": "UI"})
-    assert s.plans.filter(title="UI").exists()
+# --- no Ticket surface left in the panel ---------------------------------
+#
+# 0045 appended every capture body into the slice's own spec, so the "From:
+# TCK-n" provenance row (and the "the original capture is in ..." empty state
+# that pointed at it) had nothing left to reach: the text is IN the spec now,
+# and the ?ticket= links it rendered would only 302 back to this same slice.
 
 
 @pytest.mark.django_db
-def test_plan_edit_updates_body_and_constraints(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.plans import create_plan, get_plan
-    a = create_area(org, "B")
-    s = create_slice(a.org, area=a, title="S")
-    plan = create_plan(s, title="Plan")
-    p = f"/{org.slug}"
-
-    body = client_local.get(f"{p}/slices/{s.id}/").content.decode()
-    assert '<div class="section-label">Constraints</div>' in body
-
-    client_local.post(f"{p}/plans/{plan.id}/edit",
-                      {"body": "Goal: X", "constraints": "no billing"})
-    plan.refresh_from_db()
-    assert plan.body == "Goal: X" and plan.constraints == "no billing"
-
-
-@pytest.mark.django_db
-def test_plan_delete_removes_plan_and_its_bites(client_local, org):
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.plans import create_plan
-    from tuckit.core.services.bites import create_bite
-    from tuckit.core.models import Plan, Bite
-    a = create_area(org, "B")
-    s = create_slice(a.org, area=a, title="S")
-    plan = create_plan(s, title="Doomed")
-    bite_under_plan(plan, s, "will vanish")
-    p = f"/{org.slug}"
-
-    resp = client_local.post(f"{p}/plans/{plan.id}/delete")
-    assert resp.status_code == 200
-    assert not Plan.objects.filter(pk=plan.id).exists()
-    assert not Bite.objects.filter(title="will vanish").exists()
-
-
-# --- provenance: slice -> ticket, the mirror of the link the ticket modal has ---
-
-
-@pytest.mark.django_db
-def test_panel_shows_origin_and_absorbed_refs(client_local, org):
-    from tuckit.core.services.refs import ticket_ref
-    from tuckit.core.services.tickets import absorb_ticket, create_ticket, promote_ticket
-
-    area = create_area(org, "Backend")
-    origin = create_ticket(org, "Origin", area=area)
-    s = promote_ticket(origin)
-    extra = create_ticket(org, "Extra", area=area)
-    absorb_ticket(extra, s)
-
-    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-    assert "From:" in body
-    assert ticket_ref(origin) in body
-    assert ticket_ref(extra) in body
-    assert "(origin)" in body
-    # the link lands on the ticket modal via the existing deep-link
-    assert f"?ticket={origin.id}" in body
-
-
-@pytest.mark.django_db
-def test_promoted_slice_empty_spec_points_at_the_capture(client_local, org):
-    """After promote stops copying the body, this is the default state of every
-    promoted slice — a bare prompt here reads as 'my text vanished'."""
-    from tuckit.core.services.refs import ticket_ref
+def test_panel_shows_no_ticket_provenance(client_local, org):
     from tuckit.core.services.tickets import create_ticket, promote_ticket
 
     area = create_area(org, "Backend")
-    t = create_ticket(org, "Origin", body="the capture", area=area)
-    s = promote_ticket(t)
+    origin = create_ticket(org, "Origin", body="the capture", area=area)
+    s = promote_ticket(origin, area=area)
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-    assert "No design doc yet" in body
-    assert ticket_ref(t) in body
-    assert "Click to add a spec" not in body
+    assert "From:" not in body
+    assert f"?ticket={origin.id}" not in body
+    assert "No design doc yet" not in body      # the ticket-shaped empty state
+    assert "Add a spec" in body                 # ...replaced by the generic one
 
 
 @pytest.mark.django_db
@@ -350,17 +267,15 @@ def test_unlinked_slice_keeps_the_generic_prompt(client_local, org):
 
 @pytest.mark.django_db
 def test_slice_with_a_spec_shows_no_empty_state(client_local, org):
-    from tuckit.core.services.tickets import create_ticket, promote_ticket
     from tuckit.core.services.slices import update_slice
 
     area = create_area(org, "Backend")
-    s = promote_ticket(create_ticket(org, "Origin", area=area))
+    s = create_slice(org, area=area, title="Origin")
     update_slice(s, spec="## Design\nreal content")
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "No design doc yet" not in body
     assert "Click to add a spec" not in body
-    assert "From:" in body      # provenance stays regardless
 
 
 @pytest.mark.django_db
@@ -425,7 +340,6 @@ def test_ready_to_ship_slice_can_ship_from_detail(client_local, org):
     the modal — it was the only path there."""
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="다 됐다", spec="왜", status="open")
-    create_plan(s, title="Plan")
     b = create_bite(s, "한 걸음")
     from tuckit.core.services.bites import update_bite
     update_bite(b, status="done")
@@ -463,3 +377,146 @@ def test_shipped_slice_can_reopen_from_detail(client_local, org):
     s.refresh_from_db()
     assert resp.status_code == 200
     assert s.status == "open"
+
+
+# --- Task 10: one modal that GROWS with the slice ---------------------------
+#
+# There is no second detail type any more. An Inbox slice (no area) shows only
+# what you need to judge it — ref, title, who captured it, spec, Area picker.
+# Picking an area makes the rest appear; clearing it collapses back. That is
+# progressive disclosure, not a type conversion, which is exactly why the old
+# one-way Promote could be deleted.
+
+
+@pytest.mark.django_db
+def test_inbox_slice_modal_hides_steps_and_stage(client_local, org):
+    s = create_slice(org, title="정리 안 됨", spec="본문")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1").content.decode()
+    assert "본문" in body
+    assert "Steps" not in body
+    assert "Constraints" not in body
+    assert "Stage" not in body
+
+
+@pytest.mark.django_db
+def test_filed_slice_modal_shows_the_full_surface(client_local, org, area):
+    s = create_slice(org, area=area, title="정리됨", spec="본문")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1").content.decode()
+    assert "Steps" in body
+    assert "Constraints" in body
+    assert "Stage" in body
+
+
+@pytest.mark.django_db
+def test_constraints_are_editable_and_persist(client_local, org, area):
+    s = create_slice(org, area=area, title="s", spec="본문")
+    client_local.post(f"/{org.slug}/slices/{s.id}/edit", {"constraints": "hx-swap 명시"})
+    s.refresh_from_db()
+    assert s.constraints == "hx-swap 명시"
+
+
+@pytest.mark.django_db
+def test_no_plan_vocabulary_anywhere_in_the_modal(client_local, org, area):
+    s = create_slice(org, area=area, title="s", spec="본문")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1").content.decode()
+    for word in ("Add plan", "Plan title", "Delete plan", "Overview"):
+        assert word not in body
+
+
+@pytest.mark.django_db
+def test_constraints_empty_state_teaches_what_belongs_there(client_local, org, area):
+    """The placeholder is the ONLY place in the product that explains what a
+    constraint is. A bare "Add constraints…" would leave the field's whole
+    purpose undocumented — and this field is the release's point."""
+    s = create_slice(org, area=area, title="s", spec="본문")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "landmines" in body
+    assert 'aria-label="Edit constraints"' in body
+
+
+@pytest.mark.django_db
+def test_constraints_render_as_markdown_and_are_sanitized(client_local, org, area):
+    s = create_slice(org, area=area, title="s", spec="본문",
+                     constraints="## 지뢰\n<script>alert(1)</script>")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    block = re.search(r'<div class="desc-block constraints-block">.*?</form>', body, re.S).group(0)
+    assert "<h2" in block
+    assert "<script>alert(1)</script>" not in block
+
+
+@pytest.mark.django_db
+def test_picking_an_area_grows_the_same_modal(client_local, org, area):
+    """The Inbox modal's one control files the slice through the SAME endpoint
+    Task 9 built (reversible), and the panel then carries the full surface.
+    Driven through the real routes, not the service."""
+    s = create_slice(org, title="정리 안 됨", spec="본문")
+    picker = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert f"/slices/{s.id}/area" in picker
+
+    client_local.post(f"/{org.slug}/slices/{s.id}/area", {"area_id": area.id})
+    grown = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "Steps" in grown and "Constraints" in grown and "Stage" in grown
+
+    # ...and clearing it collapses back. Nothing here is one-way.
+    client_local.post(f"/{org.slug}/slices/{s.id}/area", {"area_id": ""})
+    back = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "Steps" not in back
+
+
+@pytest.mark.django_db
+def test_inbox_slice_offers_no_ship_or_drop(client_local, org):
+    """Ship/Drop are decisions about work you committed to. An unfiled capture
+    is not that yet — the decision it needs is an area."""
+    s = create_slice(org, title="정리 안 됨", spec="본문")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "Ship it" not in body
+    assert "Drop slice" not in body
+    assert "Copy link" in body      # still addressable
+
+
+@pytest.mark.django_db
+def test_steps_are_added_on_the_slice_not_a_plan(client_local, org, area):
+    """The add-step form posts to the slice's own route. Bites hang off the
+    Slice (Task 5) — the plan-scoped route and the reparenting shim behind it
+    are gone."""
+    from tuckit.core.models import Bite
+
+    s = create_slice(org, area=area, title="s", spec="본문")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert f"/slices/{s.id}/steps" in body
+
+    resp = client_local.post(f"/{org.slug}/slices/{s.id}/steps", {"title": "첫 걸음"},
+                             HTTP_HX_REQUEST="true")
+    assert resp.status_code == 200
+    b = Bite.objects.get(slice=s)
+    assert b.title == "첫 걸음"
+    assert b.plan_id is None
+    assert "첫 걸음" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_agent_added_steps_are_visible_in_the_panel(client_local, org, area):
+    """A bite created straight on the slice (what add_bites does now) must
+    render. Before Task 10 the panel only listed bites nested under a plan, so
+    an agent's step was created correctly and stayed invisible."""
+    from tuckit.core.services.bites import add_bites
+
+    s = create_slice(org, area=area, title="s", spec="본문")
+    add_bites(s, [{"title": "에이전트가 넣은 단계"}], source="agent")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    assert "에이전트가 넣은 단계" in body
+
+
+@pytest.mark.django_db
+def test_the_panel_area_picker_declares_its_own_hx_swap(client_local, org, area):
+    """htmx INHERITS hx-swap from ancestors. This select sits inside the
+    detail panel, whose editors carry hx-swap="outerHTML" on the surrounding
+    forms — without an explicit swap the response would be spliced over the
+    panel instead of doing its OOB work, and no endpoint test would see it
+    (the endpoint is fine). Same guard the Inbox row's copy has."""
+    s = create_slice(org, title="정리 안 됨")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    start = body.index('class="inbox-area-select"')
+    tag = body[body.rindex("<select", 0, start):body.index(">", start)]
+    assert 'hx-swap="none"' in tag
+    assert f"/slices/{s.id}/area" in tag

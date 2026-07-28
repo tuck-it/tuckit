@@ -4,9 +4,10 @@ the slice right back here. There is no Promote/Merge/Dismiss any more; those
 verbs belonged to the old Ticket-based Inbox (tests/web/test_capture_triage.py,
 retired by this file) and do not have an equivalent for a Slice.
 
-The still-live Ticket triage modal (opened from the Area page's own "Inbox"
-strip) is covered separately by test_ticket_modal_wiring.py and
-test_area_inbox.py — this task did not touch that surface.
+The Ticket triage modal those verbs lived in is gone (Task 10). What remains
+of that surface — the Area page's own "Inbox" strip, whose rows now forward to
+the slice each capture became — is covered by test_area_inbox.py and
+test_ticket_deeplink.py.
 """
 import pytest
 
@@ -138,7 +139,9 @@ def test_each_row_select_has_a_distinct_accessible_name(client_local, org):
 
 
 # --- htmx inherits hx-swap from ancestors; this exact bug class has bitten
-#     this codebase before (see test_ticket_modal_wiring's sibling guard) ---
+#     this codebase before (the deleted triage select 200'd and was discarded).
+#     The slice panel's copy of this control has the same guard, in
+#     test_slice_detail.py ---
 
 
 @pytest.mark.django_db

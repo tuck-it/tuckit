@@ -460,18 +460,14 @@ async def add_bites(ctx: Context, plan_id: int, bites: list[dict]) -> list[dict]
     org = await require_org(ctx)
 
     def _run():
+        # `plan_id` is resolved one hop to its slice and then ignored: bites
+        # hang off the Slice (Task 5). The shim that reparented each new bite
+        # back onto the plan is gone with the panel that grouped steps by plan
+        # (Task 10) — the panel now lists every bite on the slice, so an
+        # agent's step is visible without a Plan existing at all. Task 13
+        # replaces this parameter with slice_id.
         plan = _resolve_plan(org, plan_id)
-        # create_bite() no longer accepts a Plan (Task 5) — it only ever
-        # attaches to the Slice. The slice detail modal's bite rows still only
-        # render bites nested under a plan (Task 10 adds a slice-direct
-        # section), so this reparents each new bite onto the resolved plan
-        # afterward — the same shim web/views/mutations.py:bite_create uses —
-        # otherwise an agent-created step would be created correctly but stay
-        # invisible in the panel a human has open.
         made = _add_bites(plan.slice, bites, source="agent")
-        for b in made:
-            b.plan = plan
-            b.save(update_fields=["plan"])
         return [bite_dict(b) for b in made]
 
     return await sync_to_async(_run, thread_sensitive=True)()

@@ -4,10 +4,9 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
-from tuckit.core.services.resolve import get_slice, get_bite, get_plan as resolve_plan, get_area
+from tuckit.core.services.resolve import get_slice, get_bite, get_area
 from tuckit.core.services.slices import set_slice_status, update_slice, set_slice_area
 from tuckit.core.services.bites import create_bite, delete_bite, set_bite_status, update_bite
-from tuckit.core.services.plans import create_plan, delete_plan, update_plan
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import widget_oob
 from tuckit.web.detail import slice_detail_context
@@ -20,20 +19,13 @@ def _slice_or_404(request, slice_id):
         raise Http404
 
 
-def _plan_or_404(request, plan_id):
-    try:
-        return resolve_plan(get_current_org(request), plan_id)
-    except NotFound:
-        raise Http404
-
-
 def _detail(request, slice_):
     is_modal = request.GET.get("modal") == "1"
     resp = render(
         request, "web/partials/_slice_detail.html",
         slice_detail_context(slice_, is_modal=is_modal),
     )
-    # Append the onboarding widget OOB so detail-level mutations (add plan/bite,
+    # Append the onboarding widget OOB so detail-level mutations (add a step,
     # etc.) tick the matching onboarding step immediately. Empty when the widget
     # is hidden, so this is a no-op once onboarding is done or dismissed.
     resp.write(widget_oob(request))
@@ -54,6 +46,10 @@ def slice_edit(request, slice_id):
     kwargs = {}
     if "title" in request.POST: kwargs["title"] = request.POST["title"]
     if "spec" in request.POST: kwargs["spec"] = request.POST["spec"]
+    # constraints is a Slice field now, edited from the panel exactly like spec
+    # (it used to be reachable only through a Plan, which is why it was almost
+    # never filled in).
+    if "constraints" in request.POST: kwargs["constraints"] = request.POST["constraints"]
     update_slice(slice_, **kwargs)
     return _detail(request, slice_)
 
@@ -104,27 +100,11 @@ def slice_area(request, slice_id):
     )
 
 
-def plan_create(request, slice_id):
-    slice_ = _slice_or_404(request, slice_id)
-    create_plan(slice_, title=request.POST.get("title", "").strip(), actor="human")
-    return _detail(request, slice_)
-
-
-def plan_edit(request, plan_id):
-    plan = _plan_or_404(request, plan_id)
-    kwargs = {}
-    if "title" in request.POST: kwargs["title"] = request.POST["title"]
-    if "body" in request.POST: kwargs["body"] = request.POST["body"]
-    if "constraints" in request.POST: kwargs["constraints"] = request.POST["constraints"]
-    update_plan(plan, **kwargs)
-    return _detail(request, plan.slice)
-
-
-def plan_delete(request, plan_id):
-    plan = _plan_or_404(request, plan_id)
-    slice_ = plan.slice
-    delete_plan(plan)
-    return _detail(request, slice_)
+# The three plan mutations (create/edit/delete) are gone with the plan card
+# that was their only caller. Nothing in the product creates a Plan any more:
+# `constraints` is a Slice field and steps hang off the Slice. The model and
+# its service survive this release only so 0045's data stays readable until
+# 0047 drops the table (Task 13 retires the MCP tools).
 
 
 def slice_tags(request, slice_id):
@@ -158,20 +138,17 @@ def bite_body(request, bite_id):
     return render(request, "web/partials/_bite_row.html", {"bite": bite})
 
 
-def bite_create(request, plan_id):
-    plan = _plan_or_404(request, plan_id)
+def bite_create(request, slice_id):
+    """Add a step. Straight onto the Slice — the plan-scoped route
+    (POST /plans/<id>/bites) and the shim that reparented each new bite onto
+    the submitting plan are both gone, because the panel no longer groups
+    steps by plan."""
+    slice_ = _slice_or_404(request, slice_id)
     title = request.POST.get("title", "").strip()
     if not title:
         return HttpResponse("Title is required", status=400)
-    # create_bite() no longer accepts a Plan (Task 5) — it only ever attaches
-    # to the Slice. The panel's only add-bite affordance today still lives
-    # inside a plan card (Task 10 adds a slice-direct one), so this reparents
-    # the new bite onto that plan afterward — otherwise it would be created
-    # correctly but never appear in the panel that just asked for it.
-    b = create_bite(plan.slice, title, source="human")
-    b.plan = plan
-    b.save(update_fields=["plan"])
-    return _detail(request, plan.slice)
+    create_bite(slice_, title, source="human")
+    return _detail(request, slice_)
 
 
 def bite_edit(request, bite_id):

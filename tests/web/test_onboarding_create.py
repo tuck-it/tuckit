@@ -50,32 +50,15 @@ def test_no_widget_oob_once_onboarding_complete(client_local, org):
 
 
 @pytest.mark.django_db
-def test_plan_create_oob_refreshes_widget(client_local, org):
-    # Adding a Plan from the slice panel must refresh the widget OOB so the
-    # Plan step ticks immediately (previously stale until a full reload).
+def test_step_create_oob_refreshes_widget(client_local, org):
+    # Adding a step from the slice panel must refresh the widget OOB so the
+    # Bite step ticks immediately (previously stale until a full reload). The
+    # route is the slice's own now — there is no Plan to hang it off.
     from tuckit.core.services.slices import create_slice
 
     slice_ = create_slice(org, area=create_area(org, "Backend"), title="Retry webhooks")
     r = client_local.post(
-        f"{_p(org)}/slices/{slice_.id}/plans", {"title": "v1"},
-        HTTP_HX_REQUEST="true",
-    )
-    body = r.content.decode()
-    assert 'id="onboarding-widget"' in body
-    assert "hx-swap-oob" in body
-
-
-@pytest.mark.django_db
-def test_bite_create_oob_refreshes_widget(client_local, org):
-    # Same fix covers the Bite step: adding a Bite from the panel refreshes
-    # the widget OOB.
-    from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.plans import create_plan
-
-    slice_ = create_slice(org, area=create_area(org, "Backend"), title="Retry webhooks")
-    plan = create_plan(slice_, title="v1")
-    r = client_local.post(
-        f"{_p(org)}/plans/{plan.id}/bites", {"title": "Write the retry test"},
+        f"{_p(org)}/slices/{slice_.id}/steps", {"title": "Write the retry test"},
         HTTP_HX_REQUEST="true",
     )
     body = r.content.decode()
@@ -92,7 +75,7 @@ def test_panel_mutation_no_widget_when_dismissed(client_local, org):
     org.save(update_fields=["onboarding_dismissed"])
     slice_ = create_slice(org, area=create_area(org, "Backend"), title="Retry webhooks")
     r = client_local.post(
-        f"{_p(org)}/slices/{slice_.id}/plans", {"title": "v1"},
+        f"{_p(org)}/slices/{slice_.id}/steps", {"title": "Write the retry test"},
         HTTP_HX_REQUEST="true",
     )
     assert 'id="onboarding-widget"' not in r.content.decode()

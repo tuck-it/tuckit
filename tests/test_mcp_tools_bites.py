@@ -61,17 +61,17 @@ async def test_update_bite_status_and_body():
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_add_bites_returns_body_and_plan_id():
+async def test_add_bites_attaches_to_the_slice_not_the_plan():
     raw, plan_id, slice_id = await _seed()
     ctx = make_ctx(raw)
     made = await add_bites(ctx, plan_id, [{"title": "JWT", "body": "use RS256 keys"}])
     listed = await list_bites(ctx, plan_id)
     assert listed[0]["body"] == "use RS256 keys"
-    # create_bite() itself only ever attaches to the Slice now (Task 5), but
-    # the add_bites MCP tool reparents each new bite onto plan_id afterward
-    # (C2 fix) so it stays visible in a panel that's grouping by plan — so
-    # plan_id on the response is still populated, same as before Task 5.
-    assert made[0]["plan_id"] == plan_id
+    # plan_id is resolved one hop to its slice and then dropped. The shim that
+    # reparented each new bite back onto the plan is gone with the panel that
+    # grouped steps by plan (Task 10) — the panel lists every bite on the
+    # slice, so an agent's step shows up without a Plan existing at all.
+    assert made[0]["plan_id"] is None
     assert made[0]["slice_id"] == slice_id
 
 
