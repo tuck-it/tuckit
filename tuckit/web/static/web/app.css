@@ -581,7 +581,12 @@ body { padding: 0; }
 }
 .inbox-row:hover { background: var(--paper-deep); }
 /* The row's click target for opening the slice modal. Reset to read as text,
-   not a control — it carries .inbox-row-title/.inbox-row-when. */
+   not a control — title/desc reuse .row-title/.row-main/.row-desc (same
+   pairing _slice_row.html uses), so the "·" separator between them comes
+   from .row-desc::before alone; this flex container must NOT add its own
+   gap between .row-main and the ref before it, or the two separators stack.
+   flex:1 1 auto is what pushes the badge/timestamp/select cluster after it
+   flush to the row's right edge, since it is the only growing item. */
 .inbox-row-main {
   flex: 1 1 auto;
   min-width: 0;
@@ -592,9 +597,8 @@ body { padding: 0; }
   color: inherit;
   text-decoration: none;
 }
-.inbox-row-main:hover .inbox-row-title { color: var(--blue); }
-.inbox-row-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inbox-row-when { margin-left: auto; flex: 0 0 auto; }
+.inbox-row-main:hover .row-title { color: var(--blue); }
+.inbox-row-when { flex: 0 0 auto; }
 .inbox-area-select {
   flex: 0 0 auto;
   min-height: 30px;

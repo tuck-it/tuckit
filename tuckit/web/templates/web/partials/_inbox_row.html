@@ -5,6 +5,21 @@
   immediately; there is nothing left to confirm, so triage costs one
   interaction in either direction (set_slice_area(slice_, None) undoes it).
 
+  The body preview and source badge mirror the retired Ticket-based row
+  (_ticket_row.html, human ruling on fix round 2/5) on purpose: production's
+  Inbox holds mostly agent-authored captures whose titles are all the same
+  shape ("<claim> — <elaboration>"), so ref + title + timestamp alone made a
+  run of rows visually indistinguishable — exactly the gap the old row's
+  body preview existed to close. Both are DISPLAY ONLY: the badge and the
+  preview are not their own interactive control, just contents of the row's
+  one link (or a plain sibling span) — the Area picker below is still the
+  only thing on this row you can act on.
+
+  spec_summary does the truncation (first meaningful line, frontmatter/
+  markdown stripped) — do not re-truncate here. The `{% if slice.spec %}`
+  guard is what keeps an empty spec from rendering a stray "·" separator
+  (.row-desc::before only paints once .row-desc itself exists).
+
   No stage pill here on purpose: every unfiled capture derives to
   needs_design (nothing has been designed or built yet), so a column of
   identical pills would be noise, not signal.
@@ -14,9 +29,13 @@
      hx-get="{% wurl 'web:slice' slice.id %}?modal=1" hx-target="#detail-modal"
      hx-swap="innerHTML" hx-push-url="{% detail_push_url 'slice' slice.id %}">
     {% ref_of slice %}
-    <span class="inbox-row-title">{{ slice.title }}</span>
-    <span class="inbox-row-when meta">{{ slice.created_at|timesince }} ago</span>
+    <span class="row-main">
+      <span class="row-title">{{ slice.title }}</span>
+      {% if slice.spec %}<span class="row-desc">{{ slice.spec|spec_summary }}</span>{% endif %}
+    </span>
   </a>
+  <span class="source-badge{% if slice.source == 'agent' %} is-agent{% endif %}">{% if slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
+  <span class="inbox-row-when meta">{{ slice.created_at|timesince }} ago</span>
   {% comment %}
     hx-swap is declared explicitly. This select can sit inside markup that
     carries hx-swap="none" for its own submit, and htmx INHERITS hx-swap from

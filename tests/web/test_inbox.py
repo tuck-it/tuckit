@@ -167,6 +167,60 @@ def test_inbox_empty_state(client_local, org):
     assert "Inbox is empty. Everything is filed." in body
 
 
+# --- provenance + body preview (fix round 2/5, human ruling): on production
+#     24 of 27 Inbox rows are agent-authored with same-shaped titles, so a
+#     ref/title/timestamp-only row made them indistinguishable. Both are
+#     display only — restoring them must not add a second interactive
+#     control to the row. ---
+
+
+@pytest.mark.django_db
+def test_agent_captured_row_shows_the_agent_badge(client_local, org):
+    create_slice(org, title="에이전트 캡처", source="agent")
+    body = client_local.get(f"/{org.slug}/inbox/").content.decode()
+    assert 'class="source-badge is-agent"' in body
+    assert ">agent<" in body
+
+
+@pytest.mark.django_db
+def test_human_captured_row_shows_the_human_badge(client_local, org):
+    create_slice(org, title="사람 캡처", source="human")
+    body = client_local.get(f"/{org.slug}/inbox/").content.decode()
+    assert 'class="source-badge"' in body
+    assert "is-agent" not in body
+    assert ">you<" in body
+
+
+@pytest.mark.django_db
+def test_row_shows_a_one_line_spec_summary(client_local, org):
+    s = create_slice(org, title="본문 있음",
+                      spec="First line of the note.\n\nSecond paragraph nobody should see.")
+    body = client_local.get(f"/{org.slug}/inbox/").content.decode()
+    assert "First line of the note." in body
+    assert "Second paragraph" not in body
+    assert 'class="row-desc"' in body
+
+
+@pytest.mark.django_db
+def test_empty_spec_renders_no_preview_and_no_stray_separator(client_local, org):
+    create_slice(org, title="본문 없음", spec="")
+    body = client_local.get(f"/{org.slug}/inbox/").content.decode()
+    assert 'class="row-desc"' not in body
+
+
+@pytest.mark.django_db
+def test_row_still_has_exactly_one_interactive_control(client_local, org):
+    """The badge and the preview are read-only spans, not a second control —
+    the row's only <select>/<button> is the Area picker."""
+    create_slice(org, title="컨트롤 하나", spec="a note", source="agent")
+    body = client_local.get(f"/{org.slug}/inbox/").content.decode()
+    row_start = body.index('class="inbox-row"')
+    row_end = body.index("</div>", body.index("</select>", row_start))
+    row_html = body[row_start:row_end]
+    assert row_html.count("<select") == 1
+    assert "<button" not in row_html
+
+
 # --- closes the Task 8 gap: capture already created Slices, but the Inbox
 #     list and the sidebar badge stayed Ticket-based (and therefore frozen)
 #     until this task made them read inbox_slices() too ---
