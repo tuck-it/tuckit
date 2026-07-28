@@ -12,6 +12,7 @@ import importlib
 from datetime import timedelta
 
 import pytest
+from django.db import migrations
 from django.utils import timezone
 from django_test_migrations.migrator import Migrator
 
@@ -432,10 +433,22 @@ def test_order_key_stays_sorted_and_valid_past_the_62_boundary():
 
 
 def test_backward_refuses_to_run():
-    """조용한 no-op이면 누군가 되돌릴 수 있다고 믿는다. 명시적으로 막는다."""
+    """조용한 no-op이면 누군가 되돌릴 수 있다고 믿는다. 명시적으로 막는다.
+
+    함수를 직접 부르는 것만으로는 부족하다 — RunPython에 실제로 물려 있지
+    않으면 `migrate core 0044`는 여전히 조용히 성공한다. 배선까지 단언한다."""
     mod = importlib.import_module("tuckit.core.migrations.0045_fold_tickets_and_plans")
     with pytest.raises(RuntimeError, match="되돌릴 수 없다"):
         mod.backward(None, None)
+
+    run_pythons = [
+        op for op in mod.Migration.operations
+        if isinstance(op, migrations.RunPython)
+    ]
+    assert run_pythons, "0045에 RunPython이 없다"
+    assert all(op.reverse_code is mod.backward for op in run_pythons), (
+        "backward()가 RunPython.reverse_code에 물려 있지 않다 — 되감기가 조용히 성공한다"
+    )
 
 
 # --- 0046: created_by 백필 -------------------------------------------------
@@ -474,6 +487,41 @@ def test_created_by_is_backfilled_from_the_origin_ticket(migrator: Migrator):
 
 
 @pytest.mark.django_db
+def test_a_null_number_ticket_does_not_stamp_every_null_number_slice(migrator: Migrator):
+    """백필의 짝짓기 키는 number인데, Ticket.number와 Slice.number 둘 다
+    null=True이고 유니크 제약이 NULL을 배제하는 부분 인덱스다.
+
+    Django ORM에서 number=None 필터는 `number IS NULL`로 번역되므로, number가
+    NULL이면서 created_by가 있는 티켓 하나가 그 org의 number가 NULL인 슬라이스
+    '전부'에 자기 작성자를 찍는다 — 아무 관계도 없는 행에.
+
+    0046은 양쪽 다 NULL을 제외해야 한다."""
+    old = migrator.apply_initial_migration(BEFORE_0046)
+    Org = old.apps.get_model("core", "Org")
+    User = old.apps.get_model("core", "User")
+    OrgMember = old.apps.get_model("core", "OrgMember")
+    Ticket = old.apps.get_model("core", "Ticket")
+    Slice = old.apps.get_model("core", "Slice")
+
+    org = Org.objects.create(name="O", slug="o", key="O", next_slice_number=9)
+    user = User.objects.create(email="a@b.com")
+    member = OrgMember.objects.create(user=user, org=org, role="owner")
+    # number가 NULL인 티켓 — 짝지을 슬라이스가 없다.
+    Ticket.objects.create(
+        org=org, title="번호 없는 캡처", body="", status="open", number=None, rank="m",
+        created_by=member,
+    )
+    # number가 NULL인, 전혀 무관한 슬라이스 둘.
+    a = Slice.objects.create(org=org, title="무관 A", spec="", rank="a", number=None)
+    b = Slice.objects.create(org=org, title="무관 B", spec="", rank="b", number=None)
+
+    new = migrator.apply_tested_migration(AFTER_0046)
+    NewSlice = new.apps.get_model("core", "Slice")
+    assert NewSlice.objects.get(pk=a.pk).created_by_id is None
+    assert NewSlice.objects.get(pk=b.pk).created_by_id is None
+
+
+@pytest.mark.django_db
 def test_created_by_stays_null_when_the_ticket_never_had_one(migrator: Migrator):
     old = migrator.apply_initial_migration(BEFORE_0046)
     Org = old.apps.get_model("core", "Org")
@@ -489,7 +537,24 @@ def test_created_by_stays_null_when_the_ticket_never_had_one(migrator: Migrator)
     assert NewSlice.objects.get(number=7).created_by_id is None
 
 
-def test_0046_backward_is_a_safe_no_op():
-    """필드를 지우면 값도 사라지지만, 원본(Ticket)이 그대로 남아 있어 정보 손실이 없다."""
+@pytest.mark.django_db
+def test_0046_backward_touches_no_rows(django_assert_num_queries):
+    """되감기는 정말로 아무것도 하지 않아야 한다 — 필드가 사라지면 값도 사라지고,
+    원본(Ticket)이 그대로 남아 있어 정보 손실이 없기 때문이다.
+
+    예전 단언은 `assert mod.backward(None, None) is None` 이었는데, 이것은
+    return 문이 없는 '모든' 함수에 대해 참이다. 파괴적인 본문
+    (`Slice.objects.update(created_by=None)` 같은 것)을 넣어도 똑같이 통과한다.
+    쿼리 수를 세면 그 구분이 생긴다: 아무것도 안 하는 함수만 0 쿼리다.
+
+    apps는 전역 레지스트리를 넘긴다 — apps.get_model()을 쓰는 본문이라면
+    그대로 동작하고, 실제로 DB를 만지면 쿼리로 드러난다."""
+    from django.apps import apps as global_apps
+
     mod = importlib.import_module("tuckit.core.migrations.0046_schema_repair")
-    assert mod.backward(None, None) is None
+    with django_assert_num_queries(0):
+        assert mod.backward(global_apps, None) is None
+
+    # 그리고 RunPython에 실제로 물려 있어야 한다 (test_backward_refuses_to_run과 같은 이유).
+    run_pythons = [op for op in mod.Migration.operations if isinstance(op, migrations.RunPython)]
+    assert run_pythons and all(op.reverse_code is mod.backward for op in run_pythons)

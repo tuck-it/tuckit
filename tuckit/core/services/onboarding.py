@@ -47,8 +47,14 @@ class OnboardingState:
 
 
 def onboarding_state(org: Org) -> OnboardingState:
+    # area__isnull=False is load-bearing, not tidiness. The Steps block on the
+    # detail panel is gated behind `{% if slice.area %}`, and capture creates
+    # AREA-LESS slices — which are also the newest. Picking the newest slice
+    # outright sent a first-run user who captured before filing to a page with
+    # no Steps form and no explanation. None here means "no filed slice yet",
+    # and the widget says to file one instead of linking to a dead end.
     newest = (
-        Slice.objects.filter(org=org)
+        Slice.objects.filter(org=org, area__isnull=False)
         .order_by("-id").values_list("id", flat=True).first()
     )
     return OnboardingState(

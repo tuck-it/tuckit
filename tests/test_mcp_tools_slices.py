@@ -329,3 +329,45 @@ async def test_an_unfiled_dropped_capture_is_still_reachable_without_the_inbox()
 
     assert [r["title"] for r in rows] == ["dropped before triage"]
     assert rows[0]["area_id"] is None
+
+
+@sync_to_async
+def _seed_oauth_caller():
+    """An OAuth token, i.e. an agent acting on behalf of a real person."""
+    from django.contrib.auth import get_user_model
+    from tuckit.core.models import OrgMember
+    from tuckit.core.services import oauth
+
+    org = Org.objects.create(name="Acme", slug="acme")
+    user = get_user_model().objects.create_user(email="human@example.com", password="pw123456")
+    OrgMember.objects.create(user=user, org=org, role="owner")
+    client = oauth.create_client("cli", ["http://localhost/cb"])
+    access, _refresh, _ttl = oauth.issue_tokens(client, user, org, "mcp")
+    return org, access
+
+
+@sync_to_async
+def _created_by_email(slice_id):
+    from tuckit.core.models import Slice
+    s = Slice.objects.select_related("created_by__user").get(pk=slice_id)
+    return s.created_by.user.email if s.created_by_id else None
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_create_slice_records_the_oauth_caller_as_capturer():
+    """`source="agent"` only says human-vs-agent. An OAuth token knows WHICH
+    human the agent is acting for, and the panel's "Captured by" reads that."""
+    _org, access = await _seed_oauth_caller()
+    s = await create_slice(make_ctx(access), "From my agent")
+    assert await _created_by_email(s["id"]) == "human@example.com"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_create_slice_with_a_machine_token_records_no_capturer():
+    """A legacy/machine token resolves to no user, so there is nobody to name —
+    the UI falls back to `source`."""
+    _org, _other, raw, _area_id = await _seed()
+    s = await create_slice(make_ctx(raw), "From a headless agent")
+    assert await _created_by_email(s["id"]) is None

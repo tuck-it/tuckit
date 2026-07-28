@@ -125,8 +125,8 @@ def onboarding(request):
         ActivityEvent.objects.filter(org=org).order_by("-id")
         .values_list("id", flat=True).first() or 0
     )
-    # Is the user already looking at the slice the Plan/Bite steps link to? If
-    # so the "Open the Slice →" button is a no-op that reloads the current page,
+    # Is the user already looking at the slice the Steps step links to? If so
+    # the "Open the Slice →" button is a no-op that reloads the current page,
     # so the widget points at the field on this page instead. Computed here
     # rather than on OnboardingState, which is frozen and request-independent.
     match = getattr(request, "resolver_match", None)

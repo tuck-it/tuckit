@@ -5,6 +5,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from tuckit.core.mcp.auth import require_caller, require_org
+from tuckit.core.models import OrgMember
 from tuckit.core.mcp.serializers import activity_event_dict, area_dict, bite_dict, slice_dict
 from tuckit.core.services.activity import add_note as _add_note
 from tuckit.core.services.areas import create_area as _create_area
@@ -224,7 +225,8 @@ async def list_slices(
             inbox_only=touched and area is None,
         )
         # Merged here rather than inside slice_dict(): that serializer is shared
-        # with create/update/promote, which already know what they just wrote.
+        # with create_slice/update_slice, which already know what they just
+        # wrote.
         return [{**slice_dict(s), "stage": stage_of(s)} for s in rows]
 
     return await sync_to_async(_run, thread_sensitive=True)()
@@ -325,10 +327,18 @@ async def create_slice(
         member = resolve_member(org, assignee, caller_user=user) if assignee else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
+        # created_by = who this slice came from. An OAuth token resolves to a
+        # real user, so an agent acting on someone's behalf records THAT
+        # person, not just source="agent"; a machine token (no user) leaves it
+        # NULL and the UI falls back to `source`.
+        creator = (
+            OrgMember.objects.filter(org=org, user=user).first()
+            if user is not None else None
+        )
         s = _create_slice(
             org, area=area, title=title, spec=spec, constraints=constraints,
             status=status, tags=tags, after=after, before=before, source="agent",
-            assignee_member=member, external_key=external_key,
+            assignee_member=member, external_key=external_key, created_by=creator,
         )
         return slice_dict(s)
 

@@ -114,7 +114,15 @@ def create_slice(
     """Create a slice. `area` is optional — omit it (or pass None) and the
     slice lands in the Inbox, picked up by inbox_slices(). `org` is the first
     argument because a slice may have no area, so org can no longer be
-    derived by dereferencing area.org."""
+    derived by dereferencing area.org.
+
+    `created_by` is the OrgMember who captured it (None for an agent with no
+    resolvable member) — the "Captured by" line on the detail panel and the
+    Inbox row read it, falling back to `source`.
+
+    An `external_key` that already exists updates that slice in place instead
+    of duplicating, carrying through title/spec/constraints/tags/assignee, and
+    filing it if `area` is given."""
     if area is not None and area.org_id != org.id:
         raise InvalidValue("area belongs to a different org")
     if external_key:
@@ -123,12 +131,28 @@ def create_slice(
             # Idempotent: a re-run with the same key updates in place, no duplicate.
             # Status is deliberately NOT touched here — create defaults to 'open' and
             # would otherwise regress a slice that already progressed; use update_slice
-            # to move status. Empty spec is treated as "unchanged" (spec or None).
-            return update_slice(
-                existing, title=title, spec=spec or None, tags=tags,
+            # to move status. Empty spec/constraints are treated as "unchanged"
+            # (`or None`), so a re-run that omits them keeps what is there.
+            #
+            # `area` and `created_by` go through set_slice_area()/a direct write
+            # rather than update_slice(), which takes neither. They used to be
+            # dropped on the floor here: an agent re-running create_slice with
+            # the same key and a new area_id got silence, while the docstring
+            # promised "Setting an area later files it."
+            update_slice(
+                existing, title=title, spec=spec or None,
+                constraints=constraints or None, tags=tags,
                 assignee=(1 if assignee_member is not None else None),
                 assignee_member=assignee_member, actor=source,
             )
+            if area is not None and area.id != existing.area_id:
+                set_slice_area(existing, area, actor=source)
+            if created_by is not None and existing.created_by_id is None:
+                # Only fills a blank: the first capturer is a fact about the
+                # capture, not something a later re-run reassigns.
+                existing.created_by = created_by
+                existing.save(update_fields=["created_by", "updated_at"])
+            return existing
     validate_choice(status, Slice.STATUS_CHOICES, "status")
     rank = rank_for(Slice, {"area": area}, before=before, after=after)
     with transaction.atomic():
@@ -280,7 +304,9 @@ def inbox_slices(org: Org) -> QuerySet:
     no area IS an inbox item; there is no separate model for it any more."""
     return (
         inbox_filter(Slice.objects.filter(org=org))
-        .select_related("org")
+        # created_by__user: the row's "captured by" badge dereferences it, so
+        # without this every row fires two more SELECTs.
+        .select_related("org", "created_by__user")
         .order_by("-created_at")
     )
 

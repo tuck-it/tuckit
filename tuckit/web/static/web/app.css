@@ -641,14 +641,6 @@ body { padding: 0; }
   transition: background .15s var(--ease), color .15s var(--ease);
 }
 .ref--copy:hover { background: var(--paper-deep); color: var(--ink); }
-.ticket-status {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-small);
-  color: var(--ink-faint);
-  font-size: 12px;
-  padding: 1px 7px;
-}
-.ticket-status--promoted { color: var(--blue); border-color: var(--blue); }
 /* --- Overlay layer -------------------------------------------------------
    Every dimming overlay (quick capture, command palette, detail modal, the
    create dialogs) shares this. Before it existed the six of them copy-pasted
@@ -1597,12 +1589,6 @@ body.modal-open { overflow: hidden; }
 .cmdk-result-note,
 .cmdk-result-kind { font-size: var(--text-xs); color: var(--ink-faint); flex: 0 0 auto; }
 .cmdk-empty { padding: var(--space-4) var(--space-10); font-size: var(--text-sm); color: var(--ink-faint); }
-/* A resolved ticket (promoted/dismissed/duplicate) can share its title, and
-   after a promote even its ref, with the live Slice it turned into — this
-   reuses the ticket modal's status vocabulary so a dead-ended row never
-   passes for live work. Open tickets render no pill at all. */
-.cmdk-result .ticket-status { flex: 0 0 auto; }
-
 /* --- Capture confirmation toast (nav redesign, Phase 1) --- */
 .toast {
   position: fixed;

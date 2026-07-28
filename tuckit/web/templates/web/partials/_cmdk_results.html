@@ -7,27 +7,24 @@
 
   Hrefs are reversed server-side. Routes are /<org>/-scoped, so a path built in
   JS would 404.
+
+  Slices only. The Promoted/Dismissed/Duplicate badge that used to sit on these
+  rows existed because a Ticket and the Slice it became shared a title AND a
+  ref, so a search returned both and nothing distinguished them. There is one
+  unit of work now, so there is one kind of row and nothing to disambiguate.
 {% endcomment %}
 {% for r in results %}
   <a class="cmdk-row cmdk-result" role="option" data-label="{{ r.title }}" href="{{ r.url }}">
     <span class="ref">{{ r.ref }}</span>
     <span class="cmdk-result-title">{{ r.title }}</span>
     {% if r.absorbed_from %}
-      {% comment %} absorb_ticket keeps the ticket's own number while its work
+      {% comment %} An absorbed capture keeps its own number while its work
          moves under another slice's ref. Say so, or arriving at a different
          number looks like the search sent you to the wrong place. {% endcomment %}
       <span class="cmdk-result-note">{{ r.absorbed_from }} was absorbed into {{ r.ref }}</span>
     {% endif %}
-    {% if r.status %}
-      {% comment %} promote_ticket copies the title onto its new Slice verbatim
-         and the Ticket row lives on (status='promoted'); dismissed/duplicate
-         tickets resurface the same way. Without this a resolved ticket is
-         indistinguishable from live work sharing its title. Open tickets are
-         the unmarked default, matching the Inbox. {% endcomment %}
-      <span class="ticket-status ticket-status--{{ r.status }}">{{ r.status_display }}</span>
-    {% endif %}
     <span class="cmdk-result-kind">{{ r.kind }}</span>
   </a>
 {% empty %}
-  {% if q %}<div class="cmdk-empty">No slice or ticket matches “{{ q }}”.</div>{% endif %}
+  {% if q %}<div class="cmdk-empty">No slice matches “{{ q }}”.</div>{% endif %}
 {% endfor %}

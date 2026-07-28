@@ -1,10 +1,19 @@
 """Cmd+K server search — the half of "ref as shared vocabulary" that lets a
-human act on a number an agent gave them."""
+human act on a number an agent gave them.
+
+Slices only. This module used to query Ticket alongside Slice and mark the
+resolved ones with a Promoted/Dismissed/Duplicate badge, because promote copied
+the ticket's title AND its number onto the new slice and the ticket row lived
+on. 0045 folds every ticket into a slice with that same identical title and
+identical ref, so keeping the Ticket branch meant the product's primary lookup
+surface answered every one of the ~52 production captures with two rows bearing
+the same ref. There is one unit of work now, so there is one kind of result.
+"""
 
 from django.shortcuts import render
 from django.urls import reverse
 
-from tuckit.core.models import Slice, Ticket
+from tuckit.core.models import Slice
 from tuckit.core.services.exceptions import NotFound
 from tuckit.core.services.refs import parse_ref, ref_for
 from tuckit.core.services.resolve import resolve_ref
@@ -13,33 +22,20 @@ _LIMIT = 8
 
 
 def _row(org, obj, requested_ref=""):
-    is_slice = isinstance(obj, Slice)
     ref = ref_for(obj)
-    # promote_ticket() copies the ticket's title onto its new Slice verbatim,
-    # and the Ticket row itself lives on afterward (status='promoted') — so a
-    # title search can surface both, with identical titles and (since promote
-    # also hands over the number) identical refs. dismissed/duplicate tickets
-    # resurface the same way. Nothing about a bare title/ref distinguishes a
-    # dead-ended Ticket from live work, so the row itself has to say so. An
-    # open Ticket needs no marker: open is the unmarked default, same as Inbox.
-    resolved = (not is_slice) and obj.status in Ticket.RESOLVED_STATUSES
     return {
         "ref": ref,
         "title": obj.title,
-        "kind": "slice" if is_slice else "ticket",
-        "url": reverse(
-            "web:slice" if is_slice else "web:ticket", args=[org.slug, obj.pk]
-        ),
+        "kind": "slice",
+        "url": reverse("web:slice", args=[org.slug, obj.pk]),
         # Only set when the ref you typed is not the ref you landed on — i.e. an
-        # absorbed ticket, whose work lives under another slice's number.
+        # absorbed capture, whose work lives under another slice's number.
         "absorbed_from": requested_ref if requested_ref and requested_ref != ref else "",
-        "status": obj.status if resolved else "",
-        "status_display": obj.get_status_display() if resolved else "",
     }
 
 
 def _exact(org, q):
-    """Resolve `q` as a ref, following promote/absorb links. Returns
+    """Resolve `q` as a ref, following absorb links. Returns
     (obj, requested_ref) or (None, "")."""
     # A bare number is a ref on this surface, not a primary key: the palette is
     # where a human types what they read off the screen. MCP's
@@ -60,15 +56,14 @@ def search(request):
     if q:
         obj, requested = _exact(org, q)
         seen = set()
-        if obj is not None:
+        # resolve_ref() still knows about Tickets until 0047 drops the table: a
+        # ref that 0045 could not fold resolves to a Ticket, which has no page
+        # to link to. The palette shows slices, so drop it rather than emit a
+        # row whose href would 404.
+        if isinstance(obj, Slice):
             results.append(_row(org, obj, requested_ref=requested))
-            seen.add((type(obj).__name__, obj.pk))
-        found = list(
-            Slice.objects.filter(org=org, title__icontains=q).select_related("org")[:_LIMIT]
-        ) + list(
-            Ticket.objects.filter(org=org, title__icontains=q).select_related("org")[:_LIMIT]
-        )
-        for o in found:
-            if (type(o).__name__, o.pk) not in seen:
+            seen.add(obj.pk)
+        for o in Slice.objects.filter(org=org, title__icontains=q).select_related("org")[:_LIMIT]:
+            if o.pk not in seen:
                 results.append(_row(org, o))
     return render(request, "web/partials/_cmdk_results.html", {"results": results, "q": q})

@@ -34,7 +34,13 @@
       {% if slice.spec %}<span class="row-desc">{{ slice.spec|spec_summary }}</span>{% endif %}
     </span>
   </a>
-  <span class="source-badge{% if slice.source == 'agent' %} is-agent{% endif %}">{% if slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
+  {% comment %}
+    created_by (the OrgMember who captured it) wins over `source` when we have
+    it: `source` only says human-vs-agent, and in a shared org "you" is wrong
+    for everyone except the one person who typed it. NULL for machine-token
+    agents and for anything 0046 could not backfill, so the badge falls back.
+  {% endcomment %}
+  <span class="source-badge{% if not slice.created_by and slice.source == 'agent' %} is-agent{% endif %}">{% if slice.created_by %}{{ slice.created_by.user.email }}{% elif slice.source == 'agent' %}agent{% else %}you{% endif %}</span>
   <span class="inbox-row-when meta">{{ slice.created_at|timesince }} ago</span>
   {% comment %}
     hx-swap is declared explicitly. This select can sit inside markup that

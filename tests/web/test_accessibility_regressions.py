@@ -170,16 +170,22 @@ def test_inbox_row_change_immediately_files_with_no_confirm(client_local, org):
 
 
 @pytest.mark.django_db
-def test_area_delete_confirm_counts_what_it_destroys(client_local, org):
-    """The old confirm said "and all items in it" without the one number that
-    decides whether you click OK. Dropped slices are excluded so this agrees
-    with the count the Areas overview shows."""
+def test_area_delete_confirm_says_the_slices_survive(client_local, org):
+    """The confirm must describe what actually happens. 0044 flipped
+    Slice.area to SET_NULL, so deleting an area sends its slices back to the
+    Inbox — it does not destroy them — yet the dialog still warned "and its N
+    slices? This cannot be undone.", which is the one sentence in the product
+    that contradicts the release's claim outright.
+
+    The count stays (it is what decides whether you click OK) and dropped
+    slices stay excluded, matching the Areas overview."""
     area = create_area(org, "Backend")
     create_slice(area.org, area=area, title="One", status="open")
     create_slice(area.org, area=area, title="Two", status="open")
     create_slice(area.org, area=area, title="Old", status="dropped")
     body = client_local.get(f"{_p(org)}/").content.decode()
-    assert "and its 2 slices? This cannot be undone." in body
+    assert "Its 2 slices move back to the Inbox — nothing is deleted with it." in body
+    assert "This cannot be undone" not in body
 
 
 # --- Drag alternatives (WCAG 2.5.7) ----------------------------------------

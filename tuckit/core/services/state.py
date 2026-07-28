@@ -62,7 +62,7 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     lines = [f"# {slice_.title}", "", f"Status: {slice_.status}"]
     if tags:
         lines[-1] += f" · {tags}"
-    # What to do next, derived from spec/plan/bite state — the first thing a
+    # What to do next, derived from the spec and the slice's steps — the first thing a
     # caller needs, and the reason get_slice is worth calling before anything
     # else. Never stored; see slice_stage().
     lines.append(f"Stage: {stage_of(slice_)}")

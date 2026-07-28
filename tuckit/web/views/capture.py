@@ -18,6 +18,19 @@ from tuckit.web.htmx import refresh_rollup, widget_oob
 from tuckit.web.views._feedback import _action_result
 
 
+def _capturer(request, org):
+    """The OrgMember behind this request, for Slice.created_by.
+
+    `source` only says human-vs-agent; this says WHO. Production's Inbox is a
+    run of near-identical agent-authored titles, and in a shared org "captured
+    by you" is wrong for everyone except the one person who typed it. An
+    anonymous request (no view here allows one today, but none enforces it
+    either) leaves it NULL and the UI falls back to `source`."""
+    if org is None or not request.user.is_authenticated:
+        return None
+    return org.members.filter(user=request.user).first()
+
+
 def capture(request):
     """Capture always creates a Slice — Slice is the only unit of work now, so
     there is no Ticket to fork into. Area decides the destination directly:
@@ -47,7 +60,7 @@ def capture(request):
             raise Http404
 
     create_slice(org, area=area, title=title, spec=request.POST.get("spec", "").strip(),
-                 source="human")
+                 source="human", created_by=_capturer(request, org))
     return _action_result(request, org,
                           f"Captured in {area.name}." if area else "Captured to Inbox.")
 
@@ -82,11 +95,12 @@ def ticket_detail(request, ticket_id):
     org = get_current_org(request)
     slice_ = slice_for_ticket(org, ticket_id)
     if slice_ is None:
-        # A Ticket that 0045 never folded — i.e. one an agent created after
-        # this release through the (still live) create_ticket MCP tool. 404ing
-        # would park the loading skeleton in the overlay with no explanation,
-        # and the Area strip + Cmd+K both still link here. Send the reader to
-        # the Inbox and say why.
+        # A Ticket that 0045 never folded. Nothing creates Tickets any more
+        # (Task 13 deleted create_ticket with the rest of the MCP ticket
+        # surface) and no screen links here — only bookmarks and the ~27
+        # already-published /tickets/<id>/ URLs, which retire with the table in
+        # 0047. 404ing would park the loading skeleton in the overlay with no
+        # explanation, so send the reader to the Inbox and say why.
         messages.info(request, "That capture has no slice — showing the Inbox instead.")
         url = reverse("web:inbox", args=[org.slug])
     else:
@@ -235,7 +249,8 @@ def area_slice_create(request, slug):
         spec = request.POST.get("spec", "").strip()
         tags = [t.strip() for t in request.POST.getlist("tags") if t.strip()]
         try:
-            create_slice(org, area=target, title=title, spec=spec, tags=tags, source="human")
+            create_slice(org, area=target, title=title, spec=spec, tags=tags,
+                         source="human", created_by=_capturer(request, org))
         except InvalidValue as e:
             return HttpResponse(str(e), status=400)
     board = area_board_view(area)

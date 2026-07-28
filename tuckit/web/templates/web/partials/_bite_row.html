@@ -18,7 +18,7 @@
             :aria-expanded="open.toString()"
             x-on:click="open=!open">{{ bite.title }}</button>
     <input x-show="editTitle" x-cloak name="title" value="{{ bite.title }}" x-ref="titleInput" class="title-edit"
-           aria-label="Bite title"
+           aria-label="Step title"
            hx-post="{% wurl 'web:bite_edit' bite.id %}{{ modal_qs }}" hx-trigger="blur, keydown[key=='Enter']"
            hx-target="closest .detail-body" hx-swap="outerHTML"
            x-on:keydown.escape.stop="editTitle=false; $el.value = $el.defaultValue">

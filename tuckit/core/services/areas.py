@@ -51,10 +51,14 @@ def update_area(area: Area, *, name: str | None = None, description: str | None 
 
 
 def delete_area(area: Area) -> None:
-    # Record before the cascade removes the row and its children; target_label is
-    # denormalized so the log renders after the area is gone.
+    # Record before the row goes; target_label is denormalized so the log
+    # renders after the area is gone.
     record_activity(area.org, actor="human", verb="deleted", target=area)
-    area.delete()  # cascades to slices/bites via FK on_delete=CASCADE
+    # NOT a cascade. Slice.area is on_delete=SET_NULL since 0044, so the
+    # area's slices survive with area=NULL — i.e. they go back to the Inbox,
+    # where they can be filed into another area. The delete confirmation in
+    # _area_row.html says exactly that; keep the two in step.
+    area.delete()
 
 
 def reorder_area(area: Area, *, before: Area | None = None, after: Area | None = None) -> Area:

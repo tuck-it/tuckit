@@ -3,7 +3,7 @@
 
 import pytest
 
-from tuckit.core.models import Org
+from tuckit.core.models import Org, Slice
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.refs import slice_ref, ticket_ref
 from tuckit.core.services.slices import create_slice
@@ -27,8 +27,9 @@ def test_finds_a_slice_by_a_bare_number(client_local, org):
 
 @pytest.mark.django_db
 def test_finds_by_title_substring(client_local, org):
-    create_slice(org, area=create_area(org, "OSS"), title="Board redesign")
-    legacy_ticket(org, "Board is slow")
+    a = create_area(org, "OSS")
+    create_slice(org, area=a, title="Board redesign")
+    create_slice(org, area=a, title="Board is slow")
     body = client_local.get(f"/{org.slug}/search", {"q": "board"}).content.decode()
     assert "Board redesign" in body
     assert "Board is slow" in body
@@ -59,36 +60,42 @@ def test_an_absorbed_ticket_ref_says_where_it_went(client_local, org):
 
 
 @pytest.mark.django_db
-def test_a_promoted_tickets_row_is_marked_resolved_but_its_slice_is_not(client_local, org):
-    """Promotion copied the title onto the new Slice verbatim and the Ticket
-    row lived on afterward — so a title search returns both, with identical
-    titles (and, since promotion also handed over the number, identical refs).
-    Nothing but a marker on the ticket row tells them apart."""
+def test_a_folded_capture_returns_exactly_one_row(client_local, org):
+    """0045 gives every folded capture a Slice with an IDENTICAL title and an
+    IDENTICAL ref (promote handed the number over, and 0045 does the same).
+    While search still queried Ticket alongside Slice, every one of the ~52
+    production captures came back as TWO rows bearing the same ref in the
+    product's primary lookup surface. There is one unit of work now, so there
+    is one row."""
     area = create_area(org, "OSS")
     legacy_promoted(org, "Board redesign", area=area)
 
     body = client_local.get(f"/{org.slug}/search", {"q": "Board redesign"}).content.decode()
-    assert body.count('cmdk-result-title">Board redesign') == 2  # slice row AND the dead ticket row
-    assert "ticket-status--promoted" in body
-    assert body.count("ticket-status--") == 1  # only the ticket row is marked, not the slice
+    assert body.count('cmdk-result-title">Board redesign') == 1
+    # ...and the row that survived is the Slice, i.e. it links somewhere alive.
+    s = Slice.objects.get(org=org, title="Board redesign")
+    assert f'href="/{org.slug}/slices/{s.id}/"' in body
+    assert body.count('class="cmdk-result-kind">slice') == 1
 
 
 @pytest.mark.django_db
-def test_a_dismissed_ticket_is_marked_resolved(client_local, org):
+def test_a_ticket_that_never_became_a_slice_is_not_offered(client_local, org):
+    """A Ticket 0045 could not fold has no page of its own any more — web:ticket
+    only forwards to a Slice. Emitting a row for it would hand the palette an
+    href that dead-ends, so it is simply not a result."""
     legacy_resolved(legacy_ticket(org, "Login is broken"), "dismissed")
 
     body = client_local.get(f"/{org.slug}/search", {"q": "Login is broken"}).content.decode()
-    assert "Login is broken" in body
-    assert "ticket-status--dismissed" in body
+    # (the empty state echoes the query back, so assert on rows, not the title)
+    assert "cmdk-result-title" not in body
+    assert "No slice matches" in body
 
 
 @pytest.mark.django_db
-def test_an_open_ticket_has_no_resolved_marker(client_local, org):
-    legacy_ticket(org, "Something new")
-
-    body = client_local.get(f"/{org.slug}/search", {"q": "Something new"}).content.decode()
-    assert "Something new" in body
-    assert "ticket-status" not in body
+def test_the_empty_state_does_not_name_a_deleted_concept(client_local, org):
+    body = client_local.get(f"/{org.slug}/search", {"q": "nothing here"}).content.decode()
+    assert "No slice matches “nothing here”." in body
+    assert "ticket" not in body.lower()
 
 
 @pytest.mark.django_db

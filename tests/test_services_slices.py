@@ -1,6 +1,6 @@
 import pytest
 
-from tuckit.core.models import Org
+from tuckit.core.models import Org, Slice
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import (
     create_slice,
@@ -427,3 +427,48 @@ def test_inbox_filter_is_the_one_definition_both_readers_use(org, area):
     from_tool = {s.id for s in query_slices(org, inbox_only=True)}
 
     assert from_screen == from_tool == {waiting.id}
+
+
+@pytest.mark.django_db
+def test_external_key_rerun_carries_constraints_area_and_created_by(org, area):
+    """create_slice's external_key early-return used to forward only
+    title/spec/tags/assignee, so an agent re-running with the SAME key and a
+    new `constraints` (this release's headline field) or a new `area_id` got
+    silence — while the docstring promised "same key updates instead of
+    duplicating" and "Setting an area later files it."."""
+    from tuckit.core.models import OrgMember, User
+
+    user = User.objects.create_user(email="capturer@example.com", password="pw")
+    member = OrgMember.objects.create(org=org, user=user)
+
+    first = create_slice(org, title="Auth", external_key="branch/auth")
+    assert first.area_id is None and first.constraints == "" and first.created_by_id is None
+
+    again = create_slice(
+        org, area=area, title="Auth", constraints="Never log the refresh token.",
+        external_key="branch/auth", created_by=member,
+    )
+
+    assert again.id == first.id                    # still idempotent, no duplicate
+    again.refresh_from_db()
+    assert again.constraints == "Never log the refresh token."
+    assert again.area_id == area.id                # the re-run FILED it
+    assert again.created_by_id == member.id
+    assert Slice.objects.filter(org=org, external_key="branch/auth").count() == 1
+
+
+@pytest.mark.django_db
+def test_external_key_rerun_does_not_reassign_the_original_capturer(org):
+    """Who captured it is a fact about the capture. A later re-run by someone
+    else updates the work, not its provenance."""
+    from tuckit.core.models import OrgMember, User
+
+    first_user = User.objects.create_user(email="first@example.com", password="pw")
+    second_user = User.objects.create_user(email="second@example.com", password="pw")
+    first_member = OrgMember.objects.create(org=org, user=first_user)
+    second_member = OrgMember.objects.create(org=org, user=second_user)
+
+    s = create_slice(org, title="Auth", external_key="k", created_by=first_member)
+    create_slice(org, title="Auth", external_key="k", created_by=second_member)
+    s.refresh_from_db()
+    assert s.created_by_id == first_member.id

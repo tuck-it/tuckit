@@ -19,8 +19,18 @@ from django.db import migrations, models
 def forward(apps, schema_editor):
     Ticket = apps.get_model("core", "Ticket")
     Slice = apps.get_model("core", "Slice")
-    for t in Ticket.objects.exclude(created_by__isnull=True):
-        Slice.objects.filter(org_id=t.org_id, number=t.number).update(created_by_id=t.created_by_id)
+    # number를 짝짓기 키로 쓰는데, Ticket.number와 Slice.number 둘 다 null=True이고
+    # 유니크 제약이 부분(partial) 인덱스라 NULL을 배제한다. 그래서 number가 NULL인
+    # 티켓 하나가 그 org의 number가 NULL인 슬라이스 '전부'에 자기 작성자를 찍어버린다
+    # (NULL=NULL은 SQL에선 거짓이지만, Django ORM의 number=None은 IS NULL로 번역된다).
+    # 양쪽 다 NULL을 제외한다 — 짝지을 수 없는 행은 created_by를 NULL로 두는 것이 맞다.
+    for t in Ticket.objects.exclude(created_by__isnull=True).exclude(number__isnull=True):
+        (
+            Slice.objects
+            .exclude(number__isnull=True)
+            .filter(org_id=t.org_id, number=t.number)
+            .update(created_by_id=t.created_by_id)
+        )
 
 
 def backward(apps, schema_editor):

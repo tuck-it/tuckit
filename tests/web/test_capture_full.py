@@ -157,3 +157,62 @@ def test_slice_dialog_always_offers_tags_never_status(client_local, org):
     assert 'x-if="area"' not in body
     assert '<option value="">Inbox</option>' not in body
     assert "spec-edit--tall" in body
+
+
+# --- Who captured it (Slice.created_by) -------------------------------------
+#
+# The field was added by an explicit human decision during this branch (the
+# design mockup's "captured by") and then written exactly once, by migration
+# 0046's backfill. capture() did not pass it, MCP did not pass it, and both the
+# panel and the Inbox row read `slice.source` — which only ever says
+# human-vs-agent. In a shared org "captured by you" is wrong for everyone
+# except the one person who typed it.
+
+
+@pytest.mark.django_db
+def test_capture_records_who_captured_it(client_local, org):
+    from tuckit.core.models import User
+
+    client_local.post(f"{P(org)}/capture", {"title": "누가 넣었나", "spec": "본문"})
+    s = Slice.objects.get(title="누가 넣었나")
+    assert s.created_by is not None
+    assert s.created_by.user == User.objects.get(email="local@tuckit.local")
+    assert s.created_by.org_id == org.id
+
+
+@pytest.mark.django_db
+def test_the_inbox_row_and_panel_name_the_capturer(client_local, org):
+    client_local.post(f"{P(org)}/capture", {"title": "누가 넣었나", "spec": "본문"})
+    s = Slice.objects.get(title="누가 넣었나")
+
+    row = client_local.get(f"{P(org)}/inbox/").content.decode()
+    assert '<span class="source-badge">local@tuckit.local</span>' in row
+
+    panel = client_local.get(f"{P(org)}/slices/{s.id}/").content.decode()
+    assert "by local@tuckit.local ·" in panel
+
+
+@pytest.mark.django_db
+def test_the_panel_falls_back_to_source_when_nobody_is_recorded(client_local, org, area):
+    """0046 could not backfill every row, and a machine-token agent resolves to
+    no member — so the fallback has to stay."""
+    from tuckit.core.services.slices import create_slice
+
+    s = create_slice(org, area=area, title="출처 미상", source="agent")
+    assert s.created_by_id is None
+    panel = client_local.get(f"{P(org)}/slices/{s.id}/").content.decode()
+    assert '<span class="prop-val">agent</span>' in panel
+
+
+@pytest.mark.django_db
+def test_creating_a_slice_from_an_area_also_records_the_capturer(client_local, org, area):
+    """The Area page's quick-add and the onboarding Slice modal both land here.
+    Leaving them unwired would mean "Captured by" depended on which form you
+    happened to use."""
+    from tuckit.core.models import User
+
+    client_local.post(
+        f"{P(org)}/areas/{area.slug}/slices", {"title": "에어리어에서 만든 것"},
+    )
+    s = Slice.objects.get(title="에어리어에서 만든 것")
+    assert s.created_by.user == User.objects.get(email="local@tuckit.local")

@@ -37,7 +37,16 @@
               hx-post="{% wurl 'web:area_delete' a.id %}"
               hx-target="closest .area-item" hx-swap="outerHTML"
               hx-disabled-elt="this"
-              hx-confirm="Delete the area &quot;{{ a.name }}&quot; and its {{ a.slice_count }} slice{{ a.slice_count|pluralize }}? This cannot be undone.">Delete</button>
+              {% comment %}
+                0044 flipped Slice.area to SET_NULL, so deleting an area no
+                longer deletes its slices — they lose their area and land back
+                in the Inbox. The old copy ("and its N slices? This cannot be
+                undone.") described a cascade that has not happened since, and
+                it was the scariest sentence in a release whose claim is that
+                nothing is irreversible. Say the number anyway: it is what
+                decides whether you click OK.
+              {% endcomment %}
+              hx-confirm="Delete the area &quot;{{ a.name }}&quot;? Its {{ a.slice_count }} slice{{ a.slice_count|pluralize }} {{ a.slice_count|pluralize:"moves,move" }} back to the Inbox — nothing is deleted with it.">Delete</button>
     </div>
   </div>
   <form class="area-rename" x-show="editing" x-cloak

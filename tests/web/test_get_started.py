@@ -16,7 +16,11 @@ def test_widget_shows_four_steps_on_fresh_home(client_local, org):
     assert "Create your first Area" in body
     assert "Add your first Slice" in body
     assert "Add a Plan" not in body  # Task 7: the Plan step is gone
-    assert "Break it into Bites" in body
+    # "Steps", not "Bites": the panel's section label and its ＋ Add step button
+    # say Steps, so the guide naming a field that does not exist on screen sent
+    # the user looking for something that was never there.
+    assert "Break it into Steps" in body
+    assert "Bites" not in body
     assert "Connect your agent" in body
     assert "/4" in body  # step counter
     # a11y: disclosure toggle points at the collapsible body, decorative
@@ -60,10 +64,36 @@ def test_slice_modal_teaches_what_a_slice_is(client_local, org):
 
 @pytest.mark.django_db
 def test_widget_bite_step_links_to_newest_slice_once_slice_exists(client_local, org):
-    """Task 7: the Plan step is gone, so Bite is now gated on has_slice
-    (the same gate Plan used to carry) — no Plan needed to reach it."""
+    """Task 7: the Plan step is gone, so the Steps step is now gated on
+    has_slice (the same gate Plan used to carry) — no Plan needed to reach it."""
     area = create_area(org, "Backend")
     sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
+    body = client_local.get(f"/{org.slug}/").content.decode()
+    assert f"/slices/{sl.id}/?focus=bite" in body
+
+
+@pytest.mark.django_db
+def test_widget_steps_step_teaches_filing_when_only_captures_exist(client_local, org):
+    """The common first-run path is capture-then-triage, and a capture is
+    AREA-LESS. The Steps block on the panel is gated behind `{% if slice.area %}`,
+    so linking the newest slice sent that user to a page with no Steps form and
+    no explanation. Now the step says to file one first, and links where that
+    is done."""
+    create_slice(org, title="방금 캡처한 것")
+    body = client_local.get(f"/{org.slug}/").content.decode()
+
+    assert "?focus=bite" not in body                 # no link to a page with no form
+    assert "Steps live on a slice that has an Area" in body
+    assert f'href="/{org.slug}/inbox/"' in body
+
+
+@pytest.mark.django_db
+def test_widget_steps_step_ignores_a_newer_unfiled_capture(client_local, org):
+    """An area-less capture is always the NEWEST slice, so it would win the
+    `order_by("-id")` outright and hide the one slice that can take steps."""
+    area = create_area(org, "Backend")
+    sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
+    create_slice(org, title="방금 캡처한 것")
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert f"/slices/{sl.id}/?focus=bite" in body
 
