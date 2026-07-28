@@ -96,6 +96,67 @@ def test_move_without_hx_returns_204(client_local, org):
     assert Slice.objects.get(pk=s.id).status == "shipped"
 
 
+# --- Task 12: the Board's Ship/Drop (drag or button) also announces itself --
+#
+# slice_move's own response is a bare 204 — SortableJS ignores the body on a
+# drag, and this view is always called from the Board (an 'area' roll-up view,
+# per htmx.refresh_rollup), so an HX-Refresh full-page reload always follows.
+# An HX-Trigger toast fired on the 204 would flash and vanish under that
+# reload, so the announcement rides django.contrib.messages instead — the
+# same "second channel" Task 10 built for the ticket-deep-link redirect — and
+# base.html's `{% for m in messages %}` loop plays it through the SAME
+# showToast() on the reloaded page.
+
+
+@pytest.mark.django_db
+def test_move_status_change_queues_a_toast_for_the_next_page_load(client_local, org):
+    p = f"/{org.slug}"
+    a = create_area(org, "B")
+    s = create_slice(a.org, area=a, title="Payment", status="open")
+    resp = client_local.post(f"{p}/slices/{s.id}/move", {"status": "shipped"}, HTTP_HX_REQUEST="true")
+    assert resp.status_code == 204
+    assert resp.content == b""  # nothing to swap: the announcement is queued, not in this body
+
+    body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
+    assert "Shipped." in body
+    assert "Undo" in body
+    # Queued through django.contrib.messages -> played inline via escapejs, so
+    # the '=' the URL needs is JS-escaped as = in the source; the browser
+    # decodes it back before htmx ever sees the string.
+    assert f"/slices/{s.id}/status?undo_status\\u003Dopen" in body  # Undo re-opens it
+
+
+@pytest.mark.django_db
+def test_move_dropping_from_the_board_queues_restore_undo(client_local, org):
+    p = f"/{org.slug}"
+    a = create_area(org, "B")
+    s = create_slice(a.org, area=a, title="Payment", status="open")
+    client_local.post(f"{p}/slices/{s.id}/move", {"status": "dropped"}, HTTP_HX_REQUEST="true")
+
+    body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
+    assert "Dropped." in body
+    assert f"/slices/{s.id}/status?undo_status\\u003Dopen" in body
+
+
+@pytest.mark.django_db
+def test_move_reorder_only_queues_no_toast(client_local, org):
+    """A pure drag reorder within the same column changes no status, so it has
+    nothing to announce — matching the endpoint's existing "two callers"
+    split (status change vs. reorder)."""
+    a = create_area(org, "B")
+    p = f"/{org.slug}"
+    s1 = create_slice(a.org, area=a, title="one", status="open")
+    s2 = create_slice(a.org, area=a, title="two", status="open")
+    client_local.post(
+        f"{p}/slices/{s2.id}/move", {"status": "open", "before_id": s1.id}, HTTP_HX_REQUEST="true"
+    )
+    body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
+    assert "Shipped." not in body
+    assert "Dropped." not in body
+    assert "Reopened." not in body
+    assert "Restored." not in body
+
+
 @pytest.mark.django_db
 def test_roadmap_tab_defaults_to_cross_area_board(client_local, org):
     """The Board tab (web:roadmap) defaults to a workspace-wide stage pipeline

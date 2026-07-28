@@ -87,7 +87,8 @@ def test_area_action_requires_post(client_local, org):
     assert resp.status_code == 405
 
 
-# --- the toast + undo plumbing (reused from capture's _inbox_result) ---
+# --- the toast + undo plumbing (_feedback._action_result, shared with capture
+#     and, since Task 12, Ship/Drop/Restore/Reopen too) ---
 
 
 @pytest.mark.django_db

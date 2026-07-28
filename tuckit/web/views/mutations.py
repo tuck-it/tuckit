@@ -11,6 +11,7 @@ from tuckit.core.services.bites import create_bite, delete_bite, set_bite_status
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import widget_oob
 from tuckit.web.detail import slice_detail_context
+from tuckit.web.views._feedback import _action_result, slice_status_message
 
 
 def _slice_or_404(request, slice_id):
@@ -34,12 +35,46 @@ def _detail(request, slice_):
 
 
 def slice_status(request, slice_id):
+    """Ship / Drop / Restore / Reopen. None of the four is a one-way door —
+    the release's whole claim is that nothing is — so the status the slice is
+    LEAVING is exactly what Undo needs to resubmit. It rides on the query
+    string (`?undo_status=`) rather than the request body: that lets the same
+    plain "POST, no body" Undo button work both here (the OOB toast's real
+    <button hx-post>) and from board.slice_move's queued-message toast, which
+    has no hx-vals to attach a body to and cannot safely carry one anyway (its
+    response is a bare 204 followed by a full-page reload, so anything it
+    hands back has to survive in the URL, not in form data).
+
+    Routes through _action_result() — the same toast/Undo/OOB-refresh
+    machinery Inbox filing and Area-picking already use — because Restore can
+    hand an area-less dropped slice straight back to the Inbox (0045 mapped
+    dismissed/duplicate tickets to dropped slices, copying their often-NULL
+    area), so the Inbox list and its count can legitimately need refreshing
+    from a status change too. `close_detail=False`: the whole point is that
+    the panel re-renders in place with its new stage/action-bar, not that it
+    closes."""
     slice_ = _slice_or_404(request, slice_id)
+    org = get_current_org(request)
+    old_status = slice_.status
+    new_status = request.POST.get("status") or request.GET.get("undo_status", "")
     try:
-        set_slice_status(slice_, request.POST["status"])
+        set_slice_status(slice_, new_status)
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
-    return _detail(request, slice_)
+
+    is_modal = request.GET.get("modal") == "1"
+    ctx = slice_detail_context(slice_, is_modal=is_modal)
+    lead_html = render_to_string("web/partials/_slice_detail.html", ctx, request=request)
+    lead_html += widget_oob(request)
+
+    undo_qs = f"?undo_status={old_status}" + ("&modal=1" if is_modal else "")
+    return _action_result(
+        request, org, slice_status_message(old_status, slice_.status),
+        undo_url=reverse("web:slice_status", args=[org.slug, slice_.id]) + undo_qs,
+        undo_label="Undo",
+        close_detail=False,
+        lead_html=lead_html,
+    )
 
 
 def slice_edit(request, slice_id):
@@ -73,7 +108,7 @@ def slice_area(request, slice_id):
     separate "undo promote" action, because there is no promotion left to
     undo.
 
-    Reuses capture._inbox_result() for the toast + OOB list/count refresh.
+    Reuses _feedback._action_result() for the toast + OOB list/count refresh.
 
     `from=detail` (sent by the picker inside the detail panel) adds the
     re-rendered panel to that same response, OOB-swapped over `.detail-body`.
@@ -87,8 +122,6 @@ def slice_area(request, slice_id):
     still gated on the marker rather than sent always: the Inbox row fires the
     same endpoint, and a `.detail-body` on that page could only be some OTHER
     slice's panel."""
-    from tuckit.web.views.capture import _inbox_result
-
     org = get_current_org(request)
     slice_ = _slice_or_404(request, slice_id)
     raw = request.POST.get("area_id") or ""
@@ -107,7 +140,7 @@ def slice_area(request, slice_id):
         ctx["oob"] = True
         lead_html = render_to_string("web/partials/_slice_detail.html", ctx, request=request)
         lead_html += widget_oob(request)
-    return _inbox_result(
+    return _action_result(
         request, org, message,
         # ?modal=1 has to survive onto the Undo URL as well, or undoing from an
         # open modal re-renders the panel without its card chrome.

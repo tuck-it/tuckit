@@ -260,3 +260,109 @@ def test_panel_shows_area_reassign_control(client_local, org):
     s = create_slice(a.org, area=a, title="s", source="human")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert f"/slices/{s.id}/reassign" in body
+
+
+# --- Task 12: Ship/Drop/Restore/Reopen announce themselves ------------------
+#
+# Inbox actions (capture, filing/clearing an Area) already got a toast + Undo
+# in Task 9/10, via capture._inbox_result() (now _feedback._action_result()).
+# Ship/Drop/Restore/Reopen re-rendered the panel and said nothing — same
+# mechanism, no reason the higher-stakes actions should be the quiet ones.
+
+
+@pytest.mark.django_db
+def test_dropping_a_slice_announces_it(client_local, org, area):
+    s = create_slice(org, area=area, title="버릴 것", spec="설계")
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "dropped"})
+    body = r.content.decode()
+    assert "Dropped." in body
+    assert 'id="toast"' in body
+
+
+@pytest.mark.django_db
+def test_dropping_a_slice_offers_undo(client_local, org, area):
+    s = create_slice(org, area=area, title="버릴 것")
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "dropped"})
+    body = r.content.decode()
+    assert "Undo" in body
+    assert f"/slices/{s.id}/status?undo_status=open" in body
+
+
+@pytest.mark.django_db
+def test_undo_after_dropping_restores_the_slice(client_local, org, area):
+    """The toast's Undo button is a bare POST (no body) to a URL that already
+    carries the old status in its own query string — mirroring the Inbox
+    Undo's old-area-in-the-body trick, but the value has to live in the URL
+    here because board.slice_move's queued-message Undo button has no hx-vals
+    to attach a body to, and both entry points share this endpoint."""
+    s = create_slice(org, area=area, title="버릴 것")
+    client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "dropped"})
+    s.refresh_from_db()
+    assert s.status == "dropped"
+
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/status?undo_status=open")
+    s.refresh_from_db()
+    assert r.status_code == 200
+    assert s.status == "open"
+
+
+@pytest.mark.django_db
+def test_shipping_a_slice_announces_it_with_undo(client_local, org, area):
+    s = create_slice(org, area=area, title="끝난 것")
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "shipped"})
+    body = r.content.decode()
+    assert "Shipped." in body
+    assert "Undo" in body
+    assert f"/slices/{s.id}/status?undo_status=open" in body
+
+
+@pytest.mark.django_db
+def test_restoring_a_dropped_slice_announces_it(client_local, org, area):
+    s = create_slice(org, area=area, title="되살릴 것", status="dropped")
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "open"})
+    body = r.content.decode()
+    assert "Restored." in body
+    assert f"/slices/{s.id}/status?undo_status=dropped" in body  # Undo re-drops it
+
+
+@pytest.mark.django_db
+def test_reopening_a_shipped_slice_announces_it(client_local, org, area):
+    s = create_slice(org, area=area, title="다시 열 것", status="shipped")
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "open"})
+    body = r.content.decode()
+    assert "Reopened." in body
+    assert f"/slices/{s.id}/status?undo_status=shipped" in body  # Undo re-ships it
+
+
+@pytest.mark.django_db
+def test_status_toast_still_carries_the_re_rendered_panel(client_local, org, area):
+    """The toast rides alongside the panel, not instead of it — filing from the
+    panel (Task 10) has to keep growing/collapsing in place AND announce
+    itself now."""
+    s = create_slice(org, area=area, title="패널도 같이")
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "shipped"})
+    body = r.content.decode()
+    assert 'class="detail-body' in body
+    assert "status-dot--shipped" in body
+
+
+@pytest.mark.django_db
+def test_status_toast_keeps_the_modal_open(client_local, org, area):
+    """Unlike Inbox filing (which closes the modal by default), a status
+    change must NOT close it — the whole point is showing the new action bar
+    in place."""
+    s = create_slice(org, area=area, title="모달 유지")
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/status?modal=1", {"status": "shipped"})
+    body = r.content.decode()
+    assert 'hx-swap-oob="innerHTML:#detail-modal"' not in body
+
+
+@pytest.mark.django_db
+def test_moving_back_to_inbox_offers_undo(client_local, org, area):
+    s = create_slice(org, area=area, title="되돌릴 것")
+    r = client_local.post(f"/{org.slug}/slices/{s.id}/area", {"area_id": ""})
+    body = r.content.decode()
+    assert "Moved back to Inbox" in body
+    assert "Undo" in body
+
+

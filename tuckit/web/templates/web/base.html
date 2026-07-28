@@ -198,11 +198,19 @@
 
     {% if messages %}
     /* Server-queued notices, played through the SAME toast every htmx path
-       uses — one notification surface, not two. Used by a redirect, where no
-       htmx response exists to carry an OOB toast or a trigger header: the
-       legacy /tickets/<id>/ link forwarding a reader who has no slice to land
-       on. Rendered after showToast is defined, so it can run inline. */
-    {% for m in messages %}showToast("{{ m|escapejs }}", "{% if m.level_tag == 'error' %}err{% endif %}");{% endfor %}
+       uses — one notification surface, not two. Used where no htmx response
+       exists to carry an OOB toast: the legacy /tickets/<id>/ redirect, and
+       board.slice_move's Ship/Drop (its own response is a bare 204 always
+       followed by a full-page reload, so anything it hands back has to
+       survive that reload rather than ride the response body). Rendered
+       after showToast is defined, so it can run inline.
+
+       `extra_tags` doubles as an optional Undo url — a bare re-POST with no
+       body, since a queued message has no hx-vals to attach one to; the
+       endpoint it points at (mutations.slice_status) reads the value it
+       needs off THAT url's own query string instead. Absent, no Undo button
+       (showToast treats a falsy `undo.url` as "no Undo"). */
+    {% for m in messages %}showToast("{{ m|escapejs }}", "{% if m.level_tag == 'error' %}err{% endif %}"{% if m.extra_tags %}, {url: "{{ m.extra_tags|escapejs }}", label: "Undo"}{% endif %});{% endfor %}
     {% endif %}
 
     /* Every 4xx/5xx used to vanish silently: htmx does not swap error responses,

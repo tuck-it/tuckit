@@ -15,6 +15,7 @@ from tuckit.core.services.resolve import get_area, get_area_by_slug
 from tuckit.core.services.tickets import slice_for_ticket
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import refresh_rollup, widget_oob
+from tuckit.web.views._feedback import _action_result
 
 
 def capture(request):
@@ -47,8 +48,8 @@ def capture(request):
 
     create_slice(org, area=area, title=title, spec=request.POST.get("spec", "").strip(),
                  source="human")
-    return _inbox_result(request, org,
-                         f"Captured in {area.name}." if area else "Captured to Inbox.")
+    return _action_result(request, org,
+                          f"Captured in {area.name}." if area else "Captured to Inbox.")
 
 
 def inbox(request):
@@ -63,40 +64,6 @@ def inbox(request):
         "slices": list(inbox_slices(org)),
         "areas": list(list_areas(org)),
     })
-
-
-def _inbox_result(request, org, message, *, undo_url="", undo_label="Undo", undo_area_id=None,
-                  close_detail=True, lead_html=""):
-    """Response for an action that moves a Slice out of (or back into) the
-    Inbox: OOB-swap the whole list — so the empty state reappears — plus the
-    sidebar count and a toast. The row itself needs no target; the caller uses
-    hx-swap="none".
-
-    `undo_area_id` is the area the slice is leaving (None -> Inbox, else that
-    area's id). A bare re-POST to `undo_url` with no body always clears the
-    area — correct for undoing a file, but a no-op for undoing a clear. Passing
-    it lets the toast's Undo button carry the OLD area back as `area_id`, so
-    Undo reverses whichever direction actually happened, not just one of them.
-
-    Every caller is now a Slice action (capture, and the Area picker on the
-    Inbox row or in the detail panel): the Ticket triage actions that also
-    used this are gone. OOB targets that are not on screen — every one of them
-    outside the Inbox page — are silently skipped by htmx.
-
-    `lead_html` rides in front of the OOB bundle; `close_detail=False` keeps the
-    open detail panel alive. Both exist for the Area picker INSIDE the panel:
-    that action has to grow (or collapse) the panel the user is looking at, so
-    the panel comes back re-rendered instead of the panel being wiped."""
-    html = lead_html + render_to_string("web/partials/_capture_result.html", {
-        "slices": list(inbox_slices(org)),
-        "toast_message": message,
-        "undo_url": undo_url,
-        "undo_label": undo_label,
-        "undo_area_id": undo_area_id,
-        "close_detail": close_detail,
-    }, request=request)
-    # Home/Board show derived counts that these OOB swaps do not touch.
-    return refresh_rollup(request, HttpResponse(html))
 
 
 def ticket_detail(request, ticket_id):
