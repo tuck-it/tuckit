@@ -307,6 +307,39 @@ def test_undo_after_dropping_restores_the_slice(client_local, org, area):
 
 
 @pytest.mark.django_db
+def test_undo_response_self_targets_the_panel_via_oob(client_local, org, area):
+    """Fix round 1, C1: the toast's Undo button is hard-coded hx-swap="none"
+    (_capture_result.html) — its own request has no target/swap that would
+    ever place a *main* (non-oob) response body. Unless the re-rendered panel
+    carries hx-swap-oob="outerHTML:.detail-body" itself, htmx silently drops
+    it: the panel keeps showing the pre-Undo state (e.g. "Dropped" + Restore)
+    while the toast claims the reversal happened and the database agrees with
+    the toast, not the screen. Mirrors Task 10's analogous
+    test_clearing_the_area_from_the_panel_collapses_it_in_place for the Area
+    path. This must fail against the pre-fix code, which never set
+    ctx["oob"] on this branch."""
+    s = create_slice(org, area=area, title="패널도 맞아야 한다")
+    client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "dropped"})
+
+    undo_body = client_local.post(f"/{org.slug}/slices/{s.id}/status?undo_status=open").content.decode()
+
+    assert 'hx-swap-oob="outerHTML:.detail-body"' in undo_body
+    assert "Restored." in undo_body
+
+
+@pytest.mark.django_db
+def test_forward_status_response_does_not_self_target(client_local, org, area):
+    """The panel's own Ship/Drop/Restore/Reopen buttons target
+    `.detail-body` with hx-swap="outerHTML" directly — if THIS response also
+    carried hx-swap-oob, htmx would have nothing non-oob to satisfy that
+    primary swap, and the panel would go blank instead of growing/collapsing
+    in place."""
+    s = create_slice(org, area=area, title="정방향은 셀프타깃 아님")
+    body = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "dropped"}).content.decode()
+    assert 'hx-swap-oob="outerHTML:.detail-body"' not in body
+
+
+@pytest.mark.django_db
 def test_shipping_a_slice_announces_it_with_undo(client_local, org, area):
     s = create_slice(org, area=area, title="끝난 것")
     r = client_local.post(f"/{org.slug}/slices/{s.id}/status", {"status": "shipped"})

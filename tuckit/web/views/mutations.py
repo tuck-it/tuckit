@@ -52,10 +52,28 @@ def slice_status(request, slice_id):
     area), so the Inbox list and its count can legitimately need refreshing
     from a status change too. `close_detail=False`: the whole point is that
     the panel re-renders in place with its new stage/action-bar, not that it
-    closes."""
+    closes.
+
+    Two different callers hit this view with two different swap contracts,
+    exactly like slice_area's `from=detail` split:
+      - the panel's own Ship/Drop/Restore/Reopen buttons declare
+        hx-target="closest .detail-body" hx-swap="outerHTML" — the response's
+        *main* (non-oob) content is what lands, so the re-rendered panel must
+        NOT carry hx-swap-oob.
+      - the toast's Undo button (`_capture_result.html`) is hard-coded
+        hx-swap="none" — nothing about that request's own target/swap will
+        ever place a main-content response, so the panel has to self-target
+        via hx-swap-oob="outerHTML:.detail-body", or it is silently dropped
+        and the panel goes on showing the status Undo just reversed while the
+        toast claims otherwise.
+    request.POST carrying "status" is the forward button; Undo is a bare POST
+    whose only value is the `?undo_status=` this same view put on its own
+    Undo url — that presence/absence is the signal, already computed below as
+    `new_status`'s source, so it costs nothing extra to branch on."""
     slice_ = _slice_or_404(request, slice_id)
     org = get_current_org(request)
     old_status = slice_.status
+    is_undo = not request.POST.get("status")
     new_status = request.POST.get("status") or request.GET.get("undo_status", "")
     try:
         set_slice_status(slice_, new_status)
@@ -64,6 +82,8 @@ def slice_status(request, slice_id):
 
     is_modal = request.GET.get("modal") == "1"
     ctx = slice_detail_context(slice_, is_modal=is_modal)
+    if is_undo:
+        ctx["oob"] = True
     lead_html = render_to_string("web/partials/_slice_detail.html", ctx, request=request)
     lead_html += widget_oob(request)
 
