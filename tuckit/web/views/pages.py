@@ -14,7 +14,16 @@ from tuckit.core.services.state import (
 )
 from tuckit.web.auth import get_current_org
 from tuckit.core.models import Slice
-from tuckit.core.services.slices import filed_slices
+
+# The two shared predicates split the world in half but do not cover it:
+# inbox_filter() is `area IS NULL AND status = 'open'` and filed_slices() is
+# `area IS NOT NULL`, so an area-less slice that was shipped or dropped falls
+# between them. 0045 produced exactly those rows in production (every
+# dismissed/duplicate ticket became status='dropped' while keeping its NULL
+# area), which is why the archive lists below deliberately do NOT route through
+# filed_slices(): they are the only surface those slices can be read from once
+# the legacy ?ticket= redirect goes away in 0047.
+ARCHIVE_STATUSES = ("shipped", "dropped")
 
 
 def home(request):
@@ -57,15 +66,25 @@ def roadmap(request):
     status = request.GET.get("status")
     if org and (status in ROADMAP_STATUS_KEYS or status == "dropped"):
         # Focused single-status flat list — the "view all" / archive surface.
-        if status == "dropped":
-            # filed_slices(): dropped Inbox (area IS NULL) slices must not leak
-            # into this list — the Inbox is its own screen, same rule every
-            # other filed query in state.py already follows.
-            filter_slices = list(
-                filed_slices(Slice.objects.filter(org=org, status="dropped"))
+        if status in ARCHIVE_STATUSES:
+            # No filed_slices() here (see ARCHIVE_STATUSES above): a shipped or
+            # dropped slice with no area is in no Inbox (inbox_filter pins
+            # status='open') and on no Area board, so this list is where it has
+            # to show up. It renders with an "Inbox" chip instead of an area
+            # name. NULL sorts fine in SQL, so the ordering Task 11 wanted
+            # costs nothing.
+            qs = (
+                Slice.objects.filter(org=org, status=status)
                 .select_related("area", "org").prefetch_related("tags")
-                .order_by("area__name", "rank")
             )
+            if status == "shipped":
+                # Recency, matching roadmap_state()'s shipped bucket — this is
+                # the "view all" behind the same board link, uncapped.
+                filter_slices = sorted(
+                    qs, key=lambda s: (s.completed_at or s.updated_at), reverse=True,
+                )
+            else:
+                filter_slices = list(qs.order_by("area__name", "rank"))
         else:
             filter_slices = roadmap_state(org).get(status, [])
         return render(request, "web/roadmap.html", {

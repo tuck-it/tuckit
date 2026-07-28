@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pytest
+from django.template.defaultfilters import escapejs_filter
 from django.utils import timezone
 
 from tuckit.core.services.areas import create_area
@@ -118,12 +119,15 @@ def test_move_status_change_queues_a_toast_for_the_next_page_load(client_local, 
     assert resp.content == b""  # nothing to swap: the announcement is queued, not in this body
 
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
-    assert "Shipped." in body
-    assert "Undo" in body
+    # The WHOLE showToast() call, not its pieces. `assert "Undo" in body` used
+    # to stand in for the Undo button and proved nothing: base.html carries
+    # `b.textContent = undo.label || "Undo"` on every page in the product, so
+    # that assertion passed with the message channel ripped out entirely.
     # Queued through django.contrib.messages -> played inline via escapejs, so
-    # the '=' the URL needs is JS-escaped as = in the source; the browser
+    # '=' arrives as \u003D (and '-' as \u002D in the org slug); the browser
     # decodes it back before htmx ever sees the string.
-    assert f"/slices/{s.id}/status?undo_status\\u003Dopen" in body  # Undo re-opens it
+    undo = escapejs_filter(f"{p}/slices/{s.id}/status?undo_status=open")
+    assert f'showToast("Shipped.", "", {{url: "{undo}", label: "Undo"}});' in body
 
 
 @pytest.mark.django_db
@@ -134,8 +138,8 @@ def test_move_dropping_from_the_board_queues_restore_undo(client_local, org):
     client_local.post(f"{p}/slices/{s.id}/move", {"status": "dropped"}, HTTP_HX_REQUEST="true")
 
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
-    assert "Dropped." in body
-    assert f"/slices/{s.id}/status?undo_status\\u003Dopen" in body
+    undo = escapejs_filter(f"{p}/slices/{s.id}/status?undo_status=open")
+    assert f'showToast("Dropped.", "", {{url: "{undo}", label: "Undo"}});' in body
 
 
 @pytest.mark.django_db
@@ -483,15 +487,51 @@ def test_home_in_progress_survives_an_executing_inbox_slice(client_local, org, a
 
 
 @pytest.mark.django_db
-def test_roadmap_dropped_filter_excludes_inbox_slices(client_local, org, area):
-    """Pins the second crash site: roadmap()'s status="dropped" branch in
-    web/views/pages.py queried Slice.objects directly with a DB-level order,
-    so no crash — but a dropped Inbox (area IS NULL) slice leaked into the
-    list. Must route through filed_slices() like every other filed query."""
+def test_roadmap_dropped_filter_lists_area_less_slices_too(client_local, org, area):
+    """?status=dropped is the ONLY list an area-less dropped slice can appear
+    in, so it must not route through filed_slices().
+
+    The two shared predicates do not cover the world: inbox_filter() is
+    `area IS NULL AND status='open'` and filed_slices() is `area IS NOT NULL`,
+    which leaves `area IS NULL AND status != 'open'` in neither. 0045 mapped
+    every dismissed/duplicate ticket to status='dropped' while keeping the
+    often-NULL area, so production is already full of those rows — reachable
+    today only via the legacy ?ticket= redirect, which dies with 0047.
+
+    This test previously asserted the OPPOSITE (that the area-less row is
+    excluded), which is how the gap got locked in."""
     create_slice(org, area=area, title="버려진 필터 슬라이스", status="dropped")
     create_slice(org, title="버려진 Inbox 슬라이스", status="dropped")   # no area
     body = client_local.get(f"/{org.slug}/roadmap/?status=dropped").content.decode()
     assert "버려진 필터 슬라이스" in body
-    assert "버려진 Inbox 슬라이스" not in body
+    assert "버려진 Inbox 슬라이스" in body
+    # ...and it says where it is, instead of rendering a blank area cell.
+    assert '<span class="row-area">Inbox</span>' in body
+    assert f'<span class="row-area">{area.name}</span>' in body
+
+
+@pytest.mark.django_db
+def test_roadmap_shipped_filter_lists_area_less_slices_too(client_local, org, area):
+    """Same audit for ?status=shipped, which used to read roadmap_state()'s
+    bucket — also filed_slices()-filtered. An area-less slice that shipped is
+    in no Inbox (inbox_filter pins status='open') and on no Area board."""
+    create_slice(org, area=area, title="출시된 필터 슬라이스", status="shipped")
+    create_slice(org, title="출시된 Inbox 슬라이스", status="shipped")   # no area
+    body = client_local.get(f"/{org.slug}/roadmap/?status=shipped").content.decode()
+    assert "출시된 필터 슬라이스" in body
+    assert "출시된 Inbox 슬라이스" in body
+    assert '<span class="row-area">Inbox</span>' in body
+
+
+@pytest.mark.django_db
+def test_roadmap_open_filter_still_hides_the_inbox(client_local, org, area):
+    """The gap is `area IS NULL AND status != 'open'`. An area-less OPEN slice
+    IS the Inbox and has its own screen, so this list still leaves it out —
+    widening the archive lists must not widen this one."""
+    create_slice(org, area=area, title="열린 필터 슬라이스", status="open")
+    create_slice(org, title="아직 정리 안 한 캡처", status="open")   # no area
+    body = client_local.get(f"/{org.slug}/roadmap/?status=open").content.decode()
+    assert "열린 필터 슬라이스" in body
+    assert "아직 정리 안 한 캡처" not in body
 
 
