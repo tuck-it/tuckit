@@ -4,6 +4,7 @@ import pytest
 from django.utils import timezone
 
 from tuckit.core.services.areas import create_area
+from tuckit.core.services.bites import add_bites
 from tuckit.core.services.slices import create_slice
 from tuckit.core.models import Org, Slice
 
@@ -357,5 +358,76 @@ def test_card_is_title_centric_no_pills(client_local, org):
     assert 'class="card-badge"' not in body         # stage is text, not a pill
     assert "card-sub" in body                        # the single meta line
     assert "needs steps" in body                     # stage hint as text
+
+
+@pytest.mark.django_db
+def test_board_excludes_inbox_slices(client_local, org, area):
+    create_slice(org, title="Inbox에 있는 것")
+    create_slice(org, area=area, title="보드에 있는 것", spec="설계")
+    body = client_local.get(f"/{org.slug}/roadmap/").content.decode()
+    assert "보드에 있는 것" in body
+    assert "Inbox에 있는 것" not in body
+
+
+@pytest.mark.django_db
+def test_home_in_progress_fills_without_any_plan_object(client_local, org, area):
+    """관문 부재 가드 — 이 작업의 핵심 성과다.
+
+    이전에는 executing에 닿으려면 Plan을 먼저 만들어야 했고, 아무도 안 만들어서
+    Home의 이 밴드가 사실상 항상 비어 있었다."""
+    s = create_slice(org, area=area, title="진행 중", spec="설계됨")
+    bites = add_bites(s, [{"title": "a"}, {"title": "b"}])
+    from tuckit.core.services.bites import set_bite_status
+    set_bite_status(bites[0], "done")
+
+    body = client_local.get(f"/{org.slug}/").content.decode()
+    assert "진행 중" in body
+
+
+@pytest.mark.django_db
+def test_home_in_progress_survives_an_executing_inbox_slice(client_local, org, area):
+    """Pins the crash: home_state()'s in_progress band sorts with
+    key=lambda s: (..., s.area.name, s.rank) over an UNFILTERED
+    Slice.objects.filter(org=org). slice_stage() never looks at area, so an
+    Inbox slice (area IS NULL) with a spec and one live bite legitimately
+    reaches stage == "executing" — and the sort key's `s.area.name`
+    dereference 500s Home with AttributeError. Must be a real request through
+    the view: a service-level home_state() call alone would not exercise the
+    template/response path that Task 6's identical bug class slipped through."""
+    from tuckit.core.services.bites import set_bite_status
+
+    filed = create_slice(org, area=area, title="필터된 진행", spec="설계", status="open")
+    filed_bites = add_bites(filed, [{"title": "a"}, {"title": "b"}])
+    set_bite_status(filed_bites[0], "done")
+
+    inbox = create_slice(org, title="Inbox 진행 중", spec="설계")   # no area
+    inbox_bites = add_bites(inbox, [{"title": "a"}, {"title": "b"}])
+    set_bite_status(inbox_bites[0], "done")
+
+    resp = client_local.get(f"/{org.slug}/")
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    # Scoped to the "in progress" band itself: the slice's own creation event
+    # legitimately echoes its title in the "since you were away" band above it
+    # (target_label), so a whole-page substring check would false-positive.
+    marker = "<span>in progress</span>"
+    start = body.rindex('<section class="band">', 0, body.index(marker))
+    end = body.index("</section>", start)
+    in_progress_band = body[start:end]
+    assert "필터된 진행" in in_progress_band
+    assert "Inbox 진행 중" not in in_progress_band, "an unfiled slice must not reach the in progress band"
+
+
+@pytest.mark.django_db
+def test_roadmap_dropped_filter_excludes_inbox_slices(client_local, org, area):
+    """Pins the second crash site: roadmap()'s status="dropped" branch in
+    web/views/pages.py queried Slice.objects directly with a DB-level order,
+    so no crash — but a dropped Inbox (area IS NULL) slice leaked into the
+    list. Must route through filed_slices() like every other filed query."""
+    create_slice(org, area=area, title="버려진 필터 슬라이스", status="dropped")
+    create_slice(org, title="버려진 Inbox 슬라이스", status="dropped")   # no area
+    body = client_local.get(f"/{org.slug}/roadmap/?status=dropped").content.decode()
+    assert "버려진 필터 슬라이스" in body
+    assert "버려진 Inbox 슬라이스" not in body
 
 

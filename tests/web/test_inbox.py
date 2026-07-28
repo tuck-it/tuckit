@@ -4,9 +4,11 @@ the slice right back here. There is no Promote/Merge/Dismiss any more; those
 verbs belonged to the old Ticket-based Inbox (tests/web/test_capture_triage.py,
 retired by this file) and do not have an equivalent for a Slice.
 
-The Ticket triage modal those verbs lived in is gone (Task 10). What remains
-of that surface — the Area page's own "Inbox" strip, whose rows now forward to
-the slice each capture became — is covered by test_area_inbox.py and
+The Ticket triage modal those verbs lived in is gone (Task 10). The Area
+page's own "Inbox" strip that briefly forwarded rows to the slice each
+capture became is gone too (Task 11) — the Board and the Area page now share
+one layout, differing only in header and scope (see test_area.py /
+test_board.py). What remains of the old Ticket routes is covered by
 test_ticket_deeplink.py.
 """
 import pytest

@@ -161,14 +161,20 @@ def home_state(org: Org) -> dict:
     hand — nobody ever did, so the band was permanently empty while work was
     visibly happening. Deriving it means Home and the Board can never disagree.
     """
-    from tuckit.core.services.slices import annotate_stage_counts, stage_of
+    from tuckit.core.services.slices import annotate_stage_counts, filed_slices, stage_of
 
     # order_by는 명시적이다 — annotate_stage_counts가 GROUP BY를 붙여 Django가
     # Meta.ordering을 버린다. sqlite는 rowid 순으로 돌려줘 로컬에선 멀쩡해 보이고
     # Postgres에서만 깨진다.
+    #
+    # filed_slices()로 거른다: in_progress의 정렬 키가 s.area.name을 참조한다.
+    # slice_stage()는 area를 보지 않으므로 spec과 진행 중 bite가 있는 Inbox
+    # 슬라이스는 정당하게 stage == "executing"에 도달하고, 그 순간 area가
+    # None이라 AttributeError로 Home이 500난다. Inbox는 자기 화면이 있으니
+    # Board와 동일하게 여기서도 제외한다.
     slices = list(
         annotate_stage_counts(
-            Slice.objects.filter(org=org).select_related("area", "org")
+            filed_slices(Slice.objects.filter(org=org)).select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("rank")
@@ -388,9 +394,10 @@ def area_board_view(area: Area) -> dict:
 
     `dropped` is deliberately absent from the columns and reported as a count;
     the page turns it into a ?status=dropped link. Every slice carries `.stage`.
-    """
-    from tuckit.core.services.tickets import ticket_queryset
 
+    No `filed_slices()` filter is needed here: scoping to one `area` already
+    excludes Inbox slices (area IS NULL cannot match area=area).
+    """
     qs = (
         annotate_stage_counts(
             Slice.objects.filter(area=area).select_related("area", "org")
@@ -422,10 +429,6 @@ def area_board_view(area: Area) -> dict:
         "shipped_total": total,
         "shipped_hidden": total - len(visible),
         "dropped_count": dropped_count,
-        # Untriaged tickets filed to this area. NOT a board column: a Ticket has
-        # not been committed to, and putting it next to a stage column collapses
-        # the very distinction the strip exists to show.
-        "tickets": list(ticket_queryset(area.org, status="open", area=area)),
         # A capped-out or dropped slice still means "this area is not empty".
         "has_any_slice": active or total > 0 or dropped_count > 0,
     }

@@ -2326,67 +2326,6 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 [hx-target="#detail-modal"].htmx-request * { cursor: auto; }
 [hx-target="#detail-modal"].htmx-request { opacity: 1; }
 
-/* Area Inbox strip — untriaged tickets for one area, above the board.
-   Quieter than a board column on purpose: this is work not yet committed to,
-   so it must not compete with Planned/Building for attention. */
-.area-inbox { margin-bottom: var(--space-16); }
-.area-inbox-head {
-  display: flex; align-items: center; gap: var(--space-8);
-  padding: var(--space-6) 0;
-  cursor: pointer; list-style: none;
-  color: var(--muted); font-size: var(--text-sm);
-}
-.area-inbox-head::-webkit-details-marker { display: none; }
-/* The disclosure triangle is drawn rather than inherited so it can rotate. */
-.area-inbox-head::before {
-  content: "▸"; display: inline-block; transition: transform 120ms ease;
-}
-.area-inbox[open] .area-inbox-head::before { transform: rotate(90deg); }
-.area-inbox-label { font-weight: 600; color: var(--ink-soft); }
-/* When collapsed, this one line is the only signal. The header passes down
-   --muted, so the count was sinking along with it. When expanded, the rows
-   themselves are already the signal, so highlighting this too would be
-   redundant. */
-.area-inbox:not([open]) .area-inbox-count { color: var(--blue); }
-/* The board only gets whatever height is left over from .main--board
-   (100dvh). Without a cap, the ticket count would directly become the
-   board's height — one card's worth at 12 tickets, zero at 25. The expanded
-   inbox scrolls within its own share instead. Morph keeps the node alive, so
-   this scroll position survives across polls. */
-/* The padding is the row focus ring's clearance, not decoration. At >=768px
-   (see the cap below) the rows scroll inside this box, so anything the ring
-   draws outside a row's border would otherwise be clipped there; below that
-   width there is no cap and no scrolling, but the same clearance is kept so
-   nothing changes at the breakpoint. A ring needs 3px (2px outline + 1px
-   offset) and --space-2 left only 2, so its outermost pixel was cut off;
-   --space-4 is the first step that clears. */
-.area-inbox-rows {
-  display: flex; flex-direction: column; gap: var(--space-2);
-  padding: var(--space-4);
-}
-/* The cap exists only to protect .main--board's fixed height budget, and that
-   budget itself only exists at >=768px (below it .main--board reverts to
-   height:auto and the page scrolls normally). Scoping the cap to the same range
-   makes the two mutually exclusive, so neither depends on where it sits in the
-   file — an earlier version released the cap in the mobile block near line 521,
-   which lost the cascade tiebreak to this rule and never applied at all.
-   dvh, not vh: the budget it protects is 100dvh. */
-@media (min-width: 768px) {
-  .area-inbox-rows { max-height: 38dvh; overflow-y: auto; }
-}
-.area-inbox-row {
-  display: flex; align-items: baseline; gap: var(--space-10);
-  width: 100%; padding: var(--space-6) var(--space-10);
-  background: var(--paper-solid); border: 1px solid var(--line);
-  border-radius: var(--radius-small);
-  text-align: left; cursor: pointer; font: inherit; color: var(--ink);
-}
-.area-inbox-row:hover { border-color: var(--blue); }
-.area-inbox-row:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-@media (prefers-reduced-motion: reduce) {
-  .area-inbox-head::before { transition: none; }
-}
-
 /* Agent occupancy: a sustained wash while an agent is working an item, written
    once a second by heat.js as --heat (1 → 0). This replaces the old 1.6s ring:
    heat snapping back to 1 on new activity is itself the flare, so one visual
@@ -2418,7 +2357,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: none; }
 }
-.slice-row, .slice-card, .inbox-row, .area-inbox-row { animation: item-enter .28s var(--ease); }
+.slice-row, .slice-card, .inbox-row { animation: item-enter .28s var(--ease); }
 
 /* Shape ④ exit: morph adds this class just before it removes the node, then
    waits for the animation. Without morph the node is already gone here. */
@@ -2431,7 +2370,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 /* Motion is the decoration; the state is not. Under reduced-motion the warmth
    still shows and the label still reads — only the tweening stops. */
 @media (prefers-reduced-motion: reduce) {
-  .slice-row, .slice-card, .inbox-row, .area-inbox-row { animation: none; }
+  .slice-row, .slice-card, .inbox-row { animation: none; }
   .is-leaving { animation: none; opacity: 0; }
   .row-prog-track i { transition: none; }
   .slice-card { transition: none; }

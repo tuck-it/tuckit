@@ -14,6 +14,7 @@ from tuckit.core.services.state import (
 )
 from tuckit.web.auth import get_current_org
 from tuckit.core.models import Slice
+from tuckit.core.services.slices import filed_slices
 
 
 def home(request):
@@ -57,8 +58,11 @@ def roadmap(request):
     if org and (status in ROADMAP_STATUS_KEYS or status == "dropped"):
         # Focused single-status flat list — the "view all" / archive surface.
         if status == "dropped":
+            # filed_slices(): dropped Inbox (area IS NULL) slices must not leak
+            # into this list — the Inbox is its own screen, same rule every
+            # other filed query in state.py already follows.
             filter_slices = list(
-                Slice.objects.filter(org=org, status="dropped")
+                filed_slices(Slice.objects.filter(org=org, status="dropped"))
                 .select_related("area", "org").prefetch_related("tags")
                 .order_by("area__name", "rank")
             )

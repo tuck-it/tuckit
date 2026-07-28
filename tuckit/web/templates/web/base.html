@@ -279,19 +279,6 @@
         if (fallback) fallback.focus();
       }
     }
-    /* Area Inbox open/closed state. The toggle event doesn't bubble, so this
-       listens on the capture phase — that keeps exactly one listener on the
-       page, and morph re-inserting the strip doesn't produce a duplicate
-       save. The key is global rather than per-area on purpose: the question
-       it answers isn't "is this area cleared out" but "am I in triage mode
-       right now." */
-    document.addEventListener("toggle", function (e) {
-      var el = e.target;
-      if (!el.classList || !el.classList.contains("area-inbox")) return;
-      try {
-        localStorage.setItem("area-inbox-open", el.open ? "1" : "0");
-      } catch (err) { /* Storage unavailable: fine to stay open for this session only. */ }
-    }, true);
     /* Sidebar collapse: desktop-only icon rail, persisted. The class lives on
        <html> so the head script can restore it before paint (no flash). */
     function toggleSidebar() {
