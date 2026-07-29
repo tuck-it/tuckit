@@ -98,9 +98,8 @@ def bite_bar_tag(slice):
 
 _BOARD_LABELS = {
     "needs_design": "Needs design",
-    "needs_plan": "Needs plan",
-    "needs_bites": "Needs bites",
-    "executing": "Executing",
+    "needs_steps": "Needs steps",
+    "executing": "In progress",
     "ready_to_ship": "Ready to ship",
     "shipped": "Shipped",
 }

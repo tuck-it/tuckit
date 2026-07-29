@@ -215,7 +215,7 @@ body { padding: 0; }
 }
 
 .status-dot--needs_design  { background: var(--stage-design); }
-.status-dot--needs_plan    { background: var(--stage-plan); }
+.status-dot--needs_steps   { background: var(--stage-plan); }
 .status-dot--executing     { background: var(--stage-exec); }
 .status-dot--ready_to_ship { background: var(--stage-ship); }
 
@@ -566,85 +566,52 @@ body { padding: 0; }
 }
 .slice-add-input:focus { border-color: var(--blue); outline: 2px solid var(--blue); outline-offset: 1px; }
 
-/* Triage row — bare flex row inside .list-card (which supplies surface + dividers);
-   the Area/Status selects are quiet until the row is hovered/focused. */
-.ticket-row {
+/* Inbox row — bare flex row inside .list-card (which supplies surface +
+   dividers). One click target (open the slice) and one control (the Area
+   picker); there is no separate controls-on-hover reveal any more because
+   there is nothing to hide until hovered — a single always-visible select
+   is not visual noise the way a row of Promote/Dismiss buttons was. */
+.inbox-row {
+  min-height: 62px;
   line-height: 1.5;
   padding: 9px var(--space-14);
   display: flex;
   align-items: center;
   gap: 11px;
 }
-.ticket-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  opacity: 0.7;
-  transition: opacity 0.15s var(--ease);
+.inbox-row:hover { background: var(--paper-deep); }
+/* The row's click target for opening the slice modal. Reset to read as text,
+   not a control — title/desc reuse .row-title/.row-main/.row-desc (same
+   pairing _slice_row.html uses), so the "·" separator between them comes
+   from .row-desc::before alone; this flex container must NOT add its own
+   gap between .row-main and the ref before it, or the two separators stack.
+   flex:1 1 auto is what pushes the badge/timestamp/select cluster after it
+   flush to the row's right edge, since it is the only growing item. */
+.inbox-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
 }
-.ticket-row:hover .ticket-controls,
-.ticket-row:focus-within .ticket-controls { opacity: 1; }
-.ticket-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--ink-faint);
-  font-size: 12px;
-}
-.ticket-select {
+.inbox-row-main:hover .row-title { color: var(--blue); }
+.inbox-row-when { flex: 0 0 auto; }
+.inbox-area-select {
+  flex: 0 0 auto;
+  min-height: 30px;
   background: var(--paper-raised);
   border: 1px solid var(--line-control);
   border-radius: var(--radius-small);
   color: var(--ink);
   font: inherit;
   font-size: 12px;
-  padding: 3px 6px;
+  padding: 4px 8px;
 }
-.ticket-select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
-/* Dismiss — quiet icon action; rides the same hover-reveal as the selects. */
-.ticket-dismiss {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-small);
-  color: var(--ink-faint);
-  cursor: pointer;
-  padding: var(--space-4);
-}
-.ticket-dismiss:hover { border-color: var(--line); }
-.ticket-dismiss:hover .icon { stroke: var(--ink); }
-.ticket-dismiss .icon { width: 14px; height: 14px; }
+.inbox-area-select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 
-/* Title + body preview: the row's click target for opening the ticket modal.
-   Reset to read as text, not a control — it carries .row-title/.row-desc. */
-.ticket-open {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  overflow: hidden;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.ticket-open:hover .row-title { color: var(--blue); }
-
-/* Ticket contents. The box itself (size, surface, border) comes from
-   .detail-card, the same one a slice gets — that is the whole point of the
-   unification. Only the internal stacking lives here. */
-.ticket-card {
-  padding: var(--space-20);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-12);
-}
-.ticket-card-head { display: flex; align-items: center; gap: var(--space-10); }
 /* The ref (TUC-47) — the id the human and the agent both speak. Mono and
    min-width'd in ch so a column of them lines up and can be scanned; that
    scannability is the whole reason it leads the row. */
@@ -674,97 +641,6 @@ body { padding: 0; }
   transition: background .15s var(--ease), color .15s var(--ease);
 }
 .ref--copy:hover { background: var(--paper-deep); color: var(--ink); }
-.ticket-status {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-small);
-  color: var(--ink-faint);
-  font-size: 12px;
-  padding: 1px 7px;
-}
-.ticket-status--promoted { color: var(--blue); border-color: var(--blue); }
-.ticket-close { margin-left: auto; }
-/* The note is the one part that grows without bound, so it takes the scroll
-   and the head, actions and meta stay put. min-height:0 is what lets a flex
-   child shrink below its content — without it the card would just overflow
-   its own max-height again. */
-.ticket-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
-.ticket-body .spec { min-height: 60px; }
-/* Ticket triage — "where does this go?" on one line. Every control stands at
-   .button-small's 34px: the old row mixed a 12px label, a ~24px select and a
-   34px button under align-items:center, and that height spread is what made
-   three parts of one sentence read as three unrelated things.
-
-   Deliberately NOT .ticket-field/.ticket-select — the Inbox row shares those,
-   and its control heights belong to the control-height slice, not this one. */
-.triage-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-8);
-}
-.triage-label {
-  flex: 0 0 auto;
-  color: var(--ink-faint);
-  font-size: var(--text-sm);
-}
-.triage-select {
-  min-height: 34px;
-  max-width: 16rem;
-  padding: 0 var(--space-8);
-  background: var(--paper-raised);
-  border: 1px solid var(--line-control);
-  border-radius: var(--radius-small);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-base);
-}
-.triage-select:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 1px;
-  border-color: var(--blue);
-}
-/* The hint takes a row of its own. Inline, its length would decide where the
-   submit button sits, and the button would jump as the label switched. */
-.triage-hint {
-  flex: 1 0 100%;
-  margin: 0;
-  color: var(--ink-faint);
-  font-size: var(--text-sm);
-}
-
-/* The read-only facts, one line under the title. */
-.detail-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-6);
-  color: var(--ink-faint);
-  font-size: var(--text-sm);
-}
-/* Show the whole address — it says who to ask. Truncate rather than wrap, so a
-   long one cannot push this into two lines. */
-.detail-meta-who {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Where a promoted ticket went. Read off the slice, never stored here. */
-.detail-meta-dest {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-small);
-  color: var(--ink-soft);
-  font-size: var(--text-base);
-  padding: var(--space-10) var(--space-12);
-  text-decoration: none;
-}
-.detail-meta-dest:hover { border-color: var(--blue); color: var(--ink); }
-.detail-meta-dest .row-arrow { margin-left: auto; }
-
-
 /* --- Overlay layer -------------------------------------------------------
    Every dimming overlay (quick capture, command palette, detail modal, the
    create dialogs) shares this. Before it existed the six of them copy-pasted
@@ -1193,10 +1069,6 @@ body { padding: 0; }
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-/* The ticket card pins its head and actions and scrolls only the note, so it
-   must not also scroll as a whole. */
-.ticket-card.detail-card { overflow: hidden; }
-
 /* Without this the page behind the scrim scrolls under the wheel. */
 body.modal-open { overflow: hidden; }
 
@@ -1323,55 +1195,29 @@ body.modal-open { overflow: hidden; }
   white-space: nowrap;
 }
 
-/* Plan block — a header (Plan eyebrow + name) sits ABOVE its card, the same
-   "label above a box" rhythm as the Spec section, so the two read consistently.
-   The card is ONE bordered box; its parts are named (Overview / Constraints /
-   Bites) so it's clear what is a plan vs a bite. Inner fields are borderless in
-   read mode (no box-in-box) and only lift to a subtle field while editing. */
-.plan-block { display: flex; flex-direction: column; gap: var(--space-8); }
-.plan-head { display: flex; align-items: flex-start; gap: var(--space-10); }
-.plan-head-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.plan-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--blue); }
-.plan-name { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; color: var(--ink); }
-.plan-del { margin-left: auto; flex: 0 0 auto; color: var(--ink-faint); }
-.plan-del:hover { color: var(--ink); }
+/* The panel's own sections. There is no plan card any more: Spec,
+   Constraints and Steps are all fields of the slice, stacked at one level, so
+   nothing is nested inside anything and no box sits inside another box. */
 
-.plan-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-12);
-  background: var(--paper-solid);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--space-16);
-}
+/* Constraints. Same field shape as Spec — deliberately, they are a pair
+   ("what we are building" / "what must not go wrong") — with an accent rule
+   down the side so the eye can find it without a second frame. */
+.constraints-block .spec,
+.constraints-block .spec-edit { border-left: 2px solid var(--blue); }
 
-/* Each labelled part of a plan: tight label + its content. */
-.plan-field { display: flex; flex-direction: column; gap: var(--space-6); }
-.plan-card .section-label { margin-bottom: 0; }
+/* Steps — the slice's checklist. `plan-bites` is the pre-two-layer spelling,
+   kept so the bite row styles below do not fork; the block itself hangs off
+   the slice now, not a plan. */
+.plan-bites { display: flex; flex-direction: column; gap: var(--space-4); }
+.plan-bites-empty { font-size: var(--text-sm); }
+/* Add-step form — input + inline submit on one line. */
+.bite-add-row { display: flex; align-items: center; gap: var(--space-8); }
+.bite-add-row .bite-add { flex: 1; margin-top: 0; }
 
-/* Read mode: no border/background — the card is the only box. A hover tint
-   (bleeding into the card padding) signals the field is click-to-edit. */
-.plan-card .spec {
-  border: none; background: none; border-radius: var(--radius-small);
-  padding: 4px 8px; margin: 0 -8px;
-}
-.plan-card .spec:hover { background: var(--paper-raised); }
-/* Edit mode: lift to a subtle field so it reads as active. */
-.plan-card .spec-edit { background: var(--paper-raised); }
-
-/* The bites checklist, divided from the constraints above. */
-.plan-card .plan-bites { border-top: 1px solid var(--line); padding-top: var(--space-12); }
-.plan-bites-empty { font-size: 12px; }
-/* Expanded bite detail: an indented left-rule, not another nested box. */
-.plan-card .bite-body {
-  background: none; border: none; border-left: 2px solid var(--line);
-  border-radius: 0; margin: 4px 0 8px var(--space-24); padding: 4px 0 4px 12px;
-}
-
-/* Add-plan form — title input + inline submit. */
-.plan-add { display: flex; align-items: center; gap: var(--space-8); }
-.plan-add .bite-add { flex: 1; margin-top: 0; }
+/* The unfiled (Inbox) props table. One open decision, so the picker gets the
+   room the Area pill would have taken. */
+.props--inbox .prop-val { flex: 1 1 auto; }
+.props--inbox .inbox-area-select { flex: 1 1 auto; max-width: 16rem; }
 
 /* Collapsible Activity — a full-width header button toggles the timeline so a
    long history doesn't force endless scroll (open by default only when short). */
@@ -1426,20 +1272,16 @@ body.modal-open { overflow: hidden; }
   overflow: hidden;
 }
 .list-card .slice-row,
-.list-card .ticket-row {
+.list-card .inbox-row {
   border-bottom: 1px solid var(--line);
   border-radius: 0;
 }
 .list-card .slice-row:last-child,
-.list-card .ticket-row:last-child { border-bottom: 0; }
+.list-card .inbox-row:last-child { border-bottom: 0; }
 
 /* Inbox is an operation queue. Preserve the row scanline while making each
    assignment control feel like an intentional decision, not stray metadata. */
 .group--inbox .list-card { box-shadow: 0 1px 2px var(--shadow); }
-.ticket-row { min-height: 62px; }
-.ticket-row:hover { background: var(--paper-deep); }
-.ticket-controls { margin-left: auto; }
-.ticket-select { min-height: 30px; padding: 4px 8px; }
 
 /* Attention reason: plain warm text, never a badge. */
 .row-reason {
@@ -1747,12 +1589,6 @@ body.modal-open { overflow: hidden; }
 .cmdk-result-note,
 .cmdk-result-kind { font-size: var(--text-xs); color: var(--ink-faint); flex: 0 0 auto; }
 .cmdk-empty { padding: var(--space-4) var(--space-10); font-size: var(--text-sm); color: var(--ink-faint); }
-/* A resolved ticket (promoted/dismissed/duplicate) can share its title, and
-   after a promote even its ref, with the live Slice it turned into — this
-   reuses the ticket modal's status vocabulary so a dead-ended row never
-   passes for live work. Open tickets render no pill at all. */
-.cmdk-result .ticket-status { flex: 0 0 auto; }
-
 /* --- Capture confirmation toast (nav redesign, Phase 1) --- */
 .toast {
   position: fixed;
@@ -2329,23 +2165,6 @@ html.sidebar-collapsed .side-resize { display: none; }
 .agent-tab--on { background: var(--blue); border-color: var(--blue); color: var(--paper); }
 .agent-client-pane { margin-top: var(--space-4); }
 
-/* Provenance: which tickets a slice was built from. The capture bodies live on
-   the tickets rather than copied into spec, so these links are the way back to
-   the original text. */
-.provenance {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-12);
-}
-.provenance-label { color: var(--ink-faint); }
-.provenance-ref { color: var(--ink-soft); text-decoration: none; }
-.provenance-ref:hover { text-decoration: underline; }
-/* Weight, not colour alone — the word "(origin)" carries the distinction for
-   anyone who cannot perceive the weight change. */
-.provenance-origin { font-weight: 600; }
-
 /* ===================================================================
    Accessibility & first-run corrections (persona walkthrough 2026-07-22)
    =================================================================== */
@@ -2355,10 +2174,10 @@ html.sidebar-collapsed .side-resize { display: none; }
    a pseudo-element instead of the painted box — nothing moves, everything
    becomes hittable. The bite checkbox is the most-pressed control in the
    product and was the smallest at 16x16. --- */
-.checkbox, .bite-chev, .ticket-dismiss, .area-act, .tag-x, .crumb-close, .gs-dismiss {
+.checkbox, .bite-chev, .area-act, .tag-x, .crumb-close, .gs-dismiss {
   position: relative;
 }
-.checkbox::after, .bite-chev::after, .ticket-dismiss::after,
+.checkbox::after, .bite-chev::after,
 .area-act::after, .tag-x::after, .crumb-close::after, .gs-dismiss::after {
   content: "";
   position: absolute;
@@ -2493,67 +2312,6 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 [hx-target="#detail-modal"].htmx-request * { cursor: auto; }
 [hx-target="#detail-modal"].htmx-request { opacity: 1; }
 
-/* Area Inbox strip — untriaged tickets for one area, above the board.
-   Quieter than a board column on purpose: this is work not yet committed to,
-   so it must not compete with Planned/Building for attention. */
-.area-inbox { margin-bottom: var(--space-16); }
-.area-inbox-head {
-  display: flex; align-items: center; gap: var(--space-8);
-  padding: var(--space-6) 0;
-  cursor: pointer; list-style: none;
-  color: var(--muted); font-size: var(--text-sm);
-}
-.area-inbox-head::-webkit-details-marker { display: none; }
-/* The disclosure triangle is drawn rather than inherited so it can rotate. */
-.area-inbox-head::before {
-  content: "▸"; display: inline-block; transition: transform 120ms ease;
-}
-.area-inbox[open] .area-inbox-head::before { transform: rotate(90deg); }
-.area-inbox-label { font-weight: 600; color: var(--ink-soft); }
-/* When collapsed, this one line is the only signal. The header passes down
-   --muted, so the count was sinking along with it. When expanded, the rows
-   themselves are already the signal, so highlighting this too would be
-   redundant. */
-.area-inbox:not([open]) .area-inbox-count { color: var(--blue); }
-/* The board only gets whatever height is left over from .main--board
-   (100dvh). Without a cap, the ticket count would directly become the
-   board's height — one card's worth at 12 tickets, zero at 25. The expanded
-   inbox scrolls within its own share instead. Morph keeps the node alive, so
-   this scroll position survives across polls. */
-/* The padding is the row focus ring's clearance, not decoration. At >=768px
-   (see the cap below) the rows scroll inside this box, so anything the ring
-   draws outside a row's border would otherwise be clipped there; below that
-   width there is no cap and no scrolling, but the same clearance is kept so
-   nothing changes at the breakpoint. A ring needs 3px (2px outline + 1px
-   offset) and --space-2 left only 2, so its outermost pixel was cut off;
-   --space-4 is the first step that clears. */
-.area-inbox-rows {
-  display: flex; flex-direction: column; gap: var(--space-2);
-  padding: var(--space-4);
-}
-/* The cap exists only to protect .main--board's fixed height budget, and that
-   budget itself only exists at >=768px (below it .main--board reverts to
-   height:auto and the page scrolls normally). Scoping the cap to the same range
-   makes the two mutually exclusive, so neither depends on where it sits in the
-   file — an earlier version released the cap in the mobile block near line 521,
-   which lost the cascade tiebreak to this rule and never applied at all.
-   dvh, not vh: the budget it protects is 100dvh. */
-@media (min-width: 768px) {
-  .area-inbox-rows { max-height: 38dvh; overflow-y: auto; }
-}
-.area-inbox-row {
-  display: flex; align-items: baseline; gap: var(--space-10);
-  width: 100%; padding: var(--space-6) var(--space-10);
-  background: var(--paper-solid); border: 1px solid var(--line);
-  border-radius: var(--radius-small);
-  text-align: left; cursor: pointer; font: inherit; color: var(--ink);
-}
-.area-inbox-row:hover { border-color: var(--blue); }
-.area-inbox-row:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-@media (prefers-reduced-motion: reduce) {
-  .area-inbox-head::before { transition: none; }
-}
-
 /* Agent occupancy: a sustained wash while an agent is working an item, written
    once a second by heat.js as --heat (1 → 0). This replaces the old 1.6s ring:
    heat snapping back to 1 on new activity is itself the flare, so one visual
@@ -2585,7 +2343,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: none; }
 }
-.slice-row, .slice-card, .ticket-row, .area-inbox-row { animation: item-enter .28s var(--ease); }
+.slice-row, .slice-card, .inbox-row { animation: item-enter .28s var(--ease); }
 
 /* Shape ④ exit: morph adds this class just before it removes the node, then
    waits for the animation. Without morph the node is already gone here. */
@@ -2598,7 +2356,7 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 /* Motion is the decoration; the state is not. Under reduced-motion the warmth
    still shows and the label still reads — only the tweening stops. */
 @media (prefers-reduced-motion: reduce) {
-  .slice-row, .slice-card, .ticket-row, .area-inbox-row { animation: none; }
+  .slice-row, .slice-card, .inbox-row { animation: none; }
   .is-leaving { animation: none; opacity: 0; }
   .row-prog-track i { transition: none; }
   .slice-card { transition: none; }

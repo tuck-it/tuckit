@@ -11,10 +11,8 @@ from pathlib import Path
 import pytest
 
 from tuckit.core.services.areas import create_area, list_areas
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.tickets import create_ticket
 
 STATIC = Path(__file__).resolve().parents[2] / "tuckit" / "web" / "static" / "web"
 
@@ -31,7 +29,7 @@ def test_board_cards_are_links_not_divs(client_local, org):
     tab stops inside <main> on the Board were the Board/List toggles, so a
     keyboard user could not open any slice at all (WCAG 2.1.1)."""
     area = create_area(org, "Backend")
-    s = create_slice(area, "Retry webhooks", status="open")
+    s = create_slice(area.org, area=area, title="Retry webhooks", status="open")
     body = client_local.get(f"{_p(org)}/roadmap/?view=board").content.decode()
 
     assert 'class="slice-card-link"' in body
@@ -45,15 +43,14 @@ def test_board_cards_are_links_not_divs(client_local, org):
 
 @pytest.mark.django_db
 def test_slice_detail_edit_surfaces_are_buttons(client_local, org):
-    """Title/spec/overview/constraints were <span>/<div> with x-on:click, so a
-    keyboard user could Drop the slice and Delete its plan but could not edit
-    any of its text — every destructive action reachable, no authoring one."""
+    """Title/spec/constraints were <span>/<div> with x-on:click, so a keyboard
+    user could Drop the slice but could not edit any of its text — every
+    destructive action reachable, no authoring one."""
     area = create_area(org, "Backend")
-    s = create_slice(area, "Retry webhooks", spec="why")
-    create_plan(s, title="v1", actor="human")
+    s = create_slice(area.org, area=area, title="Retry webhooks", spec="why")
     body = client_local.get(f"{_p(org)}/slices/{s.id}/").content.decode()
 
-    for label in ("Edit spec", "Edit plan overview", "Edit plan constraints"):
+    for label in ("Edit spec", "Edit constraints"):
         assert re.search(rf'<button[^>]*aria-label="{label}"', body), f"{label} must be a button"
     assert re.search(r'<button[^>]*class="detail-title edit-surface"', body), \
         "the slice title must be focusable"
@@ -66,9 +63,8 @@ def test_bite_toggle_exposes_checkbox_state(client_local, org):
     """The toggle was <button aria-label="Toggle done"> with the state drawn
     only as a tick, so assistive tech could not tell done from not-done."""
     area = create_area(org, "Backend")
-    s = create_slice(area, "Retry webhooks")
-    plan = create_plan(s, title="v1", actor="human")
-    create_bite(plan, "Write the test", source="human")
+    s = create_slice(area.org, area=area, title="Retry webhooks")
+    create_bite(s, "Write the test", source="human")
     body = client_local.get(f"{_p(org)}/slices/{s.id}/").content.decode()
 
     box = re.search(r'<button class="checkbox[^"]*"[^>]*>', body).group(0)
@@ -151,33 +147,45 @@ def test_dialogs_focus_themselves_without_a_cross_scope_ref(client_local, org):
 # --- Destructive / one-way actions -----------------------------------------
 
 @pytest.mark.django_db
-def test_inbox_row_does_not_auto_promote(client_local, org):
-    """Changing the Area select alone used to promote the ticket immediately.
-    promote_ticket() ends a ticket's lifecycle and reopen_ticket() refuses
-    promoted tickets, so a stray dropdown change was unrecoverable."""
+def test_inbox_row_change_immediately_files_with_no_confirm(client_local, org):
+    """Task 9 superseded the guard this test used to enforce (a stray Area
+    select change must not silently promote a Ticket, because promote_ticket()
+    ended the ticket's lifecycle and reopen_ticket() refused a promoted one —
+    unrecoverable, so it needed an explicit disabled-until-chosen button and an
+    hx-confirm saying so).
+
+    The Inbox now lists Slices, and a Slice's Area is fully reversible in both
+    directions (set_slice_area(slice_, None) undoes it) — so there is nothing
+    left to confirm, and an immediate hx-trigger="change" is the correct,
+    intended behavior rather than the bug this test used to catch."""
     create_area(org, "Backend")
-    create_ticket(org, "Invoice PDF is blank", source="human")
+    create_slice(org, title="Invoice PDF is blank")
     body = client_local.get(f"{_p(org)}/inbox/").content.decode()
 
-    row = re.search(r'<div class="ticket-row"[^>]*>', body).group(0)
-    assert 'hx-trigger="change"' not in row, "a select change must not mutate anything"
-    assert "<form class=\"ticket-row\"" not in body, "the row must not be a self-submitting form"
-    assert ">Promote</button>" in body, "promotion needs an explicit control"
-    assert ":disabled=\"!area\"" in body, "and it stays disabled until an area is chosen"
-    assert "cannot be undone" in body, "the confirm must say the action is one-way"
+    row = re.search(r'<div class="inbox-row"[^>]*>', body).group(0)
+    assert row, "the Inbox row markup must be present"
+    select = re.search(r'<select class="inbox-area-select"[^>]*>', body).group(0)
+    assert 'hx-trigger="change"' in select, "picking an area files it immediately — no separate submit"
+    assert "hx-confirm" not in select, "filing/clearing an area is reversible, so nothing needs confirming"
 
 
 @pytest.mark.django_db
-def test_area_delete_confirm_counts_what_it_destroys(client_local, org):
-    """The old confirm said "and all items in it" without the one number that
-    decides whether you click OK. Dropped slices are excluded so this agrees
-    with the count the Areas overview shows."""
+def test_area_delete_confirm_says_the_slices_survive(client_local, org):
+    """The confirm must describe what actually happens. 0044 flipped
+    Slice.area to SET_NULL, so deleting an area sends its slices back to the
+    Inbox — it does not destroy them — yet the dialog still warned "and its N
+    slices? This cannot be undone.", which is the one sentence in the product
+    that contradicts the release's claim outright.
+
+    The count stays (it is what decides whether you click OK) and dropped
+    slices stay excluded, matching the Areas overview."""
     area = create_area(org, "Backend")
-    create_slice(area, "One", status="open")
-    create_slice(area, "Two", status="open")
-    create_slice(area, "Old", status="dropped")
+    create_slice(area.org, area=area, title="One", status="open")
+    create_slice(area.org, area=area, title="Two", status="open")
+    create_slice(area.org, area=area, title="Old", status="dropped")
     body = client_local.get(f"{_p(org)}/").content.decode()
-    assert "and its 2 slices? This cannot be undone." in body
+    assert "Its 2 slices move back to the Inbox — nothing is deleted with it." in body
+    assert "This cannot be undone" not in body
 
 
 # --- Drag alternatives (WCAG 2.5.7) ----------------------------------------
@@ -187,11 +195,10 @@ def test_board_actions_are_non_drag_and_keyboard_reachable(client_local, org):
     """WCAG 2.5.7: the board must not require dragging. It is now a read-only
     stage X-ray — cards auto-flow; the only manual actions are Ship (on a
     ready-to-ship slice) and Drop, both real <button>s, not drag targets."""
-    from tuckit.core.services.plans import create_plan
     from tuckit.core.services.bites import create_bite
     area = create_area(org, "Backend")
-    rts = create_slice(area, "Retry webhooks", spec="ship me")
-    create_bite(create_plan(rts, title="P"), "b", status="done")  # → ready_to_ship
+    rts = create_slice(area.org, area=area, title="Retry webhooks", spec="ship me")
+    create_bite(rts, "b", status="done")  # → ready_to_ship
     body = client_local.get(f"{_p(org)}/roadmap/?view=board").content.decode()
     assert 'aria-label="Ship Retry webhooks"' in body   # real button, not a drag target
     assert 'aria-label="Drop Retry webhooks"' in body    # real button, not a drag target
@@ -362,31 +369,25 @@ def test_org_general_never_reads_alpine_state_from_htmx_attributes(client_local,
 
 # --- Overlays that outgrow the screen --------------------------------------
 
-def test_a_long_ticket_modal_can_be_scrolled_to_its_actions():
+def test_a_long_detail_modal_can_be_scrolled_to_its_actions():
     """.modal-overlay is fixed and inset:0, and it carried no overflow rule
-    while .ticket-card had no height cap. An agent-written body of a few screens
-    pushed Promote/Dismiss/Merge past the fold with nothing on the page able
-    to scroll — a fixed overlay does not grow the document behind it — so the
-    decision the modal exists to make was unreachable (WCAG 2.1.1).
+    while the card had no height cap. An agent-written spec of a few screens
+    pushed the actions past the fold with nothing on the page able to scroll —
+    a fixed overlay does not grow the document behind it — so the decisions
+    the modal exists to make were unreachable (WCAG 2.1.1).
 
-    The card is capped to the viewport and the body scrolls inside it, which
-    keeps the actions on screen instead of a full screen-height below the
-    note; the overlay scrolls too, as a floor for viewports too short even for
-    the head and actions.
+    There is one card class now (the ticket card is gone), so the cap and the
+    scroll live on it: the card is capped to the viewport and scrolls its own
+    content, and the action bar is sticky inside it. The overlay scrolls too,
+    as a floor for viewports too short even for the head and actions.
     """
     app = (STATIC / "app.css").read_text(encoding="utf-8")
     overlay = re.search(r"\.overlay\s*\{(.*?)\}", app, re.S).group(1)
     assert "overflow-y: auto" in overlay, "a fixed overlay must scroll its own content"
 
-    # The cap moved from .ticket-card to the shared .detail-card box, which is
-    # the point of the unification: a slice and a ticket get the same one.
     card = re.search(r"\.detail-card\s*\{(.*?)\}", app, re.S).group(1)
     assert "85vh" in card, "the card must not be allowed to exceed the viewport"
-    assert re.search(r"\.ticket-card\.detail-card\s*\{[^}]*overflow:\s*hidden", app), \
-        "the ticket card scrolls its note, so the box itself must not scroll too"
+    assert "overflow-y: auto" in card, "the card is what scrolls its own content"
 
-    body = re.search(r"\.ticket-body\s*\{(.*?)\}", app, re.S)
-    assert body is not None, ".ticket-body needs a rule of its own to take the scroll"
-    assert "overflow-y: auto" in body.group(1), "the note is what scrolls, not the actions"
-    assert "min-height: 0" in body.group(1), \
-        "a flex child will not shrink below its content without this"
+    bar = re.search(r"\n\.action-bar\s*\{(.*?)\}", app, re.S).group(1)
+    assert "position: sticky" in bar, "the actions must stay on screen while the spec scrolls"

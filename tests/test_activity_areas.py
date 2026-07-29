@@ -3,7 +3,6 @@ from tuckit.core.models import ActivityEvent, Org
 from tuckit.core.services.areas import create_area, delete_area
 from tuckit.core.services.bites import create_bite, delete_bite
 from tuckit.core.services.slices import create_slice
-from tuckit.core.services.plans import create_plan
 
 
 def _org(slug="a"):
@@ -38,8 +37,8 @@ def test_delete_area_records_deleted_before_cascade():
 @pytest.mark.django_db
 def test_delete_bite_records_deleted():
     org = _org("bd")
-    bite = create_bite(create_plan(create_slice(create_area(org, "A"), "S", status="open"),
-                                   title="P"), "Impl")
+    s = create_slice(org, area=create_area(org, "A"), title="S", status="open")
+    bite = create_bite(s, "Impl")
     ActivityEvent.objects.filter(verb="deleted").delete()
     delete_bite(bite)
     e = ActivityEvent.objects.get(target_type="bite", verb="deleted")

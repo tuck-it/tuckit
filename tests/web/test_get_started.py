@@ -3,7 +3,6 @@ import pytest
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import create_plan
 
 
 def _p(org):
@@ -11,15 +10,19 @@ def _p(org):
 
 
 @pytest.mark.django_db
-def test_widget_shows_five_steps_on_fresh_home(client_local, org):
+def test_widget_shows_four_steps_on_fresh_home(client_local, org):
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert 'id="onboarding-widget"' in body
     assert "Create your first Area" in body
     assert "Add your first Slice" in body
-    assert "Add a Plan" in body
-    assert "Break it into Bites" in body
+    assert "Add a Plan" not in body  # Task 7: the Plan step is gone
+    # "Steps", not "Bites": the panel's section label and its ＋ Add step button
+    # say Steps, so the guide naming a field that does not exist on screen sent
+    # the user looking for something that was never there.
+    assert "Break it into Steps" in body
+    assert "Bites" not in body
     assert "Connect your agent" in body
-    assert "/5" in body  # step counter
+    assert "/4" in body  # step counter
     # a11y: disclosure toggle points at the collapsible body, decorative
     # checkmark glyphs are hidden from assistive tech.
     assert 'aria-controls="ob-body"' in body
@@ -60,20 +63,37 @@ def test_slice_modal_teaches_what_a_slice_is(client_local, org):
 
 
 @pytest.mark.django_db
-def test_widget_plan_step_links_to_newest_slice(client_local, org):
+def test_widget_bite_step_links_to_newest_slice_once_slice_exists(client_local, org):
+    """Task 7: the Plan step is gone, so the Steps step is now gated on
+    has_slice (the same gate Plan used to carry) — no Plan needed to reach it."""
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="open")
+    sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
     body = client_local.get(f"/{org.slug}/").content.decode()
-    # With a Slice but no Plan, the current step is Add-a-Plan → ?focus=plan.
-    assert f"/slices/{sl.id}/?focus=plan" in body
+    assert f"/slices/{sl.id}/?focus=bite" in body
 
 
 @pytest.mark.django_db
-def test_widget_bite_step_links_after_plan_exists(client_local, org):
-    from tuckit.core.services.plans import create_plan
+def test_widget_steps_step_teaches_filing_when_only_captures_exist(client_local, org):
+    """The common first-run path is capture-then-triage, and a capture is
+    AREA-LESS. The Steps block on the panel is gated behind `{% if slice.area %}`,
+    so linking the newest slice sent that user to a page with no Steps form and
+    no explanation. Now the step says to file one first, and links where that
+    is done."""
+    create_slice(org, title="방금 캡처한 것")
+    body = client_local.get(f"/{org.slug}/").content.decode()
+
+    assert "?focus=bite" not in body                 # no link to a page with no form
+    assert "Steps live on a slice that has an Area" in body
+    assert f'href="/{org.slug}/inbox/"' in body
+
+
+@pytest.mark.django_db
+def test_widget_steps_step_ignores_a_newer_unfiled_capture(client_local, org):
+    """An area-less capture is always the NEWEST slice, so it would win the
+    `order_by("-id")` outright and hide the one slice that can take steps."""
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="open")
-    create_plan(sl, title="Plan")
+    sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
+    create_slice(org, title="방금 캡처한 것")
     body = client_local.get(f"/{org.slug}/").content.decode()
     assert f"/slices/{sl.id}/?focus=bite" in body
 
@@ -82,8 +102,8 @@ def test_widget_bite_step_links_after_plan_exists(client_local, org):
 def test_widget_hidden_when_all_done(client_local, org):
     from tuckit.core.models import ActivityEvent
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="open")
-    create_bite(create_plan(sl, title="Plan"), "Add backoff")
+    sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
+    create_bite(sl, "Add backoff")
     ActivityEvent.objects.create(
         org=org, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,
@@ -103,23 +123,23 @@ def test_dismiss_hides_widget(client_local, org):
 
 
 @pytest.mark.django_db
-def test_step4_shows_generate_key_when_no_key(client_local, org):
-    # Reach step 5 (onboarding.current == 5) by completing area/slice/plan/bite
-    # first — the widget only renders the connect UI once current == 5.
+def test_connect_step_shows_generate_key_when_no_key(client_local, org):
+    # Reach step 4 (onboarding.current == 4) by completing area/slice/bite
+    # first — the widget only renders the connect UI once current == 4.
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="open")
-    create_bite(create_plan(sl, title="Plan"), "Add backoff")
+    sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
+    create_bite(sl, "Add backoff")
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert "/onboarding/connect-key" in body
     assert "/welcome/" not in body
 
 
 @pytest.mark.django_db
-def test_step4_shows_poller_when_key_exists(client_local, org):
+def test_connect_step_shows_poller_when_key_exists(client_local, org):
     from tuckit.core.models import ApiToken
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="open")
-    create_bite(create_plan(sl, title="Plan"), "Add backoff")
+    sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
+    create_bite(sl, "Add backoff")
     ApiToken.objects.create(org=org, name="a", token_hash="x")
     body = client_local.get(f"{_p(org)}/").content.decode()
     # Primary onboarding poller now uses a distinct id (ob-listen) so it can't
@@ -144,11 +164,10 @@ def test_onboarding_step1_has_description_field(client_local, org):
 
 
 @pytest.mark.django_db
-def test_step5_leads_with_tokenless_oauth_and_live_poller(client_local, org):
+def test_connect_step_leads_with_tokenless_oauth_and_live_poller(client_local, org):
     a = create_area(org, "Backend")
-    s = create_slice(a, "Retry webhooks")
-    pl = create_plan(s, title="v1")
-    create_bite(pl, "wire it")  # now at step 5 (all prior steps done, not connected)
+    s = create_slice(a.org, area=a, title="Retry webhooks")
+    create_bite(s, "wire it")  # now at step 4 (all prior steps done, not connected)
     body = client_local.get(f"{_p(org)}/").content.decode()
     # tokenless command is the headline; no raw-token instruction up front
     assert "claude mcp add --transport http tuckit" in body
@@ -164,16 +183,15 @@ def test_step5_leads_with_tokenless_oauth_and_live_poller(client_local, org):
 
 
 @pytest.mark.django_db
-def test_step5_poller_has_distinct_id_no_collision_with_fallback(client_local, org):
+def test_connect_step_poller_has_distinct_id_no_collision_with_fallback(client_local, org):
     # The primary poller must use a distinct id (ob-listen) from the
     # fallback's poller (gs-listen, rendered only after key-gen). Before the
     # fix both instances shared id="gs-listen", so htmx's self-referencing
     # hx-target="#gs-listen" resolved to the first match and the fallback
     # poller became a zombie that never got replaced.
     a = create_area(org, "Backend")
-    s = create_slice(a, "Retry webhooks")
-    pl = create_plan(s, title="v1")
-    create_bite(pl, "wire it")  # now at step 5
+    s = create_slice(a.org, area=a, title="Retry webhooks")
+    create_bite(s, "wire it")  # now at step 4
     body = client_local.get(f"{_p(org)}/").content.decode()
     assert 'id="ob-listen"' in body
     assert 'id="gs-listen"' not in body  # fallback poller not rendered until key-gen runs

@@ -20,7 +20,7 @@ so each step carries an .sr-only status word — colour/opacity alone fails 1.4.
   <button type="button" class="ob-toggle" x-on:click="open = !open; localStorage.setItem('ob-open', open ? '1' : '0')"
           :aria-expanded="open.toString()" aria-controls="ob-body">
     <span class="ob-title">Get started</span>
-    <span class="ob-count">{{ onboarding.completed }}/5 done</span>
+    <span class="ob-count">{{ onboarding.completed }}/{{ onboarding.total }} done</span>
     <span class="ob-chev" :class="{'ob-chev--up': open}" aria-hidden="true">{% icon "chevron" "icon" %}</span>
   </button>
 
@@ -59,50 +59,49 @@ so each step carries an .sr-only status word — colour/opacity alone fails 1.4.
         {% endif %}
       </li>
 
-      {% comment %} Step 3 — Plan. If the user is ALREADY on the target slice the link is a
+      {% comment %} Step 3 — Steps. If the user is ALREADY on the target slice the link is a
          no-op, so point at the field on this page instead of sending them to
-         the page they are standing on. {% endcomment %}
-      <li class="ob-step {% if onboarding.has_plan %}done{% endif %} {% if onboarding.current == 3 %}current{% endif %}">
-        <div class="ob-step-head">
-          <span class="ob-box" aria-hidden="true">✓</span>
-          <span>Add a Plan</span>
-          <span class="sr-only">{% if onboarding.has_plan %}— completed{% else %}— not completed{% endif %}</span>
-        </div>
-        {% if onboarding.has_slice and not onboarding.has_plan and onboarding.newest_slice_id %}
-        <p class="ob-hint">A plan holds this slice's work steps. Add one, then break it into bites.</p>
-        {% if onboarding_on_newest_slice %}
-          <p class="ob-hint ob-hint--here">You're on it — use the <strong>Plan</strong> field on this page.</p>
-        {% else %}
-          <a class="button button-primary button-small ob-cta" href="{% wurl 'web:slice' onboarding.newest_slice_id %}?focus=plan">Open the Slice →</a>
-        {% endif %}
-        {% endif %}
-      </li>
+         the page they are standing on. The Plan step (Task 7) is gone — a step
+         now follows Slice directly, gated on has_slice like Plan used to be.
 
-      {# Step 4 — Bite: same location-awareness as step 3 #}
-      <li class="ob-step {% if onboarding.has_bite %}done{% endif %} {% if onboarding.current == 4 %}current{% endif %}">
+         The word is "Steps" everywhere the user can see it: that is what the
+         panel's section label and its ＋ Add step button say. "Bites" is the
+         model name and stays out of the UI.
+
+         newest_slice_id is the newest FILED slice (onboarding_state filters
+         area__isnull=False) because the panel gates its Steps form behind
+         `{% templatetag openblock %} if slice.area {% templatetag closeblock %}`.
+         When it is None the user has captured but not filed, so the step teaches
+         that instead of linking to a page with no form on it. {% endcomment %}
+      <li class="ob-step {% if onboarding.has_bite %}done{% endif %} {% if onboarding.current == 3 %}current{% endif %}">
         <div class="ob-step-head">
           <span class="ob-box" aria-hidden="true">✓</span>
-          <span>Break it into Bites</span>
+          <span>Break it into Steps</span>
           <span class="sr-only">{% if onboarding.has_bite %}— completed{% else %}— not completed{% endif %}</span>
         </div>
-        {% if onboarding.has_plan and not onboarding.has_bite and onboarding.newest_slice_id %}
+        {% if onboarding.has_slice and not onboarding.has_bite %}
+        {% if onboarding.newest_slice_id %}
         <p class="ob-hint">One implementation step of a Slice. Add it in the Slice.</p>
         {% if onboarding_on_newest_slice %}
-          <p class="ob-hint ob-hint--here">You're on it — use the <strong>Bites</strong> field on this page.</p>
+          <p class="ob-hint ob-hint--here">You're on it — use the <strong>Steps</strong> field on this page.</p>
         {% else %}
           <a class="button button-primary button-small ob-cta" href="{% wurl 'web:slice' onboarding.newest_slice_id %}?focus=bite">Open the Slice →</a>
         {% endif %}
+        {% else %}
+          <p class="ob-hint">Steps live on a slice that has an Area. Give one of your captures an area first — pick it from the Inbox.</p>
+          <a class="button button-primary button-small ob-cta" href="{% wurl 'web:inbox' %}">Open the Inbox →</a>
+        {% endif %}
         {% endif %}
       </li>
 
-      {# Step 5 — Connect: OAuth browser flow is primary; key-gen is a headless fallback #}
-      <li class="ob-step {% if onboarding.connected %}done{% endif %} {% if onboarding.current == 5 %}current{% endif %}">
+      {# Step 4 — Connect: OAuth browser flow is primary; key-gen is a headless fallback #}
+      <li class="ob-step {% if onboarding.connected %}done{% endif %} {% if onboarding.current == 4 %}current{% endif %}">
         <div class="ob-step-head">
           <span class="ob-box" aria-hidden="true">✓</span>
           <span>Connect your agent</span>
           <span class="sr-only">{% if onboarding.connected %}— completed{% else %}— not completed{% endif %}</span>
         </div>
-        {% if onboarding.current == 5 %}
+        {% if onboarding.current == 4 %}
         <div id="ob-connect">
           <div class="gs-field">
             <label for="ob-mcp-url">MCP endpoint</label>

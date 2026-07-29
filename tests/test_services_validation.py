@@ -4,7 +4,6 @@ from tuckit.core.models import Org
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite, set_bite_status
 from tuckit.core.services.exceptions import InvalidValue
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice, set_slice_status, update_slice
 
 
@@ -17,26 +16,26 @@ def area(db):
 @pytest.mark.django_db
 def test_create_slice_rejects_bad_status(area):
     with pytest.raises(InvalidValue):
-        create_slice(area, "X", status="blocked")
+        create_slice(area.org, area=area, title="X", status="blocked")
 
 
 @pytest.mark.django_db
 def test_set_slice_status_rejects_bad_status(area):
-    s = create_slice(area, "X")
+    s = create_slice(area.org, area=area, title="X")
     with pytest.raises(InvalidValue):
         set_slice_status(s, "nope")
 
 
 @pytest.mark.django_db
 def test_update_slice_rejects_bad_status(area):
-    s = create_slice(area, "X")
+    s = create_slice(area.org, area=area, title="X")
     with pytest.raises(InvalidValue):
         update_slice(s, status="nope")
 
 
 @pytest.mark.django_db
 def test_valid_status_still_works(area):
-    s = create_slice(area, "X", status="open")
+    s = create_slice(area.org, area=area, title="X", status="open")
     set_slice_status(s, "shipped")
     s.refresh_from_db()
     assert s.status == "shipped"
@@ -44,10 +43,9 @@ def test_valid_status_still_works(area):
 
 @pytest.mark.django_db
 def test_bite_status_validation(area):
-    s = create_slice(area, "X")
-    p = create_plan(s, title="Plan")
+    s = create_slice(area.org, area=area, title="X")
     with pytest.raises(InvalidValue):
-        create_bite(p, "B", status="wip")
-    b = create_bite(p, "B2")
+        create_bite(s, "B", status="wip")
+    b = create_bite(s, "B2")
     with pytest.raises(InvalidValue):
         set_bite_status(b, "wip")

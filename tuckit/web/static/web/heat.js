@@ -58,22 +58,15 @@
      after a swap is all the coupling this needs to the poller. */
   document.body.addEventListener("tuckit:live-refreshed", start);
 
-  /* Idiomorph re-syncs each <option selected> during a morph, which can force
-     an Inbox row's Area <select> back to its unselected placeholder — but
-     Alpine's `area` x-data value (the one driving the Promote button's
-     :disabled) is not touched by that, since morph never fires input/change
-     events. Left alone, the two disagree: Alpine still thinks an area is
-     chosen (button enabled) while the DOM would submit area_id="". Re-derive
-     Alpine's value from the DOM after every refresh so the button's enabled
-     state always matches what the form would actually submit. */
-  function resyncTicketAreaSelects() {
-    document.querySelectorAll(".ticket-row select[name='area_id']").forEach(function (select) {
-      var row = select.closest("[x-data]");
-      var stack = row && row._x_dataStack;
-      if (stack && stack[0]) stack[0].area = select.value;
-    });
-  }
-  document.body.addEventListener("tuckit:live-refreshed", resyncTicketAreaSelects);
+  /* The old Ticket-based Inbox row (_ticket_row.html, retired in Task 9)
+     mirrored its Area <select> into an Alpine `area` value that drove a
+     separate Promote button's :disabled state — a morph could desync the
+     two, hence a resync here on every live refresh. The Slice-based Inbox
+     row (_inbox_row.html) has no such button and no local Alpine state to
+     desync: picking an area posts immediately, so there is nothing left to
+     resync after a morph. If a future row reintroduces a submit-gated
+     control with its own Alpine mirror of a <select>, resurrect this
+     pattern rather than reaching for a global one. */
 
   document.body.addEventListener("htmx:beforeSwap", function () {
     if (!window.Idiomorph) return;
@@ -89,24 +82,6 @@
       node.classList.add("is-leaving");
       setTimeout(function () { node.remove(); }, 200);
       return false;
-    };
-
-    /* The server always renders .area-inbox closed (open is a client-side
-       preference). Left alone, morph's attribute sync would strip it back
-       closed on every poll — as often as every 2s. Re-opening it after the
-       fact would work too, but leaves a closed-then-open frame; refusing to
-       strip it in the first place is the cleaner fix.
-
-       Its reach really is one attribute on one element, as the check below
-       proves: it only ever vetoes `open` on DETAILS.area-inbox, everything
-       else passes through unchanged. So it is not the reason the strip's
-       count text can go stale while the rows update — that is idiomorph
-       skipping the children of whatever holds focus, and it is handled in
-       live.js (focusHoldsAValue). Don't widen or delete this guard chasing
-       that symptom. */
-    window.Idiomorph.defaults.callbacks.beforeAttributeUpdated = function (name, node) {
-      if (name !== "open") return true;
-      return !(node.classList && node.classList.contains("area-inbox"));
     };
   });
 })();

@@ -65,8 +65,8 @@ def test_live_refresh_morphs_instead_of_replacing():
 
 
 def test_live_refresh_preserves_the_active_control_value():
-    """CRITICAL regression guard: the Inbox ticket rows' Area <select>
-    (partials/_ticket_row.html) is a value-bearing control that lives inside
+    """CRITICAL regression guard: the Inbox row's Area <select>
+    (partials/_inbox_row.html) is a value-bearing control that lives inside
     the live morph target. Idiomorph re-syncs every <option selected> on each
     morph, which would reset that dropdown out from under the user mid-choice
     — so without ignoreActiveValue, any org activity firing a poll while a
@@ -92,27 +92,6 @@ def test_live_refresh_preserves_the_active_control_value():
     assert 'tagName === "INPUT"' in js
     assert 'tagName === "TEXTAREA"' in js
     assert 'tagName === "SELECT"' in js
-
-
-def test_ticket_row_area_select_resyncs_alpine_after_refresh():
-    """IMPORTANT regression guard: idiomorph re-syncs each <option selected>
-    during a morph, which can force an Inbox row's Area <select> back to its
-    unselected placeholder — but Alpine's `area` value (driving the Promote
-    button's :disabled) is a separate piece of state that morph never touches
-    (it fires no input/change events). Left alone the two disagree: Alpine
-    still thinks an area is chosen and leaves Promote enabled while the DOM
-    would submit area_id="".
-
-    Not reachable from pytest: this is a client-side Alpine+DOM interaction
-    with no server-observable effect (the Django test client never runs
-    Alpine or idiomorph), so — as with the other JS-only behaviors in this
-    file — it is pinned as a static assertion on the resync wiring actually
-    present in heat.js, not asserted end-to-end."""
-    js = (Path(tuckit.web.__file__).parent / "static/web/heat.js").read_text()
-    js = " ".join(js.split())
-    assert "tuckit:live-refreshed" in js
-    assert "area_id" in js
-    assert "_x_dataStack" in js
 
 
 def test_the_full_replace_workarounds_are_gone():

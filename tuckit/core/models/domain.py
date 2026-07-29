@@ -41,7 +41,9 @@ class Slice(models.Model):
     ]
     SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
 
-    area = models.ForeignKey(Area, on_delete=models.CASCADE, related_name="slices")
+    area = models.ForeignKey(
+        Area, null=True, blank=True, on_delete=models.SET_NULL, related_name="slices",
+    )
     # Denormalized from area.org so the per-org number uniqueness constraint is
     # expressible at all — UniqueConstraint cannot traverse relations, and the
     # readers that need the guarantee (get_slice_by_ref, resolve_ref) scope by
@@ -61,6 +63,14 @@ class Slice(models.Model):
         "core.OrgMember", null=True, blank=True,
         on_delete=models.SET_NULL, related_name="assigned_slices",
     )
+    constraints = models.TextField(blank=True, default="")
+    duplicate_of = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="duplicates",
+    )
+    created_by = models.ForeignKey(
+        "core.OrgMember", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="created_slices",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -77,6 +87,13 @@ class Slice(models.Model):
                 fields=["org", "number"],
                 condition=models.Q(number__isnull=False),
                 name="uniq_slice_number_per_org",
+            ),
+            # Mirrors uniq_ticket_external_key_per_org (0034): safe against
+            # concurrent agent retries keyed by an external system's id.
+            models.UniqueConstraint(
+                fields=["org", "external_key"],
+                condition=~models.Q(external_key=""),
+                name="uniq_slice_external_key_per_org",
             ),
         ]
 
@@ -179,7 +196,14 @@ class Bite(models.Model):
     ]
     SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
 
-    plan = models.ForeignKey("Plan", on_delete=models.CASCADE, related_name="bites")
+    # Nullable so Slice-direct bites (no Plan) can exist — column removal is
+    # deferred to 0047; this release only loosens the constraint.
+    plan = models.ForeignKey(
+        "Plan", null=True, blank=True, on_delete=models.CASCADE, related_name="bites",
+    )
+    slice = models.ForeignKey(
+        "Slice", null=True, blank=True, on_delete=models.CASCADE, related_name="bites",
+    )
     title = models.CharField(max_length=300)
     body = models.TextField(blank=True, default="")
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="todo")

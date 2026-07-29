@@ -100,23 +100,22 @@ app_patterns = [
     path(f"{P}slices/<int:slice_id>/", slices.slice_detail, name="slice"),
     path(f"{P}slices/<int:slice_id>/status", mutations.slice_status, name="slice_status"),
     path(f"{P}slices/<int:slice_id>/edit", mutations.slice_edit, name="slice_edit"),
-    path(f"{P}slices/<int:slice_id>/plans", mutations.plan_create, name="plan_create"),
     path(f"{P}slices/<int:slice_id>/tags", mutations.slice_tags, name="slice_tags"),
-    path(f"{P}slices/<int:slice_id>/reassign", mutations.slice_reassign, name="slice_reassign"),
     path(f"{P}slices/<int:slice_id>/move", board.slice_move, name="slice_move"),
+    # Triage = picking an Area (reversible: an empty area_id sends the slice
+    # back to the Inbox). It replaced the old Ticket promote/dismiss flow, and
+    # with the Ticket modal deleted (Task 10) every one of those endpoints is
+    # gone: promote was the last one-way action in the product.
+    path(f"{P}slices/<int:slice_id>/area", mutations.slice_area, name="slice_area"),
+    # Steps hang off the Slice, not a Plan (Task 5). The old
+    # POST /plans/<id>/bites is gone with the plan card.
+    path(f"{P}slices/<int:slice_id>/steps", mutations.bite_create, name="bite_create"),
+    # Legacy read-only deep link: forwards to the Slice this capture became.
+    # Bookmarks and ~27 already-published URLs point here; nothing generates
+    # new ones. Retires with the Ticket table in 0047.
     path(f"{P}tickets/<int:ticket_id>/", capture.ticket_detail, name="ticket"),
-    path(f"{P}tickets/<int:ticket_id>/edit", capture.ticket_edit, name="ticket_edit"),
-    path(f"{P}tickets/<int:ticket_id>/promote", capture.ticket_promote, name="ticket_promote"),
-    path(f"{P}tickets/<int:ticket_id>/dismiss", capture.ticket_dismiss, name="ticket_dismiss"),
-    path(f"{P}tickets/<int:ticket_id>/reopen", capture.ticket_reopen, name="ticket_reopen"),
-    path(f"{P}tickets/slice-options", capture.ticket_slice_options, name="ticket_slice_options"),
-    path(f"{P}tickets/<int:ticket_id>/triage", capture.ticket_triage, name="ticket_triage"),
-    path(f"{P}tickets/<int:ticket_id>/release", capture.ticket_release, name="ticket_release"),
-    path(f"{P}plans/<int:plan_id>/edit", mutations.plan_edit, name="plan_edit"),
-    path(f"{P}plans/<int:plan_id>/delete", mutations.plan_delete, name="plan_delete"),
     path(f"{P}bites/<int:bite_id>/toggle", mutations.bite_toggle, name="bite_toggle"),
     path(f"{P}bites/<int:bite_id>/body", mutations.bite_body, name="bite_body"),
-    path(f"{P}plans/<int:plan_id>/bites", mutations.bite_create, name="bite_create"),
     path(f"{P}bites/<int:bite_id>/edit", mutations.bite_edit, name="bite_edit"),
     path(f"{P}bites/<int:bite_id>/delete", mutations.bite_delete, name="bite_delete"),
 ]

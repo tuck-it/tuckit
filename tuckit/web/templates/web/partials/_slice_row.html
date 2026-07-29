@@ -7,7 +7,15 @@
     <span class="row-title">{{ slice.title }}</span>
     {% if show_desc and slice.spec %}<span class="row-desc">{{ slice.spec|spec_summary }}</span>{% endif %}
   </span>
-  {% if show_area %}<span class="row-area">{{ slice.area.name }}</span>{% endif %}
+  {% comment %}
+    A slice with no area is an Inbox item, and the archive lists (?status=shipped
+    / ?status=dropped) are the one place an area-less slice can legitimately
+    appear on an org-wide surface — 0045 left production full of dropped,
+    area-less captures. `{{ slice.area.name }}` on a NULL area renders as
+    nothing, so the row would silently lose its only location signal; say
+    "Inbox" instead.
+  {% endcomment %}
+  {% if show_area %}<span class="row-area">{% if slice.area %}{{ slice.area.name }}{% else %}Inbox{% endif %}</span>{% endif %}
   {% include "web/partials/_tag_text.html" %}
   {% agent_label slice %}
   {% if reason %}<span class="row-reason">{{ reason }}</span>

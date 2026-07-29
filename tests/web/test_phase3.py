@@ -4,9 +4,9 @@ import pytest
 
 @pytest.mark.django_db
 def test_inbox_heading_has_count_and_capture(client_local, org):
-    from tuckit.core.services.tickets import create_ticket
+    from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    create_ticket(org, "loose end")
+    create_slice(org, title="loose end")
     body = client_local.get(f"{p}/inbox/").content.decode()
     assert 'class="page-head"' in body
     assert 'class="page-count"' in body
@@ -14,14 +14,16 @@ def test_inbox_heading_has_count_and_capture(client_local, org):
 
 
 @pytest.mark.django_db
-def test_ticket_row_shows_provenance_and_english_controls(client_local, org):
-    from tuckit.core.services.tickets import create_ticket
+def test_inbox_row_shows_the_area_picker_in_english(client_local, org):
+    """Task 9: the Inbox lists Slices, not Tickets — one control (the Area
+    picker), no separate Status field, no legacy em-dash placeholder."""
+    from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    create_ticket(org, "loose end")
+    create_slice(org, title="loose end")
     body = client_local.get(f"{p}/inbox/").content.decode()
-    assert 'class="ticket-controls"' in body        # controls grouped for reveal
+    assert 'class="inbox-area-select"' in body
     assert "Choose area" in body
-    assert ">Status" in body
+    assert ">Status" not in body
     assert "— Choose an area —" not in body
 
 
@@ -30,17 +32,16 @@ def test_slice_detail_order_and_close_aria(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
-    from tuckit.core.services.plans import create_plan
     a = create_area(org, "Backend")
-    s = create_slice(a, "panel order", status="open", tags=["billing"])
-    create_bite(create_plan(s, title="Plan"), "step one")
+    s = create_slice(a.org, area=a, title="panel order", status="open", tags=["billing"])
+    create_bite(s, "step one")
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'aria-label="Close panel"' in body
     assert "Open full" in body
     assert "Backend" in body                         # Area context near title
-    # blueprint order: tags (a property row) appear before the plan's bites;
-    # bites (inside the plan card) come before the destructive drop
+    # blueprint order: tags (a property row) appear before the Steps list;
+    # steps come before the destructive drop
     assert body.index("billing") < body.index("step one") < body.index("Drop")
 
 
@@ -51,7 +52,7 @@ def test_slice_detail_renders_stage_pill(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
-    s = create_slice(create_area(org, "Backend"), "seg", status="open")
+    s = create_slice(org, area=create_area(org, "Backend"), title="seg", status="open")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="status-pill status-pill--static"' in body
     assert "status-opt" not in body

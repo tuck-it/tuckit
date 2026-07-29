@@ -18,19 +18,19 @@ def test_latest_activity_id_zero_when_empty():
 @pytest.mark.django_db
 def test_latest_activity_id_tracks_newest_event():
     org = _org("track")
-    create_slice(create_area(org, "Backend"), "S1", status="open")
+    create_slice(org, area=create_area(org, "Backend"), title="S1", status="open")
     first = latest_activity_id(org)
     assert first > 0
-    create_slice(create_area(org, "Frontend"), "S2", status="open")
+    create_slice(org, area=create_area(org, "Frontend"), title="S2", status="open")
     assert latest_activity_id(org) > first
 
 
 @pytest.mark.django_db
 def test_events_since_returns_only_newer_ascending():
     org = _org("since")
-    create_slice(create_area(org, "A"), "S1", status="open")
+    create_slice(org, area=create_area(org, "A"), title="S1", status="open")
     cursor = latest_activity_id(org)
-    create_slice(create_area(org, "B"), "S2", status="open")
+    create_slice(org, area=create_area(org, "B"), title="S2", status="open")
     events = events_since(org, cursor)
     assert [e.id for e in events] == sorted(e.id for e in events)
     assert all(e.id > cursor for e in events)
@@ -40,7 +40,7 @@ def test_events_since_returns_only_newer_ascending():
 @pytest.mark.django_db
 def test_events_since_is_org_scoped():
     org1, org2 = _org("o1"), _org("o2")
-    create_slice(create_area(org1, "A"), "S1", status="open")
-    create_slice(create_area(org2, "B"), "S2", status="open")
+    create_slice(org1, area=create_area(org1, "A"), title="S1", status="open")
+    create_slice(org2, area=create_area(org2, "B"), title="S2", status="open")
     ev = events_since(org1, 0)
     assert {e.org_id for e in ev} == {org1.id}

@@ -30,15 +30,19 @@ def sidebar_areas(request):
 
 
 def inbox_count(request):
-    """Expose the org's open (untriaged) Ticket count to every template so
-    the sidebar can show a muted count badge next to Inbox. Runs on every
-    request, so it counts in the DB rather than hydrating the rows."""
-    from tuckit.core.services.tickets import ticket_queryset
+    """Expose the org's Inbox (area-less, open) Slice count to every template
+    so the sidebar can show a muted count badge next to Inbox. Runs on every
+    request, so it counts in the DB rather than hydrating the rows.
+
+    Was Ticket-based until Task 9: capture had already switched to creating
+    Slices (Task 8), so this badge sat frozen — reading inbox_slices() here is
+    what makes it move again."""
+    from tuckit.core.services.slices import inbox_slices
 
     org = current_org_or_fallback(request)
     if not org:
         return {}
-    return {"inbox_count": ticket_queryset(org).count()}
+    return {"inbox_count": inbox_slices(org).count()}
 
 
 def switchable_orgs(request):
@@ -81,8 +85,9 @@ def capture_area(request):
     Resolved from request.resolver_match rather than by parsing the path, the
     same way onboarding() decides whether you are already on the newest slice.
 
-    Filing a capture is not the same as committing to it: the preselected area
-    only labels the Ticket, it does not turn it into a Slice.
+    The preselected area is the destination itself now, not just a label:
+    submitting with it files the created Slice there immediately; clearing it
+    (or standing on a non-Area page) leaves the slice in the Inbox instead.
     """
     from tuckit.core.services.exceptions import NotFound
     from tuckit.core.services.resolve import get_area_by_slug
@@ -96,7 +101,7 @@ def capture_area(request):
     try:
         return {"capture_area": get_area_by_slug(org, match.kwargs["slug"])}
     except (NotFound, KeyError):
-        # A 404-ing slug still renders the shell; falling back to Unfiled is
+        # A 404-ing slug still renders the shell; falling back to the Inbox is
         # right, and raising here would turn a bad URL into a 500.
         return {}
 
@@ -120,8 +125,8 @@ def onboarding(request):
         ActivityEvent.objects.filter(org=org).order_by("-id")
         .values_list("id", flat=True).first() or 0
     )
-    # Is the user already looking at the slice the Plan/Bite steps link to? If
-    # so the "Open the Slice →" button is a no-op that reloads the current page,
+    # Is the user already looking at the slice the Steps step links to? If so
+    # the "Open the Slice →" button is a no-op that reloads the current page,
     # so the widget points at the field on this page instead. Computed here
     # rather than on OnboardingState, which is frozen and request-independent.
     match = getattr(request, "resolver_match", None)

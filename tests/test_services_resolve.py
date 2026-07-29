@@ -4,7 +4,6 @@ from tuckit.core.models import Org
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
 from tuckit.core.services.exceptions import NotFound
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.resolve import get_area, get_bite, get_slice
 from tuckit.core.services.slices import create_slice
 
@@ -16,9 +15,8 @@ def data(db):
     # so "rejects other tenant" must use a genuinely different org.
     other_org = Org.objects.create(name="Other Org", slug="other-org")
     area = create_area(org, "Backend")
-    slice_ = create_slice(area, "Auth")
-    plan = create_plan(slice_, title="Plan")
-    bite = create_bite(plan, "JWT")
+    slice_ = create_slice(area.org, area=area, title="Auth")
+    bite = create_bite(slice_, "JWT")
     return org, other_org, area, slice_, bite
 
 
@@ -64,7 +62,7 @@ def test_get_slice_by_ref_and_flexible():
     from tuckit.core.services.resolve import get_slice_by_ref, get_slice_flexible
 
     org = Org.objects.create(name="Acme", slug="acme")
-    s = create_slice(create_area(org, "B"), "Auth")
+    s = create_slice(org, area=create_area(org, "B"), title="Auth")
     assert get_slice_by_ref(org, slice_ref(s)).id == s.id
     assert get_slice_flexible(org, slice_ref(s)).id == s.id
     assert get_slice_flexible(org, s.id).id == s.id
@@ -79,34 +77,33 @@ def test_absorbed_ticket_ref_resolves_to_the_owning_slice():
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.refs import ticket_ref
     from tuckit.core.services.resolve import resolve_ref
-    from tuckit.core.services.tickets import absorb_ticket, create_ticket, promote_ticket
+    from tests.legacy_tickets import legacy_absorbed, legacy_promoted, legacy_ticket
 
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
-    s = promote_ticket(create_ticket(org, "Origin", area=area))
-    extra = create_ticket(org, "Extra", area=area)
+    _origin, s = legacy_promoted(org, "Origin", area=area)
+    extra = legacy_ticket(org, "Extra", area=area)
     extra_ref = ticket_ref(extra)
-    absorb_ticket(extra, s)
+    legacy_absorbed(extra, s)
 
     assert resolve_ref(org, extra_ref) == s
 
 
 @pytest.mark.django_db
-def test_released_ticket_ref_goes_back_to_the_ticket():
+def test_an_unabsorbed_ticket_ref_still_resolves_to_the_ticket():
+    """The other side of the same rule: a ticket that was never folded into a
+    slice has no work to forward to, so its ref must resolve to itself rather
+    than 404. (Releasing an absorbed ticket used to be how you got here; the
+    write path is gone but production rows in this shape are not.)"""
     from tuckit.core.models import Org
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.refs import ticket_ref
     from tuckit.core.services.resolve import resolve_ref
-    from tuckit.core.services.tickets import (
-        absorb_ticket, create_ticket, promote_ticket, release_ticket,
-    )
+    from tests.legacy_tickets import legacy_promoted, legacy_ticket
 
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
-    s = promote_ticket(create_ticket(org, "Origin", area=area))
-    extra = create_ticket(org, "Extra", area=area)
-    absorb_ticket(extra, s)
-    release_ticket(extra)
-    extra.refresh_from_db()
+    legacy_promoted(org, "Origin", area=area)
+    extra = legacy_ticket(org, "Extra", area=area)
 
     assert resolve_ref(org, ticket_ref(extra)) == extra

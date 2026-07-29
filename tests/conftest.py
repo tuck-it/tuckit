@@ -2,11 +2,24 @@ import sys
 import pytest
 
 from tuckit.core.models import Org
+from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice as _create_slice
 
 
 @pytest.fixture
 def org(db):
     return Org.objects.create(name="Test Org", slug="test-org")
+
+
+@pytest.fixture
+def area(org):
+    return create_area(org, "Backend")
+
+
+@pytest.fixture
+def slice_(org, area):
+    """area에 속한 슬라이스 하나."""
+    return _create_slice(org, area=area, title="테스트 슬라이스", spec="설계됨")
 
 
 @pytest.fixture

@@ -20,7 +20,7 @@ def _seed():
 async def test_add_note_then_get_slice_with_activity():
     raw, area_id = await _seed()
     ctx = make_ctx(raw)
-    s = await create_slice(ctx, area_id, "Auth")
+    s = await create_slice(ctx, "Auth", area_id=area_id)
     ev = await add_note(ctx, s["id"], "blocked on Neon migration")
     assert ev["verb"] == "noted" and ev["body"] == "blocked on Neon migration"
     md = await get_slice(ctx, s["ref"], with_activity=True)

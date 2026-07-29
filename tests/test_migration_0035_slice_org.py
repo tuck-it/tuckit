@@ -10,30 +10,24 @@ through historical models afterwards.
 """
 
 import pytest
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
+
+from tests.migration_utils import at, forward, leave_migrated
 
 BEFORE = ("core", "0034_ticket_constraints")
 AFTER = ("core", "0035_slice_org")
 
 
 def _at(state):
-    executor = MigrationExecutor(connection)
-    executor.migrate([state])
-    executor.loader.build_graph()
-    return executor.loader.project_state([state]).apps
+    return at(state)
 
 
 def _forward():
-    executor = MigrationExecutor(connection)
-    executor.migrate([AFTER])
-    return executor.loader.project_state([AFTER]).apps
+    return forward(AFTER)
 
 
 def _leave_migrated():
     """Leave the DB at the leaf for the rest of the suite."""
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    leave_migrated()
 
 
 @pytest.mark.django_db(transaction=True)

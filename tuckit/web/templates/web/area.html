@@ -13,12 +13,6 @@
         {% include "web/partials/_slice_add.html" %}
       </div>
     </header>
-    {% comment %}
-      Above the board, and included here rather than inside _board.html: that
-      partial gets OOB-swapped by slice creation and drag-and-drop, which would
-      have to carry ticket context on every such path or silently drop the strip.
-    {% endcomment %}
-    {% if area_tickets %}{% include "web/partials/_area_inbox.html" %}{% endif %}
     {% include "web/partials/_board.html" %}
     {% if not has_any_slice %}<div class="empty muted">No slices yet.</div>{% endif %}
     <div class="board-offboard">

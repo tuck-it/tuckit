@@ -1,44 +1,51 @@
 from urllib.parse import urlparse
 
+from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.areas import create_area, list_areas, update_area, delete_area, reorder_area
-from tuckit.core.services.slices import create_slice, set_slice_status
+from tuckit.core.services.slices import create_slice, inbox_slices
 from tuckit.core.services.state import area_board_view
-from tuckit.core.services.tickets import (
-    create_ticket, query_tickets, ticket_queryset, promote_ticket, reopen_ticket,
-    resolve_ticket, update_ticket,
-)
-from tuckit.web.detail import render_markdown_html
-from tuckit.core.services.resolve import get_area, get_ticket, get_area_by_slug, get_slice
-from tuckit.core.services.slices import query_slices
-from tuckit.core.services.tickets import absorb_ticket, origin_ticket, release_ticket
+from tuckit.core.services.resolve import get_area, get_area_by_slug
+from tuckit.core.services.resolve import slice_for_ticket
 from tuckit.web.auth import get_current_org
 from tuckit.web.htmx import refresh_rollup, widget_oob
+from tuckit.web.views._feedback import _action_result
 
-_SLICE_STATUSES = ["open", "shipped"]
+
+def _capturer(request, org):
+    """The OrgMember behind this request, for Slice.created_by.
+
+    `source` only says human-vs-agent; this says WHO. Production's Inbox is a
+    run of near-identical agent-authored titles, and in a shared org "captured
+    by you" is wrong for everyone except the one person who typed it. An
+    anonymous request (no view here allows one today, but none enforces it
+    either) leaves it NULL and the UI falls back to `source`."""
+    if org is None or not request.user.is_authenticated:
+        return None
+    return org.members.filter(user=request.user).first()
 
 
 def capture(request):
-    """Capture always creates a Ticket.
+    """Capture always creates a Slice — Slice is the only unit of work now, so
+    there is no Ticket to fork into. Area decides the destination directly:
+    pick one and the slice files there immediately; leave it empty and the
+    slice lands area-less in the Inbox (inbox_slices() in
+    core/services/slices.py is what reads that back out).
 
-    Area answers "which part of the product", not "are we doing this" — two
-    different axes. So picking one files the ticket without committing to it:
-    the ticket stays `open` in the Inbox either way. The Area select used to BE
-    the Ticket/Slice fork, which meant an idea you had already filed became a
-    `planned` Slice the moment you said where it belonged, and there was no way
-    to just park it.
+    status/tags are not read here: they are not offered on this form, so a
+    stale or hand-rolled POST carrying them is ignored rather than refused —
+    create_slice's own defaults (status "open", no tags) apply.
 
-    status/tags are not read here. A Ticket has neither, so the form no longer
-    offers them; a stale or hand-rolled POST carrying them is ignored rather
-    than refused — there is nowhere to put them, but that is no reason to throw
-    the capture away. Slices are authored from an Area's "+ New slice" or by
-    promoting a ticket."""
+    The note rides along as `spec` — the whole point of the Inbox is deciding,
+    and you cannot decide on a bare title. The response is a bundle of
+    out-of-band swaps (toast, live count) so one response works from any page;
+    htmx drops OOB targets that are not on screen."""
     org = get_current_org(request)
 
     title = request.POST.get("title", "").strip()
@@ -52,173 +59,57 @@ def capture(request):
         except (NotFound, ValueError):
             raise Http404
 
-    # The note rides along in `body` — the whole point of the Inbox is deciding,
-    # and you cannot decide on a bare title. The response is a bundle of
-    # out-of-band swaps (toast, live count, Inbox list) so one response works
-    # from any page; htmx drops OOB targets that are not on screen.
-    create_ticket(org, title, body=request.POST.get("spec", "").strip(),
-                  area=area, source="human")
-    return _inbox_result(request, org,
-                         f"Captured in {area.name if area else 'Inbox'}.")
-
-
-_REVIEWABLE_TICKET_STATUSES = {"dismissed", "duplicate"}
+    create_slice(org, area=area, title=title, spec=request.POST.get("spec", "").strip(),
+                 source="human", created_by=_capturer(request, org))
+    return _action_result(request, org,
+                          f"Captured in {area.name}." if area else "Captured to Inbox.")
 
 
 def inbox(request):
-    """The Inbox (open tickets), plus a ?status= review surface for tickets that
-    were triaged away — same URL, same list, mirroring the Board's shipped
-    archive. Without it a dismissal is a one-way door with nothing on the
-    other side."""
+    """The Inbox: area-less open Slices, newest first (inbox_slices() in
+    core/services/slices.py is the single predicate for "is this unfiled").
+    Triage is picking an Area on the row — reversible, since clearing it
+    (set_slice_area(slice_, None)) sends the slice right back here. There is
+    no dismiss/duplicate review surface any more: those were Ticket-only
+    concepts and a Slice has nothing equivalent to review."""
     org = get_current_org(request)
-    status = request.GET.get("status")
-    resolved_view = status if status in _REVIEWABLE_TICKET_STATUSES else ""
     return render(request, "web/inbox.html", {
-        "tickets": query_tickets(org, status=resolved_view or "open"),
+        "slices": list(inbox_slices(org)),
         "areas": list(list_areas(org)),
-        "statuses": _SLICE_STATUSES,
-        "resolved_view": resolved_view,
-        "dismissed_count": ticket_queryset(org, status="dismissed").count(),
-    })
-
-
-def _inbox_result(request, org, message, *, resolved_view="", undo_url="", undo_label="Undo"):
-    """Response for an action that moves a ticket out of (or back into) the
-    Inbox: OOB-swap the whole list — so the empty state reappears — plus the
-    sidebar count and a toast. The row itself needs no target; the caller uses
-    hx-swap="none".
-
-    `resolved_view` names the list the user is looking at, so restoring from
-    ?status=dismissed re-renders the dismissed list rather than swapping the
-    open one in under a "Dismissed" heading."""
-    resp = render(request, "web/partials/_capture_result.html", {
-        "tickets": query_tickets(org, status=resolved_view or "open"),
-        "areas": list(list_areas(org)),
-        "statuses": _SLICE_STATUSES,
-        "resolved_view": resolved_view,
-        "dismissed_count": ticket_queryset(org, status="dismissed").count(),
-        "toast_message": message,
-        "undo_url": undo_url,
-        "undo_label": undo_label,
-    })
-    # Home/Board show derived counts that these OOB swaps do not touch.
-    return refresh_rollup(request, resp)
-
-
-def _ticket_or_404(org, ticket_id):
-    try:
-        return get_ticket(org, ticket_id)
-    except NotFound:
-        raise Http404
-
-
-def _ticket_modal(request, org, ticket):
-    """The one place a Ticket's full body is readable and editable. Rendered
-    into #ticket-modal by htmx, and reachable directly via ?ticket=<id> so
-    Attention rows and refreshes can land on a specific ticket."""
-    return render(request, "web/partials/_ticket_modal.html", {
-        "ticket": ticket,
-        "areas": list(list_areas(org)),
-        "body_html": render_markdown_html(ticket.body),
-        "promoted_slice": getattr(ticket, "slice", None),
-        # Release is offered only on absorbed tickets: the origin gave the
-        # slice its ref and release_ticket() refuses it.
-        "is_origin": ticket.slice is not None and origin_ticket(ticket.slice) == ticket,
     })
 
 
 def ticket_detail(request, ticket_id):
+    """A Ticket has no surface of its own any more — this route only forwards
+    to the Slice that capture became (slice_for_ticket()).
+
+    It used to return the triage modal, whose Promote was the one action in
+    the product that could not be undone. Deleting the modal without deleting
+    the endpoint would have left that action reachable by a hand-made POST, so
+    ticket_edit/dismiss/reopen/triage/release went with it.
+
+    HX-Redirect rather than a bare 302 for htmx callers: an htmx GET follows a
+    redirect transparently, which would splice a whole page into the overlay
+    that asked for a card. The header makes the browser navigate instead — and
+    a full navigation is also what lets a queued message reach the next page."""
     org = get_current_org(request)
-    return _ticket_modal(request, org, _ticket_or_404(org, ticket_id))
-
-
-def ticket_edit(request, ticket_id):
-    """Autosaved title/body edits from the modal — humans author tickets too,
-    not just agents (the same reversal Bites got)."""
-    org = get_current_org(request)
-    ticket = _ticket_or_404(org, ticket_id)
-    kwargs = {}
-    if "title" in request.POST:
-        title = request.POST["title"].strip()
-        if not title:
-            return HttpResponse("Title is required", status=400)
-        kwargs["title"] = title
-    if "body" in request.POST:
-        kwargs["body"] = request.POST["body"]
-    if kwargs:
-        ticket = update_ticket(ticket, actor="human", **kwargs)
-    html = render_to_string("web/partials/_ticket_modal.html", {
-        "ticket": ticket,
-        "areas": list(list_areas(org)),
-        "body_html": render_markdown_html(ticket.body),
-        "promoted_slice": getattr(ticket, "slice", None),
-        # Release is offered only on absorbed tickets: the origin gave the
-        # slice its ref and release_ticket() refuses it.
-        "is_origin": ticket.slice is not None and origin_ticket(ticket.slice) == ticket,
-    }, request=request)
-    # The row behind the modal shows title and a body preview — keep it in step.
-    return HttpResponse(html + render_to_string(
-        "web/partials/_ticket_list.html",
-        {"tickets": query_tickets(org), "areas": list(list_areas(org)),
-         "statuses": _SLICE_STATUSES, "oob": True},
-        request=request,
-    ))
-
-
-def ticket_dismiss(request, ticket_id):
-    """Triage a ticket away without building it. Recoverable: it stays readable
-    under ?status=dismissed and can be restored from there."""
-    org = get_current_org(request)
-    ticket = _ticket_or_404(org, ticket_id)
-    resolve_ticket(ticket, "dismissed", actor="human")
-    return _inbox_result(
-        request, org, "Dismissed.",
-        undo_url=reverse("web:ticket_reopen", args=[org.slug, ticket.id]),
-    )
-
-
-def ticket_reopen(request, ticket_id):
-    org = get_current_org(request)
-    try:
-        reopen_ticket(_ticket_or_404(org, ticket_id), actor="human")
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-    # Restore is only reachable from the dismissed review list — stay on it.
-    return _inbox_result(request, org, "Back in the Inbox.", resolved_view="dismissed")
-
-
-def ticket_promote(request, ticket_id):
-    """Promote an Inbox Ticket into a Slice, in one action: pick the area (and
-    optionally set an initial status other than the promoted default). Status
-    is validated before anything is mutated, so an invalid status 400s without
-    leaving the ticket half-promoted."""
-    from tuckit.core.models import Slice
-    from tuckit.core.services.validation import validate_choice
-
-    org = get_current_org(request)
-    area_id = request.POST.get("area_id")
-    status = request.POST.get("status")
-    try:
-        ticket = get_ticket(org, ticket_id)
-        area = get_area(org, int(area_id)) if area_id else None
-    except NotFound:
-        raise Http404
-    if area is None:
-        return HttpResponse("Choose an area", status=400)
-    if status:
-        try:
-            validate_choice(status, Slice.STATUS_CHOICES, "status")
-        except InvalidValue as e:
-            return HttpResponse(str(e), status=400)
-    try:
-        # Idempotent for a double-submit; only a non-open ticket (already
-        # dismissed) reaches the error path.
-        slice_ = promote_ticket(ticket, area=area, actor="human")
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-    if status and status != slice_.status:
-        set_slice_status(slice_, status, actor="human")
-    return _inbox_result(request, org, "Promoted to a slice.")
+    slice_ = slice_for_ticket(org, ticket_id)
+    if slice_ is None:
+        # A Ticket that 0045 never folded. Nothing creates Tickets any more
+        # (Task 13 deleted create_ticket with the rest of the MCP ticket
+        # surface) and no screen links here — only bookmarks and the ~27
+        # already-published /tickets/<id>/ URLs, which retire with the table in
+        # 0047. 404ing would park the loading skeleton in the overlay with no
+        # explanation, so send the reader to the Inbox and say why.
+        messages.info(request, "That capture has no slice — showing the Inbox instead.")
+        url = reverse("web:inbox", args=[org.slug])
+    else:
+        url = reverse("web:slice", args=[org.slug, slice_.id])
+    if request.headers.get("HX-Request"):
+        resp = HttpResponse(status=204)
+        resp["HX-Redirect"] = url
+        return resp
+    return redirect(url)
 
 
 def area_create(request):
@@ -358,7 +249,8 @@ def area_slice_create(request, slug):
         spec = request.POST.get("spec", "").strip()
         tags = [t.strip() for t in request.POST.getlist("tags") if t.strip()]
         try:
-            create_slice(target, title, spec=spec, tags=tags, source="human")
+            create_slice(org, area=target, title=title, spec=spec, tags=tags,
+                         source="human", created_by=_capturer(request, org))
         except InvalidValue as e:
             return HttpResponse(str(e), status=400)
     board = area_board_view(area)
@@ -369,80 +261,3 @@ def area_slice_create(request, slug):
         "shipped_hidden": board["shipped_hidden"],
     }, request=request)
     return refresh_rollup(request, HttpResponse(html + widget_oob(request)))
-
-
-def ticket_slice_options(request):
-    """`<option>` list for the triage slice select, scoped to one area. An
-    org-wide slice dropdown would be unusable within months; scoping keeps it
-    bounded without introducing a search widget.
-
-    "New slice" leads the list in every response, so the select is valid before
-    an area is picked and promoting costs no interaction with it at all."""
-    from tuckit.core.services.refs import ref_for
-
-    org = get_current_org(request)
-    area_id = request.GET.get("area_id")
-    slices = []
-    if area_id:
-        try:
-            # query_slices takes org first; `area` is keyword-only.
-            slices = list(query_slices(org, area=get_area(org, int(area_id))))
-        except (NotFound, ValueError):
-            slices = []
-    # An <option> cannot hold the markup {% ref_of %} renders, so attach the ref
-    # as a plain string. ref_for() keeps the format in services/refs.py, which is
-    # the rule that tag exists to enforce.
-    for s in slices:
-        s.ref = ref_for(s)
-    return render(request, "web/partials/_slice_options.html", {"slices": slices})
-
-
-def ticket_triage(request, ticket_id):
-    """Send a ticket somewhere: into a NEW slice in the chosen area, or into an
-    EXISTING one.
-
-    These were two endpoints behind two identical-looking "Choose area" selects
-    that meant different things — one named where to build, the other only
-    filtered a list of slices. That is a single decision ("where does this
-    go?"), so it is now one form and one endpoint, and `slice_id` is its branch.
-
-    Note this is NOT ticket_promote: the Inbox row still posts there, with its
-    own area+status pair and its own irreversibility confirm."""
-    org = get_current_org(request)
-    try:
-        ticket = get_ticket(org, ticket_id)
-        area = get_area(org, int(request.POST["area_id"]))
-    except (NotFound, KeyError, ValueError):
-        raise Http404
-
-    # Absent means "new". A form that loses the field must not fall through to
-    # merging into some arbitrary slice.
-    slice_id = request.POST.get("slice_id") or "new"
-    try:
-        if slice_id == "new":
-            promote_ticket(ticket, area=area, actor="human")
-            message = "Promoted to a slice."
-        else:
-            target = get_slice(org, int(slice_id))
-            if target.area_id != area.id:
-                # The area select scopes the slice list, so a mismatch means a
-                # stale form rather than a deliberate cross-area merge.
-                return HttpResponse("That slice is not in the chosen area", status=400)
-            absorb_ticket(ticket, target, actor="human")
-            message = "Merged."
-    except (NotFound, ValueError):
-        raise Http404
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-    return _inbox_result(request, org, message)
-
-
-def ticket_release(request, ticket_id):
-    """Undo a merge: detach an absorbed ticket and send it back to the Inbox."""
-    org = get_current_org(request)
-    ticket = _ticket_or_404(org, ticket_id)
-    try:
-        release_ticket(ticket, actor="human")
-    except InvalidValue as e:
-        return HttpResponse(str(e), status=400)
-    return _inbox_result(request, org, "Released to Inbox.")

@@ -7,8 +7,8 @@ from tuckit.core.services.slices import create_slice
 def test_area_view_groups_by_status(client_local, org):
     p = f"/{org.slug}"
     a = create_area(org, "Backend")
-    create_slice(a, "Payment integration", status="open")
-    create_slice(a, "Login XSS", status="open")
+    create_slice(a.org, area=a, title="Payment integration", status="open")
+    create_slice(a.org, area=a, title="Login XSS", status="open")
     resp = client_local.get(f"{p}/areas/{a.slug}/")
     assert resp.status_code == 200
     body = resp.content.decode()
@@ -50,8 +50,8 @@ def test_area_header_omits_description_when_blank(client_local, org):
 @pytest.mark.django_db
 def test_area_board_omits_dropped_and_links_to_it(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "building one", status="open")
-    create_slice(a, "dropped one", status="dropped")
+    create_slice(a.org, area=a, title="building one", status="open")
+    create_slice(a.org, area=a, title="dropped one", status="dropped")
     p = f"/{org.slug}"
     body = client_local.get(f"{p}/areas/{a.slug}/").content.decode()
     assert 'id="board"' in body
@@ -64,7 +64,7 @@ def test_area_board_omits_dropped_and_links_to_it(client_local, org):
 @pytest.mark.django_db
 def test_area_board_hides_dropped_link_when_none(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "building one", status="open")
+    create_slice(a.org, area=a, title="building one", status="open")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
     assert "Dropped (" not in body
 
@@ -72,7 +72,7 @@ def test_area_board_hides_dropped_link_when_none(client_local, org):
 @pytest.mark.django_db
 def test_area_status_filter_lists_dropped_flat(client_local, org):
     a = create_area(org, "Backend")
-    create_slice(a, "dropped one", status="dropped")
+    create_slice(a.org, area=a, title="dropped one", status="dropped")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/?status=dropped").content.decode()
     assert "dropped one" in body
     assert 'id="board"' not in body
@@ -86,8 +86,8 @@ def test_area_caps_shipped_and_links_to_all(client_local, org):
     org.shipped_board_limit = 1
     org.save(update_fields=["shipped_board_mode", "shipped_board_limit", "updated_at"])
     a = create_area(org, "Backend")
-    create_slice(a, "shipped one", status="shipped")
-    create_slice(a, "shipped two", status="shipped")
+    create_slice(a.org, area=a, title="shipped one", status="shipped")
+    create_slice(a.org, area=a, title="shipped two", status="shipped")
     body = client_local.get(f"/{org.slug}/areas/{a.slug}/").content.decode()
     # Shipped is off-board: header link shows the total, no shipped column.
     assert "Shipped (2)" in body

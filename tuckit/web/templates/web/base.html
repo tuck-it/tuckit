@@ -88,12 +88,16 @@
     the card (clicking the page behind an undimmed slide-over did exactly
     that). The innerHTML guard is equally required, because .window also fires
     when nothing is open.
+
+    There is one deep-link param left. `?ticket=<id>` used to arm a second
+    modal here; it is resolved on the server now
+    (LegacyTicketLinkMiddleware 302s it to the slice that capture became), so
+    an old bookmark can no longer reach the retired one-way Promote.
   {% endcomment %}
   <div id="detail-modal" class="overlay overlay--detail"
        data-detail-params="{% detail_params %}"
-       {% with sid=request.GET.slice|ascii_int tid=request.GET.ticket|ascii_int %}
-       {% if sid %}hx-get="{% wurl 'web:slice' sid %}?modal=1" hx-trigger="load" hx-target="#detail-modal"
-       {% elif tid %}hx-get="{% wurl 'web:ticket' tid %}" hx-trigger="load" hx-target="#detail-modal"{% endif %}
+       {% with sid=request.GET.slice|ascii_int %}
+       {% if sid %}hx-get="{% wurl 'web:slice' sid %}?modal=1" hx-trigger="load" hx-target="#detail-modal"{% endif %}
        {% endwith %}
        x-on:click.self="closeDetail()"
        x-on:keydown.escape.window="$el.innerHTML.trim() && !dialogAboveDetail() && closeDetail()"
@@ -192,6 +196,23 @@
       }, tone === "err" ? 6000 : (undo ? 8000 : 1800));
     }
 
+    {% if messages %}
+    /* Server-queued notices, played through the SAME toast every htmx path
+       uses — one notification surface, not two. Used where no htmx response
+       exists to carry an OOB toast: the legacy /tickets/<id>/ redirect, and
+       board.slice_move's Ship/Drop (its own response is a bare 204 always
+       followed by a full-page reload, so anything it hands back has to
+       survive that reload rather than ride the response body). Rendered
+       after showToast is defined, so it can run inline.
+
+       `extra_tags` doubles as an optional Undo url — a bare re-POST with no
+       body, since a queued message has no hx-vals to attach one to; the
+       endpoint it points at (mutations.slice_status) reads the value it
+       needs off THAT url's own query string instead. Absent, no Undo button
+       (showToast treats a falsy `undo.url` as "no Undo"). */
+    {% for m in messages %}showToast("{{ m|escapejs }}", "{% if m.level_tag == 'error' %}err{% endif %}"{% if m.extra_tags %}, {url: "{{ m.extra_tags|escapejs }}", label: "Undo"}{% endif %});{% endfor %}
+    {% endif %}
+
     /* Every 4xx/5xx used to vanish silently: htmx does not swap error responses,
        and the views answer with a plain-text reason ("Choose an area", "Title is
        required"). Surface that text — it is already written for a human. */
@@ -266,19 +287,6 @@
         if (fallback) fallback.focus();
       }
     }
-    /* Area Inbox open/closed state. The toggle event doesn't bubble, so this
-       listens on the capture phase — that keeps exactly one listener on the
-       page, and morph re-inserting the strip doesn't produce a duplicate
-       save. The key is global rather than per-area on purpose: the question
-       it answers isn't "is this area cleared out" but "am I in triage mode
-       right now." */
-    document.addEventListener("toggle", function (e) {
-      var el = e.target;
-      if (!el.classList || !el.classList.contains("area-inbox")) return;
-      try {
-        localStorage.setItem("area-inbox-open", el.open ? "1" : "0");
-      } catch (err) { /* Storage unavailable: fine to stay open for this session only. */ }
-    }, true);
     /* Sidebar collapse: desktop-only icon rail, persisted. The class lives on
        <html> so the head script can restore it before paint (no flash). */
     function toggleSidebar() {

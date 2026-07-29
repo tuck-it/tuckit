@@ -4,8 +4,9 @@ from tuckit.core.services.exceptions import NotFound
 def slice_ref(slice_) -> str:
     """Stable, human-readable ref: '<ORG-KEY>-<number>' (e.g. 'TUC-42').
 
-    Reads slice_.org, not slice_.area.org: the denormalized column exists for
-    exactly this, and a ref now renders on every row of every list."""
+    Reads the denormalized slice_.org column rather than crossing through the
+    slice's area: that column exists for exactly this, and a ref now renders
+    on every row of every list."""
     return f"{slice_.org.key}-{slice_.number}"
 
 

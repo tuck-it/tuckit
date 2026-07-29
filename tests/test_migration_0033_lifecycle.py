@@ -17,30 +17,24 @@ through historical models afterwards.
 """
 
 import pytest
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
+
+from tests.migration_utils import at, back, forward, leave_migrated
 
 BEFORE = ("core", "0032_drop_idea_and_is_triage")
 AFTER = ("core", "0034_ticket_constraints")
 
 
 def _at(state):
-    executor = MigrationExecutor(connection)
-    executor.migrate([state])
-    executor.loader.build_graph()
-    return executor.loader.project_state([state]).apps
+    return at(state)
 
 
 def _forward():
-    executor = MigrationExecutor(connection)
-    executor.migrate([AFTER])
-    return executor.loader.project_state([AFTER]).apps
+    return forward(AFTER)
 
 
 def _leave_migrated():
     """Leave the DB at the leaf for the rest of the suite."""
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    leave_migrated()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -127,8 +121,10 @@ def test_0033_is_reversible():
     dismissed = Ticket.objects.create(org=org, title="D", status="closed", number=2, rank="b")
 
     _forward()
-    back = _at(BEFORE)                        # roll all the way back
-    Ticket = back.get_model("core", "Ticket")
+    # A genuine unapply, not a wipe-and-replay — that is the whole point here.
+    # Safe because the DB sits at 0034, well below the irreversible 0045.
+    rolled_back = back(BEFORE)
+    Ticket = rolled_back.get_model("core", "Ticket")
 
     assert Ticket.objects.get(pk=promoted.id).status == "open"
     assert Ticket.objects.get(pk=dismissed.id).status == "closed"

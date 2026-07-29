@@ -3,7 +3,6 @@ from django.urls import reverse
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite, delete_bite
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 from tuckit.core.services.activity import latest_activity_id
 
@@ -30,7 +29,7 @@ def test_live_returns_new_events_and_cursor(client, member):
     org, user = member
     client.force_login(user)
     cursor = latest_activity_id(org)
-    create_slice(create_area(org, "Backend"), "Login", status="open")
+    create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
     resp = client.get(reverse("web:live", args=[org.slug]) + f"?since={cursor}")
     assert resp.status_code == 200
     data = resp.json()
@@ -61,10 +60,9 @@ def test_bite_event_carries_its_own_id_and_label(client, member):
     payload — the live endpoint just reports the bite event as itself."""
     org, user = member
     client.force_login(user)
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    plan = create_plan(slice_, title="Plan")
+    slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
     cursor = latest_activity_id(org)
-    bite = create_bite(plan, "Wire the form", source="agent")
+    bite = create_bite(slice_, "Wire the form", source="agent")
 
     resp = client.get(reverse("web:live", args=[org.slug]) + f"?since={cursor}")
     event = next(e for e in resp.json()["events"] if e["target_type"] == "bite")
@@ -83,8 +81,8 @@ def test_deleted_bite_event_still_delivers(client, member):
     itself without erroring is still the behavior worth pinning."""
     org, user = member
     client.force_login(user)
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    bite = create_bite(create_plan(slice_, title="Plan"), "Doomed")
+    slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
+    bite = create_bite(slice_, "Doomed")
     cursor = latest_activity_id(org)
     delete_bite(bite)
 

@@ -86,7 +86,7 @@ def test_slice_modal_card_declares_its_dialog_contract(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment integration")
+    s = create_slice(a.org, area=a, title="Payment integration")
     body = client_local.get(
         f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true"
     ).content.decode()
@@ -104,7 +104,7 @@ def test_slice_full_page_is_not_a_dialog(client_local, org):
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     a = create_area(org, "Backend")
-    s = create_slice(a, "Payment integration")
+    s = create_slice(a.org, area=a, title="Payment integration")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     # Only <main>. The skeleton <template> further down the page legitimately
     # contains .detail-card markup that is never rendered.
@@ -115,13 +115,19 @@ def test_slice_full_page_is_not_a_dialog(client_local, org):
 
 
 @pytest.mark.django_db
-def test_ticket_modal_card_declares_its_dialog_contract(client_local, org):
-    from tuckit.core.services.tickets import create_ticket
-    t = create_ticket(org, "Something broke")
-    body = client_local.get(f"/{org.slug}/tickets/{t.id}/").content.decode()
-    assert 'data-url-param="ticket"' in body
-    assert 'aria-labelledby="detail-title"' in body
-    assert "detail-card" in body
+def test_a_ticket_deep_link_no_longer_opens_a_second_card(client_local, org):
+    """There is ONE detail card. `/tickets/<id>/` used to return a second one;
+    it forwards to the slice now, so the overlay can never be handed a card
+    with a different dialog contract."""
+    from tuckit.core.services.areas import create_area
+    from tests.legacy_tickets import legacy_promoted
+
+    area = create_area(org, "Backend")
+    t, s = legacy_promoted(org, "Something broke", area=area)
+
+    resp = client_local.get(f"/{org.slug}/tickets/{t.id}/")
+    assert resp.status_code == 302
+    assert resp["Location"] == f"/{org.slug}/slices/{s.id}/"
 
 
 def test_skeleton_templates_exist_and_are_closable():
@@ -241,19 +247,16 @@ def test_the_overlay_publishes_the_canonical_detail_param_list(client_local, org
 
 @pytest.mark.django_db
 def test_long_form_editors_get_the_tall_modifier(client_local, org):
-    """장문을 쓰는 면(티켓 본문, 슬라이스 spec)만 .spec-edit--tall을 받는다.
-    bite body / plan constraints는 한 줄짜리라 받지 않는다 — 240px 빈 상자로
+    """장문을 쓰는 면(슬라이스 spec)만 .spec-edit--tall을 받는다.
+    bite body / constraints는 짧게 시작하므로 받지 않는다 — 240px 빈 상자로
     열리는 것은 개선이 아니다."""
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
-    from tuckit.core.services.tickets import create_ticket
-
-    p = f"/{org.slug}"
-    t = create_ticket(org, "a ticket")
-    body = client_local.get(f"{p}/tickets/{t.id}/", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="spec-edit spec-edit--tall"' in body
 
     area = create_area(org, "Backend")
-    s = create_slice(area, "a slice")
-    body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="spec-edit spec-edit--tall"' in body
+    s = create_slice(area.org, area=area, title="a slice")
+    body = client_local.get(
+        f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true"
+    ).content.decode()
+    assert 'class="spec-edit spec-edit--tall"' in body   # spec
+    assert 'name="constraints" class="spec-edit"' in body  # not tall

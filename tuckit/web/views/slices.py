@@ -34,10 +34,6 @@ def area_view(request, slug):
         "shipped_total": board["shipped_total"],
         "shipped_hidden": board["shipped_hidden"],
         "dropped_count": board["dropped_count"],
-        # `area_tickets`, not `tickets`: _ticket_list.html / _ticket_row.html
-        # already own that name with the Inbox page's meaning. Reusing it would
-        # quietly render the wrong list the day the two meet on one page.
-        "area_tickets": board["tickets"],
         "focus": request.GET.get("focus", ""),
     })
 

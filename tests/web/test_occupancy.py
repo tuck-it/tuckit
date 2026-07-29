@@ -10,7 +10,6 @@ import tuckit.web
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import create_plan
 from tuckit.core.services.slices import create_slice
 
 
@@ -25,8 +24,8 @@ def member(db):
 @pytest.mark.django_db
 def test_recent_agent_work_seeds_the_slice_row(client, member):
     org, user = member
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
+    slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
+    create_bite(slice_, "Wire the form", source="agent")
     client.force_login(user)
 
     html = client.get(reverse("web:home", args=[org.slug])).content.decode()
@@ -43,8 +42,8 @@ def test_agent_mark_is_aria_hidden(client, member):
     announcing it long after it stopped being visible — the toast already
     announced the same event once, which is the right number of times."""
     org, user = member
-    slice_ = create_slice(create_area(org, "Backend"), "Login", status="open")
-    create_bite(create_plan(slice_, title="Plan"), "Wire the form", source="agent")
+    slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
+    create_bite(slice_, "Wire the form", source="agent")
     client.force_login(user)
 
     html = client.get(reverse("web:home", args=[org.slug])).content.decode()
@@ -56,7 +55,7 @@ def test_agent_mark_is_aria_hidden(client, member):
 def test_a_cold_slice_carries_no_occupancy_markup(client, member):
     """No attribute at all when cold — the client keys off its presence."""
     org, user = member
-    create_slice(create_area(org, "Backend"), "Login", status="open")  # human-created
+    create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")  # human-created
     client.force_login(user)
 
     html = client.get(reverse("web:home", args=[org.slug])).content.decode()

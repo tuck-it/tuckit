@@ -13,16 +13,13 @@ through historical models at the `0031` state.
 import datetime
 
 import pytest
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
+
+from tests.migration_utils import at, forward, leave_migrated
 
 
 @pytest.mark.django_db(transaction=True)
 def test_0031_converts_planless_idea_slice_in_triage_to_area_less_ticket():
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0030_ticket")])
-    executor.loader.build_graph()
-    old = executor.loader.project_state([("core", "0030_ticket")]).apps
+    old = at(("core", "0030_ticket"))
 
     Org = old.get_model("core", "Org")
     Area = old.get_model("core", "Area")
@@ -45,9 +42,7 @@ def test_0031_converts_planless_idea_slice_in_triage_to_area_less_ticket():
     )
     slice_id = s.id
 
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0031_convert_idea_slices")])
-    new = executor.loader.project_state([("core", "0031_convert_idea_slices")]).apps
+    new = forward(("core", "0031_convert_idea_slices"))
 
     Slice = new.get_model("core", "Slice")
     Ticket = new.get_model("core", "Ticket")
@@ -65,16 +60,12 @@ def test_0031_converts_planless_idea_slice_in_triage_to_area_less_ticket():
     assert not ActivityEvent.objects.filter(target_type="slice", target_id=slice_id).exists()
 
     # Leave the DB migrated forward for the rest of the suite.
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    leave_migrated()
 
 
 @pytest.mark.django_db(transaction=True)
 def test_0031_keeps_idea_slice_with_plan_as_planned_no_ticket():
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0030_ticket")])
-    executor.loader.build_graph()
-    old = executor.loader.project_state([("core", "0030_ticket")]).apps
+    old = at(("core", "0030_ticket"))
 
     Org = old.get_model("core", "Org")
     Area = old.get_model("core", "Area")
@@ -89,9 +80,7 @@ def test_0031_keeps_idea_slice_with_plan_as_planned_no_ticket():
     Plan.objects.create(slice=s, title="Do the thing")
     slice_id = s.id
 
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0031_convert_idea_slices")])
-    new = executor.loader.project_state([("core", "0031_convert_idea_slices")]).apps
+    new = forward(("core", "0031_convert_idea_slices"))
 
     Slice = new.get_model("core", "Slice")
     Ticket = new.get_model("core", "Ticket")
@@ -100,16 +89,12 @@ def test_0031_keeps_idea_slice_with_plan_as_planned_no_ticket():
     assert s.status == "planned"             # promoted idea -> planned
     assert Ticket.objects.filter(org_id=org.id).count() == 0  # no ticket created
 
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    leave_migrated()
 
 
 @pytest.mark.django_db(transaction=True)
 def test_0031_demotes_triage_area_to_general():
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0030_ticket")])
-    executor.loader.build_graph()
-    old = executor.loader.project_state([("core", "0030_ticket")]).apps
+    old = at(("core", "0030_ticket"))
 
     Org = old.get_model("core", "Org")
     Area = old.get_model("core", "Area")
@@ -120,14 +105,11 @@ def test_0031_demotes_triage_area_to_general():
     )
     area_id = triage.id
 
-    executor = MigrationExecutor(connection)
-    executor.migrate([("core", "0031_convert_idea_slices")])
-    new = executor.loader.project_state([("core", "0031_convert_idea_slices")]).apps
+    new = forward(("core", "0031_convert_idea_slices"))
 
     Area = new.get_model("core", "Area")
     a = Area.objects.get(pk=area_id)
     assert a.is_triage is False              # demoted
     assert a.name == "General"               # "Triage" renamed to "General"
 
-    executor = MigrationExecutor(connection)
-    executor.migrate(executor.loader.graph.leaf_nodes())
+    leave_migrated()

@@ -5,12 +5,9 @@ from django.utils import timezone
 from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
 from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import list_bites
-from tuckit.core.services.plans import list_plans
-from tuckit.core.services.refs import ticket_ref
 from tuckit.core.services.slices import (
-    annotate_stage_counts, list_slices, stage_column, stage_of,
+    annotate_stage_counts, filed_slices, inbox_slices, list_slices, stage_column, stage_of,
 )
-from tuckit.core.services.tickets import origin_ticket
 
 STALE_DAYS = 7
 
@@ -38,9 +35,12 @@ def _area_state(area: Area) -> dict:
 
 
 def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> dict:
-    from tuckit.core.services.tickets import ticket_queryset
     areas = [area] if area is not None else list(Area.objects.filter(org=org, archived=False))
-    inbox_qs = ticket_queryset(org)
+    # The Inbox is area-less Slices now, not a separate Ticket table — same
+    # aggregate, one model. inbox_slices() is the single definition of the
+    # predicate (see slices.py); spelling `area__isnull=True` here again is how
+    # the two halves of the split drift apart.
+    inbox_qs = inbox_slices(org)
     return {
         "caller": {
             "user_email": caller_user.email if caller_user is not None else None,
@@ -62,30 +62,30 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     lines = [f"# {slice_.title}", "", f"Status: {slice_.status}"]
     if tags:
         lines[-1] += f" · {tags}"
-    # What to do next, derived from spec/plan/bite state — the first thing a
+    # What to do next, derived from the spec and the slice's steps — the first thing a
     # caller needs, and the reason get_slice is worth calling before anything
     # else. Never stored; see slice_stage().
     lines.append(f"Stage: {stage_of(slice_)}")
-    # Where this work came from. The captured bodies live on the tickets, not
-    # copied into spec, so this line is how an agent reaches the original text.
-    linked = list(slice_.tickets.all())
-    if linked:
-        origin = origin_ticket(slice_)
-        ordered = sorted(linked, key=lambda t: (t != origin, t.number or 0))
-        lines.append("From: " + " · ".join(
-            f"{ticket_ref(t)} (origin)" if t == origin else ticket_ref(t)
-            for t in ordered
-        ))
     lines.append("")
     if slice_.spec:
         lines += [slice_.spec, ""]
-    for plan in list_plans(slice_):
-        lines.append(f"## {plan.title or 'Plan'}")
-        if plan.body:
-            lines += [plan.body, ""]
-        if plan.constraints:
-            lines += ["### Constraints", plan.constraints, ""]
-        for b in list_bites(plan):
+    # Constraints is a Slice field now (Task 10 gave it a first-class editor).
+    # Rendering it here is the whole point of promoting it: a human writes the
+    # minefield map once and every later agent session reads it back through
+    # get_slice. Left out, the field would be invisible to exactly the reader
+    # it exists for.
+    if slice_.constraints:
+        lines += ["## Constraints", "", slice_.constraints, ""]
+    # ONE flat checklist of every bite on the slice. The old renderer grouped
+    # steps under Plan headings and then appended plan-less ones separately;
+    # with the Plan layer gone that split has no meaning, and keeping the
+    # `plan__isnull=True` filter would have hidden every bite migration 0045
+    # reparented (it sets Bite.slice but leaves Bite.plan populated) — i.e.
+    # every step that existed before this release.
+    bites = list(list_bites(slice_))
+    if bites:
+        lines.append("## Steps")
+        for b in bites:
             check = "x" if b.status == "done" else " "
             lines.append(f"- [{check}] {b.title}")
             if b.body:
@@ -95,23 +95,6 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     if with_activity:
         out += _render_activity(slice_)
     return out
-
-
-def render_ticket_markdown(ticket) -> str:
-    """A ticket as markdown. For a promoted ticket the delivery status is read
-    live off the slice rather than stored here, so this is the one place an
-    agent needs to look to find out where a capture ended up."""
-    lines = [f"# {ticket.title}", "", f"Status: {ticket.status}"]
-    # Reverse OneToOne raises RelatedObjectDoesNotExist, which subclasses
-    # AttributeError — so getattr's default covers the unpromoted case.
-    promoted = getattr(ticket, "slice", None)
-    if promoted is not None:
-        from tuckit.core.services.refs import slice_ref
-        lines[-1] += f" → slice {slice_ref(promoted)} ({promoted.status})"
-    lines.append("")
-    if ticket.body:
-        lines += [ticket.body, ""]
-    return "\n".join(lines).rstrip() + "\n"
 
 
 def _render_activity(slice_: Slice) -> str:
@@ -139,14 +122,20 @@ def home_state(org: Org) -> dict:
     hand — nobody ever did, so the band was permanently empty while work was
     visibly happening. Deriving it means Home and the Board can never disagree.
     """
-    from tuckit.core.services.slices import annotate_stage_counts, stage_of
+    from tuckit.core.services.slices import annotate_stage_counts, filed_slices, stage_of
 
     # order_by는 명시적이다 — annotate_stage_counts가 GROUP BY를 붙여 Django가
     # Meta.ordering을 버린다. sqlite는 rowid 순으로 돌려줘 로컬에선 멀쩡해 보이고
     # Postgres에서만 깨진다.
+    #
+    # filed_slices()로 거른다: in_progress의 정렬 키가 s.area.name을 참조한다.
+    # slice_stage()는 area를 보지 않으므로 spec과 진행 중 bite가 있는 Inbox
+    # 슬라이스는 정당하게 stage == "executing"에 도달하고, 그 순간 area가
+    # None이라 AttributeError로 Home이 500난다. Inbox는 자기 화면이 있으니
+    # Board와 동일하게 여기서도 제외한다.
     slices = list(
         annotate_stage_counts(
-            Slice.objects.filter(area__org=org).select_related("area", "org")
+            filed_slices(Slice.objects.filter(org=org)).select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("rank")
@@ -203,25 +192,28 @@ def your_turn(org: Org) -> list[dict]:
 
     Deliberately narrow:
 
-    - `needs_plan` / `needs_bites` are excluded because an agent can do them —
-      create_plan and add_bites exist for exactly that. Including them turns
-      this band into a daily nag.
+    - `needs_steps` is excluded because an agent can do it — add_bites exists
+      for exactly that. Including it turns this band into a daily nag.
     - `open` 슬라이스 중 stage가 needs_design / ready_to_ship인 것만 든다.
-      needs_plan / needs_bites는 에이전트가 할 수 있어서 빠진다(create_plan,
-      add_bites가 그걸 위해 있다) — 넣으면 이 밴드가 매일의 잔소리가 된다.
+      needs_steps는 에이전트가 할 수 있어서 빠진다(add_bites가 그걸 위해
+      있다) — 넣으면 이 밴드가 매일의 잔소리가 된다.
       예전에는 status='building'으로 한 번 더 걸렀는데, 그 스위치를 아무도 켜지
       않아 밴드가 통째로 비어 있었다. 실측(2026-07-27) needs_design은 4건이라
       백로그가 쏟아지지 않는다. 길어지면 그때 상한을 건다.
-    - Open tickets collapse to ONE aggregate row. The Inbox is already a
-      dedicated surface with its own badge; repeating twelve rows here is
-      duplication, and a long list of things you haven't triaged reads as
-      accusation rather than information.
+    - Unfiled Inbox captures collapse to ONE aggregate row. The Inbox is
+      already a dedicated surface with its own badge; repeating twelve rows
+      here is duplication, and a long list of things you haven't triaged
+      reads as accusation rather than information.
 
     Staleness is not an inclusion rule — it is the sort key. A "stale" section
     is a guilt list: it only grows, and it can never be cleared.
+
+    Inbox slices (area IS NULL) are excluded via filed_slices(): an unfiled
+    capture is not yet work anyone has committed to, so "write the spec" is
+    the wrong ask — triaging it (giving it an area) is the actual next step,
+    and that lives on the Inbox screen, not here.
     """
-    from tuckit.core.services.slices import annotate_stage_counts, stage_of
-    from tuckit.core.services.tickets import ticket_queryset
+    from tuckit.core.services.slices import annotate_stage_counts, filed_slices, inbox_slices, stage_of
 
     now = timezone.now()
     # order_by is explicit: annotate_stage_counts adds a GROUP BY and Django
@@ -230,7 +222,7 @@ def your_turn(org: Org) -> list[dict]:
     # Postgres.
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(area__org=org, status="open")
+            filed_slices(Slice.objects.filter(org=org, status="open"))
             .select_related("area", "org")
         )
         .prefetch_related("tags")
@@ -250,20 +242,25 @@ def your_turn(org: Org) -> list[dict]:
         })
     items.sort(key=lambda it: it["since"])
 
-    open_tickets = ticket_queryset(org).count()
-    if open_tickets:
+    inbox_count = inbox_slices(org).count()
+    if inbox_count:
         items.append({
-            "tickets": open_tickets,
-            "action": f"{open_tickets} waiting for triage",
+            "inbox": inbox_count,
+            "action": f"{inbox_count} in Inbox",
         })
     return items
 
 
 def roadmap_state(org: Org) -> dict:
     """Non-dropped slices grouped by roadmap status — powers the Roadmap board
-    and its distribution counts."""
+    and its distribution counts.
+
+    Inbox slices (area IS NULL) are excluded via filed_slices(): bucket() below
+    sorts by `s.area.name`, which is exactly the AttributeError an unfiled
+    capture would trip, and even where it wouldn't crash the Inbox has its own
+    screen — it does not belong on the org-wide flat status list."""
     slices = list(
-        Slice.objects.filter(area__org=org)
+        filed_slices(Slice.objects.filter(org=org))
         .exclude(status="dropped")
         .select_related("area", "org")
         .prefetch_related("tags")
@@ -288,7 +285,7 @@ def roadmap_state(org: Org) -> dict:
 
 ROADMAP_BOARD_ORDER = ["open", "shipped"]
 ROADMAP_STATUS_KEYS = {"open", "shipped"}
-STAGE_BOARD_ORDER = ["needs_design", "needs_plan", "executing", "ready_to_ship", "shipped"]
+STAGE_BOARD_ORDER = ["needs_design", "needs_steps", "executing", "ready_to_ship", "shipped"]
 
 
 def cap_shipped(org: Org, shipped: list) -> tuple[list, int]:
@@ -307,14 +304,16 @@ def roadmap_board_view(org: Org) -> dict:
     """Kanban groups keyed by derived stage (not stored status) + shipped
     overflow + dropped count, for the org Board tab.
 
-    Each slice carries a `.stage` attribute so the card can badge needs_plan vs
-    needs_bites and show the Ship button only on ready_to_ship."""
+    Each slice carries a `.stage` attribute so the card can badge needs_steps
+    and show the Ship button only on ready_to_ship. Inbox slices (area IS
+    NULL) are excluded via filed_slices() — the Board groups by area__name and
+    an unfiled capture has none; it belongs on the Inbox screen, not here."""
     # annotate_stage_counts adds a GROUP BY; Django then drops Meta.ordering, so
     # the explicit order_by is load-bearing (undefined order on Postgres without
     # it). area__name, rank matches roadmap_state's within-column order.
     qs = (
         annotate_stage_counts(
-            Slice.objects.filter(area__org=org).select_related("area", "org")
+            filed_slices(Slice.objects.filter(org=org)).select_related("area", "org")
         )
         .prefetch_related("tags")
         .order_by("area__name", "rank")
@@ -356,9 +355,10 @@ def area_board_view(area: Area) -> dict:
 
     `dropped` is deliberately absent from the columns and reported as a count;
     the page turns it into a ?status=dropped link. Every slice carries `.stage`.
-    """
-    from tuckit.core.services.tickets import ticket_queryset
 
+    No `filed_slices()` filter is needed here: scoping to one `area` already
+    excludes Inbox slices (area IS NULL cannot match area=area).
+    """
     qs = (
         annotate_stage_counts(
             Slice.objects.filter(area=area).select_related("area", "org")
@@ -390,10 +390,6 @@ def area_board_view(area: Area) -> dict:
         "shipped_total": total,
         "shipped_hidden": total - len(visible),
         "dropped_count": dropped_count,
-        # Untriaged tickets filed to this area. NOT a board column: a Ticket has
-        # not been committed to, and putting it next to a stage column collapses
-        # the very distinction the strip exists to show.
-        "tickets": list(ticket_queryset(area.org, status="open", area=area)),
         # A capped-out or dropped slice still means "this area is not empty".
         "has_any_slice": active or total > 0 or dropped_count > 0,
     }

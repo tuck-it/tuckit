@@ -4,7 +4,6 @@ from django.test import override_settings
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.plans import create_plan
 from tuckit.web.context_processors import auth_chrome
 from tuckit.core.services.slices import create_slice
 
@@ -56,9 +55,8 @@ def test_onboarding_hidden_stays_hidden_after_area_deleted(client_local, org):
     from tuckit.core.models import ActivityEvent
     from tuckit.core.services.areas import delete_area
     area = create_area(org, "Backend")
-    sl = create_slice(area, "Retry webhooks", status="open")
-    p = create_plan(sl, title="Plan")
-    create_bite(p, "Add backoff")
+    sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
+    create_bite(sl, "Add backoff")
     ActivityEvent.objects.create(
         org=org, actor="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,
@@ -153,8 +151,8 @@ def test_capture_modal_preselects_the_area_you_are_standing_on(client_local, org
 
     body = client_local.get(f"{p}/areas/{area.slug}/").content.decode()
     assert f'<option value="{area.id}" selected>Backend</option>' in body
-    assert '<option value="" selected>Unfiled</option>' not in body
+    assert '<option value="" selected>Keep in Inbox</option>' not in body
 
-    # 다른 페이지에서는 Unfiled가 기본이다
+    # 다른 페이지에서는 Keep in Inbox가 기본이다
     body = client_local.get(f"{p}/inbox/").content.decode()
-    assert '<option value="" selected>Unfiled</option>' in body
+    assert '<option value="" selected>Keep in Inbox</option>' in body

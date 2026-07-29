@@ -55,7 +55,7 @@ from asgiref.sync import sync_to_async  # noqa: E402
 def _make_org():
     org = Org.objects.create(name="Acme", slug="acme", description="demo")
     area = create_area(org, "Backend")
-    create_slice(area, "Auth", status="shipped")
+    create_slice(area.org, area=area, title="Auth", status="shipped")
     return org
 
 

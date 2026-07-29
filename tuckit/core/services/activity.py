@@ -26,7 +26,7 @@ def record_activity(org, *, actor, verb, target, from_value="", to_value="", bod
 
 def add_note(slice_, body: str, *, actor: str = "agent"):
     """Append a free-text note to a slice's activity thread."""
-    return record_activity(slice_.area.org, actor=actor, verb="noted", target=slice_, body=body)
+    return record_activity(slice_.org, actor=actor, verb="noted", target=slice_, body=body)
 
 
 def status_verb(to_status: str) -> str:
@@ -41,9 +41,9 @@ def slice_activity(slice_):
 
     from tuckit.core.models import ActivityEvent, Bite
 
-    bite_ids = list(Bite.objects.filter(plan__slice=slice_).values_list("id", flat=True))
+    bite_ids = list(Bite.objects.filter(slice=slice_).values_list("id", flat=True))
     return list(
-        ActivityEvent.objects.filter(org=slice_.area.org)
+        ActivityEvent.objects.filter(org=slice_.org)
         .filter(Q(target_type="slice", target_id=slice_.id)
                 | Q(target_type="bite", target_id__in=bite_ids))
         .order_by("created_at")
@@ -58,7 +58,7 @@ def parent_slice_ids(bite_ids) -> dict:
     if not bite_ids:
         return {}
     return dict(
-        Bite.objects.filter(id__in=bite_ids).values_list("id", "plan__slice_id")
+        Bite.objects.filter(id__in=bite_ids).values_list("id", "slice_id")
     )
 
 
