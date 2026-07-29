@@ -35,6 +35,47 @@ class TenantMiddleware:
         return None
 
 
+class LiveCursorMiddleware:
+    """Stamp every mutating tenant response with the org's newest activity id.
+
+    live.js polls an org-scoped activity feed and toasts what it finds. That
+    feed cannot exclude the caller — ActivityEvent.actor is only human-vs-agent,
+    with no member behind it — so a tab's own writes came back on the next poll
+    and were announced as "Someone …", replacing (and destroying the Undo
+    button inside) the toast the action had just rendered.
+
+    Rather than widen the model, hand the client a watermark: adopt this and the
+    poller resumes from after your own writes. Other members' events keep their
+    higher ids, so cross-user liveness is untouched.
+
+    Read AFTER the view has run, so the id includes the events this request just
+    wrote. GETs are skipped — they write nothing, and stamping them would let a
+    plain page fetch swallow a concurrent write by someone else.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        org = getattr(request, "org", None)
+        if request.method == "GET" or org is None:
+            return response
+        # The view may have DELETED the org it ran under (settings → danger →
+        # delete). request.org is then an in-memory husk with pk=None, and
+        # filtering a relation by an unsaved instance raises ValueError — which
+        # from here, after the response exists, turns a successful deletion into
+        # a 500. There is also nothing left to publish a cursor for.
+        if org.pk is None:
+            return response
+        # Imported here: this module is imported from settings' MIDDLEWARE path,
+        # and the services package pulls in models at import time.
+        from tuckit.core.services.activity import latest_activity_id
+
+        response["X-Live-Cursor"] = str(latest_activity_id(org))
+        return response
+
+
 class LegacyTicketLinkMiddleware:
     """`?ticket=<id>` on any tenant page 302s to the Slice that capture became.
 

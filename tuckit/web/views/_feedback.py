@@ -41,19 +41,31 @@ def _action_result(request, org, message, *, undo_url="", undo_label="Undo", und
     (`?undo_status=`), so its Undo button can stay a bare, valueless POST too;
     leave `undo_area_id` at its default None for those callers.
 
-    `lead_html` rides in front of the OOB bundle; `close_detail=False` keeps
+    `lead_html` rides at the END of the OOB bundle; `close_detail=False` keeps
     the open detail panel alive. Both exist for actions that grow (or
     collapse) the panel the user is looking at instead of wiping it: the
     Area picker INSIDE the panel (Task 10) and now Ship/Drop/Restore/Reopen
-    (Task 12) — the panel comes back re-rendered, not cleared."""
-    html = lead_html + render_to_string("web/partials/_capture_result.html", {
+    (Task 12) — the panel comes back re-rendered, not cleared.
+
+    ORDER IS LOAD-BEARING, and it used to be the other way round. `lead_html`
+    replaces `.detail-body` wholesale (outerHTML), and every control that can
+    send `from=detail` — the area menu, "Move to Inbox", Ship/Drop — lives
+    INSIDE that panel. Put that swap first and it detaches the element that
+    issued the request before htmx has processed the rest of the bundle, so
+    the toast, the sidebar count, the Inbox list and the page-head count were
+    all silently dropped: the action landed, the panel grew, and the user got
+    no confirmation and no Undo. Browser-verified, and invisible to endpoint
+    tests — the response carried all five fragments in both orders, only the
+    client behaved differently (cf. the hx-swap inheritance class of bug).
+    Anything that destroys the requesting element goes LAST."""
+    html = render_to_string("web/partials/_capture_result.html", {
         "slices": list(inbox_slices(org)),
         "toast_message": message,
         "undo_url": undo_url,
         "undo_label": undo_label,
         "undo_area_id": undo_area_id,
         "close_detail": close_detail,
-    }, request=request)
+    }, request=request) + lead_html
     # Home/Board show derived counts that these OOB swaps do not touch.
     return refresh_rollup(request, HttpResponse(html))
 

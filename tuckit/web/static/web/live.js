@@ -61,6 +61,28 @@
     }
   }
 
+  /* Skip past the events THIS tab just caused.
+
+     The poll feed is org-scoped and unfiltered — the server has no way to
+     exclude you, because ActivityEvent.actor only records human-vs-agent, not
+     which member. So your own click came back on the next tick and announce()
+     called it "Someone", i.e. the app narrated your action to you as if a
+     stranger had done it. Worse: showToast REPLACES #toast, so that stranger
+     message overwrote the action's own toast — and the Undo button inside it.
+     With FAST at 2s the reversal this release is built on was on screen for
+     about two seconds, and the user was never told why it went.
+
+     Every mutating response carries the org's newest activity id (see
+     LiveCursorMiddleware); adopting it means the poller resumes from AFTER
+     your own writes. Other people's events are unaffected — they land with
+     higher ids and still toast. Only ever moves forward. */
+  document.body.addEventListener("htmx:afterRequest", function (e) {
+    var xhr = e.detail && e.detail.xhr;
+    if (!xhr) return;
+    var seen = parseInt(xhr.getResponseHeader("X-Live-Cursor") || "", 10);
+    if (seen && seen > cursor) cursor = seen;
+  });
+
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden) { interval = FAST; schedule(); }
   });

@@ -310,13 +310,26 @@
     function detailParams(el) {
       return (el.dataset.detailParams || "").split(/\s+/).filter(Boolean);
     }
+    /* The parts of closing that are NOT about the url: drop the scroll lock and
+       hand focus back. Split out because an action can empty the modal without
+       going through closeDetail() — _capture_result.html OOB-swaps
+       `innerHTML:#detail-modal` to an empty string, deliberately keeping
+       ?slice= in the url. That left `modal-open` set, and since the overlay is
+       shown by `body.modal-open`, an EMPTY full-viewport scrim stayed on top:
+       nothing visible to close, but the page was dimmed, unscrollable, and ate
+       the next click anywhere (measured: elementFromPoint over the sidebar
+       returned #detail-modal). Focus was stranded on BODY too, which is the
+       worse half — after an action the Undo button is what you want to reach. */
+    function releaseDetailChrome() {
+      document.body.classList.remove("modal-open");
+      var opener = window.__overlayOpeners && window.__overlayOpeners[DETAIL_ID];
+      if (opener) { opener.focus(); window.__overlayOpeners[DETAIL_ID] = null; }
+    }
     function closeDetail() {
       var el = document.getElementById(DETAIL_ID);
       if (!el) return;
       el.innerHTML = "";
-      document.body.classList.remove("modal-open");
-      var opener = window.__overlayOpeners && window.__overlayOpeners[DETAIL_ID];
-      if (opener) { opener.focus(); window.__overlayOpeners[DETAIL_ID] = null; }
+      releaseDetailChrome();
       /* replaceState, not pushState: Back must not reopen what was just closed. */
       var u = new URL(window.location.href), stripped = false;
       detailParams(el).forEach(function (p) {
@@ -391,12 +404,52 @@
     document.body.addEventListener("htmx:beforeRequest", function (e) {
       var t = e.detail.target;
       if (!t || t.id !== DETAIL_ID) return;
+      /* Only a request that OPENS the modal may paint a skeleton over it.
+         On a ?slice= deep link the container itself carries
+         hx-target="#detail-modal", and htmx INHERITS hx-target — so every
+         action fired from inside the open panel (the area menu, Ship, Drop)
+         also arrived here with target === the container and repainted the
+         skeleton on top of the card the user was reading. Those actions answer
+         with hx-swap="none", so nothing ever replaced it: the modal sat as a
+         grey loading box forever while the action had in fact succeeded. The
+         afterRequest recovery below could not help — it only fires on failure.
+
+         `elt === t` is the container's own load-triggered fetch (the deep link
+         opening itself); anything else the container CONTAINS is a control
+         inside an already-open modal, and must be left alone.
+
+         (Phrased without the literal attribute on purpose — test_slice_routing
+         asserts that string is absent from a page with no ?slice= param.) */
+      if (e.detail.elt !== t && t.contains(e.detail.elt)) return;
       window.__overlayOpeners = window.__overlayOpeners || {};
-      /* On a ?slice=/?ticket= deep link the opener IS the container, which is
-         not focusable — recording it would strand focus on close. */
+      /* On a ?slice= deep link the opener IS the container, which is not
+         focusable — recording it would strand focus on close. */
       if (e.detail.elt !== t) window.__overlayOpeners[DETAIL_ID] = e.detail.elt;
       document.body.classList.add("modal-open");
       openSkeleton(t, e.detail.elt);
+    });
+    /* Reconcile the modal with its actual contents after every swap, OOB ones
+       included. Doing it here rather than at each emptying site means any
+       future path that clears the modal is covered too.
+
+       Why this cannot just check innerHTML: the scrim is hidden by
+       `.overlay:empty` (app.css), which is true only for a container with NO
+       child nodes at all — and the OOB that dismisses the modal
+       (`hx-swap-oob="innerHTML:#detail-modal"` in _capture_result.html) leaves
+       `<div></div>` behind. Zero text, zero card, still not :empty. So the
+       scrim stayed up: a dimmed page with nothing on it that swallowed the
+       next click anywhere (elementFromPoint over the sidebar returned this
+       container). Normalise to genuinely empty, then release the chrome.
+
+       A skeleton is content — it is the modal mid-open, and clearing it here
+       would cancel every deep link as it loads. */
+    document.body.addEventListener("htmx:afterSettle", function () {
+      var el = document.getElementById(DETAIL_ID);
+      if (!el || !el.hasChildNodes()) return;
+      if (el.querySelector("[data-skeleton], .detail-body")) return;
+      if (el.textContent.trim()) return;
+      el.innerHTML = "";
+      releaseDetailChrome();
     });
     document.body.addEventListener("htmx:afterRequest", function (e) {
       var t = e.detail.target;
