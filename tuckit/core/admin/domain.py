@@ -18,12 +18,9 @@ class AreaAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
 
-# No PlanInline. Nothing in the product creates a Plan any more, but
-# Bite.plan is still on_delete=CASCADE this release (0045 leaves it populated
-# for every pre-release bite; the column drop is 0047), so an inline with
-# delete checkboxes on SliceAdmin was a live, staff-reachable button that
-# destroyed a slice's steps with no undo — in a release whose whole claim is
-# that nothing is irreversible.
+# No PlanInline. There is no Plan model at all now — 0050 dropped the table
+# along with Bite.plan, whose on_delete=CASCADE was what made a staff-facing
+# inline dangerous: deleting a plan row took a slice's steps with it.
 
 
 @admin.register(Slice)

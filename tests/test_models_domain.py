@@ -1,7 +1,7 @@
 import pytest
 from django.db import IntegrityError
 
-from tuckit.core.models import Area, Bite, Plan, Slice, Tag
+from tuckit.core.models import Area, Bite, Slice, Tag
 
 
 @pytest.mark.django_db
@@ -38,70 +38,42 @@ def test_tag_unique_per_org(org):
 
 
 @pytest.mark.django_db
-def test_bite_requires_plan(org):
+def test_bite_hangs_off_a_slice(org):
+    """There is no Plan to hang off any more — 0050 dropped the table and the
+    Bite.plan column with it, so a Slice is the only parent a step can have."""
     area = Area.objects.create(org=org, name="Backend", slug="backend", rank="a0")
     s = Slice.objects.create(area=area, org=org, title="Auth", rank="a0")
-    p = Plan.objects.create(slice=s, title="Plan")
-    b = Bite.objects.create(plan=p, title="JWT", rank="a0")
+    b = Bite.objects.create(slice=s, title="JWT", rank="a0")
     assert b.status == "todo"
-    assert b.plan_id == p.id
+    assert b.slice_id == s.id
 
 
+def test_bite_has_no_plan_column_left():
+    """The column drop is the point of 0050: while it existed it was
+    on_delete=CASCADE, so deleting a Plan row destroyed a Slice's own steps.
+    A field-level assertion, because a row-level one would pass just as well
+    against a nullable column nobody happens to fill."""
+    assert not any(f.name == "plan" for f in Bite._meta.get_fields())
+
+
+# The per-org number constraint used to be asserted against Ticket, which
+# carried the same pair of constraints as Slice while both tables shared one
+# number space. Ticket is gone; the constraint is not, and get_slice_by_ref()
+# resolves with .get(), so a duplicate raises MultipleObjectsReturned in a
+# caller that does not catch it.
 @pytest.mark.django_db
-def test_ticket_number_unique_per_org(org):
-    from tuckit.core.models import Ticket
-    Ticket.objects.create(org=org, title="A", rank="a0", number=5)
+def test_slice_number_unique_per_org(org):
+    Slice.objects.create(org=org, title="A", rank="a0", number=5)
     with pytest.raises(IntegrityError):
-        Ticket.objects.create(org=org, title="B", rank="a1", number=5)
+        Slice.objects.create(org=org, title="B", rank="a1", number=5)
 
 
 @pytest.mark.django_db
-def test_ticket_number_null_is_not_deduped(org):
+def test_slice_number_null_is_not_deduped(org):
     """The uniqueness is conditional — unnumbered rows must not collide."""
-    from tuckit.core.models import Ticket
-    Ticket.objects.create(org=org, title="A", rank="a0", number=None)
-    Ticket.objects.create(org=org, title="B", rank="a1", number=None)
-
-
-@pytest.mark.django_db
-def test_ticket_external_key_unique_per_org_but_blank_is_free(org):
-    from tuckit.core.models import Ticket
-    Ticket.objects.create(org=org, title="A", rank="a0", number=1, external_key="todo:1")
-    with pytest.raises(IntegrityError):
-        Ticket.objects.create(org=org, title="B", rank="a1", number=2, external_key="todo:1")
-
-
-@pytest.mark.django_db
-def test_ticket_blank_external_keys_do_not_collide(org):
-    from tuckit.core.models import Ticket
-    Ticket.objects.create(org=org, title="A", rank="a0", number=1)
-    Ticket.objects.create(org=org, title="B", rank="a1", number=2)
-
-
-@pytest.mark.django_db
-def test_ticket_open_cannot_carry_a_resolved_at(org):
-    from django.utils import timezone
-    from tuckit.core.models import Ticket
-    with pytest.raises(IntegrityError):
-        Ticket.objects.create(org=org, title="A", rank="a0", number=1,
-                              status="open", resolved_at=timezone.now())
-
-
-@pytest.mark.django_db
-def test_ticket_resolved_requires_a_resolved_at(org):
-    from tuckit.core.models import Ticket
-    with pytest.raises(IntegrityError):
-        Ticket.objects.create(org=org, title="A", rank="a0", number=1,
-                              status="dismissed", resolved_at=None)
-
-
-@pytest.mark.django_db
-def test_ticket_status_whitelist_is_enforced_in_the_db(org):
-    """The check constraint doubles as a status whitelist — `choices` alone
-    never reaches the DB, so raw writes could store anything."""
-    from tuckit.core.models import Ticket
-    with pytest.raises(IntegrityError):
-        Ticket.objects.create(org=org, title="A", rank="a0", number=1, status="closed")
+    Slice.objects.create(org=org, title="A", rank="a0", number=None)
+    Slice.objects.create(org=org, title="B", rank="a1", number=None)
+    assert Slice.objects.filter(number__isnull=True).count() == 2
 
 
 def test_slice_status_choices_are_decisions_only():

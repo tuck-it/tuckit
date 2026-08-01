@@ -116,18 +116,13 @@ def test_slice_full_page_is_not_a_dialog(client_local, org):
 
 @pytest.mark.django_db
 def test_a_ticket_deep_link_no_longer_opens_a_second_card(client_local, org):
-    """There is ONE detail card. `/tickets/<id>/` used to return a second one;
-    it forwards to the slice now, so the overlay can never be handed a card
-    with a different dialog contract."""
-    from tuckit.core.services.areas import create_area
-    from tests.legacy_tickets import legacy_promoted
-
-    area = create_area(org, "Backend")
-    t, s = legacy_promoted(org, "Something broke", area=area)
-
-    resp = client_local.get(f"/{org.slug}/tickets/{t.id}/")
-    assert resp.status_code == 302
-    assert resp["Location"] == f"/{org.slug}/slices/{s.id}/"
+    """There is ONE detail card. `/tickets/<id>/` used to return a second one
+    with its own dialog contract; it forwarded to the slice, and 0050 retired
+    the route entirely. Asserted here as well as in
+    test_legacy_ticket_links_retired because what matters on THIS surface is
+    that no path hands the overlay a foreign card."""
+    resp = client_local.get(f"/{org.slug}/tickets/1/", HTTP_HX_REQUEST="true")
+    assert resp.status_code == 404
 
 
 def test_skeleton_templates_exist_and_are_closable():

@@ -10,21 +10,18 @@ def slice_ref(slice_) -> str:
     return f"{slice_.org.key}-{slice_.number}"
 
 
-def ticket_ref(ticket) -> str:
-    """Stable ref for a Ticket. Shares the Slice number space, so a promoted
-    Ticket's Slice keeps the same ref."""
-    return f"{ticket.org.key}-{ticket.number}"
-
-
 def ref_for(obj) -> str:
     """Dispatch to the right formatter. Used by the {% ref_of %} template tag so
-    templates never assemble a ref themselves."""
-    from tuckit.core.models import Slice, Ticket
+    templates never assemble a ref themselves.
+
+    One case, since 0050 dropped the Ticket table: a Slice is the only thing
+    that carries a number. The dispatch stays rather than collapsing into
+    slice_ref() because the template tag is the caller, and a tag that raises
+    TypeError on the wrong object beats one that renders 'None-None'."""
+    from tuckit.core.models import Slice
 
     if isinstance(obj, Slice):
         return slice_ref(obj)
-    if isinstance(obj, Ticket):
-        return ticket_ref(obj)
     raise TypeError(f"no ref for {type(obj).__name__}")
 
 

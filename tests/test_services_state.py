@@ -90,16 +90,15 @@ def test_project_state_can_scope_to_one_area(product_org):
 
 
 def _migrated_bite(slice_, title, **kw):
-    """A bite in the shape migration 0045 left behind: reparented onto the
-    slice but with Bite.plan still populated (0045 sets `slice`, it does not
-    null `plan`; the column lives until 0047). Every step that existed before
-    this release looks like this in production, so the renderer has to show
-    them — the old `plan__isnull=True` filter would have hidden all of them."""
-    from tuckit.core.models import Plan
-    b = create_bite(slice_, title, **kw)
-    b.plan = Plan.objects.create(slice=slice_, title="P")
-    b.save(update_fields=["plan"])
-    return b
+    """A bite in the shape migration 0045 left behind.
+
+    0045 reparented every pre-release step onto its slice while leaving
+    Bite.plan populated, and the renderer's old `plan__isnull=True` filter
+    would have hidden all of them. 0050 dropped the column, so the two shapes
+    are now literally the same row — kept as a named builder because the
+    callers below are about that distinction and would otherwise read as
+    duplicate assertions."""
+    return create_bite(slice_, title, **kw)
 
 
 @pytest.mark.django_db
@@ -383,18 +382,19 @@ def test_roadmap_board_view_buckets_by_stage(product_org):
 
 @pytest.mark.django_db
 def test_roadmap_board_view_attaches_raw_stage_to_each_slice(product_org):
-    """A slice with a Plan already attached but no bites still lands in
-    needs_steps — the Plan layer no longer factors into stage at all (Task 4)."""
-    from tuckit.core.models import Plan
+    """A spec with no bites lands in needs_steps.
 
+    This used to assert the same for a slice carrying an empty Plan, to pin
+    down that the Plan layer did not factor into stage (Task 4). That case is
+    unbuildable now — 0050 dropped the table — so what is left is the rule
+    itself: stage reads bites, and nothing else."""
     a = create_area(product_org, "Backend")
-    create_slice(a.org, area=a, title="spec only", spec="s")                      # needs_steps
-    empty = create_slice(a.org, area=a, title="has an empty plan", spec="s")
-    Plan.objects.create(slice=empty, title="P")                 # still needs_steps
+    create_slice(a.org, area=a, title="spec only", spec="s")
+    create_slice(a.org, area=a, title="spec only too", spec="s")
 
     groups = dict(roadmap_board_view(product_org)["groups"])
     by_title = {s.title: s.stage for s in groups["needs_steps"]}
-    assert by_title == {"spec only": "needs_steps", "has an empty plan": "needs_steps"}
+    assert by_title == {"spec only": "needs_steps", "spec only too": "needs_steps"}
 
 
 @pytest.mark.django_db
@@ -441,20 +441,21 @@ def test_project_state_names_the_org_not_a_product(org):
 def test_slice_markdown_carries_no_ticket_provenance_line():
     """The `From: ACM-n` line is gone. It pointed at Tickets, and 0045 already
     appended every captured body into the slice's own spec — so the line named
-    a row an agent has no tool to read and no reason to. The slice is the whole
-    record now."""
+    a row an agent has no tool to read and no reason to. The folded slice below
+    is built in exactly the shape 0045 left: spec carrying the capture, no
+    provenance line anywhere."""
     from tuckit.core.models import Org
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.state import render_slice_markdown
-    from tests.legacy_tickets import legacy_promoted
 
     org = Org.objects.create(name="Acme", slug="acme")
     area = create_area(org, "Backend")
-    _origin, promoted = legacy_promoted(org, "Origin", area=area)
+    folded = create_slice(org, area=area, title="Origin",
+                          spec="### original capture (Origin)\n\nthe captured body")
     direct = create_slice(org, area=area, title="Direct")
 
-    assert "From:" not in render_slice_markdown(promoted)
+    assert "From:" not in render_slice_markdown(folded)
     assert "From:" not in render_slice_markdown(direct)
 
 
@@ -598,18 +599,17 @@ def test_your_turn_includes_slice_whose_bites_are_all_done():
 @pytest.mark.django_db
 def test_your_turn_excludes_stages_an_agent_can_do():
     """needs_steps is agent work — add_bites exists for exactly that. Listing
-    it here would nag daily. Having an (empty) Plan attached must not change
-    that — the Plan layer no longer factors into stage at all (Task 4)."""
-    from tuckit.core.models import Plan
+    it here would nag daily.
 
+    The companion case, a slice carrying an empty Plan, is gone with the table
+    (0050). It existed to pin down that the Plan layer did not factor into
+    stage; there is no Plan layer left to factor."""
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
     bare = create_slice(a.org, area=a, title="designed, no bites", status="open", spec="designed")
-    with_empty_plan = create_slice(a.org, area=a, title="designed, has an empty plan", status="open", spec="designed")
-    Plan.objects.create(slice=with_empty_plan, title="Empty plan")
+
     ids = {it["slice"].id for it in your_turn(org) if it.get("slice")}
     assert bare.id not in ids
-    assert with_empty_plan.id not in ids
 
 
 @pytest.mark.django_db

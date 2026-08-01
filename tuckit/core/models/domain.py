@@ -101,92 +101,6 @@ class Slice(models.Model):
         return self.title
 
 
-# Module-level so `Meta` can see it: a nested class body does not resolve names
-# from the enclosing class namespace.
-TICKET_RESOLVED_STATUSES = ("promoted", "dismissed", "duplicate")
-
-
-class Ticket(models.Model):
-    """A pre-commit capture: the triage tier upstream of a Slice.
-
-    A Ticket answers exactly one question — "are we doing this?" — and its
-    status stops moving the moment that question is answered. It never tracks
-    delivery: once promoted, the Slice is the single source of truth for
-    progress (read it via `ticket.slice.status`). Keeping a second copy of
-    "is it done yet" here is what drifts, so we don't."""
-
-    STATUS_CHOICES = [
-        ("open", "Open"),            # not yet triaged — this is the Inbox
-        ("promoted", "Promoted"),    # became a Slice; progress lives there
-        ("dismissed", "Dismissed"),  # decided against, before any work started
-        ("duplicate", "Duplicate"),  # already covered elsewhere
-    ]
-    RESOLVED_STATUSES = TICKET_RESOLVED_STATUSES
-    SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
-
-    org = models.ForeignKey("core.Org", on_delete=models.CASCADE, related_name="tickets")
-    area = models.ForeignKey(Area, null=True, blank=True, on_delete=models.SET_NULL, related_name="tickets")
-    title = models.CharField(max_length=300)
-    body = models.TextField(blank=True, default="")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="open")
-    number = models.PositiveIntegerField(null=True, blank=True)
-    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="human")
-    created_by = models.ForeignKey(
-        "core.OrgMember", null=True, blank=True,
-        on_delete=models.SET_NULL, related_name="created_tickets",
-    )
-    external_key = models.CharField(max_length=200, blank=True, default="")
-    # Many Tickets may point at one Slice: promotion links the origin (whose
-    # number the Slice inherits), absorb links the rest. The accessor spelling
-    # `ticket.slice` is unchanged from the OneToOne's related_name that this
-    # replaces, so every read-side caller keeps working untouched.
-    slice = models.ForeignKey(
-        "core.Slice", null=True, blank=True,
-        on_delete=models.SET_NULL, related_name="tickets",
-    )
-    rank = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["rank"]
-        constraints = [
-            # Numbers are minted per-org by allocate_number() under a row lock,
-            # but admin/import/raw-ORM paths bypass that — enforce it in the DB.
-            # Ticket and Slice share one number space; uniqueness is per-table
-            # (a promoted Ticket's Slice deliberately reuses its number).
-            models.UniqueConstraint(
-                fields=["org", "number"],
-                condition=models.Q(number__isnull=False),
-                name="uniq_ticket_number_per_org",
-            ),
-            # Makes create_ticket(external_key=...) safe against concurrent
-            # agent retries, not just sequential ones.
-            models.UniqueConstraint(
-                fields=["org", "external_key"],
-                condition=~models.Q(external_key=""),
-                name="uniq_ticket_external_key_per_org",
-            ),
-            # Doubles as a status whitelist: anything outside these four values
-            # satisfies neither branch.
-            models.CheckConstraint(
-                condition=(
-                    models.Q(status="open", resolved_at__isnull=True)
-                    | models.Q(status__in=TICKET_RESOLVED_STATUSES, resolved_at__isnull=False)
-                ),
-                name="ticket_resolved_at_matches_status",
-            ),
-        ]
-        indexes = [
-            models.Index(fields=["org", "status", "rank"], name="ticket_inbox_order_idx"),
-            models.Index(fields=["org", "status", "created_at"], name="ticket_stale_idx"),
-        ]
-
-    def __str__(self):
-        return self.title
-
-
 class Bite(models.Model):
     STATUS_CHOICES = [
         ("todo", "Todo"),
@@ -196,11 +110,6 @@ class Bite(models.Model):
     ]
     SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
 
-    # Nullable so Slice-direct bites (no Plan) can exist — column removal is
-    # deferred to 0047; this release only loosens the constraint.
-    plan = models.ForeignKey(
-        "Plan", null=True, blank=True, on_delete=models.CASCADE, related_name="bites",
-    )
     slice = models.ForeignKey(
         "Slice", null=True, blank=True, on_delete=models.CASCADE, related_name="bites",
     )
@@ -217,15 +126,3 @@ class Bite(models.Model):
 
     def __str__(self):
         return self.title
-
-
-class Plan(models.Model):
-    SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
-
-    slice = models.ForeignKey(Slice, on_delete=models.CASCADE, related_name="plans")
-    title = models.CharField(max_length=300, blank=True, default="")
-    body = models.TextField(blank=True, default="")
-    constraints = models.TextField(blank=True, default="")
-    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="human")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)

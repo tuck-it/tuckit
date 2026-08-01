@@ -1,13 +1,16 @@
-"""Cmd+K 서버 검색. absorb 케이스가 이 파일의 존재 이유다 — 정상 경로에서는
-절대 재현되지 않고, 빠뜨리면 사용자에게 그냥 버그로 보인다."""
+"""Cmd+K server search.
+
+Slices only, and one row per piece of work. The Ticket branch this file used
+to guard is gone with the table (0050): a ref now resolves to the slice holding
+that number or to nothing at all.
+"""
 
 import pytest
 
 from tuckit.core.models import Org, Slice
 from tuckit.core.services.areas import create_area
-from tuckit.core.services.refs import slice_ref, ticket_ref
+from tuckit.core.services.refs import slice_ref
 from tuckit.core.services.slices import create_slice
-from tests.legacy_tickets import legacy_absorbed, legacy_promoted, legacy_resolved, legacy_ticket
 
 
 @pytest.mark.django_db
@@ -44,19 +47,16 @@ def test_does_not_leak_another_orgs_work(client_local, org):
 
 
 @pytest.mark.django_db
-def test_an_absorbed_ticket_ref_says_where_it_went(client_local, org):
-    """An absorb did NOT hand the ticket's number over, so the ticket's ref
-    resolves to a slice carrying a DIFFERENT ref. Landing there silently reads
-    as a bug."""
-    s = create_slice(org, area=create_area(org, "OSS"), title="Auth overhaul")
-    t = legacy_ticket(org, "Login is broken")
-    legacy_absorbed(t, s)
+def test_a_ref_nothing_holds_returns_no_exact_row(client_local, org):
+    """The absorb case this file was built around is unreachable now. It needed
+    a Ticket keeping its own number while its work moved under another slice's
+    ref — 0050 dropped the table, so an unclaimed number resolves to nothing
+    rather than to a second kind of object with no page to link to."""
+    create_slice(org, area=create_area(org, "OSS"), title="Auth overhaul")
 
-    body = client_local.get(f"/{org.slug}/search", {"q": ticket_ref(t)}).content.decode()
-    assert "Auth overhaul" in body
-    assert ticket_ref(t) in body          # what you asked for
-    assert slice_ref(s) in body           # where you landed
-    assert "absorbed" in body.lower()
+    body = client_local.get(f"/{org.slug}/search", {"q": f"{org.key}-9999"}).content.decode()
+    assert "cmdk-result-title" not in body
+    assert "No slice matches" in body
 
 
 @pytest.mark.django_db
@@ -68,7 +68,7 @@ def test_a_folded_capture_returns_exactly_one_row(client_local, org):
     product's primary lookup surface. There is one unit of work now, so there
     is one row."""
     area = create_area(org, "OSS")
-    legacy_promoted(org, "Board redesign", area=area)
+    create_slice(org, area=area, title="Board redesign")
 
     body = client_local.get(f"/{org.slug}/search", {"q": "Board redesign"}).content.decode()
     assert body.count('cmdk-result-title">Board redesign') == 1
@@ -76,19 +76,6 @@ def test_a_folded_capture_returns_exactly_one_row(client_local, org):
     s = Slice.objects.get(org=org, title="Board redesign")
     assert f'href="/{org.slug}/slices/{s.id}/"' in body
     assert body.count('class="cmdk-result-kind">slice') == 1
-
-
-@pytest.mark.django_db
-def test_a_ticket_that_never_became_a_slice_is_not_offered(client_local, org):
-    """A Ticket 0045 could not fold has no page of its own any more — web:ticket
-    only forwards to a Slice. Emitting a row for it would hand the palette an
-    href that dead-ends, so it is simply not a result."""
-    legacy_resolved(legacy_ticket(org, "Login is broken"), "dismissed")
-
-    body = client_local.get(f"/{org.slug}/search", {"q": "Login is broken"}).content.decode()
-    # (the empty state echoes the query back, so assert on rows, not the title)
-    assert "cmdk-result-title" not in body
-    assert "No slice matches" in body
 
 
 @pytest.mark.django_db

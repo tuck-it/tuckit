@@ -17,12 +17,11 @@
   <a class="cmdk-row cmdk-result" role="option" data-label="{{ r.title }}" href="{{ r.url }}">
     <span class="ref">{{ r.ref }}</span>
     <span class="cmdk-result-title">{{ r.title }}</span>
-    {% if r.absorbed_from %}
-      {% comment %} An absorbed capture keeps its own number while its work
-         moves under another slice's ref. Say so, or arriving at a different
-         number looks like the search sent you to the wrong place. {% endcomment %}
-      <span class="cmdk-result-note">{{ r.absorbed_from }} was absorbed into {{ r.ref }}</span>
-    {% endif %}
+    {% comment %} No "was absorbed into" note any more. It fired when the ref
+       you typed was not the ref you landed on, which only an absorbed Ticket
+       could do — it kept its own number while its work moved under another
+       slice's. 0047 dropped the Ticket table, so a ref now only ever resolves
+       to the slice holding that number and the note could never render. {% endcomment %}
     <span class="cmdk-result-kind">{{ r.kind }}</span>
   </a>
 {% empty %}

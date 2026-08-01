@@ -4,9 +4,9 @@
 
 1) Slice에 Ticket.created_by에 대응하는 필드가 없다 — Inbox 모달 목업의
    "captured by"를 렌더할 곳이 없다. number로 티켓과 슬라이스를 짝지어 백필한다.
-   0046 시점에 Ticket 테이블은 아직 살아 있다 (파괴적 제거는 0047).
+   0046 시점에 Ticket 테이블은 아직 살아 있다 (파괴적 제거는 0050).
 
-2) Bite.plan이 아직 NOT NULL이다. 컬럼 제거는 0047로 미루지만, 이번 릴리스의
+2) Bite.plan이 아직 NOT NULL이다. 컬럼 제거는 0050로 미루지만, 이번 릴리스의
    Task 5가 Plan 없이 Bite를 만들려면 지금 느슨하게 만들어야 한다.
 
 서비스 코드를 import하지 않는다 (apps.get_model()만 쓴다).

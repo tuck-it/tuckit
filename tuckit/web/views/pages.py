@@ -22,8 +22,8 @@ from tuckit.core.models import Slice
 # between them. 0045 produced exactly those rows in production (every
 # dismissed/duplicate ticket became status='dropped' while keeping its NULL
 # area), which is why the archive lists below deliberately do NOT route through
-# filed_slices(): they are the only surface those slices can be read from once
-# the legacy ?ticket= redirect goes away in 0047.
+# filed_slices(): with 0050 having retired the legacy ?ticket= redirect, they
+# are now the ONLY surface those slices can be read from at all.
 ARCHIVE_STATUSES = ("shipped", "dropped")
 
 

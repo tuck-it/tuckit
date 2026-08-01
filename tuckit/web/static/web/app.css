@@ -191,10 +191,10 @@ body { padding: 0; }
   background: var(--dot-open);
 }
 
-/* "open" is shared vocabulary now — the Inbox's untriaged Ticket dot and a
-   backlog Slice's dot both render this rule (formerly two separate classes,
-   .status-dot--open for tickets and .status-dot--planned for slices, before
-   Slice.status dropped "planned" in favor of "open"). --dot-open, not
+/* "open" is shared vocabulary — an untriaged Inbox capture and a backlog Slice
+   both render this rule (formerly two separate classes, .status-dot--open for
+   tickets and .status-dot--planned for slices, before Slice.status dropped
+   "planned" in favor of "open"). --dot-open, not
    --dot-planned: "nothing has happened to this yet" is true of both, and the
    Inbox's established gray appearance stays put rather than silently
    turning blue. */
@@ -219,13 +219,9 @@ body { padding: 0; }
 .status-dot--executing     { background: var(--stage-exec); }
 .status-dot--ready_to_ship { background: var(--stage-ship); }
 
-/* Resolved Ticket states. The modal's meta line renders a dot for all four of
-   Ticket.STATUS_CHOICES; only --open existed while the rest were badges up in
-   the head. Promoted borrows the brand accent because it is the one outcome
-   that produced work; the two dead ends share the faint ink. */
-.status-dot--promoted  { background: var(--blue); }
-.status-dot--dismissed { background: var(--ink-faint); }
-.status-dot--duplicate { background: var(--ink-faint); }
+/* No --promoted / --dismissed / --duplicate. Those were the resolved Ticket
+   states, rendered by the ticket modal's meta line. The modal went in v0.44.0
+   and the table in 0047, so nothing can ever ask for those classes again. */
 
 /* Slice row: link reset, shared surface, quiet arrow, subtle hover. */
 .slice-row {

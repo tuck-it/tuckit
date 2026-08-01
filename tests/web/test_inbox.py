@@ -8,8 +8,8 @@ The Ticket triage modal those verbs lived in is gone (Task 10). The Area
 page's own "Inbox" strip that briefly forwarded rows to the slice each
 capture became is gone too (Task 11) — the Board and the Area page now share
 one layout, differing only in header and scope (see test_area.py /
-test_board.py). What remains of the old Ticket routes is covered by
-test_ticket_deeplink.py.
+test_board.py). Nothing remains of the old Ticket routes at all — 0050 retired
+the last two, and test_legacy_ticket_links_retired.py is what holds them down.
 """
 import pytest
 

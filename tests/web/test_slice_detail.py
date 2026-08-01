@@ -268,14 +268,14 @@ def test_spec_is_boxed_inline_edit(client_local, org):
 
 @pytest.mark.django_db
 def test_panel_shows_no_ticket_provenance(client_local, org):
-    from tests.legacy_tickets import legacy_promoted
-
+    """Built in the shape 0045 left a folded capture: the captured body sits in
+    the slice's own spec, and no row anywhere points back at a ticket id."""
     area = create_area(org, "Backend")
-    origin, s = legacy_promoted(org, "Origin", body="the capture", area=area)
+    s = create_slice(org, area=area, title="Origin", spec="")
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "From:" not in body
-    assert f"?ticket={origin.id}" not in body
+    assert "?ticket=" not in body
     assert "No design doc yet" not in body      # the ticket-shaped empty state
     assert "Add a spec" in body                 # ...replaced by the generic one
 
@@ -532,7 +532,7 @@ def test_steps_are_added_on_the_slice_not_a_plan(client_local, org, area):
     assert resp.status_code == 200
     b = Bite.objects.get(slice=s)
     assert b.title == "첫 걸음"
-    assert b.plan_id is None
+    assert not hasattr(b, "plan_id")     # 0050 dropped the column
     assert "첫 걸음" in resp.content.decode()
 
 
@@ -571,8 +571,9 @@ def test_the_panel_area_picker_declares_its_own_hx_swap(client_local, org, area)
 def test_a_dropped_slice_says_so_even_with_no_area(client_local, org):
     """0045 turned every dismissed/duplicate ticket into a dropped slice while
     copying its area — NULL for anything dismissed before it was filed. Those
-    rows are in no Inbox (inbox_slices() takes open only) and on no Area board,
-    and the ?ticket= redirect is the one path that reaches them. Gated behind
+    rows are in no Inbox (inbox_slices() takes open only) and on no Area board;
+    since 0050 retired the ?ticket= redirect, the archive lists are the one
+    path that reaches them, and this panel is what they land on. Gated behind
     `slice.area` the panel greeted them as a fresh capture: no "dropped" tag,
     no Restore, and a picker inviting you to file something someone threw
     away.

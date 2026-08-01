@@ -69,41 +69,24 @@ def test_get_slice_by_ref_and_flexible():
 
 
 @pytest.mark.django_db
-def test_absorbed_ticket_ref_resolves_to_the_owning_slice():
-    """A ref names a piece of work and resolves to its current form. After an
-    absorb the work lives on the slice, so the absorbed ticket's ref must lead
-    there too — otherwise the invariant holds for promotion but not for merges."""
-    from tuckit.core.models import Org
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.refs import ticket_ref
-    from tuckit.core.services.resolve import resolve_ref
-    from tests.legacy_tickets import legacy_absorbed, legacy_promoted, legacy_ticket
+def test_a_ref_no_slice_holds_is_not_found():
+    """resolve_ref() is gone with the Ticket table: a ref that no slice claims
+    used to fall through to a Ticket, and that fallback was the only reason a
+    second lookup existed alongside get_slice_by_ref(). Now there is one
+    lookup and one answer."""
+    from tuckit.core.services.exceptions import NotFound
+    from tuckit.core.services.resolve import get_slice_by_ref
 
     org = Org.objects.create(name="Acme", slug="acme")
-    area = create_area(org, "Backend")
-    _origin, s = legacy_promoted(org, "Origin", area=area)
-    extra = legacy_ticket(org, "Extra", area=area)
-    extra_ref = ticket_ref(extra)
-    legacy_absorbed(extra, s)
-
-    assert resolve_ref(org, extra_ref) == s
+    with pytest.raises(NotFound):
+        get_slice_by_ref(org, f"{org.key}-9999")
 
 
-@pytest.mark.django_db
-def test_an_unabsorbed_ticket_ref_still_resolves_to_the_ticket():
-    """The other side of the same rule: a ticket that was never folded into a
-    slice has no work to forward to, so its ref must resolve to itself rather
-    than 404. (Releasing an absorbed ticket used to be how you got here; the
-    write path is gone but production rows in this shape are not.)"""
-    from tuckit.core.models import Org
-    from tuckit.core.services.areas import create_area
-    from tuckit.core.services.refs import ticket_ref
-    from tuckit.core.services.resolve import resolve_ref
-    from tests.legacy_tickets import legacy_promoted, legacy_ticket
+def test_no_ticket_era_lookup_survives_in_resolve():
+    """A wiring guard, not a behaviour test. Each of these read the Ticket
+    table; leaving one importable would leave a caller able to reach for a
+    lookup that can only ever raise now that the table is gone."""
+    from tuckit.core.services import resolve
 
-    org = Org.objects.create(name="Acme", slug="acme")
-    area = create_area(org, "Backend")
-    legacy_promoted(org, "Origin", area=area)
-    extra = legacy_ticket(org, "Extra", area=area)
-
-    assert resolve_ref(org, ticket_ref(extra)) == extra
+    for name in ("resolve_ref", "get_ticket", "get_ticket_by_ref", "slice_for_ticket"):
+        assert not hasattr(resolve, name), name

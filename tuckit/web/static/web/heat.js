@@ -77,7 +77,7 @@
        not a "thing leaving" the user should watch. */
     window.Idiomorph.defaults.callbacks.beforeNodeRemoved = function (node) {
       if (!node.dataset) return true;
-      var tracked = node.dataset.sliceId || node.dataset.ticketId || node.dataset.areaId;
+      var tracked = node.dataset.sliceId || node.dataset.areaId;
       if (!tracked || node.classList.contains("is-leaving")) return true;
       node.classList.add("is-leaving");
       setTimeout(function () { node.remove(); }, 200);
