@@ -8,9 +8,9 @@
 
 :root {
   --dot-open: #878c87;
-  --dot-planned: #5f86a0;
+  --dot-planned: #5f9b96;
   --dot-building: #966137;
-  --dot-shipped: #52745f;
+  --dot-shipped: #5f7444;
   --dot-someday: #8a7f97;
 
   /* Stage-pipeline dots — the Board groups by derived stage, not stored status.
@@ -44,9 +44,9 @@
   --active: var(--paper-deep);
 
   /* Auth split brand panel — a fixed deep-teal that reads on either shell. */
-  --auth-panel-a: #245a78;
-  --auth-panel-b: #163f56;
-  --auth-panel-ink: #eaf2f4;
+  --auth-panel-a: #1f625e;
+  --auth-panel-b: #123f3d;
+  --auth-panel-ink: #e9f3f0;
   --auth-panel-em: #ffffff;
 }
 
@@ -75,9 +75,9 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --dot-open: #8e918e;
-    --dot-planned: #7db2ce;
+    --dot-planned: #78bdb4;
     --dot-building: #d39a68;
-    --dot-shipped: #85aa8f;
+    --dot-shipped: #9fb37a;
     --dot-someday: #a596b0;
     --overlay: rgba(0, 0, 0, 0.55);
     --line-control: #6d7576;
@@ -86,9 +86,9 @@
 
 :root[data-theme="dark"] {
   --dot-open: #8e918e;
-  --dot-planned: #7db2ce;
+  --dot-planned: #78bdb4;
   --dot-building: #d39a68;
-  --dot-shipped: #85aa8f;
+  --dot-shipped: #9fb37a;
   --dot-someday: #a596b0;
   --overlay: rgba(0, 0, 0, 0.55);
   --line-control: #6d7576;
