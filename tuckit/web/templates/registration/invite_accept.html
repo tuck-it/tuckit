@@ -4,7 +4,7 @@
 <body>
   <main class="auth-shell">
     <div class="auth-card">
-      <div class="auth-brand">tuckit</div>
+      <div class="auth-brand" aria-label="tuckit">{% include "web/partials/_brand.html" with word_only=1 %}</div>
       {% if invalid %}
         <h1 class="auth-title">This invite link is no longer valid</h1>
         <p class="auth-sub">It may have already been used or canceled.</p>

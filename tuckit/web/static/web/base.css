@@ -134,3 +134,19 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   transition: top .15s var(--ease);
 }
 .skip-link:focus { top: 8px; }
+
+/* --- Brand artwork ---
+   Supplied PNG with alpha, so it cannot follow currentColor the way an inline
+   SVG would: the theme change is a file swap. Sizes set width only — height
+   follows the artwork's own ratio (symbol 253x230, wordmark 586x168). */
+.brand-art { display: inline-flex; align-items: center; gap: 9px; line-height: 0; }
+.brand-art img { display: block; width: 100%; height: auto; }
+.brand-art-mark { display: block; width: 24px; }
+.brand-art-word { display: block; width: 66px; }
+.brand-art .art-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-art .art-light { display: none; }
+  :root:not([data-theme="light"]) .brand-art .art-dark { display: block; }
+}
+:root[data-theme="dark"] .brand-art .art-light { display: none; }
+:root[data-theme="dark"] .brand-art .art-dark { display: block; }

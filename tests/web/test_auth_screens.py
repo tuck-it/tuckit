@@ -50,7 +50,7 @@ def test_invite_screen_uses_design_system(client):
 @override_settings(TUCKIT_MARKETING_URL="https://tuckit.dev")
 def test_auth_brand_links_to_marketing_when_set(client):
     body = client.get("/login/").content.decode()
-    assert '<a class="auth-panel-brand" href="https://tuckit.dev">' in body
+    assert '<a class="auth-panel-brand" href="https://tuckit.dev"' in body
 
 
 @pytest.mark.django_db
@@ -58,4 +58,13 @@ def test_auth_brand_links_to_marketing_when_set(client):
 def test_auth_brand_plain_when_unset(client):
     body = client.get("/login/").content.decode()
     assert '<a class="auth-panel-brand"' not in body
-    assert '<div class="auth-panel-brand">' in body
+    assert '<div class="auth-panel-brand"' in body
+
+
+@pytest.mark.django_db
+def test_auth_panel_renders_brand_artwork(client):
+    """The panel is deep teal in both themes, so it takes the fixed light art
+    and must NOT emit the swapping pair."""
+    body = client.get("/login/").content.decode()
+    assert "web/brand/wordmark-dark.png" in body
+    assert 'class="art-light"' not in body

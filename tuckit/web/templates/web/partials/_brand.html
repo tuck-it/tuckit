@@ -1,0 +1,19 @@
+{% load static %}{% comment %}
+Brand lockup. The artwork is supplied PNG, not inline SVG, so it cannot follow
+currentColor — each piece ships a light and a dark file and CSS picks one.
+
+  word_only    render the wordmark alone (auth card, which sits beside a title)
+  fixed_light  skip the swap and always use the light-on-dark artwork, for
+               surfaces that are deep teal in BOTH themes (the auth panel)
+{% endcomment %}<span class="brand-art{% if fixed_light %} brand-art--fixed{% endif %}">
+  {% if not word_only %}<span class="brand-art-mark">
+    {% if fixed_light %}<img src="{% static 'web/brand/symbol-dark.png' %}" alt="" width="253" height="230">
+    {% else %}<img class="art-light" src="{% static 'web/brand/symbol.png' %}" alt="" width="253" height="230">
+    <img class="art-dark" src="{% static 'web/brand/symbol-dark.png' %}" alt="" width="253" height="230">{% endif %}
+  </span>{% endif %}
+  <span class="brand-art-word">
+    {% if fixed_light %}<img src="{% static 'web/brand/wordmark-dark.png' %}" alt="" width="586" height="168">
+    {% else %}<img class="art-light" src="{% static 'web/brand/wordmark.png' %}" alt="" width="586" height="168">
+    <img class="art-dark" src="{% static 'web/brand/wordmark-dark.png' %}" alt="" width="586" height="168">{% endif %}
+  </span>
+</span>

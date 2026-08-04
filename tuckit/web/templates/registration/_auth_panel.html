@@ -1,5 +1,6 @@
 <aside class="auth-panel">
-  {% if marketing_url %}<a class="auth-panel-brand" href="{{ marketing_url }}">tuckit</a>{% else %}<div class="auth-panel-brand">tuckit</div>{% endif %}
+  {# The panel is deep teal in BOTH themes, so the artwork never swaps. #}
+  {% if marketing_url %}<a class="auth-panel-brand" href="{{ marketing_url }}" aria-label="tuckit">{% include "web/partials/_brand.html" with fixed_light=1 %}</a>{% else %}<div class="auth-panel-brand" aria-label="tuckit">{% include "web/partials/_brand.html" with fixed_light=1 %}</div>{% endif %}
   <div class="auth-panel-tag"><span class="dim">Your agent forgets.</span><br><span class="em">Your project shouldn't.</span></div>
   <p class="auth-panel-sub">tuckit keeps the plan, the context, and the decisions in one place your agent can read back.</p>
 </aside>

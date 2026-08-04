@@ -1,3 +1,3 @@
 {% comment %}Shared auth-card wordmark. Links to the marketing site when
 TUCKIT_MARKETING_URL is configured (cloud); plain text otherwise (self-host).{% endcomment %}
-{% if marketing_url %}<a class="auth-brand" href="{{ marketing_url }}">tuckit</a>{% else %}<div class="auth-brand">tuckit</div>{% endif %}
+{% if marketing_url %}<a class="auth-brand" href="{{ marketing_url }}" aria-label="tuckit">{% include "web/partials/_brand.html" with word_only=1 %}</a>{% else %}<div class="auth-brand" aria-label="tuckit">{% include "web/partials/_brand.html" with word_only=1 %}</div>{% endif %}

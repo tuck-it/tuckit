@@ -63,7 +63,7 @@
     <button class="topbar-btn" type="button" aria-label="Open navigation menu" :aria-expanded="menu" aria-controls="app-sidebar"
             x-ref="menuToggle"
             x-on:click="menu = true; $nextTick(() => $refs.sidebarWrap.querySelector('a[href],button')?.focus())">{% icon "menu" %}</button>
-    <span class="topbar-brand">tuckit</span>
+    <span class="topbar-brand" aria-label="tuckit">{% include "web/partials/_brand.html" %}</span>
     <button class="topbar-btn" type="button" aria-label="Quick capture"
             x-on:click="cap = true">{% icon "plus" %}</button>
   </header>

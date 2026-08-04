@@ -263,3 +263,10 @@ a.auth-panel-brand:hover { opacity: 0.85; }
   height: 1px;
   background: var(--line);
 }
+
+/* The wordmark is artwork now — these rules only size and place it. The type
+   properties on .auth-brand / .auth-panel-brand no longer apply to anything. */
+.auth-brand { display: inline-block; line-height: 0; }
+.auth-brand .brand-art-word { width: 84px; }
+.auth-panel-brand .brand-art-mark { width: 26px; }
+.auth-panel-brand .brand-art-word { width: 76px; }
