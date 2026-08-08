@@ -140,6 +140,7 @@ def test_full_page_hides_panel_only_chrome(client_local, org):
     assert "crumb-close" not in body        # no close button on the full page
     assert "Open full page" not in body     # no self-link on the full page
     assert 'class="area-chip"' in body     # breadcrumb chip still shown on full page
+    assert 'aria-label="Copy link"' in body  # …but the address is still copyable
 
 
 @pytest.mark.django_db
@@ -172,15 +173,27 @@ def test_steps_progress_and_empty_state(client_local, org):
 
 
 @pytest.mark.django_db
-def test_action_bar_has_copy_and_drop(client_local, org):
+def test_decisions_in_the_action_bar_addressing_in_the_crumb(client_local, org):
+    """Two different kinds of control, two different homes.
+
+    Ship/Drop are decisions about the work and stay in the bottom bar. Copy
+    link and Open full page only say where the record lives, so they sit in the
+    crumb — the row that already names the record — as icon-only buttons that
+    carry their name in aria-label."""
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     s = create_slice(org, area=create_area(org, "Design"), title="Action", status="open")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
     assert 'class="action-bar"' in body
-    assert "Copy link" in body
     assert "Drop slice" in body
+
+    crumb = body.split('class="detail-crumb"')[1].split("</div>")[0]
+    assert 'aria-label="Copy link"' in crumb
+    assert 'aria-label="Open full page"' in crumb
+    # …and nowhere else: the action bar holds decisions only.
+    bar = body.split('class="action-bar"')[1]
+    assert "Copy link" not in bar and "Open full page" not in bar
 
 
 @pytest.mark.django_db
@@ -480,7 +493,10 @@ def test_inbox_slice_offers_no_ship_or_drop(client_local, org):
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "Ship it" not in body
     assert "Drop slice" not in body
-    assert "Copy link" in body      # still addressable
+    assert 'aria-label="Copy link"' in body      # still addressable, from the crumb
+    # No decision left to offer, so no bar: an empty sticky footer is chrome
+    # around nothing.
+    assert 'class="action-bar"' not in body
 
 
 @pytest.mark.django_db

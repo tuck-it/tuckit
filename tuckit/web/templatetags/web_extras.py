@@ -163,6 +163,8 @@ _ICON_PATHS = {
     "menu": '<path d="M4 7h16M4 12h16M4 17h16"/>',
     "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     "dots": '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>',
+    "link": '<path d="M10 13a4.5 4.5 0 0 0 6.8.5l2.5-2.5a4.5 4.5 0 0 0-6.4-6.4l-1.4 1.4"/><path d="M14 11a4.5 4.5 0 0 0-6.8-.5l-2.5 2.5a4.5 4.5 0 0 0 6.4 6.4l1.4-1.4"/>',
+    "expand": '<path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-7.5 7.5"/><path d="M4 20l7.5-7.5"/>',
 }
 
 

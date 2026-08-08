@@ -19,10 +19,38 @@
     <a class="area-chip" href="{% wurl 'web:inbox' %}">{% icon "inbox" "icon area-chip-icon" %}Inbox</a>
     {% endif %}
     {% ref_of slice copy=True %}
-    {% if is_modal %}
-    <button class="ghost crumb-close" type="button" aria-label="Close panel"
-            hx-on:click="closeDetail()">{% icon "close" "icon" %}</button>
-    {% endif %}
+    {% comment %}
+      Addressing controls — "how do I get back to this record" — live here, in
+      the row that already says WHICH record this is. They used to sit in the
+      bottom action-bar next to Ship/Drop, which put a question (do I commit to
+      this?) and a utility (give me the URL) in the same cluster; worse, an
+      unfiled capture has no Ship or Drop, so the bar rendered as a full-width
+      sticky footer holding nothing but these two links.
+
+      Icon-only, so each carries its own accessible name: the SVGs are
+      decorative (aria-hidden), and a control whose only content is a hidden
+      graphic is nameless without it.
+    {% endcomment %}
+    <div class="crumb-acts">
+      {% comment %}
+        Copied-state is pure Alpine. An hx-on:: handler runs in the global
+        scope and cannot see x-data, so `copied = true` there fails silently —
+        the same trap documented in _ref.html.
+      {% endcomment %}
+      <button class="ghost crumb-act" type="button" x-data="{copied:false}"
+              aria-label="Copy link" :title="copied ? 'Copied' : 'Copy link'" title="Copy link"
+              :class="copied && 'crumb-act--done'"
+              x-on:click="copyText(window.location.origin + '{% wurl 'web:slice' slice.id %}').then(ok => { copied = ok; setTimeout(()=>copied=false,1500) })">
+        <span x-show="!copied">{% icon "link" "icon" %}</span>
+        <span x-show="copied" x-cloak>{% icon "check" "icon" %}</span>
+      </button>
+      {% if is_modal %}
+      <a class="ghost crumb-act" href="{% wurl 'web:slice' slice.id %}"
+         aria-label="Open full page" title="Open full page">{% icon "expand" "icon" %}</a>
+      <button class="ghost crumb-act crumb-close" type="button" aria-label="Close panel"
+              hx-on:click="closeDetail()">{% icon "close" "icon" %}</button>
+      {% endif %}
+    </div>
   </div>
 
   {% comment %} Every click-to-edit surface below is a <button>, not a <span>/<div>. As
@@ -244,6 +272,13 @@
     unfiled capture: no "dropped" tag, no Restore, and an invitation to file
     something that was deliberately thrown away.
   {% endcomment %}
+  {% comment %}
+    Decisions only, so the bar exists only when there IS one. An open capture
+    with no area has neither Ship nor Drop (see below), and once Copy link and
+    Open full page moved up to the crumb it had nothing left to hold — a
+    sticky, bordered, full-width footer around empty space.
+  {% endcomment %}
+  {% if slice.status != 'open' or slice.area %}
   <div class="action-bar">
     {% if slice.status == 'dropped' %}
       <span class="dropped-tag">dropped</span>
@@ -260,12 +295,6 @@
       <button class="ghost action-drop" hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "dropped"}'
               hx-target="closest .detail-body" hx-swap="outerHTML">Drop slice</button>
     {% endif %}
-    <span class="action-spacer"></span>
-    <button class="ghost" type="button" x-data="{copied:false}"
-            x-on:click="copyText(window.location.origin + '{% wurl 'web:slice' slice.id %}').then(ok => { copied = ok; setTimeout(()=>copied=false,1500) })"
-            x-text="copied ? 'Copied' : 'Copy link'">Copy link</button>
-    {% if is_modal %}
-    <a class="ghost" href="{% wurl 'web:slice' slice.id %}">Open full page →</a>
-    {% endif %}
   </div>
+  {% endif %}
 </div>
