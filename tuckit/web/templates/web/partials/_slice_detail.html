@@ -71,6 +71,46 @@
       {% endif %}
       {% if slice.status != 'open' or slice.area %}<span class="crumb-sep" aria-hidden="true"></span>{% endif %}
       {% comment %}
+        Hand this slice to an agent. The board's whole claim is that it is the
+        source of truth; this is the one place a human still had to retype the
+        bridge to it by hand, mistyping refs and forgetting to say what stage
+        the work is at.
+
+        The gate is TWO conditions and both are load-bearing. delegation_prompt
+        is None for shipped/dropped, so it covers those on its own — but an
+        unfiled capture gets a perfectly good prompt built for it, and the
+        unfiled panel deliberately opens one decision only ("where does this
+        belong?"). slice.area is what hides it there.
+
+        A dropdown rather than a silent one-click copy: the human reads the
+        sentence before pasting it, so the pattern is learned rather than only
+        executed.
+      {% endcomment %}
+      {% if slice.area and delegation_prompt %}
+      <div class="crumb-menu" x-data="{open:false, copied:false}"
+           x-on:keydown.escape="if (open) { open = false; $event.stopPropagation() }">
+        <button type="button" class="ghost crumb-act" aria-haspopup="menu" :aria-expanded="open"
+                aria-label="Hand this slice to an agent" title="Hand this slice to an agent"
+                x-on:click="open=!open">{% icon "agent" "icon" %}</button>
+        <div class="crumb-pop" role="menu" x-show="open" x-cloak x-on:click.outside="open=false">
+          <div class="crumb-pop-head">Hand to an agent</div>
+          {% comment %}
+            The prompt is rendered as text and copied from textContent — never
+            through escapejs into an inline JS string literal, which a title
+            containing a quote or a backslash would break.
+          {% endcomment %}
+          <pre class="gs-code" x-ref="prompt">{{ delegation_prompt }}</pre>
+          {% comment %}
+            Copied-state is pure Alpine, like every other copy control here: an
+            hx-on:: handler runs in the global scope, cannot see x-data, and
+            would fail silently.
+          {% endcomment %}
+          <button type="button" class="gs-mini" x-text="copied ? 'Copied' : 'Copy'"
+                  x-on:click="copyText($refs.prompt.textContent).then(ok => { copied = ok; setTimeout(() => copied = false, 1500) })">Copy</button>
+        </div>
+      </div>
+      {% endif %}
+      {% comment %}
         Copied-state is pure Alpine. An hx-on:: handler runs in the global
         scope and cannot see x-data, so `copied = true` there fails silently —
         the same trap documented in _ref.html.

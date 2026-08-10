@@ -3,7 +3,8 @@ import nh3
 
 from tuckit.core.services.activity import label_who, slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
-from tuckit.core.services.slices import stage_of
+from tuckit.core.services.refs import slice_ref
+from tuckit.core.services.slices import delegation_prompt, stage_of
 
 
 # One list, every markdown surface. Slice specs, slice constraints and bite
@@ -39,9 +40,16 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
     instead, which is safe: the row never claims a colleague's work was yours.
     """
     done, total = bite_progress(slice_)
+    stage = stage_of(slice_)
     return {
         "slice": slice_,
-        "stage": stage_of(slice_),
+        "stage": stage,
+        # The text a human copies to hand this slice to an agent. None once
+        # there is no next step (shipped/dropped), which is half of the
+        # template's gate; the other half is slice.area, because an unfiled
+        # capture gets a perfectly good prompt that the panel deliberately
+        # does not show.
+        "delegation_prompt": delegation_prompt(slice_ref(slice_), slice_.title, stage),
         "spec_html": render_markdown_html(slice_.spec),
         # constraints is a first-class Slice field now (it used to hang off
         # Plan, which meant it was unreachable unless you first made a plan —
