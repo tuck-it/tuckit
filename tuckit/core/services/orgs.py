@@ -1,14 +1,23 @@
 import re
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
-from tuckit.core.models import ActivityEvent, Org, OrgMember
+from tuckit.core.models import ActivityEvent, Org, OrgMember, Slice
 from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.slugs import RESERVED_ORG_SLUGS, validate_slug
 
 
 def accessible_orgs(user):
-    return Org.objects.filter(members__user=user).order_by("name")
+    # The ended_at filter has to be spelled out here. Django applies a related
+    # model's default manager to related managers (org.members) but NOT to a
+    # relation traversal inside filter() — that compiles straight to a JOIN.
+    # Without this, OrgMember's fail-closed manager silently does not cover the
+    # org switcher, the default-org fallback or the org list, and a removed
+    # member keeps seeing the org.
+    return Org.objects.filter(
+        members__user=user, members__ended_at__isnull=True
+    ).order_by("name")
 
 
 def is_org_admin(user, org) -> bool:
@@ -137,10 +146,25 @@ def change_member_role(org: Org, *, member: OrgMember, role: str) -> OrgMember:
     return member
 
 
+@transaction.atomic
+def end_membership(member: OrgMember) -> OrgMember:
+    """Close a membership without destroying it.
+
+    Assignments are cleared because assignee is a live relationship — someone
+    who left cannot be the assignee — and the hard delete used to do this via
+    SET_NULL. Authorship (created_by) is deliberately untouched: keeping it is
+    the whole reason the row survives.
+    """
+    member.ended_at = timezone.now()
+    member.save(update_fields=["ended_at"])
+    Slice.objects.filter(assignee=member).update(assignee=None)
+    return member
+
+
 def remove_member(org: Org, *, member: OrgMember) -> None:
     if member.role == "owner":
         raise InvalidValue("The owner can't be removed — change their role first.")
-    member.delete()
+    end_membership(member)
 
 
 def list_user_orgs(user) -> list[dict]:
@@ -164,4 +188,4 @@ def leave_org(user, *, org) -> None:
         raise InvalidValue("The sole owner can't leave — transfer ownership or delete the org first.")
     if OrgMember.objects.filter(user=user).count() <= 1:
         raise InvalidValue("You can't leave your last organization.")
-    membership.delete()
+    end_membership(membership)
