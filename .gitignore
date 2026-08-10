@@ -11,6 +11,10 @@ __pycache__/
 .venv/
 .pytest_cache/
 .DS_Store
+# collectstatic output (STATIC_ROOT). Root-anchored: this is the one directory
+# at the repo root, and an unanchored rule would swallow a real source dir of
+# that name later. Production collects inside the Docker build, never here.
+/staticfiles/
 
 # Local dev tooling — NOT published
 .claude/
