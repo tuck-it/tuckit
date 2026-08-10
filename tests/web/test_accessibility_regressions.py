@@ -378,8 +378,13 @@ def test_a_long_detail_modal_can_be_scrolled_to_its_actions():
 
     There is one card class now (the ticket card is gone), so the cap and the
     scroll live on it: the card is capped to the viewport and scrolls its own
-    content, and the action bar is sticky inside it. The overlay scrolls too,
-    as a floor for viewports too short even for the head and actions.
+    content. The overlay scrolls too, as a floor for viewports too short even
+    for the head and actions.
+
+    The actions moved from a sticky bottom bar into the crumb row, so it is the
+    CRUMB that must now be pinned inside the card — otherwise the same spec
+    that used to push the actions past the fold scrolls them off the top
+    instead, and the regression comes back through the other end (WCAG 2.1.1).
     """
     app = (STATIC / "app.css").read_text(encoding="utf-8")
     overlay = re.search(r"\.overlay\s*\{(.*?)\}", app, re.S).group(1)
@@ -389,5 +394,8 @@ def test_a_long_detail_modal_can_be_scrolled_to_its_actions():
     assert "85vh" in card, "the card must not be allowed to exceed the viewport"
     assert "overflow-y: auto" in card, "the card is what scrolls its own content"
 
-    bar = re.search(r"\n\.action-bar\s*\{(.*?)\}", app, re.S).group(1)
-    assert "position: sticky" in bar, "the actions must stay on screen while the spec scrolls"
+    assert ".action-bar" not in app, "the bottom action bar is gone; do not resurrect it"
+    crumb = re.search(r"\.detail-card \.detail-crumb\s*\{(.*?)\}", app, re.S).group(1)
+    assert "position: sticky" in crumb, "the actions must stay on screen while the spec scrolls"
+    # A transparent sticky row lets the spec scroll visibly through it.
+    assert "background:" in crumb, "a sticky row needs a ground of its own"

@@ -174,19 +174,23 @@ def test_escape_only_dismisses_the_topmost_layer():
         "Escape must not reach the modal while a dialog sits on top of it"
 
 
-def test_the_sticky_action_bar_reaches_the_bottom_of_the_modal_card():
-    """A sticky bottom offset resolves against the scrollport's PADDING box.
-    In the modal the card is both the scroller and the padded box, so bottom:0
-    parked the action bar 22px above the card edge with the rest of the
-    document scrolling visibly through the gap. Scoped to .detail-card: on the
-    full page the scrollport is the document, where a negative offset would
-    push the bar below the fold."""
+def test_the_sticky_crumb_reaches_the_top_of_the_modal_card():
+    """A sticky offset resolves against the scrollport's PADDING box. In the
+    modal the card is both the scroller and the padded box, so top:0 would park
+    the crumb --detail-pad BELOW the card's edge, with the rest of the document
+    scrolling visibly through the gap above it. Offset by exactly that padding.
+
+    This is the same geometry the old bottom action bar had to correct for,
+    mirrored — the actions live in the crumb now. Scoped to .detail-card: on
+    the full page the scrollport is the document, where pinning the row would
+    only steal height from the content."""
     css = _read("static/web/app.css")
-    assert "--detail-pad" in css, "the pad must be a variable the action bar can read back"
-    assert re.search(r"\.detail-card \.action-bar\s*\{[^}]*bottom:\s*calc\(-1 \* var\(--detail-pad\)\)", css)
-    # the unscoped rule must stay at 0 for the full page
-    base = re.search(r"\n\.action-bar\s*\{(.*?)\}", css, re.S).group(1)
-    assert "bottom: 0" in base
+    assert "--detail-pad" in css, "the pad must be a variable the crumb can read back"
+    rule = re.search(r"\.detail-card \.detail-crumb\s*\{(.*?)\}", css, re.S).group(1)
+    assert re.search(r"top:\s*calc\(-1 \* var\(--detail-pad\)\)", rule)
+    # ...and the row is pulled out to the card's edges, or the negative offset
+    # would lift it clear off the top of the card instead of flush against it.
+    assert re.search(r"margin:\s*calc\(-1 \* var\(--detail-pad\)\)", rule)
 
 
 def test_history_restore_reconciles_the_modal_against_the_url():

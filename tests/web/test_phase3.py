@@ -40,9 +40,11 @@ def test_slice_detail_order_and_close_aria(client_local, org):
     assert 'aria-label="Close panel"' in body
     assert "Open full" in body
     assert "Backend" in body                         # Area context near title
-    # blueprint order: tags (a property row) appear before the Steps list;
-    # steps come before the destructive drop
-    assert body.index("billing") < body.index("step one") < body.index("Drop")
+    # blueprint order: properties (tags) read before the Steps list, and the
+    # reading order ends there — every control, Drop included, sits in the
+    # crumb at the top now, so nothing follows the content.
+    assert body.index("billing") < body.index("step one")
+    assert body.index('aria-label="Drop slice"') < body.index("billing")
 
 
 @pytest.mark.django_db

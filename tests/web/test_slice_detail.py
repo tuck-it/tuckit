@@ -173,27 +173,30 @@ def test_steps_progress_and_empty_state(client_local, org):
 
 
 @pytest.mark.django_db
-def test_decisions_in_the_action_bar_addressing_in_the_crumb(client_local, org):
-    """Two different kinds of control, two different homes.
+def test_every_control_lives_in_the_crumb_and_nothing_sits_below(client_local, org):
+    """One home for every control. Decisions about the work (Ship/Drop) and
+    addressing (Copy link, Open full page) both sit in the crumb — the row that
+    already names the record — and the sticky bottom bar is gone.
 
-    Ship/Drop are decisions about the work and stay in the bottom bar. Copy
-    link and Open full page only say where the record lives, so they sit in the
-    crumb — the row that already names the record — as icon-only buttons that
-    carry their name in aria-label."""
+    Drop is icon-only there, so its accessible name has to come from
+    aria-label: the SVG is aria-hidden, and a button whose only content is a
+    hidden graphic is nameless. Asserting the label rather than the old visible
+    "Drop slice" string is the point — that string no longer exists."""
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     p = f"/{org.slug}"
     s = create_slice(org, area=create_area(org, "Design"), title="Action", status="open")
     body = client_local.get(f"{p}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true").content.decode()
-    assert 'class="action-bar"' in body
-    assert "Drop slice" in body
+    assert 'class="action-bar"' not in body
 
-    crumb = body.split('class="detail-crumb"')[1].split("</div>")[0]
-    assert 'aria-label="Copy link"' in crumb
-    assert 'aria-label="Open full page"' in crumb
-    # …and nowhere else: the action bar holds decisions only.
-    bar = body.split('class="action-bar"')[1]
-    assert "Copy link" not in bar and "Open full page" not in bar
+    acts = body.split('class="crumb-acts"')[1].split('class="detail-titlebar"')[0]
+    assert 'aria-label="Drop slice"' in acts
+    assert re.search(r'<button[^>]*aria-label="Drop slice"[^>]*>\s*<svg', acts, re.S), \
+        "Drop must render as an icon button, not a labelled one"
+    assert 'aria-label="Copy link"' in acts
+    assert 'aria-label="Open full page"' in acts
+    # ...and the destructive one is not flush against Close.
+    assert 'class="crumb-sep"' in acts
 
 
 @pytest.mark.django_db
@@ -466,6 +469,21 @@ def test_constraints_render_as_markdown_and_are_sanitized(client_local, org, are
     assert "<script>alert(1)</script>" not in block
 
 
+def test_constraints_looks_exactly_like_spec():
+    """Spec and Constraints are a pair and must read as one kind of field.
+
+    They did not. `.edit-surface` strips the frame off every read view, but
+    `.constraints-block .spec` (two classes) outranked it, so the accent rule
+    survived on Constraints alone: Spec was plain prose and Constraints was a
+    teal band two lines below it, for no difference in kind. The class stays as
+    a DOM hook; what must not come back is styling hung off it."""
+    from pathlib import Path
+    css = (Path(__file__).resolve().parents[2] / "tuckit/web/static/web/app.css").read_text(encoding="utf-8")
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)   # prose about the old rule is not the rule
+    assert not re.search(r"\.constraints-block[^{}]*\{", css), \
+        "Constraints must not carry styling Spec does not have"
+
+
 @pytest.mark.django_db
 def test_picking_an_area_grows_the_same_modal(client_local, org, area):
     """The Inbox modal's one control files the slice through the SAME endpoint
@@ -492,11 +510,10 @@ def test_inbox_slice_offers_no_ship_or_drop(client_local, org):
     s = create_slice(org, title="정리 안 됨", spec="본문")
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "Ship it" not in body
-    assert "Drop slice" not in body
+    assert 'aria-label="Drop slice"' not in body
     assert 'aria-label="Copy link"' in body      # still addressable, from the crumb
-    # No decision left to offer, so no bar: an empty sticky footer is chrome
-    # around nothing.
-    assert 'class="action-bar"' not in body
+    # No decision to separate from the addressing controls, so no rule either.
+    assert 'class="crumb-sep"' not in body
 
 
 @pytest.mark.django_db
@@ -601,7 +618,7 @@ def test_filing_from_the_panel_returns_the_grown_panel(client_local, org, area):
     assert 'hx-swap-oob="outerHTML:.detail-body"' in body
     assert "detail-card" in body                     # re-rendered AS a modal card
     assert PROP_STAGE in body and SECTION_CONSTRAINTS in body and SECTION_STEPS in body
-    assert "Drop slice" in body
+    assert 'aria-label="Drop slice"' in body
     # the modal-clearing OOB must be absent, or the panel would be swapped into
     # a container that was just emptied
     assert 'hx-swap-oob="innerHTML:#detail-modal"' not in body

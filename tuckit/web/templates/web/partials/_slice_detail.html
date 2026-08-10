@@ -19,19 +19,57 @@
     <a class="area-chip" href="{% wurl 'web:inbox' %}">{% icon "inbox" "icon area-chip-icon" %}Inbox</a>
     {% endif %}
     {% ref_of slice copy=True %}
+    {% if slice.status == 'dropped' %}<span class="dropped-tag">dropped</span>{% endif %}
     {% comment %}
-      Addressing controls — "how do I get back to this record" — live here, in
-      the row that already says WHICH record this is. They used to sit in the
-      bottom action-bar next to Ship/Drop, which put a question (do I commit to
-      this?) and a utility (give me the URL) in the same cluster; worse, an
-      unfiled capture has no Ship or Drop, so the bar rendered as a full-width
-      sticky footer holding nothing but these two links.
+      Everything you can DO to this record lives in this one row — the row that
+      already says WHICH record it is — and nothing sits at the foot of the
+      panel. The decisions used to live in a sticky bottom bar; that bar was
+      chrome around one button for most slices, and for an unfiled capture
+      (which has neither Ship nor Drop) it rendered as a full-width footer
+      holding nothing at all.
 
-      Icon-only, so each carries its own accessible name: the SVGs are
+      Two clusters, separated by a rule: decisions about the work first, then
+      addressing ("where does this record live"). Drop is icon-only — it is
+      destructive and rare, and a word-sized target next to Close invited the
+      misclick. Ship/Restore/Reopen keep their labels: they are the one thing
+      you may have opened the panel to press, and an unlabelled checkmark is
+      not an invitation.
+
+      Icon-only controls carry their own accessible name: the SVGs are
       decorative (aria-hidden), and a control whose only content is a hidden
       graphic is nameless without it.
     {% endcomment %}
     <div class="crumb-acts">
+      {% comment %}
+        dropped/shipped are NOT gated on `slice.area`. 0045 mapped every
+        dismissed or duplicate ticket to a dropped slice while copying its
+        (often NULL) area, so an area-less dropped slice exists in production —
+        it is in no Inbox (inbox_slices() takes open only) and on no Area
+        board, and the ?ticket= redirect is the one path that reaches it.
+        Gated, it rendered as a fresh unfiled capture: no "dropped" tag, no
+        Restore, and an invitation to file something that was deliberately
+        thrown away.
+
+        An open capture with no area gets neither Ship nor Drop: those are
+        decisions about work you committed to, and it is not that yet.
+      {% endcomment %}
+      {% if slice.status == 'dropped' %}
+        <button class="ghost" hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "open"}'
+                hx-target="closest .detail-body" hx-swap="outerHTML">Restore</button>
+      {% elif slice.status == 'shipped' %}
+        <button class="ghost" hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "open"}'
+                hx-target="closest .detail-body" hx-swap="outerHTML">Reopen</button>
+      {% elif slice.area %}
+        {% if stage == 'ready_to_ship' %}
+          <button class="ghost action-ship" hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "shipped"}'
+                  hx-target="closest .detail-body" hx-swap="outerHTML">Ship it →</button>
+        {% endif %}
+        <button class="ghost crumb-act crumb-act--drop" type="button"
+                aria-label="Drop slice" title="Drop slice"
+                hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "dropped"}'
+                hx-target="closest .detail-body" hx-swap="outerHTML">{% icon "trash" "icon" %}</button>
+      {% endif %}
+      {% if slice.status != 'open' or slice.area %}<span class="crumb-sep" aria-hidden="true"></span>{% endif %}
       {% comment %}
         Copied-state is pure Alpine. An hx-on:: handler runs in the global
         scope and cannot see x-data, so `copied = true` there fails silently —
@@ -75,7 +113,7 @@
       {% comment %}
         읽기 전용이다. 진행도는 산출물에서 파생되므로 고를 것이 없다 — spec을
         쓰고 step을 채우면 알약이 따라 움직인다. 사람이 내리는 결정
-        (Ship / Drop)은 아래 action-bar에 있다.
+        (Ship / Drop)은 맨 윗줄 crumb-acts에 있다.
       {% endcomment %}
       <div class="prop-val">
         <span class="status-pill status-pill--static">
@@ -215,6 +253,11 @@
     The empty state below is doing teaching work: this is the only place in the
     product that says what belongs in this field.
   {% endcomment %}
+  {% comment %}
+    `constraints-block` carries no styling of its own any more — Constraints is
+    the same field shape as Spec, full stop. It stays as the one hook that
+    names this block.
+  {% endcomment %}
   <div class="desc-block constraints-block">
     <div class="section-label">Constraints</div>
     <button type="button" class="spec edit-surface" x-show="!editCons" aria-label="Edit constraints"
@@ -263,38 +306,4 @@
   {% endif %}
   {% endif %}
 
-  {% comment %}
-    dropped/shipped are NOT gated on `slice.area`. 0045 mapped every dismissed
-    or duplicate ticket to a dropped slice while copying its (often NULL) area,
-    so an area-less dropped slice exists in production — it is in no Inbox
-    (inbox_slices() takes open only) and on no Area board, and the ?ticket=
-    redirect is the one path that reaches it. Gated, it rendered as a fresh
-    unfiled capture: no "dropped" tag, no Restore, and an invitation to file
-    something that was deliberately thrown away.
-  {% endcomment %}
-  {% comment %}
-    Decisions only, so the bar exists only when there IS one. An open capture
-    with no area has neither Ship nor Drop (see below), and once Copy link and
-    Open full page moved up to the crumb it had nothing left to hold — a
-    sticky, bordered, full-width footer around empty space.
-  {% endcomment %}
-  {% if slice.status != 'open' or slice.area %}
-  <div class="action-bar">
-    {% if slice.status == 'dropped' %}
-      <span class="dropped-tag">dropped</span>
-      <button class="ghost" hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "open"}'
-              hx-target="closest .detail-body" hx-swap="outerHTML">Restore</button>
-    {% elif slice.status == 'shipped' %}
-      <button class="ghost" hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "open"}'
-              hx-target="closest .detail-body" hx-swap="outerHTML">Reopen</button>
-    {% elif slice.area %}
-      {% if stage == 'ready_to_ship' %}
-        <button class="ghost action-ship" hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "shipped"}'
-                hx-target="closest .detail-body" hx-swap="outerHTML">Ship it →</button>
-      {% endif %}
-      <button class="ghost action-drop" hx-post="{% wurl 'web:slice_status' slice.id %}{{ modal_qs }}" hx-vals='{"status": "dropped"}'
-              hx-target="closest .detail-body" hx-swap="outerHTML">Drop slice</button>
-    {% endif %}
-  </div>
-  {% endif %}
 </div>
