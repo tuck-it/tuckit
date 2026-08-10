@@ -1975,6 +1975,23 @@ html.sidebar-collapsed .side-resize { display: none; }
 .crumb-act { color: var(--ink-faint); padding: 3px; line-height: 0; display: inline-flex; }
 .crumb-act > span { display: inline-flex; }
 .crumb-act--done { color: var(--dot-shipped); border-color: var(--dot-shipped); }
+/* The delegation prompt's popover. Same furniture as .status-menu (the Area
+   picker) — it is the panel's established dropdown — but right-anchored, since
+   this control sits at the end of the crumb and a left-anchored panel this wide
+   would run off the card. */
+.crumb-menu { position: relative; display: inline-flex; }
+.crumb-pop {
+  position: absolute; z-index: 5; top: calc(100% + 4px); right: 0;
+  width: min(360px, 78vw); display: grid; gap: 6px; padding: 8px;
+  background: var(--paper-solid); border: 1px solid var(--line);
+  border-radius: var(--radius-small); box-shadow: 0 8px 20px var(--shadow);
+}
+.crumb-pop-head { font-size: var(--text-sm); color: var(--ink-faint); }
+/* The prompt is several lines of prose, not a one-line shell command, so it
+   wraps on words. .gs-code breaks on any character, which would split a ref
+   like TP-103 across two lines. */
+.crumb-pop .gs-code { white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere; }
+.crumb-pop .gs-mini { justify-self: end; }
 /* Destructive, so it stays quiet until you are on it — and it never borrows
    the accent, which in this product means "safe to press". */
 .crumb-act--drop:hover { color: var(--warn); border-color: var(--warn); }

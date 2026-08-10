@@ -92,3 +92,71 @@ def test_needs_plan_and_needs_bites_no_longer_exist():
     assert "needs_plan" not in BOARD_STAGE_COLUMNS
     assert "needs_bites" not in BOARD_STAGE_COLUMNS
     assert "needs_steps" in BOARD_STAGE_COLUMNS
+
+
+# --- delegation_prompt: the text a human hands to an agent -------------------
+
+from tuckit.core.services.slices import delegation_prompt
+
+_SKILL_FOR_STAGE = {
+    "needs_design": "designing-a-slice",
+    "needs_steps": "breaking-down-a-slice",
+    "executing": "executing-a-slice",
+    "ready_to_ship": "shipping-a-slice",
+}
+
+
+@pytest.mark.parametrize("stage,skill", sorted(_SKILL_FOR_STAGE.items()))
+def test_prompt_names_the_slice_the_stage_and_the_stage_s_skill(stage, skill):
+    """The three things the SessionStart primer cannot know: which slice, what
+    stage it is at, and which skill that stage calls for."""
+    out = delegation_prompt("TP-42", "Retry the webhook when Paddle times out", stage)
+    assert "TP-42" in out
+    assert "Retry the webhook when Paddle times out" in out
+    assert 'get_slice("TP-42")' in out
+    assert f"Stage is {stage} —" in out
+    assert f"(skill: {skill})" in out
+
+
+@pytest.mark.parametrize("stage", ["shipped", "dropped"])
+def test_finished_slices_get_no_prompt_at_all(stage):
+    """None, not "" — the template distinguishes "nothing to delegate" from a
+    prompt that failed to build, and renders no control for the first."""
+    assert delegation_prompt("TP-42", "Already done", stage) is None
+
+
+def test_every_stage_is_handled():
+    """Guard: a stage added to SLICE_STAGES without a sentence here would render
+    a blank prompt in the panel, and nothing else would notice."""
+    for stage in SLICE_STAGES:
+        out = delegation_prompt("TP-1", "A title", stage)
+        assert out is None or f"Stage is {stage} —" in out
+
+
+def test_stage_name_appears_verbatim_not_prettified():
+    """The plugin skills' descriptions key on the literal stage names ("stage
+    reads needs_steps"), so "Needs steps" would weaken the trigger this whole
+    feature exists to pull."""
+    out = delegation_prompt("TP-42", "A title", "needs_steps")
+    assert "needs_steps" in out
+    assert "Needs steps" not in out
+
+
+def test_the_ref_and_title_share_the_first_line():
+    out = delegation_prompt("TP-42", "Retry the webhook", "executing")
+    assert out.splitlines()[0] == "TP-42 — Retry the webhook"
+
+
+def test_the_two_paragraphs_are_separated_by_a_blank_line():
+    """The pasted prompt reads as a heading plus an instruction, not one blob."""
+    head, sep, body = delegation_prompt("TP-42", "A title", "executing").partition("\n\n")
+    assert sep, "expected a blank line between the title line and the instruction"
+    assert body.startswith('Read it first: get_slice("TP-42")')
+
+
+def test_the_prompt_points_at_the_board_instead_of_copying_it():
+    """Design decision, pinned: inlining spec/constraints would be re-briefing,
+    and a URL would invite scraping HTML over calling get_slice."""
+    out = delegation_prompt("TP-42", "A title", "executing")
+    assert "http" not in out
+    assert "/slices/" not in out

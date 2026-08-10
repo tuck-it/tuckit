@@ -370,6 +370,71 @@ def slice_stage(status: str, spec: str, bites_done: int, bites_total: int) -> st
     return "ready_to_ship"
 
 
+# What to tell an agent to do, per stage. One readable table rather than a
+# branch ladder, and the only place this wording lives.
+#
+# Each sentence stands on its own, with the skill named in parentheses AFTER
+# it. That ordering is deliberate: an agent carrying the tuckit plugin fires
+# the named skill, and an agent without it still knows what to do rather than
+# chasing a reference it cannot resolve. Naming the skill alone would serve
+# only the first reader.
+_STAGE_INSTRUCTION = {
+    "needs_design": (
+        "agree the design and write it into the spec before writing code. "
+        "(skill: designing-a-slice)"
+    ),
+    "needs_steps": (
+        "write the constraints and an ordered step checklist onto the slice "
+        "before writing code. (skill: breaking-down-a-slice)"
+    ),
+    "executing": (
+        "work the checklist, keeping each step's status current on the board. "
+        "(skill: executing-a-slice)"
+    ),
+    "ready_to_ship": (
+        "verify for real, land the branch, and record what happened on the "
+        "slice. (skill: shipping-a-slice)"
+    ),
+}
+
+
+def delegation_prompt(ref: str, title: str, stage: str) -> str | None:
+    """The text a human copies to hand this slice to an agent.
+
+    Pure, like slice_stage() above: every argument is a primitive, so the
+    wording can be tested without a database.
+
+    Returns None for a stage with no next step (shipped, dropped) — the caller
+    renders no control at all. Not "", because the template must be able to
+    tell "nothing to delegate" apart from a prompt that failed to build.
+
+    The agent's SessionStart primer already establishes that tuckit is the
+    source of truth and that state is read with get_project_state. This carries
+    exactly the delta: WHICH slice, WHAT stage it is at, and WHICH skill that
+    stage calls for.
+
+    The stage name is emitted verbatim on purpose. The plugin skills' own
+    descriptions key on the literal strings ("stage reads needs_steps", "stage
+    reads executing", "stage reads ready_to_ship"), so naming the stage is the
+    most reliable trigger available — prettifying it to "Needs steps" would
+    weaken the mechanism this exists to pull.
+
+    It points at the board rather than copying it: no spec, no constraints, no
+    URL. Inlining the body would be re-briefing, which is the thing the board
+    exists to delete, and a URL would invite scraping HTML over calling
+    get_slice.
+    """
+    instruction = _STAGE_INSTRUCTION.get(stage)
+    if instruction is None:
+        return None
+    return (
+        f"{ref} — {title}\n"
+        f"\n"
+        f'Read it first: get_slice("{ref}")\n'
+        f"Stage is {stage} — {instruction}"
+    )
+
+
 def stage_counts(slice_) -> tuple[int, int]:
     """(bites_done, bites_total) for one slice — reuses bite_progress() so the
     dropped-bite exclusion is stated once on the Python side."""
