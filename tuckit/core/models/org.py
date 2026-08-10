@@ -66,6 +66,20 @@ class Org(models.Model):
         return self.name
 
 
+class ActiveOrgMemberManager(models.Manager):
+    """Excludes ended memberships, so forgetting to filter is the safe mistake.
+
+    This model gates every page (TenantMiddleware), the org switcher and the
+    OAuth consent screen. With an opt-in .active() the cost of overlooking one
+    of those call sites — or adding a new one next year — is an authorization
+    bypass, so the filter is the default and reaching past it has to be typed
+    out as all_objects.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(ended_at__isnull=True)
+
+
 class OrgMember(models.Model):
     ROLE_CHOICES = [("owner", "Owner"), ("admin", "Admin"), ("member", "Member")]
 
@@ -78,12 +92,33 @@ class OrgMember(models.Model):
     # event predates the member's involvement. Advanced on every Home render
     # AFTER the new-count has been computed — see mark_home_seen().
     home_seen_at = models.DateTimeField(null=True, blank=True)
+    # A membership is a period, not a row that gets destroyed: null while it is
+    # live, stamped when the member leaves or is removed. It is deliberately not
+    # named deleted_at — the row is a standing historical fact ("was a member
+    # from created_at to ended_at"), and that is what makes it safe for
+    # Slice.created_by and the activity log to point at.
+    ended_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    objects = ActiveOrgMemberManager()
+    all_objects = models.Manager()
 
     class Meta:
+        # Kept as-is on purpose: an ended row still occupies the slot, which is
+        # what forces a rejoin to resurrect this membership instead of opening a
+        # second one. That is what keeps one person's history a single thread.
         unique_together = [("user", "org")]
+        # Forward FK access (slice.created_by, slice.assignee) goes through the
+        # base manager, so an ended membership still resolves and history keeps
+        # its name. The gate is filtered; the record is not.
+        base_manager_name = "all_objects"
+
+    @property
+    def is_active(self) -> bool:
+        return self.ended_at is None
 
     def __str__(self):
-        return f"{self.user} @ {self.org} ({self.role})"
+        suffix = "" if self.ended_at is None else " — ended"
+        return f"{self.user} @ {self.org} ({self.role}){suffix}"
 
 
 class Invitation(models.Model):

@@ -38,7 +38,20 @@ def accept_invitation(*, token, user) -> OrgMember:
         raise InvalidValue("The invited email does not match your login email")
     if OrgMember.objects.filter(user=user, org=inv.org).exists():
         raise InvalidValue("Already a member of this organization")
-    member = OrgMember.objects.create(user=user, org=inv.org, role=inv.role)
+    # The check above only rules out an ACTIVE membership; an ended one still
+    # occupies the unique (user, org) slot, so create() here would raise
+    # IntegrityError. Resurrecting that row rather than opening a second one is
+    # also what keeps a returning person's authorship one continuous thread.
+    # home_seen_at resets to NULL so the time they were away does not arrive as
+    # unread — NULL is already defined as badge-nothing (models/org.py).
+    member = OrgMember.all_objects.filter(user=user, org=inv.org).first()
+    if member is None:
+        member = OrgMember.objects.create(user=user, org=inv.org, role=inv.role)
+    else:
+        member.role = inv.role
+        member.ended_at = None
+        member.home_seen_at = None
+        member.save(update_fields=["role", "ended_at", "home_seen_at"])
     inv.accepted_at = timezone.now()
     inv.save(update_fields=["accepted_at"])
     return member
