@@ -19,6 +19,7 @@ def live(request):
         {
             "id": e.id,
             "source": e.source,
+            "member": (e.member.user.email if e.member_id else None),
             "verb": e.verb,
             "target_type": e.target_type,
             "target_id": e.target_id,
