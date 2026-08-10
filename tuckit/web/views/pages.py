@@ -12,6 +12,7 @@ from tuckit.core.services.state import (
     cap_shipped,
     snapshot_today,
 )
+from tuckit.core.services.activity import label_who
 from tuckit.web.auth import get_current_org
 from tuckit.core.models import Slice
 
@@ -46,6 +47,7 @@ def home(request):
     # Order is load-bearing: compute what's new against the old watermark, THEN
     # advance it. Reversed, the band would badge zero forever.
     activity = since_last_visit(org, member)
+    label_who(activity["events"], member)
     mark_home_seen(member)
 
     visible, shipped_total = cap_shipped(org, state["shipped"])

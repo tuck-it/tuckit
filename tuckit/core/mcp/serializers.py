@@ -38,6 +38,7 @@ def activity_event_dict(ev) -> dict:
     return {
         "id": ev.id,
         "source": ev.source,
+        "member": (ev.member.user.email if ev.member_id else None),
         "verb": ev.verb,
         "body": ev.body,
         "from_value": ev.from_value,

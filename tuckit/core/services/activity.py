@@ -38,6 +38,36 @@ def add_note(slice_, body: str, *, source: str = "agent", member=None):
     )
 
 
+def who_label(event, viewer=None) -> str:
+    """How to name the person behind one event, from `viewer`'s seat.
+
+    Viewer-relative on purpose: in a one-person org every row would otherwise
+    repeat the same address, which is noise. Saying "you" only when it really
+    is you is also what makes a colleague's row legible as theirs.
+
+    `viewer=None` (anonymous, or a caller that did not thread it through)
+    degrades to showing the address. That is the safe direction — verbose, but
+    it never tells you that someone else's work was yours, which is the bug
+    this exists to end.
+    """
+    who = event.member
+    if who is None:
+        # Rows written before attribution existed, and machine tokens, which
+        # have no user behind them at all. Never "you": that was the bug.
+        return "agent" if event.source == "agent" else "someone"
+    if viewer is not None and who.pk == viewer.pk:
+        return "agent" if event.source == "agent" else "you"
+    name = who.user.email
+    return f"{name} (agent)" if event.source == "agent" else name
+
+
+def label_who(events, viewer=None):
+    """Stamp `who` on each event for rendering. Returns the same list."""
+    for e in events:
+        e.who = who_label(e, viewer)
+    return events
+
+
 def status_verb(to_status: str) -> str:
     """The verb to record for a status change — terminal states get their own."""
     return {"shipped": "shipped", "dropped": "dropped"}.get(to_status, "status_changed")

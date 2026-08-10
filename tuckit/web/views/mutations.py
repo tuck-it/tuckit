@@ -25,7 +25,7 @@ def _detail(request, slice_):
     is_modal = request.GET.get("modal") == "1"
     resp = render(
         request, "web/partials/_slice_detail.html",
-        slice_detail_context(slice_, is_modal=is_modal),
+        slice_detail_context(slice_, is_modal=is_modal, viewer=acting_member(request)),
     )
     # Append the onboarding widget OOB so detail-level mutations (add a step,
     # etc.) tick the matching onboarding step immediately. Empty when the widget
@@ -81,7 +81,7 @@ def slice_status(request, slice_id):
         return HttpResponse(str(e), status=400)
 
     is_modal = request.GET.get("modal") == "1"
-    ctx = slice_detail_context(slice_, is_modal=is_modal)
+    ctx = slice_detail_context(slice_, is_modal=is_modal, viewer=acting_member(request))
     if is_undo:
         ctx["oob"] = True
     lead_html = render_to_string("web/partials/_slice_detail.html", ctx, request=request)
@@ -156,7 +156,7 @@ def slice_area(request, slice_id):
     is_modal = request.GET.get("modal") == "1"
     lead_html = ""
     if from_detail:
-        ctx = slice_detail_context(slice_, is_modal=is_modal)
+        ctx = slice_detail_context(slice_, is_modal=is_modal, viewer=acting_member(request))
         ctx["oob"] = True
         lead_html = render_to_string("web/partials/_slice_detail.html", ctx, request=request)
         lead_html += widget_oob(request)

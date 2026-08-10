@@ -1,7 +1,7 @@
 import markdown as md
 import nh3
 
-from tuckit.core.services.activity import slice_activity
+from tuckit.core.services.activity import label_who, slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
 from tuckit.core.services.slices import stage_of
 
@@ -25,7 +25,7 @@ def render_markdown_html(text: str) -> str:
 render_spec_html = render_markdown_html
 
 
-def slice_detail_context(slice_, is_modal: bool = False) -> dict:
+def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
     """Context for the ONE detail surface. There is no ticket panel and no plan
     card any more: the same template renders an unfiled capture and a filed
     slice, and `slice.area` is what decides how much of it appears.
@@ -33,6 +33,10 @@ def slice_detail_context(slice_, is_modal: bool = False) -> dict:
     Everything the grown surface needs is computed unconditionally — an Inbox
     slice simply does not render it. Branching here as well would put the
     disclosure rule in two places, and they would drift.
+
+    `viewer` is the OrgMember reading the page; it only decides whether an
+    activity row says "you" or names someone. Omitting it shows addresses
+    instead, which is safe: the row never claims a colleague's work was yours.
     """
     done, total = bite_progress(slice_)
     return {
@@ -44,7 +48,7 @@ def slice_detail_context(slice_, is_modal: bool = False) -> dict:
         # and almost nobody did).
         "constraints_html": render_markdown_html(slice_.constraints),
         "bites": list(list_bites(slice_)),
-        "activity": slice_activity(slice_),
+        "activity": label_who(slice_activity(slice_), viewer),
         "is_modal": is_modal,
         # Appended to every mutation URL fired from inside the modal so the
         # re-render comes back as a card, not a full page.
