@@ -9,12 +9,12 @@ def _org(slug="w"):
 
 
 @pytest.mark.django_db
-def test_create_slice_records_created_with_source_actor():
+def test_create_slice_records_created_with_source():
     org = _org()
     a = create_area(org, "Backend")
     create_slice(a.org, area=a, title="Payment", status="open", source="agent")
     e = ActivityEvent.objects.get(verb="created", target_type="slice")
-    assert e.actor == "agent" and e.target_type == "slice" and e.target_label == "Payment"
+    assert e.source == "agent" and e.target_type == "slice" and e.target_label == "Payment"
 
 
 @pytest.mark.django_db
@@ -26,9 +26,9 @@ def test_set_slice_status_records_transition():
     # 'status_changed' verb (status_verb keys only 'shipped'/'dropped').
     s = create_slice(a.org, area=a, title="Payment", status="shipped")
     ActivityEvent.objects.all().delete()
-    set_slice_status(s, "open", actor="agent")
+    set_slice_status(s, "open", source="agent")
     e = ActivityEvent.objects.get()
-    assert e.verb == "status_changed" and e.actor == "agent"
+    assert e.verb == "status_changed" and e.source == "agent"
     assert e.from_value == "shipped" and e.to_value == "open"
 
 

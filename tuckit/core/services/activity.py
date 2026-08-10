@@ -3,11 +3,11 @@ from tuckit.core.models import ActivityEvent
 _TARGET_TYPES = {"Slice": "slice", "Bite": "bite", "Area": "area", "Ticket": "ticket"}
 
 
-def record_activity(org, *, actor, verb, target, from_value="", to_value="", body="", member=None):
+def record_activity(org, *, source, verb, target, from_value="", to_value="", body="", member=None):
     """Append one immutable activity row. Denormalizes target label so the log
     survives the target being deleted/dropped.
 
-    `actor` is the channel (human|agent); `member` is the person, and stays None
+    `source` is how it arrived (human|agent); `member` is the person, and stays None
     when the caller cannot be identified — a legacy ApiToken has no user behind
     it. Attribution is a capture decision: a row written without a member is
     unattributed forever, so callers should pass one whenever they have one.
@@ -19,7 +19,7 @@ def record_activity(org, *, actor, verb, target, from_value="", to_value="", bod
         raise ValueError(f"unsupported activity target: {type(target).__name__}") from None
     return ActivityEvent.objects.create(
         org=org,
-        actor=actor,
+        source=source,
         member=member,
         verb=verb,
         target_type=target_type,
@@ -31,10 +31,10 @@ def record_activity(org, *, actor, verb, target, from_value="", to_value="", bod
     )
 
 
-def add_note(slice_, body: str, *, actor: str = "agent", member=None):
+def add_note(slice_, body: str, *, source: str = "agent", member=None):
     """Append a free-text note to a slice's activity thread."""
     return record_activity(
-        slice_.org, actor=actor, verb="noted", target=slice_, body=body, member=member
+        slice_.org, source=source, verb="noted", target=slice_, body=body, member=member
     )
 
 
@@ -93,7 +93,7 @@ def active_targets(org, window_seconds: int = 300) -> dict:
     since = timezone.now() - timedelta(seconds=window_seconds)
     rows = list(
         ActivityEvent.objects.filter(
-            org=org, actor="agent", created_at__gte=since,
+            org=org, source="agent", created_at__gte=since,
             target_type__in=("slice", "bite"),
         )
         .order_by("id")  # ascending: last write per slice wins below

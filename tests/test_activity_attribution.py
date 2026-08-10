@@ -1,9 +1,9 @@
 """Guards for TP-101: the activity log records WHO was acting.
 
-`actor` says which channel a write arrived on (human|agent). `member` says who
+`source` says how a write arrived (human|agent). `member` says who
 was behind it. The two are different questions, and the bug this fixes was
 answering only the first — two people in one org each running Claude Code were
-indistinguishable, every row reading `actor="agent"` and nothing else.
+indistinguishable, every row reading `source="agent"` and nothing else.
 
 The write paths are enumerated rather than sampled, the same shape TP-104's
 gate test uses: the failure mode here is a path nobody threaded, and a test
@@ -40,7 +40,7 @@ def _latest(org):
 
 
 @pytest.mark.django_db
-def test_actor_and_member_are_separate_axes(db):
+def test_source_and_member_are_separate_axes(db):
     """An agent acting for a person records BOTH: channel and identity."""
     org = Org.objects.create(name="Acme", slug="acme")
     user = get_user_model().objects.create_user(email="h@a.com", password="pw123456")
@@ -49,7 +49,7 @@ def test_actor_and_member_are_separate_axes(db):
     create_slice(org, area=None, title="Agent wrote this", source="agent", member=om)
 
     ev = _latest(org)
-    assert ev.actor == "agent", "the channel is still recorded, unchanged"
+    assert ev.source == "agent", "the channel is still recorded, unchanged"
     assert ev.member_id == om.pk, "and now so is the person who was driving"
 
 
@@ -61,7 +61,7 @@ def test_member_is_optional_and_absence_is_not_an_error(db):
 
     ev = _latest(org)
     assert ev.member_id is None
-    assert ev.actor == "agent"
+    assert ev.source == "agent"
 
 
 @pytest.mark.django_db
@@ -82,12 +82,12 @@ def test_leaving_the_org_does_not_erase_the_attribution(db):
     assert ev.member.user.email == "leaver@a.com"
 
 
-# --- `actor` must keep working exactly as before ------------------------------
+# --- `source` must keep working exactly as before -----------------------------
 
 
 @pytest.mark.django_db
-def test_actor_still_drives_the_agent_only_reads(db):
-    """onboarding's "connected" check and active_targets read actor alone.
+def test_source_still_drives_the_agent_only_reads(db):
+    """onboarding's "connected" check and active_targets read source alone.
     Adding `member` must not have moved that signal."""
     from tuckit.core.services.activity import active_targets
     from tuckit.core.services.onboarding import onboarding_state
@@ -102,11 +102,11 @@ def test_actor_still_drives_the_agent_only_reads(db):
 
     s = create_slice(org, area=None, title="By an agent", source="agent", member=om)
     assert onboarding_state(org).connected is True
-    assert s.id in active_targets(org), "heat still keys off actor, not member"
+    assert s.id in active_targets(org), "heat still keys off source, not member"
 
 
 @pytest.mark.django_db
-def test_actor_values_are_still_only_human_and_agent(db):
+def test_source_values_are_still_only_human_and_agent(db):
     org = Org.objects.create(name="Acme", slug="acme")
     user = get_user_model().objects.create_user(email="h@a.com", password="pw123456")
     om = OrgMember.objects.create(user=user, org=org, role="owner")
@@ -114,7 +114,7 @@ def test_actor_values_are_still_only_human_and_agent(db):
     set_slice_status(s, "shipped", member=om)
     create_area(org, "Backend", source="agent", member=om)
 
-    assert set(ActivityEvent.objects.filter(org=org).values_list("actor", flat=True)) <= {"human", "agent"}
+    assert set(ActivityEvent.objects.filter(org=org).values_list("source", flat=True)) <= {"human", "agent"}
 
 
 # --- every MCP write path, enumerated ----------------------------------------
@@ -139,9 +139,9 @@ def _seed_machine():
 
 @sync_to_async
 def _attributions(org_id):
-    """(verb, actor, member email or None) for every row, oldest first."""
+    """(verb, source, member email or None) for every row, oldest first."""
     return [
-        (e.verb, e.actor, e.member.user.email if e.member_id else None)
+        (e.verb, e.source, e.member.user.email if e.member_id else None)
         for e in ActivityEvent.objects.filter(org_id=org_id).select_related("member__user").order_by("id")
     ]
 
@@ -169,7 +169,7 @@ async def test_every_mcp_write_records_the_oauth_caller():
     assert rows, "the tools recorded nothing at all"
     unattributed = [r for r in rows if r[2] is None]
     assert not unattributed, f"these MCP writes name nobody: {unattributed}"
-    assert {r[1] for r in rows} == {"agent"}, "actor must still say the channel"
+    assert {r[1] for r in rows} == {"agent"}, "source must still say how it arrived"
     assert {r[2] for r in rows} == {"human@example.com"}
 
 
@@ -209,7 +209,7 @@ def test_web_capture_records_the_logged_in_person(web_client, web_org):
 
     ev = _latest(web_org)
     assert ev.verb == "created"
-    assert ev.actor == "human"
+    assert ev.source == "human"
     assert ev.member is not None, "a human click must name the human"
     assert ev.member.user.email == "local@tuckit.local"
 

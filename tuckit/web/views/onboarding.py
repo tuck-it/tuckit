@@ -58,7 +58,7 @@ def agent_check(request):
     except ValueError:
         since = 0
     ev = (
-        ActivityEvent.objects.filter(org=org, actor="agent", id__gt=since)
+        ActivityEvent.objects.filter(org=org, source="agent", id__gt=since)
         .order_by("id").first()
     )
     if ev is None:

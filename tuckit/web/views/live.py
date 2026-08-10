@@ -18,7 +18,7 @@ def live(request):
     events = [
         {
             "id": e.id,
-            "actor": e.actor,
+            "source": e.source,
             "verb": e.verb,
             "target_type": e.target_type,
             "target_id": e.target_id,

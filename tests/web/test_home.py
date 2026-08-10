@@ -174,7 +174,7 @@ def test_agent_activity_badges_new_on_a_second_visit(client_local, org):
     s = create_slice(a.org, area=a, title="Work", status="open", spec="designed")
 
     _body(client_local, org)                       # first visit sets the watermark
-    record_activity(org, actor="agent", verb="shipped", target=s)
+    record_activity(org, source="agent", verb="shipped", target=s)
     body = _body(client_local, org)
 
     assert "1 new" in body
@@ -188,7 +188,7 @@ def test_first_visit_badges_nothing(client_local, org):
 
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Distinctive title", status="open", spec="designed")
-    record_activity(org, actor="agent", verb="shipped", target=s)
+    record_activity(org, source="agent", verb="shipped", target=s)
 
     body = _body(client_local, org)
     assert "band-count--new" not in body, "a first-ever visit has nothing to catch up on"

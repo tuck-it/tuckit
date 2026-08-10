@@ -15,10 +15,10 @@ def test_record_activity_derives_target_fields():
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Payment integration", status="open")
     ActivityEvent.objects.all().delete()  # ignore the create_slice event from Task 2
-    record_activity(org, actor="agent", verb="status_changed", target=s, from_value="open", to_value="shipped")
+    record_activity(org, source="agent", verb="status_changed", target=s, from_value="open", to_value="shipped")
     e = ActivityEvent.objects.get()
     assert e.org_id == org.id
-    assert e.actor == "agent" and e.verb == "status_changed"
+    assert e.source == "agent" and e.verb == "status_changed"
     assert e.target_type == "slice" and e.target_id == s.id
     assert e.target_label == "Payment integration"
     assert e.from_value == "open" and e.to_value == "shipped"
@@ -30,7 +30,7 @@ def test_record_activity_survives_target_deletion():
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="To be deleted")
     ActivityEvent.objects.all().delete()
-    record_activity(org, actor="human", verb="created", target=s)
+    record_activity(org, source="human", verb="created", target=s)
     s.delete()
     e = ActivityEvent.objects.get()   # log row still there
     assert e.target_label == "To be deleted" and e.target_id is not None
@@ -49,8 +49,8 @@ def test_add_note_appends_noted_event_with_body():
 
     org = _org("note")
     s = create_slice(org, area=create_area(org, "B"), title="Auth")
-    ev = add_note(s, "Shipped behind flag; see PR #12.", actor="agent")
-    assert ev.verb == "noted" and ev.actor == "agent"
+    ev = add_note(s, "Shipped behind flag; see PR #12.", source="agent")
+    assert ev.verb == "noted" and ev.source == "agent"
     assert ev.body == "Shipped behind flag; see PR #12."
     assert [e.id for e in slice_activity(s)][-1] == ev.id
 
@@ -110,7 +110,7 @@ def test_active_targets_excludes_activity_older_than_the_window():
 
     org = Org.objects.create(name="Acme", slug="acme-at4")
     slice_ = create_slice(org, area=create_area(org, "Backend"), title="Login", status="open")
-    ActivityEvent.objects.filter(org=org).update(actor="agent")
+    ActivityEvent.objects.filter(org=org).update(source="agent")
     ActivityEvent.objects.filter(org=org).update(
         created_at=timezone.now() - timedelta(seconds=600)
     )
@@ -136,8 +136,8 @@ def test_active_targets_skips_a_bite_whose_slice_is_gone():
     lookup finds nothing. It must be skipped, not raise — a per-event .get()
     here would raise Bite.DoesNotExist and take down every warm card in the org.
 
-    The event is flipped to actor="agent" on purpose: delete_bite hardcodes
-    actor="human" (bites.py:102), so without the flip the actor filter would
+    The event is flipped to source="agent" on purpose: delete_bite hardcodes
+    source="human" (bites.py:102), so without the flip the source filter would
     drop it and this test would pass GREEN without ever reaching the parent
     lookup it exists to cover."""
     from tuckit.core.models import ActivityEvent
@@ -149,6 +149,6 @@ def test_active_targets_skips_a_bite_whose_slice_is_gone():
     bite = create_bite(slice_, "Doomed", source="agent")
     ActivityEvent.objects.filter(org=org).delete()
     delete_bite(bite)
-    ActivityEvent.objects.filter(org=org).update(actor="agent")
+    ActivityEvent.objects.filter(org=org).update(source="agent")
 
     assert active_targets(org) == {}

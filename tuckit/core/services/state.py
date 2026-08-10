@@ -105,11 +105,11 @@ def _render_activity(slice_: Slice) -> str:
     for e in events:
         when = e.created_at.date().isoformat()
         if e.verb == "noted":
-            rows.append(f"- {when} · {e.actor} noted: {e.body}")
+            rows.append(f"- {when} · {e.source} noted: {e.body}")
         elif e.from_value or e.to_value:
-            rows.append(f"- {when} · {e.actor} {e.verb} ({e.from_value}→{e.to_value})")
+            rows.append(f"- {when} · {e.source} {e.verb} ({e.from_value}→{e.to_value})")
         else:
-            rows.append(f"- {when} · {e.actor} {e.verb}")
+            rows.append(f"- {when} · {e.source} {e.verb}")
     return "\n".join(rows) + "\n"
 
 
@@ -415,7 +415,7 @@ def since_last_visit(org: Org, member, limit: int = 10) -> dict:
     new_count = 0
     for e in events:
         e.is_new = bool(seen and e.created_at > seen)
-        if e.is_new and e.actor == "agent":
+        if e.is_new and e.source == "agent":
             new_count += 1
     return {"events": events, "new_count": new_count}
 

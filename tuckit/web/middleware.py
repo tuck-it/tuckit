@@ -39,7 +39,7 @@ class LiveCursorMiddleware:
     """Stamp every mutating tenant response with the org's newest activity id.
 
     live.js polls an org-scoped activity feed and toasts what it finds. That
-    feed cannot exclude the caller — ActivityEvent.actor is only human-vs-agent,
+    feed cannot exclude the caller — ActivityEvent.source is only human-vs-agent,
     with no member behind it — so a tab's own writes came back on the next poll
     and were announced as "Someone …", replacing (and destroying the Undo
     button inside) the toast the action had just rendered.

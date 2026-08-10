@@ -323,15 +323,15 @@ def test_set_org_key_rewrites_promoted_refs_but_leaves_plain_values_alone(db):
     other = Org.objects.create(name="Other", slug="other", key="OTH")
 
     ref_event = ActivityEvent.objects.create(
-        org=org, actor="agent", verb="promoted", target_type="ticket",
+        org=org, source="agent", verb="promoted", target_type="ticket",
         target_id=1, target_label="t", to_value="TP-47",
     )
     plain_event = ActivityEvent.objects.create(
-        org=org, actor="human", verb="status_changed", target_type="slice",
+        org=org, source="human", verb="status_changed", target_type="slice",
         target_id=2, target_label="s", to_value="shipped",
     )
     other_org_event = ActivityEvent.objects.create(
-        org=other, actor="agent", verb="promoted", target_type="ticket",
+        org=other, source="agent", verb="promoted", target_type="ticket",
         target_id=3, target_label="t", to_value="TP-99",  # coincidental match, wrong org
     )
 
@@ -354,7 +354,7 @@ def test_set_org_key_does_not_rewrite_a_non_promoted_ref_shaped_value(db):
 
     org = Org.objects.create(name="Tuckit Projects", slug="tuckit-projects", key="TP")
     area_named_like_a_ref = ActivityEvent.objects.create(
-        org=org, actor="human", verb="moved", target_type="slice",
+        org=org, source="human", verb="moved", target_type="slice",
         target_id=1, target_label="s", to_value="TP-47",
     )
 

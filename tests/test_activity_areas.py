@@ -10,18 +10,18 @@ def _org(slug="a"):
 
 
 @pytest.mark.django_db
-def test_create_area_records_created_with_actor():
+def test_create_area_records_created_with_source():
     org = _org("mk")
     area = create_area(org, "Backend", source="agent")
     e = ActivityEvent.objects.get(target_type="area", verb="created")
-    assert e.actor == "agent" and e.target_label == "Backend" and e.target_id == area.id
+    assert e.source == "agent" and e.target_label == "Backend" and e.target_id == area.id
 
 
 @pytest.mark.django_db
 def test_create_area_defaults_to_human():
     org = _org("hu")
     create_area(org, "Backend")
-    assert ActivityEvent.objects.get(target_type="area", verb="created").actor == "human"
+    assert ActivityEvent.objects.get(target_type="area", verb="created").source == "human"
 
 
 @pytest.mark.django_db

@@ -394,9 +394,9 @@ def test_clearing_the_area_records_a_moved_event_to_inbox(org, area):
 
     s = create_slice(org, area=area, title="정리됨")
     ActivityEvent.objects.all().delete()
-    set_slice_area(s, None, actor="agent")
+    set_slice_area(s, None, source="agent")
     e = ActivityEvent.objects.get()
-    assert e.verb == "moved" and e.actor == "agent"
+    assert e.verb == "moved" and e.source == "agent"
     assert e.from_value == area.name and e.to_value == "Inbox"
 
 
