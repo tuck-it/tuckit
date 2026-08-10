@@ -3,9 +3,15 @@ from tuckit.core.models import ActivityEvent
 _TARGET_TYPES = {"Slice": "slice", "Bite": "bite", "Area": "area", "Ticket": "ticket"}
 
 
-def record_activity(org, *, actor, verb, target, from_value="", to_value="", body=""):
+def record_activity(org, *, actor, verb, target, from_value="", to_value="", body="", member=None):
     """Append one immutable activity row. Denormalizes target label so the log
-    survives the target being deleted/dropped."""
+    survives the target being deleted/dropped.
+
+    `actor` is the channel (human|agent); `member` is the person, and stays None
+    when the caller cannot be identified — a legacy ApiToken has no user behind
+    it. Attribution is a capture decision: a row written without a member is
+    unattributed forever, so callers should pass one whenever they have one.
+    """
     label = getattr(target, "title", None) or getattr(target, "name", "")
     try:
         target_type = _TARGET_TYPES[type(target).__name__]
@@ -14,6 +20,7 @@ def record_activity(org, *, actor, verb, target, from_value="", to_value="", bod
     return ActivityEvent.objects.create(
         org=org,
         actor=actor,
+        member=member,
         verb=verb,
         target_type=target_type,
         target_id=target.id,
@@ -24,9 +31,11 @@ def record_activity(org, *, actor, verb, target, from_value="", to_value="", bod
     )
 
 
-def add_note(slice_, body: str, *, actor: str = "agent"):
+def add_note(slice_, body: str, *, actor: str = "agent", member=None):
     """Append a free-text note to a slice's activity thread."""
-    return record_activity(slice_.org, actor=actor, verb="noted", target=slice_, body=body)
+    return record_activity(
+        slice_.org, actor=actor, verb="noted", target=slice_, body=body, member=member
+    )
 
 
 def status_verb(to_status: str) -> str:
