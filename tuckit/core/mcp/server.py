@@ -64,7 +64,7 @@ def _acting_member(org, user):
     """The OrgMember behind an MCP call, or None when there is nobody to name.
 
     An OAuth token carries the human who authorized it, so an agent writing on
-    someone's behalf records THAT person alongside actor="agent" — the two are
+    someone's behalf records THAT person alongside source="agent" — the two are
     different questions ("which channel" vs "who"). A legacy ApiToken has no
     user at all and legitimately resolves to None; that is the nullable path,
     not an error, and those rows stay unattributed.
@@ -295,7 +295,7 @@ async def add_note(ctx: Context, slice: int | str, body: str) -> dict:
     def _run():
         s = _resolve_slice_flexible(org, slice)
         return activity_event_dict(
-            _add_note(s, body, actor="agent", member=_acting_member(org, user))
+            _add_note(s, body, source="agent", member=_acting_member(org, user))
         )
 
     return await sync_to_async(_run, thread_sensitive=True)()
@@ -401,18 +401,18 @@ async def update_slice(
         # Deliberately not `member` — that one is the ASSIGNEE this call is
         # setting. This is who is doing the setting, and conflating the two
         # would attribute the edit to whoever it was handed to.
-        actor_member = _acting_member(org, user)
+        acting = _acting_member(org, user)
         s = _update_slice(
             s, title=title, spec=spec, constraints=constraints, status=status,
             tags=tags, assignee=assignee, assignee_member=member,
-            before=before, after=after, actor="agent", member=actor_member,
+            before=before, after=after, source="agent", member=acting,
         )
         if moved:
             # Filing goes through set_slice_area, not a bare field write: it
             # re-ranks the slice into its new area's ordering and records the
             # move on the activity thread. A plain assignment would leave the
             # slice ranked against siblings it no longer has.
-            s = _set_slice_area(s, area, actor="agent", member=actor_member)
+            s = _set_slice_area(s, area, source="agent", member=acting)
         return slice_dict(s)
 
     return await sync_to_async(_run, thread_sensitive=True)()
@@ -473,7 +473,7 @@ async def update_bite(
         after = _resolve_bite(org, after_id) if after_id is not None else None
         before = _resolve_bite(org, before_id) if before_id is not None else None
         return bite_dict(_update_bite(
-            b, title=title, body=body, status=status, before=before, after=after, actor="agent",
+            b, title=title, body=body, status=status, before=before, after=after, source="agent",
             member=_acting_member(org, user),
         ))
 

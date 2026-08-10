@@ -675,7 +675,7 @@ def test_since_last_visit_badges_nothing_on_a_first_visit():
     org = Org.objects.create(name="Acme", slug="acme")
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="work", status="open")
-    record_activity(org, actor="agent", verb="created", target=s)
+    record_activity(org, source="agent", verb="created", target=s)
 
     out = since_last_visit(org, _member(org))
     assert out["new_count"] == 0
@@ -695,13 +695,13 @@ def test_since_last_visit_counts_only_agent_events_as_new():
     m = _member(org)
     mark_home_seen(m)
 
-    record_activity(org, actor="agent", verb="shipped", target=s)
-    record_activity(org, actor="human", verb="noted", target=s, body="mine")
+    record_activity(org, source="agent", verb="shipped", target=s)
+    record_activity(org, source="human", verb="noted", target=s, body="mine")
 
     out = since_last_visit(org, m)
     assert out["new_count"] == 1
     assert sum(1 for e in out["events"] if e.is_new) == 2, "both are new..."
-    assert [e.actor for e in out["events"] if e.is_new].count("human") == 1, \
+    assert [e.source for e in out["events"] if e.is_new].count("human") == 1, \
         "...but the human one is not counted"
 
 
@@ -729,7 +729,7 @@ def test_since_last_visit_is_capped_and_newest_first():
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="work", status="open")
     for i in range(15):
-        record_activity(org, actor="agent", verb="noted", target=s, body=f"n{i}")
+        record_activity(org, source="agent", verb="noted", target=s, body=f"n{i}")
 
     out = since_last_visit(org, _member(org), limit=10)
     assert len(out["events"]) == 10

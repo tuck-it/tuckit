@@ -58,7 +58,7 @@ def test_onboarding_hidden_stays_hidden_after_area_deleted(client_local, org):
     sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
     create_bite(sl, "Add backoff")
     ActivityEvent.objects.create(
-        org=org, actor="agent", verb="created",
+        org=org, source="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,
     )
     p = f"/{org.slug}"

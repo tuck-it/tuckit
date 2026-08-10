@@ -2,7 +2,11 @@ from django.db import models
 
 
 class ActivityEvent(models.Model):
-    ACTOR_CHOICES = [("human", "Human"), ("agent", "Agent")]
+    # Same name and same values as Slice.source / Bite.source / Area.source:
+    # one axis, one word. It used to be called `actor`, which read as "who did
+    # this" and is not what it answers — a misreading that reached a written
+    # spec before anyone opened the code.
+    SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
     VERB_CHOICES = [
         ("created", "created"),
         ("status_changed", "status changed"),
@@ -23,12 +27,13 @@ class ActivityEvent(models.Model):
     TARGET_CHOICES = [("slice", "Slice"), ("bite", "Bite"), ("area", "Area"), ("ticket", "Ticket")]
 
     org = models.ForeignKey("core.Org", on_delete=models.CASCADE, related_name="activity")
-    # WHICH CHANNEL the write arrived on — human|agent — not who was driving.
-    # An agent acting for someone records actor="agent" AND that person in
-    # `member` below; the two are separate axes and reading either as the other
-    # is the confusion this field's name invites. Status dots, the onboarding
-    # "connected" check and the Home new-count all read this one.
-    actor = models.CharField(max_length=10, choices=ACTOR_CHOICES)
+    # HOW the write arrived — human|agent — not who was driving. An agent
+    # acting for someone records source="agent" AND that person in `member`
+    # below. All four combinations occur: a machine token is agent with no
+    # member, and rows written before member existed are human with none.
+    # Status dots, the onboarding "connected" check and the Home new-count all
+    # read this one.
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES)
     # WHO was acting. Null for legacy ApiToken callers, which carry no user at
     # all, so those rows are simply unattributed — a guess would be worse.
     # SET_NULL only fires when the account itself is deleted: leaving an org no
@@ -55,4 +60,4 @@ class ActivityEvent(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.actor} {self.verb} {self.target_type}:{self.target_id}"
+        return f"{self.source} {self.verb} {self.target_type}:{self.target_id}"

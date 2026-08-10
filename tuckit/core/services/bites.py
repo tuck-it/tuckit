@@ -35,7 +35,7 @@ def create_bite(
         b = Bite.objects.create(
             slice=slice_, title=title, body=body, status=status, rank=rank, source=source,
         )
-        record_activity(slice_.org, actor=source, verb="created", target=b, member=member)
+        record_activity(slice_.org, source=source, verb="created", target=b, member=member)
     return b
 
 
@@ -59,7 +59,7 @@ def update_bite(
     status: str | None = None,
     before: Bite | None = None,
     after: Bite | None = None,
-    actor: str = "human",
+    source: str = "human",
     member=None,
 ) -> Bite:
     old_status = bite.status
@@ -76,13 +76,13 @@ def update_bite(
         bite.save()
         if status is not None and status != old_status:
             record_activity(
-                bite.slice.org, actor=actor, verb=status_verb(status),
+                bite.slice.org, source=source, verb=status_verb(status),
                 target=bite, from_value=old_status, to_value=status, member=member,
             )
     return bite
 
 
-def set_bite_status(bite: Bite, status: str, *, actor: str = "human", member=None) -> Bite:
+def set_bite_status(bite: Bite, status: str, *, source: str = "human", member=None) -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
     old_status = bite.status
     bite.status = status
@@ -90,7 +90,7 @@ def set_bite_status(bite: Bite, status: str, *, actor: str = "human", member=Non
         bite.save(update_fields=["status", "updated_at"])
         if status != old_status:
             record_activity(
-                bite.slice.org, actor=actor, verb=status_verb(status),
+                bite.slice.org, source=source, verb=status_verb(status),
                 target=bite, from_value=old_status, to_value=status, member=member,
             )
     return bite
@@ -103,7 +103,7 @@ def reorder_bite(bite: Bite, *, before: Bite | None = None, after: Bite | None =
 
 
 def delete_bite(bite: Bite, *, member=None) -> None:
-    record_activity(bite.slice.org, actor="human", verb="deleted", target=bite, member=member)
+    record_activity(bite.slice.org, source="human", verb="deleted", target=bite, member=member)
     bite.delete()
 
 

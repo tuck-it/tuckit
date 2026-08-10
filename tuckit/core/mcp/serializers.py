@@ -37,7 +37,7 @@ def area_dict(area) -> dict:
 def activity_event_dict(ev) -> dict:
     return {
         "id": ev.id,
-        "actor": ev.actor,
+        "source": ev.source,
         "verb": ev.verb,
         "body": ev.body,
         "from_value": ev.from_value,

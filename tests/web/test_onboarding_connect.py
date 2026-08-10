@@ -26,7 +26,7 @@ def test_agent_check_waiting_returns_poller(client_local, org):
 @pytest.mark.django_db
 def test_agent_check_celebrates_on_agent_event(client_local, org):
     ActivityEvent.objects.create(
-        org=org, actor="agent", verb="created",
+        org=org, source="agent", verb="created",
         target_type="slice", target_id=1, target_label="Retry webhooks",
     )
     p = f"/{org.slug}"

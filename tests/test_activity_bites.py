@@ -18,18 +18,18 @@ def test_create_bite_records_created():
     org = _org()
     create_bite(_slice(org), "Implementation", status="todo", source="agent")
     e = ActivityEvent.objects.get(verb="created", target_type="bite")
-    assert e.actor == "agent" and e.target_label == "Implementation"
+    assert e.source == "agent" and e.target_label == "Implementation"
 
 
 @pytest.mark.django_db
-def test_set_bite_status_records_transition_with_actor():
+def test_set_bite_status_records_transition_with_source():
     org = _org("w2")
     b = create_bite(_slice(org), "Implementation", status="todo")
     ActivityEvent.objects.all().delete()
-    set_bite_status(b, "doing", actor="human")
+    set_bite_status(b, "doing", source="human")
     e = ActivityEvent.objects.get()
     assert e.target_type == "bite" and e.verb == "status_changed"
-    assert e.from_value == "todo" and e.to_value == "doing" and e.actor == "human"
+    assert e.from_value == "todo" and e.to_value == "doing" and e.source == "human"
 
 
 @pytest.mark.django_db
@@ -42,10 +42,10 @@ def test_bite_status_noop_records_nothing():
 
 
 @pytest.mark.django_db
-def test_agent_status_change_records_agent_actor():
+def test_agent_status_change_records_agent_source():
     from tuckit.core.services.slices import set_slice_status
     org = _org("w4")
     s = _slice(org)
     ActivityEvent.objects.all().delete()
-    set_slice_status(s, "shipped", actor="agent")   # how MCP calls it
-    assert ActivityEvent.objects.get().actor == "agent"
+    set_slice_status(s, "shipped", source="agent")   # how MCP calls it
+    assert ActivityEvent.objects.get().source == "agent"

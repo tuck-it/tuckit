@@ -7,12 +7,12 @@ from tuckit.core.models import ActivityEvent
 class ActivityEventAdmin(admin.ModelAdmin):
     """Append-only activity log — read-only in the admin."""
 
-    list_display = ("created_at", "actor", "verb", "target_type", "target_label")
-    list_filter = ("verb", "actor", "target_type")
+    list_display = ("created_at", "source", "verb", "target_type", "target_label")
+    list_filter = ("verb", "source", "target_type")
     search_fields = ("target_label",)
     readonly_fields = (
         "org",
-        "actor",
+        "source",
         "verb",
         "target_type",
         "target_id",

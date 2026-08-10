@@ -63,7 +63,7 @@ def test_token_marks_has_key_not_connected(org):
 def test_agent_activity_marks_connected(org):
     from tuckit.core.models import ActivityEvent
     ActivityEvent.objects.create(
-        org=org, actor="agent", verb="created",
+        org=org, source="agent", verb="created",
         target_type="slice", target_id=1, target_label="Retry webhooks",
     )
     st = onboarding_state(org)
@@ -120,7 +120,7 @@ def test_all_done(org):
     sl = create_slice(area.org, area=area, title="Retry webhooks", status="open")
     create_bite(sl, "Add backoff")
     ActivityEvent.objects.create(
-        org=org, actor="agent", verb="created",
+        org=org, source="agent", verb="created",
         target_type="slice", target_id=sl.id, target_label=sl.title,
     )
     st = onboarding_state(org)

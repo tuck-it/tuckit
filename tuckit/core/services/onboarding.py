@@ -61,7 +61,7 @@ def onboarding_state(org: Org) -> OnboardingState:
         has_area=Area.objects.filter(org=org).exists(),
         has_slice=Slice.objects.filter(org=org).exists(),
         has_bite=Bite.objects.filter(slice__org=org).exists(),
-        connected=ActivityEvent.objects.filter(org=org, actor="agent").exists(),
+        connected=ActivityEvent.objects.filter(org=org, source="agent").exists(),
         has_key=ApiToken.objects.filter(org=org).exists(),
         newest_slice_id=newest,
     )

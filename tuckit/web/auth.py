@@ -19,7 +19,7 @@ def acting_member(request, org=None):
     (most of the bite mutations resolve straight from a bite id) can call this
     without inventing a lookup. Pass it explicitly when it is already in hand.
 
-    `source`/`actor` only say human-vs-agent; this says WHO. An anonymous
+    `source` only says human-vs-agent; this says WHO. An anonymous
     request leaves it NULL and the UI falls back to `source`.
     """
     if org is None:

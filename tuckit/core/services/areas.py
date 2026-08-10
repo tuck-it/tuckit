@@ -31,7 +31,7 @@ def create_area(org: Org, name: str, description: str = "", slug: str | None = N
     area = Area.objects.create(
         org=org, name=name, description=description, slug=slug, rank=rank
     )
-    record_activity(org, actor=source, verb="created", target=area, member=member)
+    record_activity(org, source=source, verb="created", target=area, member=member)
     return area
 
 
@@ -53,7 +53,7 @@ def update_area(area: Area, *, name: str | None = None, description: str | None 
 def delete_area(area: Area, *, member=None) -> None:
     # Record before the row goes; target_label is denormalized so the log
     # renders after the area is gone.
-    record_activity(area.org, actor="human", verb="deleted", target=area, member=member)
+    record_activity(area.org, source="human", verb="deleted", target=area, member=member)
     # NOT a cascade. Slice.area is on_delete=SET_NULL since 0044, so the
     # area's slices survive with area=NULL — i.e. they go back to the Inbox,
     # where they can be filed into another area. The delete confirmation in
