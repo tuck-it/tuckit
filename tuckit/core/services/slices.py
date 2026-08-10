@@ -110,6 +110,7 @@ def create_slice(
     external_key: str = "",
     number: int | None = None,
     created_by=None,
+    member=None,
 ) -> Slice:
     """Create a slice. `area` is optional — omit it (or pass None) and the
     slice lands in the Inbox, picked up by inbox_slices(). `org` is the first
@@ -143,10 +144,10 @@ def create_slice(
                 existing, title=title, spec=spec or None,
                 constraints=constraints or None, tags=tags,
                 assignee=(1 if assignee_member is not None else None),
-                assignee_member=assignee_member, actor=source,
+                assignee_member=assignee_member, actor=source, member=member,
             )
             if area is not None and area.id != existing.area_id:
-                set_slice_area(existing, area, actor=source)
+                set_slice_area(existing, area, actor=source, member=member)
             if created_by is not None and existing.created_by_id is None:
                 # Only fills a blank: the first capturer is a fact about the
                 # capture, not something a later re-run reassigns.
@@ -175,7 +176,7 @@ def create_slice(
         )
         if tags:
             slice_.tags.set(get_or_create_tags(org, tags))
-        record_activity(org, actor=source, verb="created", target=slice_)
+        record_activity(org, actor=source, verb="created", target=slice_, member=member)
     return slice_
 
 
@@ -193,6 +194,7 @@ def update_slice(
     before: Slice | None = None,
     after: Slice | None = None,
     actor: str = "human",
+    member=None,
 ) -> Slice:
     """Update a slice. `status` folds in the old set_slice_status; before/after fold
     in reorder. `assignee` is a presence flag (non-None means "set assignee") and
@@ -220,7 +222,7 @@ def update_slice(
             slice_.tags.set(get_or_create_tags(slice_.org, tags))
         if status is not None and status != old_status:
             record_activity(
-                slice_.org, actor=actor, verb=status_verb(status),
+                slice_.org, actor=actor, verb=status_verb(status), member=member,
                 target=slice_, from_value=old_status, to_value=status,
             )
     return slice_
@@ -240,7 +242,7 @@ def _apply_status(slice_: Slice, status: str) -> None:
 # shipped slice is reopened — which is exactly what the old _autoclose_ticket did.
 
 
-def set_slice_status(slice_: Slice, status: str, *, actor: str = "human") -> Slice:
+def set_slice_status(slice_: Slice, status: str, *, actor: str = "human", member=None) -> Slice:
     validate_choice(status, Slice.STATUS_CHOICES, "status")
     old_status = slice_.status
     _apply_status(slice_, status)
@@ -248,7 +250,7 @@ def set_slice_status(slice_: Slice, status: str, *, actor: str = "human") -> Sli
         slice_.save(update_fields=["status", "completed_at", "updated_at"])
         if status != old_status:
             record_activity(
-                slice_.org, actor=actor, verb=status_verb(status),
+                slice_.org, actor=actor, verb=status_verb(status), member=member,
                 target=slice_, from_value=old_status, to_value=status,
             )
     return slice_
@@ -260,7 +262,7 @@ def reorder_slice(slice_: Slice, *, before: Slice | None = None, after: Slice | 
     return slice_
 
 
-def set_slice_area(slice_: Slice, area: Area | None, *, actor: str = "human") -> Slice:
+def set_slice_area(slice_: Slice, area: Area | None, *, actor: str = "human", member=None) -> Slice:
     """File a slice into `area`, or clear it (area=None) to send it back to the
     Inbox. Both directions are fully reversible — there is no one-way "promote"
     left; triage is just picking an area, and un-triage is un-picking one."""
@@ -274,7 +276,7 @@ def set_slice_area(slice_: Slice, area: Area | None, *, actor: str = "human") ->
         slice_.save(update_fields=["area", "rank", "updated_at"])
         if not same:  # no spurious event when the area didn't change (e.g. concurrent resubmit)
             record_activity(
-                slice_.org, actor=actor, verb="moved", target=slice_,
+                slice_.org, actor=actor, verb="moved", target=slice_, member=member,
                 from_value=old_area.name if old_area else "Inbox",
                 to_value=area.name if area else "Inbox",
             )

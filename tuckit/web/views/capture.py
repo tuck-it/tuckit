@@ -13,22 +13,9 @@ from tuckit.core.services.slices import create_slice, inbox_slices
 from tuckit.core.services.state import area_board_view
 from tuckit.core.services.resolve import get_area, get_area_by_slug
 from tuckit.core.services.resolve import slice_for_ticket
-from tuckit.web.auth import get_current_org
+from tuckit.web.auth import acting_member, get_current_org
 from tuckit.web.htmx import refresh_rollup, widget_oob
 from tuckit.web.views._feedback import _action_result
-
-
-def _capturer(request, org):
-    """The OrgMember behind this request, for Slice.created_by.
-
-    `source` only says human-vs-agent; this says WHO. Production's Inbox is a
-    run of near-identical agent-authored titles, and in a shared org "captured
-    by you" is wrong for everyone except the one person who typed it. An
-    anonymous request (no view here allows one today, but none enforces it
-    either) leaves it NULL and the UI falls back to `source`."""
-    if org is None or not request.user.is_authenticated:
-        return None
-    return org.members.filter(user=request.user).first()
 
 
 def capture(request):
@@ -59,8 +46,12 @@ def capture(request):
         except (NotFound, ValueError):
             raise Http404
 
+    # Same person on both: created_by is the lasting "who captured this" on the
+    # slice, member is the same fact on the activity row. Resolved once so the
+    # two can never disagree about a single click.
+    capturer = acting_member(request, org)
     create_slice(org, area=area, title=title, spec=request.POST.get("spec", "").strip(),
-                 source="human", created_by=_capturer(request, org))
+                 source="human", created_by=capturer, member=capturer)
     return _action_result(request, org,
                           f"Captured in {area.name}." if area else "Captured to Inbox.")
 
@@ -114,7 +105,8 @@ def ticket_detail(request, ticket_id):
 
 def area_create(request):
     org = get_current_org(request)
-    create_area(org, request.POST["name"], description=request.POST.get("description", ""), source="human")
+    create_area(org, request.POST["name"], description=request.POST.get("description", ""),
+                source="human", member=acting_member(request, org))
     # OOB-swap the sidebar Areas list instead of a full-page reload; the
     # sidebar_areas context processor supplies the refreshed `areas`. Also
     # OOB-refresh the onboarding widget so its Step-1 checkbox ticks live.
@@ -173,7 +165,7 @@ def area_delete(request, area_id):
     except NotFound:
         raise Http404
     try:
-        delete_area(area)
+        delete_area(area, member=acting_member(request, org))
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
     return HttpResponse(status=204)  # htmx empties the row via hx-swap="outerHTML"
@@ -248,9 +240,10 @@ def area_slice_create(request, slug):
         # default already is "open").
         spec = request.POST.get("spec", "").strip()
         tags = [t.strip() for t in request.POST.getlist("tags") if t.strip()]
+        capturer = acting_member(request, org)
         try:
             create_slice(org, area=target, title=title, spec=spec, tags=tags,
-                         source="human", created_by=_capturer(request, org))
+                         source="human", created_by=capturer, member=capturer)
         except InvalidValue as e:
             return HttpResponse(str(e), status=400)
     board = area_board_view(area)

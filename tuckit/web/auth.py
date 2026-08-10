@@ -7,6 +7,28 @@ def get_current_org(request) -> Org | None:
     return getattr(request, "org", None)
 
 
+def acting_member(request, org=None):
+    """The OrgMember behind this request — who is doing the thing.
+
+    Moved up from capture.py, which had it for Slice.created_by alone, because
+    every mutating view now needs the same answer for the activity log. One
+    helper on purpose: two would drift, and then "who created this" and "who is
+    in the log" could disagree about the same click.
+
+    `org` defaults to the request's own org, so a view that never needed one
+    (most of the bite mutations resolve straight from a bite id) can call this
+    without inventing a lookup. Pass it explicitly when it is already in hand.
+
+    `source`/`actor` only say human-vs-agent; this says WHO. An anonymous
+    request leaves it NULL and the UI falls back to `source`.
+    """
+    if org is None:
+        org = get_current_org(request)
+    if org is None or not request.user.is_authenticated:
+        return None
+    return org.members.filter(user=request.user).first()
+
+
 def resolve_fallback_org(request) -> Org | None:
     """Best-effort org for non-tenant pages that still need one: prefers the
     session's active org, else the user's first accessible one. Membership-checked.

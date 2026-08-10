@@ -27,6 +27,7 @@ def create_bite(
     before: Bite | None = None,
     after: Bite | None = None,
     source: str = "human",
+    member=None,
 ) -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
     rank = rank_for(Bite, {"slice": slice_}, before=before, after=after)
@@ -34,18 +35,18 @@ def create_bite(
         b = Bite.objects.create(
             slice=slice_, title=title, body=body, status=status, rank=rank, source=source,
         )
-        record_activity(slice_.org, actor=source, verb="created", target=b)
+        record_activity(slice_.org, actor=source, verb="created", target=b, member=member)
     return b
 
 
-def add_bites(slice_: Slice, items, *, source: str = "human") -> list[Bite]:
+def add_bites(slice_: Slice, items, *, source: str = "human", member=None) -> list[Bite]:
     """Create bites in order under a slice. items: [{title, body?, status?}]."""
     made = []
     for item in items:
         made.append(create_bite(
             slice_, item["title"],
             body=item.get("body", ""), status=item.get("status", "todo"),
-            source=source,
+            source=source, member=member,
         ))
     return made
 
@@ -59,6 +60,7 @@ def update_bite(
     before: Bite | None = None,
     after: Bite | None = None,
     actor: str = "human",
+    member=None,
 ) -> Bite:
     old_status = bite.status
     if title is not None:
@@ -75,12 +77,12 @@ def update_bite(
         if status is not None and status != old_status:
             record_activity(
                 bite.slice.org, actor=actor, verb=status_verb(status),
-                target=bite, from_value=old_status, to_value=status,
+                target=bite, from_value=old_status, to_value=status, member=member,
             )
     return bite
 
 
-def set_bite_status(bite: Bite, status: str, *, actor: str = "human") -> Bite:
+def set_bite_status(bite: Bite, status: str, *, actor: str = "human", member=None) -> Bite:
     validate_choice(status, Bite.STATUS_CHOICES, "status")
     old_status = bite.status
     bite.status = status
@@ -89,7 +91,7 @@ def set_bite_status(bite: Bite, status: str, *, actor: str = "human") -> Bite:
         if status != old_status:
             record_activity(
                 bite.slice.org, actor=actor, verb=status_verb(status),
-                target=bite, from_value=old_status, to_value=status,
+                target=bite, from_value=old_status, to_value=status, member=member,
             )
     return bite
 
@@ -100,8 +102,8 @@ def reorder_bite(bite: Bite, *, before: Bite | None = None, after: Bite | None =
     return bite
 
 
-def delete_bite(bite: Bite) -> None:
-    record_activity(bite.slice.org, actor="human", verb="deleted", target=bite)
+def delete_bite(bite: Bite, *, member=None) -> None:
+    record_activity(bite.slice.org, actor="human", verb="deleted", target=bite, member=member)
     bite.delete()
 
 

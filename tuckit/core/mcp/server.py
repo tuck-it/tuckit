@@ -60,6 +60,20 @@ def _area_arg(org, area_id):
     return True, get_area(org, area_id)
 
 
+def _acting_member(org, user):
+    """The OrgMember behind an MCP call, or None when there is nobody to name.
+
+    An OAuth token carries the human who authorized it, so an agent writing on
+    someone's behalf records THAT person alongside actor="agent" — the two are
+    different questions ("which channel" vs "who"). A legacy ApiToken has no
+    user at all and legitimately resolves to None; that is the nullable path,
+    not an error, and those rows stay unattributed.
+    """
+    if user is None:
+        return None
+    return OrgMember.objects.filter(org=org, user=user).first()
+
+
 # FastMCP's Streamable HTTP transport enables DNS-rebinding protection (Host/Origin
 # header allowlisting) by default whenever `host` is unset/loopback (see
 # mcp.server.fastmcp.server.FastMCP.__init__, which auto-builds a
@@ -170,10 +184,13 @@ async def create_area(ctx: Context, name: str, description: str = "") -> dict:
     leaving a slice in the Inbox: the Inbox is a visible queue someone will
     triage, while a junk area quietly splits one area's work in two and nobody
     notices for months."""
-    org = await require_org(ctx)
+    org, user = await require_caller(ctx)
 
     def _run():
-        return area_dict(_create_area(org, name, description=description, source="agent"))
+        return area_dict(_create_area(
+            org, name, description=description, source="agent",
+            member=_acting_member(org, user),
+        ))
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -273,11 +290,13 @@ async def add_note(ctx: Context, slice: int | str, body: str) -> dict:
     it is the record of the session itself. Discovering a landmine is worth
     both: note that you hit it, and put the rule in `constraints` so the next
     agent never has to."""
-    org = await require_org(ctx)
+    org, user = await require_caller(ctx)
 
     def _run():
         s = _resolve_slice_flexible(org, slice)
-        return activity_event_dict(_add_note(s, body, actor="agent"))
+        return activity_event_dict(
+            _add_note(s, body, actor="agent", member=_acting_member(org, user))
+        )
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -327,18 +346,15 @@ async def create_slice(
         member = resolve_member(org, assignee, caller_user=user) if assignee else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
-        # created_by = who this slice came from. An OAuth token resolves to a
-        # real user, so an agent acting on someone's behalf records THAT
-        # person, not just source="agent"; a machine token (no user) leaves it
-        # NULL and the UI falls back to `source`.
-        creator = (
-            OrgMember.objects.filter(org=org, user=user).first()
-            if user is not None else None
-        )
+        # created_by = who this slice came from; a machine token leaves it NULL
+        # and the UI falls back to `source`. The same OrgMember is also what
+        # goes on the activity row, so both answer "who" the same way.
+        creator = _acting_member(org, user)
         s = _create_slice(
             org, area=area, title=title, spec=spec, constraints=constraints,
             status=status, tags=tags, after=after, before=before, source="agent",
             assignee_member=member, external_key=external_key, created_by=creator,
+            member=creator,
         )
         return slice_dict(s)
 
@@ -382,17 +398,21 @@ async def update_slice(
         member = resolve_member(org, assignee, caller_user=user) if assignee is not None else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
         before = _resolve_slice(org, before_id) if before_id is not None else None
+        # Deliberately not `member` — that one is the ASSIGNEE this call is
+        # setting. This is who is doing the setting, and conflating the two
+        # would attribute the edit to whoever it was handed to.
+        actor_member = _acting_member(org, user)
         s = _update_slice(
             s, title=title, spec=spec, constraints=constraints, status=status,
             tags=tags, assignee=assignee, assignee_member=member,
-            before=before, after=after, actor="agent",
+            before=before, after=after, actor="agent", member=actor_member,
         )
         if moved:
             # Filing goes through set_slice_area, not a bare field write: it
             # re-ranks the slice into its new area's ordering and records the
             # move on the activity thread. A plain assignment would leave the
             # slice ranked against siblings it no longer has.
-            s = _set_slice_area(s, area, actor="agent")
+            s = _set_slice_area(s, area, actor="agent", member=actor_member)
         return slice_dict(s)
 
     return await sync_to_async(_run, thread_sensitive=True)()
@@ -422,11 +442,11 @@ async def add_bites(ctx: Context, slice_id: int, bites: list[dict]) -> list[dict
     back as stage 'needs_steps', and adding them is what moves it to
     'executing'. Mark each one done with update_bite as you go: that is how a
     human, and the next agent session, can see where the work actually is."""
-    org = await require_org(ctx)
+    org, user = await require_caller(ctx)
 
     def _run():
         s = _resolve_slice(org, slice_id)
-        made = _add_bites(s, bites, source="agent")
+        made = _add_bites(s, bites, source="agent", member=_acting_member(org, user))
         return [bite_dict(b) for b in made]
 
     return await sync_to_async(_run, thread_sensitive=True)()
@@ -446,7 +466,7 @@ async def update_bite(
     keep it current as you work, because a slice's stage is derived from how
     many of its bites are done, so a stale checklist misreports the whole
     slice. after_id/before_id fold in reorder."""
-    org = await require_org(ctx)
+    org, user = await require_caller(ctx)
 
     def _run():
         b = _resolve_bite(org, bite_id)
@@ -454,6 +474,7 @@ async def update_bite(
         before = _resolve_bite(org, before_id) if before_id is not None else None
         return bite_dict(_update_bite(
             b, title=title, body=body, status=status, before=before, after=after, actor="agent",
+            member=_acting_member(org, user),
         ))
 
     return await sync_to_async(_run, thread_sensitive=True)()

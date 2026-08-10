@@ -6,7 +6,7 @@ from django.urls import reverse
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.resolve import get_slice
 from tuckit.core.services.slices import set_slice_status, reorder_slice
-from tuckit.web.auth import get_current_org
+from tuckit.web.auth import acting_member, get_current_org
 from tuckit.web.htmx import refresh_rollup
 from tuckit.web.views._feedback import slice_status_message
 
@@ -32,7 +32,7 @@ def slice_move(request, slice_id):
         if status and status != slice_.status:
             old_status = slice_.status
             try:
-                set_slice_status(slice_, status)
+                set_slice_status(slice_, status, member=acting_member(request, org))
             except InvalidValue as e:
                 return HttpResponse(str(e), status=400)
             # The response below is a bare 204 — SortableJS ignores the body on

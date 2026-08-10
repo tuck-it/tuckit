@@ -8,7 +8,7 @@ from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.resolve import get_slice, get_bite, get_area
 from tuckit.core.services.slices import set_slice_status, update_slice, set_slice_area
 from tuckit.core.services.bites import create_bite, delete_bite, set_bite_status, update_bite
-from tuckit.web.auth import get_current_org
+from tuckit.web.auth import acting_member, get_current_org
 from tuckit.web.htmx import widget_oob
 from tuckit.web.detail import slice_detail_context
 from tuckit.web.views._feedback import _action_result, slice_status_message
@@ -76,7 +76,7 @@ def slice_status(request, slice_id):
     is_undo = not request.POST.get("status")
     new_status = request.POST.get("status") or request.GET.get("undo_status", "")
     try:
-        set_slice_status(slice_, new_status)
+        set_slice_status(slice_, new_status, member=acting_member(request, org))
     except InvalidValue as e:
         return HttpResponse(str(e), status=400)
 
@@ -106,7 +106,7 @@ def slice_edit(request, slice_id):
     # (it used to be reachable only through a Plan, which is why it was almost
     # never filled in).
     if "constraints" in request.POST: kwargs["constraints"] = request.POST["constraints"]
-    update_slice(slice_, **kwargs)
+    update_slice(slice_, **kwargs, member=acting_member(request))
     return _detail(request, slice_)
 
 
@@ -150,7 +150,7 @@ def slice_area(request, slice_id):
     except (NotFound, ValueError):
         raise Http404
     old = slice_.area
-    set_slice_area(slice_, area)
+    set_slice_area(slice_, area, member=acting_member(request, org))
     message = f"Filed in {area.name}." if area else "Moved back to Inbox."
     from_detail = request.POST.get("from") == "detail"
     is_modal = request.GET.get("modal") == "1"
@@ -193,7 +193,7 @@ def slice_tags(request, slice_id):
         names.append(add)
     if remove and remove in names:
         names.remove(remove)
-    update_slice(slice_, tags=names)
+    update_slice(slice_, tags=names, member=acting_member(request))
     return render(request, "web/partials/_slice_tags.html", {"slice": slice_})
 
 
@@ -202,7 +202,8 @@ def bite_toggle(request, bite_id):
         bite = get_bite(get_current_org(request), bite_id)
     except NotFound:
         raise Http404
-    set_bite_status(bite, "todo" if bite.status == "done" else "done")
+    set_bite_status(bite, "todo" if bite.status == "done" else "done",
+                    member=acting_member(request))
     return render(request, "web/partials/_bite_row.html", {"bite": bite})
 
 
@@ -211,7 +212,7 @@ def bite_body(request, bite_id):
         bite = get_bite(get_current_org(request), bite_id)
     except NotFound:
         raise Http404
-    update_bite(bite, body=request.POST.get("body", ""))
+    update_bite(bite, body=request.POST.get("body", ""), member=acting_member(request))
     return render(request, "web/partials/_bite_row.html", {"bite": bite})
 
 
@@ -224,7 +225,7 @@ def bite_create(request, slice_id):
     title = request.POST.get("title", "").strip()
     if not title:
         return HttpResponse("Title is required", status=400)
-    create_bite(slice_, title, source="human")
+    create_bite(slice_, title, source="human", member=acting_member(request))
     return _detail(request, slice_)
 
 
@@ -234,7 +235,7 @@ def bite_edit(request, bite_id):
     except NotFound:
         raise Http404
     if "title" in request.POST:
-        update_bite(bite, title=request.POST["title"])
+        update_bite(bite, title=request.POST["title"], member=acting_member(request))
     return _detail(request, bite.slice)
 
 
@@ -244,5 +245,5 @@ def bite_delete(request, bite_id):
     except NotFound:
         raise Http404
     slice_ = bite.slice
-    delete_bite(bite)
+    delete_bite(bite, member=acting_member(request))
     return _detail(request, slice_)
