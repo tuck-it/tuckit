@@ -220,9 +220,23 @@ def test_the_panel_sections_use_tokens_only():
     assert not re.search(r"gap:\s*\d", block)
 
 
-def test_every_ticket_status_has_a_dot():
-    """The meta line renders a dot for all four of Ticket.STATUS_CHOICES; only
-    --open existed while the rest were badges in the head."""
+def test_every_board_stage_has_a_dot():
+    """Each board column renders `.status-dot--{{ key }}` off the stage name,
+    so a stage with no rule is an invisible dot rather than an error. This
+    replaces the Ticket.STATUS_CHOICES version: promoted/dismissed/duplicate
+    were dropped from the stylesheet with the table in 0050."""
+    from tuckit.core.services.slices import BOARD_STAGE_COLUMNS
+
     css = (STATIC / "app.css").read_text(encoding="utf-8")
-    for status in ("open", "promoted", "dismissed", "duplicate"):
-        assert f".status-dot--{status}" in css
+    for stage in BOARD_STAGE_COLUMNS:
+        assert f".status-dot--{stage}" in css, stage
+    assert ".status-dot--open" in css          # backlog slices and Inbox captures
+
+
+def test_the_resolved_ticket_dots_are_gone():
+    """Dead CSS is invisible: nothing fails when a rule outlives its renderer,
+    which is why it has to be asserted rather than noticed."""
+    css = (STATIC / "app.css").read_text(encoding="utf-8")
+    for status in ("promoted", "dismissed", "duplicate"):
+        assert f".status-dot--{status} " not in css, status
+        assert f".status-dot--{status}{{" not in css, status

@@ -58,34 +58,25 @@ def test_reorder_bite_to_front(slice_):
 
 
 @pytest.mark.django_db
-def test_reorder_bite_is_scoped_to_its_own_slice(slice_):
-    """reorder_bite must rank a bite among ALL of its slice's siblings, not
-    just the ones sharing its own `plan` value.
+def test_reorder_bite_lands_it_strictly_between_its_neighbours(slice_):
+    """reorder_bite must rank a bite among ALL of its slice's siblings.
 
-    A slice can mix a legacy plan-having bite (rows migration 0045 reparented
-    onto the slice while leaving Bite.plan populated) with plan-less ones. The
-    column survives until 0047 drops it, so the mix is real production data.
-    Scoping the rank lookup by `{"plan": bite.plan}` instead of
-    `{"slice": bite.slice}` silently drops the plan-having sibling from the
-    neighbor search.
+    This guarded a specific way of getting that wrong: scoping the neighbour
+    lookup by `{"plan": bite.plan}` instead of `{"slice": bite.slice}`. A slice
+    could mix a legacy plan-having bite (rows 0045 reparented while leaving
+    Bite.plan populated) with plan-less ones, and the plan-scoped lookup
+    silently dropped the plan-having sibling — handing back a rank that
+    collided with it, which is undefined order on Postgres. 0050 removed the
+    column, so `plan` is no longer a scope anything could be keyed by, and that
+    exact regression is unbuildable.
 
-    Concretely: A(plan=P, rank a0), B(plan=None, rank a1), C(plan=None, rank
-    a2); reorder(C, before=B). The buggy plan-scoped lookup only sees {B, C}
-    (A is excluded — different plan), finds no rank below B's, and hands back
-    a fresh rank that collides with A's ("a0" == "a0") — a duplicate rank,
-    undefined order on Postgres. The fix scopes by slice, sees A too, and
-    lands C strictly between A and B.
-
-    Title-order assertions cannot tell these apart (reorder_bite only ever
-    touches C's own row), so this asserts on the actual rank values."""
-    from tuckit.core.models import Plan
-
-    plan = Plan.objects.create(slice=slice_, title="P")
+    What survives is the invariant it was proving: C lands strictly between A
+    and B. Title-order assertions cannot see this (reorder_bite only ever
+    touches C's own row), so it asserts on the rank values themselves.
+    """
     a = create_bite(slice_, "A")             # rank a0
-    a.plan = plan
-    a.save(update_fields=["plan"])
-    b = create_bite(slice_, "B")             # rank a1, plan=None
-    c = create_bite(slice_, "C")             # rank a2, plan=None
+    b = create_bite(slice_, "B")             # rank a1
+    c = create_bite(slice_, "C")             # rank a2
 
     reorder_bite(c, before=b)
 

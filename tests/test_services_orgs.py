@@ -323,7 +323,7 @@ def test_set_org_key_rewrites_promoted_refs_but_leaves_plain_values_alone(db):
     other = Org.objects.create(name="Other", slug="other", key="OTH")
 
     ref_event = ActivityEvent.objects.create(
-        org=org, source="agent", verb="promoted", target_type="ticket",
+        org=org, source="agent", verb="promoted", target_type="slice",
         target_id=1, target_label="t", to_value="TP-47",
     )
     plain_event = ActivityEvent.objects.create(
@@ -331,7 +331,7 @@ def test_set_org_key_rewrites_promoted_refs_but_leaves_plain_values_alone(db):
         target_id=2, target_label="s", to_value="shipped",
     )
     other_org_event = ActivityEvent.objects.create(
-        org=other, source="agent", verb="promoted", target_type="ticket",
+        org=other, source="agent", verb="promoted", target_type="slice",
         target_id=3, target_label="t", to_value="TP-99",  # coincidental match, wrong org
     )
 

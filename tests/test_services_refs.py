@@ -3,9 +3,8 @@ import pytest
 from tuckit.core.models import Org
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.exceptions import NotFound
-from tuckit.core.services.refs import parse_ref, ref_for, slice_ref, ticket_ref
+from tuckit.core.services.refs import parse_ref, ref_for, slice_ref
 from tuckit.core.services.slices import create_slice
-from tests.legacy_tickets import legacy_ticket
 
 
 @pytest.mark.django_db
@@ -14,13 +13,6 @@ def test_slice_ref_uses_the_org_key():
     s = create_slice(org, area=create_area(org, "OSS"), title="MCP search")
     assert slice_ref(s) == f"TP-{s.number}"
     assert parse_ref(org, slice_ref(s)) == s.number
-
-
-@pytest.mark.django_db
-def test_ticket_ref_shares_the_same_shape():
-    org = Org.objects.create(name="Tuckit", slug="tuckit")
-    t = legacy_ticket(org, "Capture")
-    assert ticket_ref(t) == f"TUC-{t.number}"
 
 
 @pytest.mark.django_db
@@ -54,11 +46,13 @@ def test_parse_ref_rejects_a_bare_number():
 
 
 @pytest.mark.django_db
-def test_ref_for_dispatches_on_type():
+def test_ref_for_takes_a_slice_and_refuses_anything_else():
+    """A Slice is the only thing that carries a number now — 0050 dropped the
+    Ticket table, which was the second branch. The dispatch still raises rather
+    than falling through, so the {% ref_of %} tag fails loudly instead of
+    rendering 'None-None'."""
     org = Org.objects.create(name="Tuckit", slug="tuckit")
     s = create_slice(org, area=create_area(org, "OSS"), title="One")
-    t = legacy_ticket(org, "Two")
     assert ref_for(s) == slice_ref(s)
-    assert ref_for(t) == ticket_ref(t)
     with pytest.raises(TypeError):
         ref_for(org)

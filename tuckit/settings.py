@@ -41,7 +41,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.LoginRequiredMiddleware",
     "tuckit.web.middleware.TenantMiddleware",
     # Must follow TenantMiddleware: it reads request.org, which that one sets.
-    "tuckit.web.middleware.LegacyTicketLinkMiddleware",
     "tuckit.web.middleware.LiveCursorMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",

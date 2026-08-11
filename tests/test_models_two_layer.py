@@ -36,10 +36,14 @@ def test_blank_external_keys_do_not_collide(org, area):
 
 
 @pytest.mark.django_db
-def test_bite_can_exist_without_a_plan(org, area):
-    """Task 5의 전제. plan이 NOT NULL이면 Slice 직결 자체가 불가능하다."""
+def test_a_bite_hangs_off_its_slice_and_nothing_else(org, area):
+    """Task 5's premise, now unconditional: a step attaches straight to a
+    Slice. It used to be phrased as "plan may be NULL", because a NOT NULL
+    Bite.plan made the direct link impossible at all. 0050 removed the column,
+    so the slice link is the only one there is."""
     from tuckit.core.models import Bite, Slice
 
     s = Slice.objects.create(org=org, area=area, title="s", rank="m", number=1)
-    b = Bite.objects.create(slice=s, plan=None, title="단계", rank="a0")
-    assert b.plan_id is None and b.slice_id == s.id
+    b = Bite.objects.create(slice=s, title="step", rank="a0")
+    assert b.slice_id == s.id
+    assert not any(f.name == "plan" for f in Bite._meta.get_fields())

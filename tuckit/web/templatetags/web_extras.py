@@ -23,8 +23,12 @@ def wurl_tag(context, name, *args, **kwargs):
 
 # Params that mean "a detail overlay is open". Any of them must be dropped
 # before a new one is merged in, or opening B while A is open leaves both.
-# `panel` is the pre-rename spelling of `modal`; kept so links already in
-# someone's history or a bookmark do not resurrect a stale param.
+# Only `slice` is ever pushed. The rest are strip-only spellings that survive
+# in someone's history or bookmarks: `panel` predates the rename to `modal`,
+# and `ticket` opened the overlay before v0.44.0. Keeping them listed is what
+# stops a stale one riding along in the address bar forever once a real detail
+# is opened on top of it — 0050 removed what `ticket` pointed AT, not the
+# bookmarks that still carry it.
 _DETAIL_PARAMS = ("slice", "ticket", "modal", "panel")
 
 
@@ -58,8 +62,8 @@ def detail_params_tag():
 
 @register.inclusion_tag("web/partials/_ref.html")
 def ref_of(obj, copy=False, muted=False):
-    """Render a Slice's or Ticket's ref. The ONLY way a template may show one —
-    the format lives in services/refs.py and nowhere else."""
+    """Render a Slice's ref. The ONLY way a template may show one — the format
+    lives in services/refs.py and nowhere else."""
     from tuckit.core.services.refs import ref_for
 
     return {"ref": ref_for(obj), "copy": copy, "muted": muted}

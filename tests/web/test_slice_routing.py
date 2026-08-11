@@ -9,12 +9,14 @@ def _ctx(path):
 
 def test_detail_push_url_merges_the_param_into_the_current_path():
     assert detail_push_url(_ctx("/acme/main/board"), "slice", 7) == "/acme/main/board?slice=7"
-    assert detail_push_url(_ctx("/acme/main/inbox"), "ticket", 3) == "/acme/main/inbox?ticket=3"
+    assert detail_push_url(_ctx("/acme/main/inbox"), "slice", 3) == "/acme/main/inbox?slice=3"
 
 
 def test_detail_push_url_drops_any_previously_open_detail():
     """Opening B while A is open must not leave ?slice=A in the URL, and the
-    internal ?modal=1 / legacy ?panel=1 must never be pushed to the address bar."""
+    internal ?modal=1 / legacy ?panel=1 / retired ?ticket=n must never be
+    pushed to the address bar. `ticket` is strip-only now: 0050 removed what it
+    pointed at, but bookmarks still carry it and it must not ride along."""
     assert detail_push_url(_ctx("/acme/main/board?slice=1"), "slice", 7) == "/acme/main/board?slice=7"
     assert detail_push_url(_ctx("/acme/main/inbox?ticket=1"), "slice", 7) == "/acme/main/inbox?slice=7"
     assert detail_push_url(_ctx("/acme/main/home?modal=1"), "slice", 7) == "/acme/main/home?slice=7"

@@ -112,10 +112,10 @@ app_patterns = [
     # Steps hang off the Slice, not a Plan (Task 5). The old
     # POST /plans/<id>/bites is gone with the plan card.
     path(f"{P}slices/<int:slice_id>/steps", mutations.bite_create, name="bite_create"),
-    # Legacy read-only deep link: forwards to the Slice this capture became.
-    # Bookmarks and ~27 already-published URLs point here; nothing generates
-    # new ones. Retires with the Ticket table in 0047.
-    path(f"{P}tickets/<int:ticket_id>/", capture.ticket_detail, name="ticket"),
+    # No /tickets/<id>/ route. It forwarded a legacy deep link to the Slice
+    # that capture became, and it could only do that by reading the Ticket
+    # table — which 0050 drops. The ~27 already-published URLs now 404, which
+    # is the honest answer: the id they carry no longer names anything.
     path(f"{P}bites/<int:bite_id>/toggle", mutations.bite_toggle, name="bite_toggle"),
     path(f"{P}bites/<int:bite_id>/body", mutations.bite_body, name="bite_body"),
     path(f"{P}bites/<int:bite_id>/edit", mutations.bite_edit, name="bite_edit"),

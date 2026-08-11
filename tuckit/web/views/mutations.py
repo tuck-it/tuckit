@@ -181,7 +181,7 @@ def slice_area(request, slice_id):
 # that was their only caller, and so is plans.py (Task 13). Nothing in the
 # product creates a Plan any more: `constraints` is a Slice field and steps
 # hang off the Slice. Only the model survives this release, so 0045's data
-# stays readable until 0047 drops the table.
+# stays readable until 0050 drops the table.
 
 
 def slice_tags(request, slice_id):

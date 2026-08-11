@@ -292,18 +292,16 @@ def test_every_active_card_has_a_drop_action(client_local, org):
 
 @pytest.mark.django_db
 def test_needs_steps_column_badges_needs_steps(client_local, org):
-    """needs_plan and needs_bites collapsed into one needs_steps stage (Task 4)
-    — a slice with a Plan already attached but no bites still badges the same
-    as one with no Plan at all, because Plan no longer factors into stage."""
-    from tuckit.core.models import Plan
+    """needs_plan and needs_bites collapsed into one needs_steps stage (Task 4):
+    a spec with no bites badges "needs steps".
+
+    The second slice here used to carry an empty Plan, to show that the Plan
+    layer did not move a slice's stage. 0050 dropped the table, so both are
+    plain specs now and the count is what still matters."""
     p = f"/{org.slug}"
     a = create_area(org, "Core")
-    create_slice(a.org, area=a, title="spec only", spec="s")             # needs_steps
-    empty = create_slice(a.org, area=a, title="has an empty plan", spec="s")
-    # Built through the model: nothing in the product creates a Plan any more
-    # (the service went with the MCP tools in Task 13), but the rows survive
-    # until 0047 and must still not move a slice's stage.
-    Plan.objects.create(slice=empty, title="P")        # still needs_steps
+    create_slice(a.org, area=a, title="spec only", spec="s")
+    create_slice(a.org, area=a, title="spec only too", spec="s")
     body = client_local.get(f"{p}/roadmap/").content.decode()
     assert body.count("needs steps") == 2
 
@@ -495,8 +493,9 @@ def test_roadmap_dropped_filter_lists_area_less_slices_too(client_local, org, ar
     `area IS NULL AND status='open'` and filed_slices() is `area IS NOT NULL`,
     which leaves `area IS NULL AND status != 'open'` in neither. 0045 mapped
     every dismissed/duplicate ticket to status='dropped' while keeping the
-    often-NULL area, so production is already full of those rows — reachable
-    today only via the legacy ?ticket= redirect, which dies with 0047.
+    often-NULL area, so production is already full of those rows. The legacy
+    ?ticket= redirect used to reach them; 0050 retired it, which makes this
+    list their only surface rather than a second one.
 
     This test previously asserted the OPPOSITE (that the area-less row is
     excluded), which is how the gap got locked in."""

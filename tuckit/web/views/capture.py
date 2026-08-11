@@ -1,9 +1,8 @@
 from urllib.parse import urlparse
 
-from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.urls import reverse
 
@@ -12,7 +11,6 @@ from tuckit.core.services.areas import create_area, list_areas, update_area, del
 from tuckit.core.services.slices import create_slice, inbox_slices
 from tuckit.core.services.state import area_board_view
 from tuckit.core.services.resolve import get_area, get_area_by_slug
-from tuckit.core.services.resolve import slice_for_ticket
 from tuckit.web.auth import acting_member, get_current_org
 from tuckit.web.htmx import refresh_rollup, widget_oob
 from tuckit.web.views._feedback import _action_result
@@ -68,39 +66,6 @@ def inbox(request):
         "slices": list(inbox_slices(org)),
         "areas": list(list_areas(org)),
     })
-
-
-def ticket_detail(request, ticket_id):
-    """A Ticket has no surface of its own any more — this route only forwards
-    to the Slice that capture became (slice_for_ticket()).
-
-    It used to return the triage modal, whose Promote was the one action in
-    the product that could not be undone. Deleting the modal without deleting
-    the endpoint would have left that action reachable by a hand-made POST, so
-    ticket_edit/dismiss/reopen/triage/release went with it.
-
-    HX-Redirect rather than a bare 302 for htmx callers: an htmx GET follows a
-    redirect transparently, which would splice a whole page into the overlay
-    that asked for a card. The header makes the browser navigate instead — and
-    a full navigation is also what lets a queued message reach the next page."""
-    org = get_current_org(request)
-    slice_ = slice_for_ticket(org, ticket_id)
-    if slice_ is None:
-        # A Ticket that 0045 never folded. Nothing creates Tickets any more
-        # (Task 13 deleted create_ticket with the rest of the MCP ticket
-        # surface) and no screen links here — only bookmarks and the ~27
-        # already-published /tickets/<id>/ URLs, which retire with the table in
-        # 0047. 404ing would park the loading skeleton in the overlay with no
-        # explanation, so send the reader to the Inbox and say why.
-        messages.info(request, "That capture has no slice — showing the Inbox instead.")
-        url = reverse("web:inbox", args=[org.slug])
-    else:
-        url = reverse("web:slice", args=[org.slug, slice_.id])
-    if request.headers.get("HX-Request"):
-        resp = HttpResponse(status=204)
-        resp["HX-Redirect"] = url
-        return resp
-    return redirect(url)
 
 
 def area_create(request):

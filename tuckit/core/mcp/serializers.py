@@ -20,7 +20,7 @@ def slice_dict(slice_) -> dict:
 def bite_dict(bite) -> dict:
     # No plan_id. The Plan layer is gone from the agent-facing surface, and a
     # key that names it would keep the word alive in the one vocabulary an
-    # agent actually reads. The column survives until 0047 drops it.
+    # agent actually reads. The column survives until 0050 drops it.
     return {
         "id": bite.id,
         "title": bite.title,

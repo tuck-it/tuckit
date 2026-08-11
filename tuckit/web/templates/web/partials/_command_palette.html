@@ -13,10 +13,10 @@
      x-on:htmx:after-swap="filter()">
   <div class="cmdk-box" role="dialog" aria-modal="true" aria-label="Command palette"
        x-on:keydown.tab="trap($event)">
-    <input class="cmdk-input" type="text" placeholder="Search slices, tickets, commands…" x-ref="search"
+    <input class="cmdk-input" type="text" placeholder="Search slices and commands…" x-ref="search"
            name="q" x-model="q" autocomplete="off" spellcheck="false"
            role="combobox" aria-expanded="true" aria-controls="cmdk-list"
-           aria-autocomplete="list" aria-label="Search commands, slices and tickets"
+           aria-autocomplete="list" aria-label="Search commands and slices"
            hx-get="{% wurl 'web:search' %}" hx-target="#cmdk-results"
            hx-swap="innerHTML" hx-trigger="input changed delay:150ms"
            x-on:input="filter()"

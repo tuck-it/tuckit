@@ -82,17 +82,16 @@
     know what is inside. Before this, three containers each hard-coded which
     query param their close function stripped, and the empty #panel div wore
     aria-labelledby="panel-title" permanently — pointing a screen reader at the
-    slice title even when a ticket was open.
+    slice title even when a different card was open.
 
     .window on escape is required: without it Esc dies the moment focus leaves
     the card (clicking the page behind an undimmed slide-over did exactly
     that). The innerHTML guard is equally required, because .window also fires
     when nothing is open.
 
-    There is one deep-link param left. `?ticket=<id>` used to arm a second
-    modal here; it is resolved on the server now
-    (LegacyTicketLinkMiddleware 302s it to the slice that capture became), so
-    an old bookmark can no longer reach the retired one-way Promote.
+    `?slice=<id>` is the only detail param there is. `?ticket=<id>` used to arm
+    a second modal here; v0.44.0 moved it to the server as a redirect, and 0047
+    retired it outright with the Ticket table it had to read.
   {% endcomment %}
   <div id="detail-modal" class="overlay overlay--detail"
        data-detail-params="{% detail_params %}"
@@ -199,8 +198,7 @@
     {% if messages %}
     /* Server-queued notices, played through the SAME toast every htmx path
        uses — one notification surface, not two. Used where no htmx response
-       exists to carry an OOB toast: the legacy /tickets/<id>/ redirect, and
-       board.slice_move's Ship/Drop (its own response is a bare 204 always
+       exists to carry an OOB toast: today only board.slice_move's Ship/Drop (its own response is a bare 204 always
        followed by a full-page reload, so anything it hands back has to
        survive that reload rather than ride the response body). Rendered
        after showToast is defined, so it can run inline.
@@ -301,8 +299,8 @@
        inside it. Asking the card worked only once the response had landed: for
        the whole loading window the contents are a skeleton, which carries no
        data-url-param, so closing on it (Esc/scrim before the response arrives,
-       or the afterRequest failure path) cleared the modal and left ?ticket=39
-       in the url forever — and the next page load re-opened the modal off that
+       or the afterRequest failure path) cleared the modal and left the detail
+       param in the url forever — and the next page load re-opened the modal off that
        stale param. detail_push_url drops every other detail param before it
        merges a new one, so at most one is ever present and stripping all of
        them can never take one that is still in use. */

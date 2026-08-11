@@ -24,7 +24,11 @@ class ActivityEvent(models.Model):
         ("triaged", "triaged"),
         ("closed", "closed"),
     ]
-    TARGET_CHOICES = [("slice", "Slice"), ("bite", "Bite"), ("area", "Area"), ("ticket", "Ticket")]
+    # No "ticket". 0045 retargeted every ticket event whose ticket it could
+    # still find; 0050 deleted the leftovers — the ones pointing at tickets
+    # already gone, which no reader could resolve to anything. Keeping the
+    # choice would leave a value nothing can write and nothing can render.
+    TARGET_CHOICES = [("slice", "Slice"), ("bite", "Bite"), ("area", "Area")]
 
     org = models.ForeignKey("core.Org", on_delete=models.CASCADE, related_name="activity")
     # HOW the write arrived — human|agent — not who was driving. An agent
@@ -37,7 +41,7 @@ class ActivityEvent(models.Model):
     # WHO was acting. Null for legacy ApiToken callers, which carry no user at
     # all, so those rows are simply unattributed — a guess would be worse.
     # SET_NULL only fires when the account itself is deleted: leaving an org no
-    # longer destroys the membership row (see migration 0047), which is what
+    # longer destroys the membership row (see migration 0050), which is what
     # makes it safe for an immutable log to point here.
     member = models.ForeignKey(
         "core.OrgMember", null=True, blank=True,

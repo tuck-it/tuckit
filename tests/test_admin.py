@@ -67,20 +67,18 @@ def test_admin_index_renders(admin_client):
 
 @pytest.mark.django_db
 def test_slice_admin_has_no_plan_inline(admin_client):
-    """Bite.plan is still on_delete=CASCADE this release (0045 leaves it
-    populated for every pre-release bite; the column drop is 0047), so a Plan
-    inline on SliceAdmin was a live, staff-reachable checkbox that destroyed a
-    slice's steps with no undo — in a release whose claim is that nothing is
-    irreversible. Nothing creates Plans any more, so the inline had no reason
-    to exist either."""
-    from tuckit.core.models import Plan
+    """A Plan inline on SliceAdmin was a live, staff-reachable checkbox that
+    destroyed a slice's steps with no undo: Bite.plan was on_delete=CASCADE and
+    0045 left it populated for every pre-release bite. 0050 dropped both the
+    table and the column, so this now guards that nothing grew back — an inline
+    reintroduced against any model would still be a bulk-delete surface on the
+    change form."""
     from tuckit.core.services.areas import create_area
     from tuckit.core.services.slices import create_slice
     from tuckit.core.services.bites import create_bite
 
     slice_admin = admin.site._registry[Slice]
     assert list(slice_admin.inlines) == []
-    assert not any(getattr(i, "model", None) is Plan for i in slice_admin.inlines)
 
     # ...and the change form itself offers no plan-delete checkbox.
     org = Org.objects.create(name="Admin Org", slug="admin-org", key="AO")
@@ -95,7 +93,7 @@ def test_slice_admin_has_no_plan_inline(admin_client):
 
 @pytest.mark.django_db
 def test_bite_admin_does_not_display_plan():
-    """`plan` is a column on its way out (0047). Showing it in the changelist
+    """`plan` is a column on its way out (0050). Showing it in the changelist
     keeps a dead layer visible and sortable long after nothing writes it."""
     bite_admin = admin.site._registry[Bite]
     assert "plan" not in bite_admin.list_display
