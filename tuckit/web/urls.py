@@ -18,7 +18,9 @@ auth_patterns = [
     path("login/", login_not_required(accounts.auth_entry), name="login"),
     path("login/<slug:provider>/", login_not_required(social.social_begin), name="social_begin"),
     path("login/<slug:provider>/callback/", login_not_required(social.social_callback), name="social_callback"),
-    path("register/", login_not_required(RedirectView.as_view(pattern_name="web:login", permanent=False)), name="register"),
+    # query_string=True: RedirectView discards the query string by default, so
+    # ?next= (and anything else an inbound link carries) died on this hop.
+    path("register/", login_not_required(RedirectView.as_view(pattern_name="web:login", permanent=False, query_string=True)), name="register"),
     path("invite/<str:token>/", login_not_required(accounts.invite_accept), name="invite_accept"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("orgs/", onboarding.orgs, name="orgs"),

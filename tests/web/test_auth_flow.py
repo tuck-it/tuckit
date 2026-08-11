@@ -61,6 +61,16 @@ def test_register_view_url_redirects_to_login(client):
     assert r.headers["Location"].rstrip("/").endswith("/login")
 
 
+def test_register_redirect_keeps_the_query_string(client):
+    # RedirectView drops the query string by default, which silently loses ?next=
+    # (and anything else an inbound link carries) on the hop to /login/.
+    r = client.get("/register/", {"next": "/acme/", "utm_source": "x"})
+    assert r.status_code in (301, 302)
+    location = r.headers["Location"]
+    assert "next=%2Facme%2F" in location or "next=/acme/" in location
+    assert "utm_source=x" in location
+
+
 def test_registration_closed_unknown_email_shows_no_account(client, settings):
     settings.REGISTRATION_OPEN = False
     r = client.post("/login/", {"step": "identify", "email": "ghost@x.z"})
