@@ -16,7 +16,8 @@ tuck-it serves both the web dashboard and the agent MCP endpoint from one ASGI a
 uvicorn tuckit.asgi:app --port 8000
 ```
 
-See [docs/mcp-setup.md](docs/mcp-setup.md) to connect your agent (MCP over HTTP).
+See [docs.tuckit.dev/connect-your-agent](https://docs.tuckit.dev/connect-your-agent/)
+to connect your agent (MCP over HTTP).
 
 ## Web dashboard
 
@@ -30,5 +31,6 @@ Open http://localhost:8000/ — home, inbox, areas (list/board), slice detail, a
 settings (workspace name, API tokens, MCP snippet) all live there.
 
 Your agent reads and writes the same workspace over MCP (see
-[docs/mcp-setup.md](docs/mcp-setup.md)); you read and write it over the web. One
+[docs.tuckit.dev](https://docs.tuckit.dev/connect-your-agent/)); you read and
+write it over the web. One
 database, no sync step — whichever one you look at is current.
