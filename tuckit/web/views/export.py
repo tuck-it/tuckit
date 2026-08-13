@@ -1,7 +1,9 @@
 from django.http import HttpResponse, HttpResponseForbidden
+from django.shortcuts import render
 
-from tuckit.core.services.export import UnknownExport, export_org
+from tuckit.core.services.export import UnknownExport, available_exports, export_org
 from tuckit.core.services.orgs import can_export_org
+from tuckit.web.views.settings_shell import settings_context
 
 
 def export_download(request):
@@ -30,3 +32,15 @@ def export_download(request):
     response = HttpResponse(out.content, content_type=out.media_type)
     response["Content-Disposition"] = f'attachment; filename="{out.filename}"'
     return response
+
+
+def export_page(request):
+    """The settings page offering the three download combinations.
+
+    Driven by available_exports() so the page and the registry cannot
+    disagree about what ships.
+    """
+    ctx = settings_context(request, active="org_export")
+    ctx["org"] = request.org
+    ctx["exports"] = available_exports()
+    return render(request, "web/settings/org_export.html", ctx)

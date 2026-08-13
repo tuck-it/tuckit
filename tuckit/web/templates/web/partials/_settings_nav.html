@@ -11,5 +11,6 @@
   <a class="settings-item{% if settings_active == 'org_members' %} on{% endif %}" href="{% url 'web:settings_org_members' nav_org.slug %}">Members</a>
   <a class="settings-item{% if settings_active == 'org_agent' %} on{% endif %}" href="{% url 'web:settings_org_agent' nav_org.slug %}">Agent</a>
   <a class="settings-item{% if settings_active == 'org_shipped' %} on{% endif %}" href="{% url 'web:settings_org_shipped' nav_org.slug %}">Shipped board</a>
+  <a class="settings-item{% if settings_active == 'org_export' %} on{% endif %}" href="{% url 'web:settings_org_export' nav_org.slug %}">Export</a>
   {% if can_owner %}<a class="settings-item danger{% if settings_active == 'org_danger' %} on{% endif %}" href="{% url 'web:settings_org_danger' nav_org.slug %}">Danger zone</a>{% endif %}
 </aside>

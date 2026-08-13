@@ -1,0 +1,27 @@
+{% extends "web/settings_base.html" %}
+{% block settings_title %}Organization · Export{% endblock %}
+{% block settings_content %}
+<div class="settings-title">Export</div>
+<section class="group settings-section">
+  <div class="settings-row">
+    <div class="settings-row-text">
+      <div class="settings-row-desc">
+        Download everything in this organization — every slice, step and
+        activity event. Your data is yours; nothing here is locked in.
+      </div>
+    </div>
+  </div>
+  {% for e in exports %}
+  <div class="settings-row">
+    <div class="settings-row-text">
+      <div class="settings-row-label">{{ e.label }}</div>
+      <div class="settings-row-desc">{{ e.blurb }}</div>
+    </div>
+    <div class="settings-row-control">
+      <a class="btn"
+         href="{% url 'web:settings_org_export_download' org.slug %}?view={{ e.view }}&amp;format={{ e.format }}">Download</a>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

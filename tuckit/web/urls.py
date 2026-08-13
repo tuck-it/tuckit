@@ -67,6 +67,8 @@ settings_patterns = [
     # The page sits at .../export and the download hangs off .../export/download,
     # the same split shipped-board uses so a fixed page path and its action can
     # never collide.
+    path("<slug:org_slug>/settings/export", export.export_page,
+         name="settings_org_export"),
     path("<slug:org_slug>/settings/export/download", export.export_download,
          name="settings_org_export_download"),
     path("<slug:org_slug>/settings/danger", settings_org.org_danger, name="settings_org_danger"),
