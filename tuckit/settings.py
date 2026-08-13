@@ -116,12 +116,19 @@ TUCKIT_ENTITLEMENTS_HOOK = env("TUCKIT_ENTITLEMENTS_HOOK", default=None) or None
 # default for someone running their own server; a runaway agent is nobody's
 # idea of a feature. Set a *_PER_SEC to 0 to switch that layer off.
 #
-# Connection layer: 120 burst, 1/sec sustained. A normal agent runs at 0.5-10
-# calls/min, so it never touches this; a loop at 10/sec is clamped to 1/sec.
+# Connection layer: 120 burst, 3/sec sustained. The key is (client_id, user_id,
+# org_id), stable across token rotation by design -- and therefore stable
+# across concurrent sessions too, since this project's own policy is that one
+# person runs several parallel agent sessions from a single client and user,
+# so they all share one bucket. The headroom is for exactly that: a normal
+# agent runs at 0.5-10 calls/min, so even six sessions at the top of that
+# range sit well under the ceiling. A runaway loop stays bounded either way --
+# 180/min sustained clamps a 10/sec loop to 3/sec, about 7.8M requests/month
+# from one connection rather than unbounded.
 # Org layer: a bound, not a budget -- a real 30-agent team peaks near 300/min
 # against a 1200/min ceiling, so it only ever catches many connections at once.
 TUCKIT_MCP_RATE_CONN_BURST = float(env("TUCKIT_MCP_RATE_CONN_BURST", default="120"))
-TUCKIT_MCP_RATE_CONN_PER_SEC = float(env("TUCKIT_MCP_RATE_CONN_PER_SEC", default="1.0"))
+TUCKIT_MCP_RATE_CONN_PER_SEC = float(env("TUCKIT_MCP_RATE_CONN_PER_SEC", default="3.0"))
 TUCKIT_MCP_RATE_ORG_BURST = float(env("TUCKIT_MCP_RATE_ORG_BURST", default="2400"))
 TUCKIT_MCP_RATE_ORG_PER_SEC = float(env("TUCKIT_MCP_RATE_ORG_PER_SEC", default="20.0"))
 
