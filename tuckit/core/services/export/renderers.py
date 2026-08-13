@@ -1,4 +1,6 @@
 """The three output formats. Each reads EXPORT_SCHEMA, never the models."""
+import csv as _csv
+import io
 import json
 from datetime import datetime
 
@@ -37,3 +39,40 @@ def render_json(snapshot: Snapshot, *, exported_at: datetime) -> bytes:
     # ensure_ascii=False so Korean stays readable when someone opens the file;
     # indent=2 because a human is a real reader of this artifact.
     return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+
+
+def _cell(value) -> str:
+    """One schema value as a spreadsheet cell.
+
+    None becomes an empty cell rather than the string "None", and a list of
+    tags becomes space-separated words rather than Python list syntax. Anything
+    else is left to str() — the csv module handles quoting, embedded newlines
+    and commas.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return " ".join(str(v) for v in value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def render_csv(snapshot: Snapshot) -> bytes:
+    """One row per slice, carrying every field the JSON carries for a slice.
+
+    The columns are the schema's, not a hand-picked subset: a new Slice column
+    becomes a new CSV column with no edit here, under the same drift guard.
+
+    Written as utf-8-sig. The BOM is load-bearing — Excel decodes a plain UTF-8
+    CSV as the local codepage and renders Korean titles as mojibake, and this
+    file exists precisely so someone can open it in Excel. Every Python-side
+    test would still pass without it.
+    """
+    columns = list(EXPORT_SCHEMA["slices"].fields.keys())
+    buf = io.StringIO(newline="")
+    writer = _csv.DictWriter(buf, fieldnames=columns, lineterminator="\r\n")
+    writer.writeheader()
+    for row in rows(snapshot, "slices"):
+        writer.writerow({key: _cell(value) for key, value in row.items()})
+    return buf.getvalue().encode("utf-8-sig")
