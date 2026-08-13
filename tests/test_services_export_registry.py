@@ -77,6 +77,17 @@ def test_available_exports_lists_exactly_the_shipping_three():
         assert c.label and c.blurb, f"{c.view}/{c.format} has no page copy"
 
 
+def test_non_lossless_blurbs_point_at_the_json_export():
+    """full/md and report/csv are both partial copies, so each blurb must
+    name the JSON export as the field-for-field original — otherwise a future
+    edit can quietly drop the pointer that keeps these files honest about
+    what they are (see: the full/md blurb once claimed equivalence with the
+    lossless copy while the zip's own README said the opposite)."""
+    combos = {(c.view, c.format): c for c in available_exports()}
+    for key in [("full", "md"), ("report", "csv")]:
+        assert "JSON" in combos[key].blurb, f"{key} blurb does not mention JSON"
+
+
 @pytest.mark.django_db
 def test_exporting_writes_nothing(org):
     from tuckit.core.models import ActivityEvent, Slice

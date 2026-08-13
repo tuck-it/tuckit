@@ -52,8 +52,10 @@ _COMBINATIONS = [
         view="full", format="md", extension="zip",
         media_type="application/zip",
         label="Everything (Markdown, .zip)",
-        blurb="The same content as a readable file tree — one Markdown file "
-              "per slice, grouped by area. Drop it into a repository as-is.",
+        blurb="A readable file tree with the same slices and activity, one "
+              "Markdown file per slice, grouped by area. Drop it into a "
+              "repository as-is — the JSON export is the field-for-field "
+              "copy.",
         render=lambda snap, at: render_markdown_zip(snap, exported_at=at),
     ),
     Combination(
