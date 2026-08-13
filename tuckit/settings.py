@@ -106,6 +106,32 @@ TUCKIT_SIGNUP_HOOK = env("TUCKIT_SIGNUP_HOOK", default=None) or None
 # unlimited — self-host is unconstrained); cloud injects plan-based limits.
 TUCKIT_ENTITLEMENTS_HOOK = env("TUCKIT_ENTITLEMENTS_HOOK", default=None) or None
 
+# MCP request ceiling. A safety breaker, NOT a plan quota: the numbers are the
+# same for every customer, nothing here goes through the entitlements hook, and
+# it never appears on a price page. It exists so that one agent stuck in a loop
+# cannot make an unbounded number of requests.
+#
+# Unlike the signup / entitlements / OAuth-token hooks above, this defaults ON
+# for self-host too. Those are commercial limits, where unlimited is the right
+# default for someone running their own server; a runaway agent is nobody's
+# idea of a feature. Set a *_PER_SEC to 0 to switch that layer off.
+#
+# Connection layer: 120 burst, 3/sec sustained. The key is (client_id, user_id,
+# org_id), stable across token rotation by design -- and therefore stable
+# across concurrent sessions too, since this project's own policy is that one
+# person runs several parallel agent sessions from a single client and user,
+# so they all share one bucket. The headroom is for exactly that: a normal
+# agent runs at 0.5-10 calls/min, so even six sessions at the top of that
+# range sit well under the ceiling. A runaway loop stays bounded either way --
+# 180/min sustained clamps a 10/sec loop to 3/sec, about 7.8M requests/month
+# from one connection rather than unbounded.
+# Org layer: a bound, not a budget -- a real 30-agent team peaks near 300/min
+# against a 1200/min ceiling, so it only ever catches many connections at once.
+TUCKIT_MCP_RATE_CONN_BURST = float(env("TUCKIT_MCP_RATE_CONN_BURST", default="120"))
+TUCKIT_MCP_RATE_CONN_PER_SEC = float(env("TUCKIT_MCP_RATE_CONN_PER_SEC", default="3.0"))
+TUCKIT_MCP_RATE_ORG_BURST = float(env("TUCKIT_MCP_RATE_ORG_BURST", default="2400"))
+TUCKIT_MCP_RATE_ORG_PER_SEC = float(env("TUCKIT_MCP_RATE_ORG_PER_SEC", default="20.0"))
+
 # OAuth 2.1 issuer/base URL for the MCP authorization server. Core default is
 # empty -> derived from the incoming request origin (self-host needs no config).
 # Cloud/reverse-proxy deploys set this to pin the public https origin. Keeps the
