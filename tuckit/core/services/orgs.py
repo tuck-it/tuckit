@@ -24,6 +24,19 @@ def is_org_admin(user, org) -> bool:
     return OrgMember.objects.filter(user=user, org=org, role__in=["owner", "admin"]).exists()
 
 
+def can_export_org(user, org) -> bool:
+    """May this person download the org's data?
+
+    Today: any active member. That is the honest translation of "editor or
+    above" onto the current ladder — `member` already has full write access and
+    there is no read-only seat. It therefore cannot return False for anyone who
+    gets past TenantMiddleware, which is fine: this exists so that TP-148, when
+    it introduces owner/editor/reader, changes one line here instead of hunting
+    call sites. Keep it to a single caller.
+    """
+    return OrgMember.objects.filter(user=user, org=org).exists()
+
+
 def seat_count(org) -> int:
     return OrgMember.objects.filter(org=org).count()
 

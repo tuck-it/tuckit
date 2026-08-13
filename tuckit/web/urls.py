@@ -6,7 +6,7 @@ from django.views.generic import RedirectView
 from tuckit.web.views import (
     pages, slices, mutations, board, capture, health,
     accounts, settings_org, settings_account, settings_shell, routing,
-    onboarding, oauth, social, live, search,
+    onboarding, oauth, social, live, search, export,
 )
 from tuckit.web.views import settings as settings_views
 
@@ -64,6 +64,11 @@ settings_patterns = [
     # so the fixed page URL and the mutation never collide.
     path("<slug:org_slug>/settings/shipped-board", settings_views.org_shipped, name="settings_org_shipped"),
     path("<slug:org_slug>/settings/shipped-board/prefs", settings_views.shipped_board_prefs, name="shipped_board_prefs"),
+    # The page sits at .../export and the download hangs off .../export/download,
+    # the same split shipped-board uses so a fixed page path and its action can
+    # never collide.
+    path("<slug:org_slug>/settings/export/download", export.export_download,
+         name="settings_org_export_download"),
     path("<slug:org_slug>/settings/danger", settings_org.org_danger, name="settings_org_danger"),
     path("<slug:org_slug>/settings/delete", settings_org.org_delete, name="org_delete"),
     # --- account settings pages + mutations (Task 5) ---
