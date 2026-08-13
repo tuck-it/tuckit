@@ -9,7 +9,7 @@ from django.utils import timezone
 from tuckit.core.models import (
     OAuthAccessToken, OAuthAuthorizationCode, OAuthClient, OAuthRefreshToken,
 )
-from tuckit.core.services.tokens import hash_token
+from tuckit.core.services.tokens import hash_token, touch_last_used
 
 ACCESS_TTL_SECONDS = 3600
 
@@ -105,20 +105,21 @@ def resolve_oauth_org(raw: str):
         return None
     if tok.expires_at <= timezone.now():
         return None
-    tok.last_used_at = timezone.now()
-    tok.save(update_fields=["last_used_at"])
+    touch_last_used(tok)
     return tok.org
 
 
 def resolve_oauth_caller(raw: str):
-    """Like resolve_oauth_org but returns (org, user) so MCP tools can know the
-    acting user. Returns None if not a valid/live OAuth access token."""
+    """Like resolve_oauth_org, but returns (org, user, client): MCP tools need
+    the acting user, and the rate limiter needs the client to identify the
+    connection across token rotation. None if not a valid/live access token."""
     try:
-        tok = OAuthAccessToken.objects.select_related("org", "user").get(token_hash=hash_token(raw))
+        tok = OAuthAccessToken.objects.select_related("org", "user", "client").get(
+            token_hash=hash_token(raw)
+        )
     except OAuthAccessToken.DoesNotExist:
         return None
     if tok.expires_at <= timezone.now():
         return None
-    tok.last_used_at = timezone.now()
-    tok.save(update_fields=["last_used_at"])
-    return tok.org, tok.user
+    touch_last_used(tok)
+    return tok.org, tok.user, tok.client

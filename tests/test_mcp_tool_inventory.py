@@ -76,3 +76,23 @@ async def test_every_tool_carries_a_description():
 
     for tool in await mcp.list_tools():
         assert (tool.description or "").strip(), f"{tool.name} has no docstring"
+
+
+@pytest.mark.asyncio
+async def test_every_registered_tool_goes_through_the_rate_limiter():
+    """The limiter lives inside require_org / require_caller. A tool that
+    resolved auth some other way would route around it silently, so assert the
+    source of every registered tool calls one of the two. The other half of
+    this invariant -- that those two actually enforce -- is asserted in
+    tests/test_mcp_ratelimit.py.
+    """
+    import inspect
+
+    from tuckit.core.mcp import server
+
+    for name in EXPECTED:
+        src = inspect.getsource(getattr(server, name))
+        assert "require_org(ctx)" in src or "require_caller(ctx)" in src, (
+            f"{name} does not resolve auth through require_org/require_caller, "
+            f"so it never reaches the rate limiter"
+        )
