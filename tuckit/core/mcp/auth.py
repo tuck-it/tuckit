@@ -1,12 +1,13 @@
+import json
 from dataclasses import dataclass
 
 from asgiref.sync import sync_to_async
 
 from tuckit.core.models import Org, User
 from tuckit.core.services import throttle
-from tuckit.core.services.exceptions import NotFound
+from tuckit.core.services.exceptions import LimitReached, NotFound
 from tuckit.core.services.oauth import resolve_oauth_caller
-from tuckit.core.services.tokens import resolve_org_token
+from tuckit.core.services.tokens import hash_token, resolve_org_token
 
 
 def _bearer(headers) -> str | None:
@@ -86,6 +87,24 @@ class BearerAuthMiddleware:
                 })
                 await send({"type": "http.response.body", "body": b'{"error": "missing bearer token"}'})
                 return
+            raw = _bearer(headers)
+            if raw is not None and throttle.is_memo_blocked(hash_token(raw)):
+                # Refused from memory. No database work, no MCP protocol
+                # parsing -- the point of the memo is that a hammering client
+                # costs nothing to turn away.
+                await send({
+                    "type": "http.response.start",
+                    "status": 429,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"retry-after", str(throttle.BLOCK_MEMO_SECONDS).encode("latin-1")),
+                    ],
+                })
+                await send({
+                    "type": "http.response.body",
+                    "body": json.dumps({"error": throttle.TOO_FAST}).encode("utf-8"),
+                })
+                return
         await self.app(scope, receive, send)
 
 
@@ -96,7 +115,13 @@ def _resolve_and_check(raw: str) -> Connection | None:
     conn = _connection(raw)
     if conn is None:
         return None
-    throttle.check(conn)  # raises LimitReached
+    try:
+        throttle.check(conn)
+    except LimitReached:
+        # Remember the refusal so the next request from this token costs
+        # nothing at all -- see BearerAuthMiddleware above.
+        throttle.memo_block(hash_token(raw))
+        raise
     return conn
 
 

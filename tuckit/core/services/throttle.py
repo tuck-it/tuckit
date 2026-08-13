@@ -44,9 +44,43 @@ def _record_episode(conn, *, now: float | None = None) -> None:
     ThrottleEpisode.objects.create(org=conn.org, label=conn.label)
 
 
+# How long a refusal is remembered so the same token can be turned away without
+# touching the database. Short on purpose: it is a shortcut for a decision the
+# bucket has already made, not a second source of truth.
+BLOCK_MEMO_SECONDS = 30
+
+# token hash -> monotonic deadline.
+_blocked_until: dict = {}
+
+
+def memo_block(token_hash: str, *, now: float | None = None) -> None:
+    """Remember that this exact bearer string is currently over its rate."""
+    now = time.monotonic() if now is None else now
+    _blocked_until[token_hash] = now + BLOCK_MEMO_SECONDS
+
+
+def is_memo_blocked(token_hash: str, *, now: float | None = None) -> bool:
+    """True if this bearer string was refused recently.
+
+    Keyed on the token rather than the connection, which is safe precisely
+    because this only ever DENIES: a stale entry can refuse a request that
+    would have been allowed, never allow one that should have been refused. A
+    rotated token simply misses the memo and meets the real bucket instead.
+    """
+    now = time.monotonic() if now is None else now
+    until = _blocked_until.get(token_hash)
+    if until is None:
+        return False
+    if until <= now:
+        del _blocked_until[token_hash]
+        return False
+    return True
+
+
 def reset() -> None:
-    """Tests only: the suppression map is module-level and outlives a test."""
+    """Tests only: both maps are module-level and outlive a test."""
     _last_recorded.clear()
+    _blocked_until.clear()
 
 
 def check(conn) -> None:
