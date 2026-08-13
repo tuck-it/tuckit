@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 
 from tuckit.core.mcp.auth import require_caller
 from tuckit.core.models import Org, OrgMember
-from tuckit.core.services import oauth, ratelimit
+from tuckit.core.services import oauth, ratelimit, throttle
 from tuckit.core.services.exceptions import LimitReached
 
 
@@ -18,8 +18,10 @@ def _ctx(raw):
 @pytest.fixture(autouse=True)
 def clean_buckets():
     ratelimit.reset()
+    throttle.reset()
     yield
     ratelimit.reset()
+    throttle.reset()
 
 
 @pytest.fixture

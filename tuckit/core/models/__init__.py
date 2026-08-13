@@ -7,10 +7,11 @@ from tuckit.core.models.oauth import (
     OAuthClient, OAuthAuthorizationCode, OAuthAccessToken, OAuthRefreshToken,
 )
 from tuckit.core.models.social import SocialAccount
+from tuckit.core.models.throttle import ThrottleEpisode
 
 __all__ = [
     "User", "Org", "OrgMember", "Invitation", "ApiToken",
     "Tag", "Area", "Slice", "Bite", "ActivityEvent", "OrgStatSnapshot",
     "OAuthClient", "OAuthAuthorizationCode", "OAuthAccessToken", "OAuthRefreshToken",
-    "SocialAccount",
+    "SocialAccount", "ThrottleEpisode",
 ]
