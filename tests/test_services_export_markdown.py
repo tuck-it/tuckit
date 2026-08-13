@@ -7,7 +7,7 @@ from django.utils import timezone
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.bites import create_bite
-from tuckit.core.services.export.collect import collect
+from tuckit.core.services.export.collect import Snapshot, collect
 from tuckit.core.services.export.renderers import render_markdown_zip
 from tuckit.core.services.slices import create_slice
 
@@ -183,3 +183,36 @@ def test_markdown_zip_matches_render_slice_markdown_called_without_injection(db)
     # part that must be byte-identical to the no-injection call.
     from_direct = render_slice_markdown(slice_, with_activity=True)
     assert from_zip.endswith(from_direct)
+
+
+@pytest.mark.django_db
+def test_a_slice_whose_area_is_missing_from_the_snapshot_still_lands_somewhere(org):
+    """render_markdown_zip buckets slices by area_id and only walks
+    snapshot.areas plus the None bucket — a slice whose area_id names an area
+    outside that list would otherwise be written nowhere, while README.md
+    still counts it in "{n} slices".
+
+    The ORM cannot produce this state: cross-org moves are refused and area
+    deletion is SET_NULL, so a real slice's area_id always resolves within
+    collect()'s own areas list or is None. Construct it directly on a
+    Snapshot instead, bypassing collect(), to prove the renderer still files
+    every slice somewhere rather than silently dropping the orphaned one.
+    """
+    real_snap = collect(org)
+    stray_snap = Snapshot(
+        org=real_snap.org,
+        members=real_snap.members,
+        areas=[],  # deliberately excludes "Backend", which two slices point at
+        slices=real_snap.slices,
+        bites=real_snap.bites,
+        activity=real_snap.activity,
+        bites_by_slice=real_snap.bites_by_slice,
+        activity_by_slice=real_snap.activity_by_slice,
+    )
+
+    raw = render_markdown_zip(stray_snap, exported_at=timezone.now())
+    names = zipfile.ZipFile(io.BytesIO(raw)).namelist()
+    slice_files = [n for n in names if n not in ("README.md", "activity.md")]
+
+    assert len(slice_files) == len(real_snap.slices)
+    assert all(n.startswith("inbox/") for n in slice_files)

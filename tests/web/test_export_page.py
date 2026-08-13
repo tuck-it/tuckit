@@ -1,6 +1,7 @@
 import pytest
 
 from tuckit.core.models import Org, OrgMember, User
+from tuckit.core.services.export.registry import available_exports
 
 
 @pytest.fixture
@@ -26,8 +27,13 @@ def test_page_renders_in_the_settings_shell(ctx):
 def test_page_offers_all_three_downloads(ctx):
     client, org = ctx
     body = client.get(f"/{org.slug}/settings/export").content.decode()
-    for view, fmt in [("full", "json"), ("full", "md"), ("report", "csv")]:
-        assert f"view={view}&amp;format={fmt}" in body, f"{view}/{fmt} missing"
+    for c in available_exports():
+        assert f"view={c.view}&amp;format={c.format}" in body, \
+            f"{c.view}/{c.format} missing"
+        # Driven off the registry, not hardcoded: a regression that rendered
+        # correct hrefs but dropped the settings-row-label/-desc divs would
+        # still pass a substring-only href check.
+        assert c.label in body, f"{c.label} missing"
 
 
 @pytest.mark.django_db

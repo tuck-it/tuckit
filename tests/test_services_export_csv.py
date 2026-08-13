@@ -80,6 +80,18 @@ def test_none_renders_as_an_empty_cell_not_the_word_none(org):
 
 
 @pytest.mark.django_db
+def test_row_terminator_is_crlf_exactly_once_per_row(org):
+    """csv.DictReader tolerates a stray \\r, so the field-content tests above
+    would still pass if lineterminator="\\r\\n" regressed to "\\r\\r\\n".
+    Assert the byte pattern directly: no doubled CRLF anywhere, and exactly
+    one CRLF per row (header included)."""
+    raw = render_csv(collect(org))
+    assert b"\r\r\n" not in raw
+    body = list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+    assert raw.count(b"\r\n") == len(body) + 1  # header row + each data row
+
+
+@pytest.mark.django_db
 def test_empty_org_still_gets_a_header_row(db):
     empty = Org.objects.create(name="Empty", slug="empty")
     text = render_csv(collect(empty)).decode("utf-8-sig")

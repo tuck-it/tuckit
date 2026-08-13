@@ -49,8 +49,15 @@ def collect(org: Org) -> Snapshot:
     )
 
     bites = list(Bite.objects.filter(slice__org=org).order_by("slice_id", "rank"))
+    # "id" ascending as the secondary key, so events sharing a created_at
+    # arrive in ascending-id order. The Python re-sort below is stable and
+    # only reorders across distinct created_at values, so that ascending-id
+    # sub-order survives into the per-slice grouping — matching
+    # slice_activity()'s own ("created_at", "id") tiebreak exactly, instead of
+    # landing in the opposite order by accident.
     activity = list(ActivityEvent.objects.filter(org=org)
-                    .select_related("member__user").order_by("-created_at"))
+                    .select_related("member__user")
+                    .order_by("-created_at", "id"))
 
     bites_by_slice = defaultdict(list)
     for b in bites:
@@ -67,7 +74,9 @@ def collect(org: Org) -> Snapshot:
         elif e.target_type == "bite" and e.target_id in slice_of_bite:
             activity_by_slice[slice_of_bite[e.target_id]].append(e)
     for events in activity_by_slice.values():
-        events.sort(key=lambda e: e.created_at)  # oldest first, like the thread
+        # oldest first, like the thread. Stable sort on created_at alone: ties
+        # keep the query's own ascending-id order (see the query above).
+        events.sort(key=lambda e: e.created_at)
 
     for s in slices:
         # Attached, not stored: the schema reads flat attributes so it can stay

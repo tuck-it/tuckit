@@ -1466,6 +1466,17 @@ body.modal-open { overflow: hidden; }
   color: var(--warn);
   border-color: var(--warn);
 }
+/* .btn was authored for <button>: height/padding alone are enough there,
+   since a button has no baseline underline and defaults to inline-block-ish
+   sizing. An <a class="btn"> (Export page's Download controls) is still an
+   inline element, so height is ignored, vertical padding collapses, and the
+   link's default underline shows through. This adds only what the anchor
+   needs — .btn itself stays untouched for the button case. */
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
 
 .group-label.danger {
   color: var(--warn);

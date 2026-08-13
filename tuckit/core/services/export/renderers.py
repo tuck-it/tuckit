@@ -1,4 +1,13 @@
-"""The three output formats. Each reads EXPORT_SCHEMA, never the models."""
+"""The three output formats.
+
+render_json and render_csv read only EXPORT_SCHEMA, never the models — that is
+the drift guard's whole point. render_markdown_zip is the deliberate
+exception: landmine 3 requires it to reuse render_slice_markdown() rather than
+write a second copy of the markdown format, so it and its helpers read model
+attributes (slice_.area, slice_.assignee, slice_.tags, raw ActivityEvent
+fields) directly. A new renderer should still go through EXPORT_SCHEMA; this
+one does not, on purpose.
+"""
 import csv as _csv
 import io
 import json
@@ -165,6 +174,17 @@ def render_markdown_zip(snapshot: Snapshot, *, exported_at: datetime) -> bytes:
     for s in snapshot.slices:
         slices_by_area.setdefault(s.area_id, []).append(s)
 
+    known_area_ids = {area.id for area in snapshot.areas}
+    # inbox/ gets both area_id=None slices and any slice whose area_id names
+    # an area outside snapshot.areas. The second case cannot happen today —
+    # cross-org moves are refused and area deletion is SET_NULL — but should
+    # it ever occur, README.md's "{n} slices" count must still be honored
+    # rather than the slice being written nowhere.
+    inbox = list(slices_by_area.get(None, []))
+    for area_id, group in slices_by_area.items():
+        if area_id is not None and area_id not in known_area_ids:
+            inbox.extend(group)
+
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("README.md", _readme(snapshot, exported_at=exported_at))
@@ -175,7 +195,7 @@ def render_markdown_zip(snapshot: Snapshot, *, exported_at: datetime) -> bytes:
             for s in slices_by_area.get(area.id, []):
                 zf.writestr(f"{base}/{_slice_filename(s)}",
                             _slice_document(snapshot, s))
-        for s in slices_by_area.get(None, []):
+        for s in inbox:
             zf.writestr(f"inbox/{_slice_filename(s)}",
                         _slice_document(snapshot, s))
         # Always written, even with zero events: the manifest in README.md

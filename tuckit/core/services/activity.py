@@ -81,11 +81,13 @@ def slice_activity(slice_):
     from tuckit.core.models import ActivityEvent, Bite
 
     bite_ids = list(Bite.objects.filter(slice=slice_).values_list("id", flat=True))
+    # "id" as a secondary key so events sharing a created_at have a fixed,
+    # reproducible order — export's collect() sorts to match this exactly.
     return list(
         ActivityEvent.objects.filter(org=slice_.org)
         .filter(Q(target_type="slice", target_id=slice_.id)
                 | Q(target_type="bite", target_id__in=bite_ids))
-        .order_by("created_at")
+        .order_by("created_at", "id")
     )
 
 
