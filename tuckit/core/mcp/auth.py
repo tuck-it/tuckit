@@ -72,7 +72,8 @@ class BearerAuthMiddleware:
                 k.decode("latin-1").lower(): v.decode("latin-1")
                 for k, v in scope.get("headers", [])
             }
-            if _bearer(headers) is None:
+            raw = _bearer(headers)
+            if raw is None:
                 scheme = headers.get("x-forwarded-proto", scope.get("scheme", "https"))
                 host = headers.get("host", "")
                 prm = f"{scheme}://{host}/.well-known/oauth-protected-resource/mcp"
@@ -87,8 +88,7 @@ class BearerAuthMiddleware:
                 })
                 await send({"type": "http.response.body", "body": b'{"error": "missing bearer token"}'})
                 return
-            raw = _bearer(headers)
-            if raw is not None and throttle.is_memo_blocked(hash_token(raw)):
+            if throttle.is_memo_blocked(hash_token(raw)):
                 # Refused from memory. No database work, no MCP protocol
                 # parsing -- the point of the memo is that a hammering client
                 # costs nothing to turn away.

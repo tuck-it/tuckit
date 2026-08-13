@@ -81,15 +81,19 @@ def is_memo_blocked(token_hash: str, *, now: float | None = None) -> bool:
     because this only ever DENIES: a stale entry can refuse a request that
     would have been allowed, never allow one that should have been refused. A
     rotated token simply misses the memo and meets the real bucket instead.
+
+    A pure read -- it never evicts, even when it finds an expired entry.
+    Eviction lives solely in memo_block's sweep, on the write path. That is
+    not just tidiness: this function runs on the event loop (the ASGI
+    middleware calls it directly), while memo_block only ever runs on the
+    executor thread (reached through sync_to_async(thread_sensitive=True)).
+    Keeping every mutation on that one thread is what makes it safe to touch
+    _blocked_until without a lock; a delete here would put two threads
+    mutating the same dict.
     """
     now = time.monotonic() if now is None else now
     until = _blocked_until.get(token_hash)
-    if until is None:
-        return False
-    if until <= now:
-        del _blocked_until[token_hash]
-        return False
-    return True
+    return until is not None and until > now
 
 
 def reset() -> None:

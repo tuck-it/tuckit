@@ -47,6 +47,18 @@ def test_an_unknown_hash_is_not_blocked():
     assert not throttle.is_memo_blocked("never-seen")
 
 
+def test_is_memo_blocked_does_not_evict_expired_entries():
+    """is_memo_blocked runs on the event loop; memo_block's sweep runs on the
+    executor thread. If the read path also deleted, the two could race on the
+    same dict from two different threads (KeyError on a double-delete,
+    RuntimeError iterating _blocked_until while it mutates). Eviction has to
+    live solely on the write path (memo_block's sweep) for the no-lock design
+    to be safe, so a read of an expired entry must leave the dict untouched."""
+    throttle.memo_block("abc", now=100.0)
+    assert not throttle.is_memo_blocked("abc", now=100.0 + throttle.BLOCK_MEMO_SECONDS)
+    assert "abc" in throttle._blocked_until
+
+
 def test_memo_block_sweeps_expired_entries_on_insert():
     """A rotated access token never presents its old hash again, so
     expiry-on-read alone would leak that entry forever. Assert directly on
