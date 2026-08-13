@@ -54,8 +54,23 @@ _blocked_until: dict = {}
 
 
 def memo_block(token_hash: str, *, now: float | None = None) -> None:
-    """Remember that this exact bearer string is currently over its rate."""
+    """Remember that this exact bearer string is currently over its rate.
+
+    Also sweeps every expired entry out of the dict. The sweep lives here,
+    on the write path, rather than in `is_memo_blocked` on the read path:
+    `is_memo_blocked` runs on every single request and has to stay as close
+    to free as it does today, while `memo_block` only runs on a refusal --
+    already the slow path. It cannot live on read alone either: the memo is
+    keyed on the access-token hash, which rotates hourly by design, so the
+    exact expired hash may never be looked up again once its client has
+    rotated past it, and expiry-on-read only frees an entry that is looked
+    up. Deadlines are absolute, so dropping everything already past its
+    deadline on insert is exact, not a heuristic -- not an LRU.
+    """
     now = time.monotonic() if now is None else now
+    expired = [k for k, until in _blocked_until.items() if until <= now]
+    for k in expired:
+        del _blocked_until[k]
     _blocked_until[token_hash] = now + BLOCK_MEMO_SECONDS
 
 

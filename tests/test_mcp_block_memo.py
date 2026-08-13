@@ -47,6 +47,24 @@ def test_an_unknown_hash_is_not_blocked():
     assert not throttle.is_memo_blocked("never-seen")
 
 
+def test_memo_block_sweeps_expired_entries_on_insert():
+    """A rotated access token never presents its old hash again, so
+    expiry-on-read alone would leak that entry forever. Assert directly on
+    the dict, not on is_memo_blocked: expiry-on-read already makes
+    is_memo_blocked return False for an expired entry whether or not the
+    entry was actually freed, so that alone would prove nothing about the
+    leak this guards against.
+    """
+    throttle.memo_block("hash-1", now=0.0)
+    throttle.memo_block("hash-2", now=0.0)
+    throttle.memo_block("hash-3", now=0.0)
+    assert len(throttle._blocked_until) == 3
+
+    throttle.memo_block("hash-4", now=throttle.BLOCK_MEMO_SECONDS + 1)
+
+    assert set(throttle._blocked_until) == {"hash-4"}
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_a_refusal_memoes_the_token(settings):
