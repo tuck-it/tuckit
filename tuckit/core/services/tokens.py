@@ -26,13 +26,21 @@ def revoke_token(org: Org, token_id: int) -> None:
     ApiToken.objects.filter(org=org, pk=token_id).delete()
 
 
-def resolve_org(raw: str) -> Org | None:
-    """Authoritative bearer-token -> tenant resolution for the MCP wire
-    protocol. Returns the Org, the tenant boundary the tools operate against."""
+def resolve_org_token(raw: str) -> ApiToken | None:
+    """The ApiToken behind a bearer string, or None. Callers that only need the
+    tenant use resolve_org; callers that must identify the connection (the rate
+    limiter) need the row itself."""
     try:
         token = ApiToken.objects.select_related("org").get(token_hash=hash_token(raw))
     except ApiToken.DoesNotExist:
         return None
     token.last_used_at = timezone.now()
     token.save(update_fields=["last_used_at"])
-    return token.org
+    return token
+
+
+def resolve_org(raw: str) -> Org | None:
+    """Authoritative bearer-token -> tenant resolution for the MCP wire
+    protocol. Returns the Org, the tenant boundary the tools operate against."""
+    token = resolve_org_token(raw)
+    return token.org if token is not None else None
