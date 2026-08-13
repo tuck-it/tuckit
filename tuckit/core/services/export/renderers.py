@@ -2,10 +2,14 @@
 import csv as _csv
 import io
 import json
+import zipfile
 from datetime import datetime
+
+from django.utils.text import slugify
 
 from tuckit.core.services.export.collect import Snapshot, rows
 from tuckit.core.services.export.schema import EXPORT_SCHEMA, SCHEMA_VERSION
+from tuckit.core.services.state import render_slice_markdown
 
 
 def _envelope(snapshot: Snapshot, *, view: str, exported_at: datetime) -> dict:
@@ -76,3 +80,102 @@ def render_csv(snapshot: Snapshot) -> bytes:
     for row in rows(snapshot, "slices"):
         writer.writerow({key: _cell(value) for key, value in row.items()})
     return buf.getvalue().encode("utf-8-sig")
+
+
+def _slice_filename(slice_) -> str:
+    """'<REF>-<slug>.md', or '<REF>.md' when the title has no ASCII to slug.
+
+    slugify() strips non-ASCII, so a Korean-only title slugs to "", and
+    allow_unicode=True would instead write zip entries that break on Windows.
+    The bare ref is the safe answer; the title is inside the file either way.
+    """
+    slug = slugify(slice_.title)[:60].strip("-")
+    return f"{slice_.export_ref}-{slug}.md" if slug else f"{slice_.export_ref}.md"
+
+
+def _slice_document(snapshot: Snapshot, slice_) -> str:
+    area = slice_.area.name if slice_.area_id else "Inbox"
+    assignee = slice_.assignee.user.email if slice_.assignee_id else "—"
+    tags = " ".join(sorted(t.name for t in slice_.tags.all())) or "—"
+    header = [
+        f"> **{slice_.export_ref}** · {slice_.status} · {slice_.export_stage}",
+        f"> Area: {area} · Assignee: {assignee} · Tags: {tags}",
+        f"> Created: {slice_.created_at.date().isoformat()}"
+        f" · Updated: {slice_.updated_at.date().isoformat()}",
+        "",
+    ]
+    # bites= and activity= are passed from the snapshot: without them this
+    # renderer would issue three queries per slice, which is the one place a
+    # large org actually hurts.
+    body = render_slice_markdown(
+        slice_,
+        with_activity=True,
+        bites=snapshot.bites_by_slice.get(slice_.id, []),
+        activity=snapshot.activity_by_slice.get(slice_.id, []),
+    )
+    return "\n".join(header) + body
+
+
+def _readme(snapshot: Snapshot, *, exported_at) -> str:
+    org = snapshot.org
+    return "\n".join([
+        f"# {org.name} — tuckit export",
+        "",
+        f"- Exported: {exported_at.isoformat()}",
+        f"- Organization: {org.name} (`{org.slug}`, ref prefix `{org.key}`)",
+        f"- schema_version: {SCHEMA_VERSION}",
+        "",
+        "## What is in here",
+        "",
+        f"- `areas/<slug>/` — one folder per area ({len(snapshot.areas)} total),"
+        " with `_area.md` describing it",
+        "- `inbox/` — slices that were never filed into an area",
+        f"- `activity.md` — the full activity log ({len(snapshot.activity)} events)",
+        "",
+        f"{len(snapshot.slices)} slices and {len(snapshot.bites)} steps in total.",
+        "",
+        "## This is the readable copy, not the complete one",
+        "",
+        "Markdown is for reading. The lossless copy — every field, exactly as",
+        "stored — is the JSON export from the same screen. If you are moving",
+        "this data into another system, use that one.",
+        "",
+    ])
+
+
+def _activity_document(snapshot: Snapshot) -> str:
+    lines = [f"# Activity — {snapshot.org.name}", "", "Newest first.", ""]
+    for e in snapshot.activity:
+        who = e.member.user.email if e.member_id else e.source
+        when = e.created_at.isoformat(timespec="seconds")
+        line = f"- {when} · {who} · {e.verb} {e.target_type} “{e.target_label}”"
+        if e.from_value or e.to_value:
+            line += f" ({e.from_value}→{e.to_value})"
+        lines.append(line)
+        if e.body:
+            lines += [f"      {row}" for row in e.body.splitlines()]
+    return "\n".join(lines) + "\n"
+
+
+def render_markdown_zip(snapshot: Snapshot, *, exported_at: datetime) -> bytes:
+    """A readable file tree: one markdown file per slice, under its area."""
+    slices_by_area = {}
+    for s in snapshot.slices:
+        slices_by_area.setdefault(s.area_id, []).append(s)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("README.md", _readme(snapshot, exported_at=exported_at))
+        for area in snapshot.areas:
+            base = f"areas/{area.slug}"
+            zf.writestr(f"{base}/_area.md",
+                        f"# {area.name}\n\n{area.description}\n")
+            for s in slices_by_area.get(area.id, []):
+                zf.writestr(f"{base}/{_slice_filename(s)}",
+                            _slice_document(snapshot, s))
+        for s in slices_by_area.get(None, []):
+            zf.writestr(f"inbox/{_slice_filename(s)}",
+                        _slice_document(snapshot, s))
+        if snapshot.activity:
+            zf.writestr("activity.md", _activity_document(snapshot))
+    return buf.getvalue()
