@@ -145,6 +145,8 @@ def _readme(snapshot: Snapshot, *, exported_at) -> str:
 
 def _activity_document(snapshot: Snapshot) -> str:
     lines = [f"# Activity — {snapshot.org.name}", "", "Newest first.", ""]
+    if not snapshot.activity:
+        lines.append("No activity recorded yet.")
     for e in snapshot.activity:
         who = e.member.user.email if e.member_id else e.source
         when = e.created_at.isoformat(timespec="seconds")
@@ -176,6 +178,9 @@ def render_markdown_zip(snapshot: Snapshot, *, exported_at: datetime) -> bytes:
         for s in slices_by_area.get(None, []):
             zf.writestr(f"inbox/{_slice_filename(s)}",
                         _slice_document(snapshot, s))
-        if snapshot.activity:
-            zf.writestr("activity.md", _activity_document(snapshot))
+        # Always written, even with zero events: the manifest in README.md
+        # names activity.md unconditionally, and a tree whose own README
+        # promises a file it did not include would not be readable — it
+        # would be wrong.
+        zf.writestr("activity.md", _activity_document(snapshot))
     return buf.getvalue()

@@ -93,12 +93,38 @@ def test_readme_states_that_json_is_the_lossless_copy(org):
 
 
 @pytest.mark.django_db
-def test_empty_org_produces_a_zip_with_just_the_readme(db):
+def test_empty_org_produces_exactly_a_readme_and_an_activity_file(db):
+    """An org with no areas, slices or events still gets a constant tree
+    shape: README.md plus activity.md (empty, but present — the README
+    names activity.md unconditionally, so the zip must always contain it)."""
     empty = Org.objects.create(name="Empty", slug="empty")
     raw = render_markdown_zip(collect(empty), exported_at=timezone.now())
     names = zipfile.ZipFile(io.BytesIO(raw)).namelist()
-    assert "README.md" in names
-    assert not any(n.startswith("areas/") for n in names)
+    assert names == ["README.md", "activity.md"]
+
+
+@pytest.mark.django_db
+def test_activity_file_is_written_even_with_zero_events(org):
+    """A populated org (area + slice) can still have zero activity events if
+    the log is cleared out from under it — e.g. by a retention policy, or
+    (as constructed here) by deleting the rows create_slice()/create_bite()
+    recorded, since there is no ordinary path that creates a slice without
+    logging it. Deleting afterwards reads more clearly here than building
+    ActivityEvent rows by hand, since the fixture already has slices whose
+    ids the assertions below reuse.
+
+    activity.md must still be written and say there is nothing in it, so the
+    README's promise of the file — and its "(0 events)" count — stays true.
+    """
+    from tuckit.core.models import ActivityEvent
+
+    ActivityEvent.objects.filter(org=org).delete()
+
+    raw = render_markdown_zip(collect(org), exported_at=timezone.now())
+    zf = zipfile.ZipFile(io.BytesIO(raw))
+    assert "activity.md" in zf.namelist()
+    body = zf.read("activity.md").decode("utf-8")
+    assert "No activity recorded yet." in body
 
 
 @pytest.mark.django_db
