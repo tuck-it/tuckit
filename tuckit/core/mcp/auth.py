@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from asgiref.sync import sync_to_async
 
+from tuckit.core.models import Org, User
 from tuckit.core.services.exceptions import NotFound
 from tuckit.core.services.oauth import resolve_oauth_caller
 from tuckit.core.services.tokens import resolve_org_token
@@ -25,8 +26,8 @@ class Connection:
     `label` is for humans reading an operator page, so it never contains a
     token or a hash.
     """
-    org: object
-    user: object | None
+    org: Org
+    user: User | None
     key: tuple
     label: str
 
