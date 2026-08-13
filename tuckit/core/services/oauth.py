@@ -9,7 +9,7 @@ from django.utils import timezone
 from tuckit.core.models import (
     OAuthAccessToken, OAuthAuthorizationCode, OAuthClient, OAuthRefreshToken,
 )
-from tuckit.core.services.tokens import hash_token
+from tuckit.core.services.tokens import hash_token, touch_last_used
 
 ACCESS_TTL_SECONDS = 3600
 
@@ -105,8 +105,7 @@ def resolve_oauth_org(raw: str):
         return None
     if tok.expires_at <= timezone.now():
         return None
-    tok.last_used_at = timezone.now()
-    tok.save(update_fields=["last_used_at"])
+    touch_last_used(tok)
     return tok.org
 
 
@@ -122,6 +121,5 @@ def resolve_oauth_caller(raw: str):
         return None
     if tok.expires_at <= timezone.now():
         return None
-    tok.last_used_at = timezone.now()
-    tok.save(update_fields=["last_used_at"])
+    touch_last_used(tok)
     return tok.org, tok.user, tok.client

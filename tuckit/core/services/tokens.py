@@ -1,13 +1,33 @@
 import hashlib
 import secrets
+from datetime import timedelta
 
 from django.utils import timezone
 
 from tuckit.core.models import ApiToken, Org
 
+# How stale `last_used_at` is allowed to get. It answers "when did this agent
+# last connect", where five minutes is far finer than anyone reads.
+STAMP_INTERVAL = timedelta(minutes=5)
+
 
 def hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def touch_last_used(token) -> None:
+    """Stamp last_used_at -- but not on every request.
+
+    Both bearer resolvers used to write this unconditionally, which meant a
+    looping agent generated one database WRITE per request even after the rate
+    limiter refused it. That is the expensive half of the cost this whole slice
+    exists to bound, so the write has to be throttled, not just the tool work.
+    """
+    now = timezone.now()
+    if token.last_used_at is not None and now - token.last_used_at < STAMP_INTERVAL:
+        return
+    token.last_used_at = now
+    token.save(update_fields=["last_used_at"])
 
 
 def generate_token(org: Org, name: str) -> tuple[ApiToken, str]:
@@ -34,8 +54,7 @@ def resolve_org_token(raw: str) -> ApiToken | None:
         token = ApiToken.objects.select_related("org").get(token_hash=hash_token(raw))
     except ApiToken.DoesNotExist:
         return None
-    token.last_used_at = timezone.now()
-    token.save(update_fields=["last_used_at"])
+    touch_last_used(token)
     return token
 
 
