@@ -90,8 +90,22 @@ async def test_the_org_backstop_refuses_even_when_connections_are_under_theirs(s
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_zero_per_sec_restores_the_old_behaviour(settings):
+    """150 calls, not 50: the default connection burst is 120, so 50 calls
+    would pass identically whether the limiter is off or simply active and
+    under burst -- that would not prove "disabled". 150 exceeds the default
+    burst on both layers, so an active limiter with default settings would
+    definitely refuse somewhere in the loop.
+
+    The bucket-emptiness assertion is the direct evidence: it proves
+    `ratelimit.allow()` was never even called, not just that it never fired.
+    Do not shrink the loop back down to make this test faster -- that
+    silently restores the hole this test exists to close. Burst settings are
+    deliberately left at their defaults; overriding them would undo the
+    point.
+    """
     settings.TUCKIT_MCP_RATE_CONN_PER_SEC = 0.0
     settings.TUCKIT_MCP_RATE_ORG_PER_SEC = 0.0
     access = await _seed()
-    for _ in range(50):
+    for _ in range(150):
         await require_caller(_ctx(access))
+    assert ratelimit._buckets == {}
