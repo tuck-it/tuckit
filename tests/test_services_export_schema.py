@@ -1,8 +1,10 @@
 import pytest
+from django.apps import apps
 
 from tuckit.core.models import ActivityEvent, Area, Bite, Org, OrgMember, Slice
 from tuckit.core.services.export.schema import (
     EXCLUDED,
+    EXCLUDED_MODELS,
     EXPORT_SCHEMA,
     SCHEMA_VERSION,
     covered_model_fields,
@@ -77,3 +79,38 @@ def test_schema_version_is_one():
 
 def test_schema_covers_the_five_documented_collections():
     assert set(EXPORT_SCHEMA) == {"members", "areas", "slices", "bites", "activity"}
+
+
+def test_every_core_model_is_guarded_or_excluded_with_a_reason():
+    """A model nobody classified is a model whose data nobody decided about.
+
+    The field guard only looks at GUARDED, which is a hand-written literal, so
+    an entirely new model is invisible to it. That is not hypothetical:
+    ThrottleEpisode arrived while TP-146 was being landed and the suite stayed
+    green. Leaving it out was right; nobody being asked was not.
+
+    The comparison is two-way on purpose. A new model shows up only in `known`
+    and fails; a deleted model lingers only in `accounted` and fails, which is
+    what stops dead entries from piling up in a list nobody re-reads.
+    """
+    known = {m.__name__ for m in apps.get_app_config("core").get_models()}
+    accounted = {m.__name__ for m in GUARDED} | {m.__name__ for m in EXCLUDED_MODELS}
+
+    unclassified = known - accounted
+    assert not unclassified, (
+        f"These core models are neither exported nor excluded: "
+        f"{sorted(unclassified)}. Add each to GUARDED in this file (and to "
+        f"EXPORT_SCHEMA), or to EXCLUDED_MODELS in "
+        f"tuckit/core/services/export/schema.py with a reason."
+    )
+
+    phantom = accounted - known
+    assert not phantom, (
+        f"These models are classified but no longer exist: {sorted(phantom)}. "
+        f"Remove them from GUARDED or EXCLUDED_MODELS."
+    )
+
+
+def test_every_model_exclusion_states_a_reason():
+    for model, reason in EXCLUDED_MODELS.items():
+        assert reason.strip(), f"{model.__name__} is excluded with no reason"

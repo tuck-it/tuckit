@@ -8,7 +8,25 @@ file.
 from dataclasses import dataclass, field as dc_field
 from typing import Any, Callable
 
-from tuckit.core.models import ActivityEvent, Area, Bite, Org, OrgMember, Slice
+from tuckit.core.models import (
+    ActivityEvent,
+    ApiToken,
+    Area,
+    Bite,
+    Invitation,
+    OAuthAccessToken,
+    OAuthAuthorizationCode,
+    OAuthClient,
+    OAuthRefreshToken,
+    Org,
+    OrgMember,
+    OrgStatSnapshot,
+    Slice,
+    SocialAccount,
+    Tag,
+    ThrottleEpisode,
+    User,
+)
 
 # Bumped whenever the emitted shape changes in a way a reader could notice.
 # This is the ONLY version stamped into an exported file: pyproject's version
@@ -174,6 +192,37 @@ EXCLUDED: dict[type, dict[str, str]] = {
     },
     Bite: {},
     ActivityEvent: {"org": "Implied by the envelope."},
+}
+
+
+# Models the export does not emit at all. EXCLUDED (above) answers "why is this
+# column missing from a row we do emit"; this answers "why is this whole model
+# missing from the file". Same rule: a blank reason is refused by a test, so
+# "we forgot" can never masquerade as "we decided".
+#
+# A model that is neither here nor in the test module's GUARDED list turns the
+# suite red. That is the point: ThrottleEpisode arrived during TP-146's release
+# and nothing asked whether it belonged in a customer's export.
+EXCLUDED_MODELS: dict[type, str] = {
+    ApiToken: "Secrets. Exporting them would turn the file into a credential leak.",
+    OAuthAccessToken: "Same — a bearer token.",
+    OAuthRefreshToken: "Same.",
+    OAuthAuthorizationCode: "Same, and short-lived besides.",
+    OAuthClient: "Not owned by an org. Client registration is server configuration.",
+    Invitation: (
+        "Carries an invite token, so it is a credential. An unaccepted invite is "
+        "also in-flight state rather than project history."
+    ),
+    OrgStatSnapshot: "Something we computed about the org, not something the customer authored.",
+    ThrottleEpisode: "Rate-limit episodes. Operator telemetry, not project data.",
+    Tag: (
+        "Emitted inline as names in each slice's tags[]. If Tag ever gains a "
+        "field beyond name, this reason stops being true — and excluding a model "
+        "here means the field guard never descends into it, so nothing would "
+        "fire. Accepted deliberately in TP-150 while Tag is three columns."
+    ),
+    User: "An account is not owned by an org. People appear in members[] by email.",
+    SocialAccount: "Account linkage. Not project data.",
 }
 
 
