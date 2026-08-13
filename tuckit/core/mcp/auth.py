@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from asgiref.sync import sync_to_async
 
 from tuckit.core.models import Org, User
+from tuckit.core.services import throttle
 from tuckit.core.services.exceptions import NotFound
 from tuckit.core.services.oauth import resolve_oauth_caller
 from tuckit.core.services.tokens import resolve_org_token
@@ -88,14 +89,25 @@ class BearerAuthMiddleware:
         await self.app(scope, receive, send)
 
 
+def _resolve_and_check(raw: str) -> Connection | None:
+    """Resolve, then spend a token. Both happen in the same synchronous block
+    because bite 4 makes the refusal path write to the database, and that
+    cannot happen in the async context."""
+    conn = _connection(raw)
+    if conn is None:
+        return None
+    throttle.check(conn)  # raises LimitReached
+    return conn
+
+
 async def _require_connection(ctx) -> Connection:
-    """Authoritative auth for one MCP request. Bite 3 adds the rate check here,
-    which is why the tools' own entry points do not need the key."""
+    """Authoritative auth for one MCP request, including the rate check, which
+    is why the tools' own entry points do not need the key."""
     request = ctx.request_context.request
     raw = _bearer(request.headers) if request is not None else None
     if raw is None:
         raise NotFound("missing bearer token")
-    conn = await sync_to_async(_connection, thread_sensitive=True)(raw)
+    conn = await sync_to_async(_resolve_and_check, thread_sensitive=True)(raw)
     if conn is None:
         raise NotFound("invalid or unknown API token")
     return conn

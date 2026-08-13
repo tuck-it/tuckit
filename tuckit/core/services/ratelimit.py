@@ -29,8 +29,10 @@ def allow(key, *, burst: float, per_sec: float, now: float | None = None) -> boo
     call credits the time that has actually passed since it last looked. That
     is the only arithmetic in this module and the only place it can be wrong.
 
-    No lock is taken. One uvicorn process runs one asyncio loop and there is no
-    `await` in here, so the loop cannot interleave another request through it.
+    No lock is taken. The only caller is reached through Django's
+    `sync_to_async(..., thread_sensitive=True)`, which serialises all such work
+    onto a single executor thread, so two calls can never interleave here
+    either.
 
     `per_sec` must be > 0. A zero rate means the caller has switched that layer
     off and should not have called at all; passing it here would drain the
