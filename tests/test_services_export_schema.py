@@ -49,6 +49,22 @@ def test_nothing_is_both_exported_and_excluded(model):
     assert not overlap, f"{model.__name__}: {sorted(overlap)} is both exported and excluded"
 
 
+@pytest.mark.parametrize("name,spec", EXPORT_SCHEMA.items())
+def test_every_source_alias_points_at_a_real_field(name, spec):
+    """A `sources` entry claims a model column is covered because it aliases to
+    an output key in `fields`. If that output key is ever renamed or dropped
+    from `fields` while the `sources` entry survives, the alias goes stale:
+    `covered_model_fields()` would still count the model column as covered,
+    even though nothing in EXPORT_SCHEMA actually emits it — the exact
+    "quietly incomplete" failure the drift guard exists to catch.
+    """
+    dangling = set(spec.sources.values()) - set(spec.fields)
+    assert not dangling, (
+        f"{name}: sources alias to output keys missing from fields: "
+        f"{sorted(dangling)}"
+    )
+
+
 def test_schema_version_is_one():
     assert SCHEMA_VERSION == 1
 
