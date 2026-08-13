@@ -17,10 +17,16 @@ def test_every_concrete_field_is_exported_or_excluded_with_a_reason(model):
 
     This is the whole flexibility mechanism: without it, adding a field leaves
     the export quietly incomplete while every other test stays green.
+
+    Many-to-many fields count. They were skipped here until TP-150 — not
+    because Django hides them (Slice.tags reports concrete=True and even a
+    column) but because this comprehension used to exclude them by hand.
+    Slice.tags is exported as a list of names, so a second many-to-many is
+    exactly as exportable and exactly as easy to forget.
     """
     concrete = {
         f.name for f in model._meta.get_fields()
-        if getattr(f, "concrete", False) and not f.many_to_many
+        if getattr(f, "concrete", False)
     }
     uncovered = concrete - covered_model_fields(model)
     assert not uncovered, (
