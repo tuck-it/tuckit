@@ -57,7 +57,8 @@ def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> d
     }
 
 
-def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
+def render_slice_markdown(slice_: Slice, with_activity: bool = False, *,
+                          bites=None, activity=None) -> str:
     tags = " ".join(f"#{t}" for t in _tag_names(slice_))
     lines = [f"# {slice_.title}", "", f"Status: {slice_.status}"]
     if tags:
@@ -82,7 +83,11 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
     # `plan__isnull=True` filter would have hidden every bite migration 0045
     # reparented (it sets Bite.slice but leaves Bite.plan populated) — i.e.
     # every step that existed before this release.
-    bites = list(list_bites(slice_))
+    # Callers that already hold the slice's bites pass them in. The export
+    # renders every slice in an org, and querying per slice here would make
+    # that artifact N+1. Omitting the argument keeps the original behaviour,
+    # so MCP get_slice is untouched.
+    bites = list(list_bites(slice_)) if bites is None else list(bites)
     if bites:
         lines.append("## Steps")
         for b in bites:
@@ -93,12 +98,12 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False) -> str:
         lines.append("")
     out = "\n".join(lines).rstrip() + "\n"
     if with_activity:
-        out += _render_activity(slice_)
+        out += _render_activity(slice_, activity=activity)
     return out
 
 
-def _render_activity(slice_: Slice) -> str:
-    events = slice_activity(slice_)
+def _render_activity(slice_: Slice, activity=None) -> str:
+    events = slice_activity(slice_) if activity is None else list(activity)
     if not events:
         return ""
     rows = ["", "## Activity", ""]
