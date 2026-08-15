@@ -1,7 +1,8 @@
 import os
 
 from asgiref.sync import sync_to_async
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
 from mcp.server.transport_security import TransportSecuritySettings
 
 from tuckit.core.mcp.auth import require_caller, require_org
@@ -112,26 +113,10 @@ _transport_security = TransportSecuritySettings(
     ],
 )
 
-# Run the Streamable HTTP transport in STATELESS mode. The default (stateful)
-# mode keeps per-session state in the serving process's local memory and issues
-# an Mcp-Session-Id that every follow-up request must carry back to *that same*
-# process. That assumes one long-lived process (as with stdio) and breaks on any
-# horizontally-scaled / ephemeral host: a follow-up request that lands on a
-# different instance -- or after the instance holding the session is reaped (e.g.
-# a serverless deploy scaling to zero on idle) -- can't find its session and
-# 4xxs, which MCP clients surface as a dropped connection. Stateless mode makes
-# each request self-contained, so any instance can serve it and no session is
-# lost. This is safe here because the server exposes only plain request/response
-# tools -- no server-initiated notifications, sampling, or subscriptions, which
-# are the only things stateful mode would buy. (Add those back only alongside an
-# out-of-process session/event store; don't rely on in-memory sessions.)
-mcp = FastMCP(
-    "tuck-it",
-    json_response=True,
-    stateless_http=True,
-    streamable_http_path="/",
-    transport_security=_transport_security,
-)
+# The transport is configured where the ASGI app is built (tuckit/asgi.py); the
+# server object itself only carries the tools. See that module for why this runs
+# stateless.
+mcp = MCPServer("tuck-it")
 
 
 @mcp.tool()

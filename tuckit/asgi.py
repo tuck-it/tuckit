@@ -12,9 +12,34 @@ from starlette.applications import Starlette  # noqa: E402
 from starlette.routing import Mount  # noqa: E402
 
 from tuckit.core.mcp.auth import BearerAuthMiddleware  # noqa: E402
-from tuckit.core.mcp.server import mcp  # noqa: E402
+from tuckit.core.mcp.server import _transport_security, mcp  # noqa: E402
+from tuckit.core.mcp.transport import RefuseSseStream  # noqa: E402
 
-mcp_app = BearerAuthMiddleware(mcp.streamable_http_app())
+# Run the Streamable HTTP transport in STATELESS mode. The default (stateful)
+# mode keeps per-session state in the serving process's local memory and issues
+# an Mcp-Session-Id that every follow-up request must carry back to *that same*
+# process. That assumes one long-lived process (as with stdio) and breaks on any
+# horizontally-scaled / ephemeral host: a follow-up request that lands on a
+# different instance -- or after the instance holding the session is reaped (e.g.
+# a serverless deploy scaling to zero on idle) -- can't find its session and
+# 4xxs, which MCP clients surface as a dropped connection. Stateless mode makes
+# each request self-contained, so any instance can serve it and no session is
+# lost. This is safe here because the server exposes only plain request/response
+# tools -- no server-initiated notifications, sampling, or subscriptions, which
+# are the only things stateful mode would buy. (Add those back only alongside an
+# out-of-process session/event store; don't rely on in-memory sessions.)
+# RefuseSseStream sits INSIDE the auth gate on purpose -- see its docstring:
+# an unauthenticated GET must still get the 401 that carries OAuth discovery.
+mcp_app = BearerAuthMiddleware(
+    RefuseSseStream(
+        mcp.streamable_http_app(
+            streamable_http_path="/",
+            json_response=True,
+            stateless_http=True,
+            transport_security=_transport_security,
+        )
+    )
+)
 
 
 @contextlib.asynccontextmanager
