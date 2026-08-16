@@ -14,7 +14,7 @@ class RefuseSseStream:
 
     A Streamable HTTP client opens a long-lived GET stream after initialize so
     the server can push requests and notifications to it. This server has
-    nothing to push: it runs stateless (see tuckit/asgi.py) and exposes only
+    nothing to push: it runs stateless (see compose.py) and exposes only
     plain request/response tools -- no server-initiated notifications, no
     sampling, no subscriptions. Left to the SDK, that stream opens anyway and
     then sends a `: ping` comment every 15 seconds, forever, carrying nothing.

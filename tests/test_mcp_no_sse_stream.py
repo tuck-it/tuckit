@@ -82,7 +82,8 @@ def test_unauthenticated_get_still_carries_oauth_discovery(asgi_app):
 
     If RefuseSseStream were wired OUTSIDE BearerAuthMiddleware this returns 405
     with no WWW-Authenticate header, and OAuth discovery over GET breaks. This
-    test is the reason the ordering in tuckit/asgi.py is not arbitrary.
+    test is the reason the ordering in tuckit/core/mcp/compose.py is not
+    arbitrary.
     """
     with TestClient(asgi_app) as client:
         out, still_streaming = get_without_reading_body(client, _HEADERS_BASE)
