@@ -113,9 +113,9 @@ _transport_security = TransportSecuritySettings(
     ],
 )
 
-# The transport is configured where the ASGI app is built (tuckit/asgi.py); the
-# server object itself only carries the tools. See that module for why this runs
-# stateless.
+# The transport is configured where the ASGI app is built
+# (tuckit/core/mcp/compose.py); the server object itself only carries the tools.
+# See that module for why this runs stateless.
 mcp = MCPServer("tuck-it")
 
 
