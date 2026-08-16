@@ -13,7 +13,7 @@ from starlette.routing import Mount  # noqa: E402
 
 from tuckit.core.mcp.auth import BearerAuthMiddleware  # noqa: E402
 from tuckit.core.mcp.server import _transport_security, mcp  # noqa: E402
-from tuckit.core.mcp.transport import RefuseSseStream  # noqa: E402
+from tuckit.core.mcp.transport import AcceptClientNotifications, RefuseSseStream  # noqa: E402
 
 # Run the Streamable HTTP transport in STATELESS mode. The default (stateful)
 # mode keeps per-session state in the serving process's local memory and issues
@@ -28,15 +28,18 @@ from tuckit.core.mcp.transport import RefuseSseStream  # noqa: E402
 # tools -- no server-initiated notifications, sampling, or subscriptions, which
 # are the only things stateful mode would buy. (Add those back only alongside an
 # out-of-process session/event store; don't rely on in-memory sessions.)
-# RefuseSseStream sits INSIDE the auth gate on purpose -- see its docstring:
-# an unauthenticated GET must still get the 401 that carries OAuth discovery.
+# Both transport wrappers sit INSIDE the auth gate on purpose -- see their
+# docstrings: an unauthenticated request must still get the 401 that carries
+# OAuth discovery, rather than a 405 or a 202 that hides it.
 mcp_app = BearerAuthMiddleware(
     RefuseSseStream(
-        mcp.streamable_http_app(
-            streamable_http_path="/",
-            json_response=True,
-            stateless_http=True,
-            transport_security=_transport_security,
+        AcceptClientNotifications(
+            mcp.streamable_http_app(
+                streamable_http_path="/",
+                json_response=True,
+                stateless_http=True,
+                transport_security=_transport_security,
+            )
         )
     )
 )
