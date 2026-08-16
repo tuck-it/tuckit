@@ -29,14 +29,12 @@
 codex mcp login tuckit</code></pre>
   </div>
   <div class="agent-client-pane" x-show="client==='antigravity'" x-cloak>
-    <div class="hint">Antigravity's OAuth handshake for remote MCP servers is unreliable right now, so use a header token instead — create one under “Access tokens · Headless &amp; CI” below, then add it to <code>mcp_config.json</code> (Settings → Customizations → Open MCP Config):</div>
+    <div class="hint">Add this to <code>~/.gemini/config/mcp_config.json</code> (Settings → Customizations → Open MCP Config), then approve in the browser tab that opens. No token to paste.</div>
     <pre class="mcp-snippet"><code>{
   "mcpServers": {
-    "tuckit": {
-      "serverUrl": "{{ mcp_url }}",
-      "headers": { "Authorization": "Bearer YOUR_TUCKIT_TOKEN" }
-    }
+    "tuckit": { "serverUrl": "{{ mcp_url }}" }
   }
 }</code></pre>
+    <div class="hint">Still prompted for a credential? Create one under “Access tokens · Headless &amp; CI” below and add <code>"headers": {"Authorization": "Bearer YOUR_TUCKIT_TOKEN"}</code> alongside <code>serverUrl</code>.</div>
   </div>
 </div>
