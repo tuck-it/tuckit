@@ -2,6 +2,7 @@ from django.db import transaction
 from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
+from tuckit.core.entitlements import assert_can_write
 from tuckit.core.models import Area, Org, Slice
 from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.bites import bite_progress
@@ -124,6 +125,7 @@ def create_slice(
     An `external_key` that already exists updates that slice in place instead
     of duplicating, carrying through title/spec/constraints/tags/assignee, and
     filing it if `area` is given."""
+    assert_can_write(org)
     if area is not None and area.org_id != org.id:
         raise InvalidValue("area belongs to a different org")
     if external_key:
@@ -200,6 +202,7 @@ def update_slice(
     in reorder. `assignee` is a presence flag (non-None means "set assignee") and
     `assignee_member` is the already-resolved OrgMember (or None to clear) — the
     caller resolves the email/'me' spec so this service stays request-context-free."""
+    assert_can_write(slice_.org)
     old_status = slice_.status
     if title is not None:
         slice_.title = title

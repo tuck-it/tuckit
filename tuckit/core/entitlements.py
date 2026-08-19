@@ -3,12 +3,19 @@ from dataclasses import dataclass
 from django.conf import settings
 from django.utils.module_loading import import_string
 
-from tuckit.core.services.exceptions import LimitReached
+from tuckit.core.services.exceptions import LimitReached, WritesBlocked
 
 
 @dataclass(frozen=True)
 class Entitlements:
     seat_limit: int | None = None  # None = unlimited
+
+    # Empty string = writes allowed. A non-empty value is the sentence shown to
+    # whoever tried to write, and core never learns why it was set: a deployment
+    # that closes writes supplies its own wording through the hook. Keeping the
+    # reason here rather than a boolean is what stops product vocabulary —
+    # plans, prices, trials — from leaking into the source-available core.
+    writes_blocked_reason: str = ""
 
 
 _UNLIMITED = Entitlements()
@@ -20,6 +27,19 @@ def resolve_entitlements(org) -> Entitlements:
     if not path:
         return _UNLIMITED
     return import_string(path)(org)
+
+
+def assert_can_write(org) -> None:
+    """Refuse a write, with the reason, when the deployment has closed writes.
+
+    Called from the write services rather than from each MCP tool or view, so
+    that both surfaces are covered by one gate and a new caller cannot forget
+    it. Reads are never routed through here — the whole point is that a blocked
+    org still sees everything it has.
+    """
+    reason = resolve_entitlements(org).writes_blocked_reason
+    if reason:
+        raise WritesBlocked(reason)
 
 
 def assert_can_add_seat(org) -> None:
