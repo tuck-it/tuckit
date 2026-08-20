@@ -1,12 +1,13 @@
 import pytest
 
-# Eleven tools, one vocabulary: areas, slices, bites, notes. Every tool an
-# agent can call is on this list, and the list is the product's agent-facing
-# API — it grows only on purpose.
+# Twelve tools, one vocabulary: areas, slices, bites, notes, and the design
+# canvas. Every tool an agent can call is on this list, and the list is the
+# product's agent-facing API — it grows only on purpose.
 EXPECTED = {
     "get_project_state", "list_areas", "create_area",
     "list_slices", "get_slice", "create_slice", "update_slice", "add_note",
     "list_bites", "add_bites", "update_bite",
+    "propose",
 }
 
 # Removed for good, with the reason each one cannot come back:
@@ -33,12 +34,12 @@ REMOVED = {
 
 
 @pytest.mark.asyncio
-async def test_registered_tools_are_exactly_the_eleven():
+async def test_registered_tools_are_exactly_the_twelve():
     from tuckit.core.mcp.server import mcp
 
     tools = {t.name for t in await mcp.list_tools()}
     assert tools == EXPECTED
-    assert len(tools) == 11
+    assert len(tools) == 12
     assert tools.isdisjoint(REMOVED)
 
 
