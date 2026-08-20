@@ -64,6 +64,11 @@ class Slice(models.Model):
         on_delete=models.SET_NULL, related_name="assigned_slices",
     )
     constraints = models.TextField(blank=True, default="")
+    # The brainstorm that has not been decided yet: {"nodes": [...]}.
+    # It exists only while `spec` is empty; writing the spec clears it
+    # (TP-227). The canvas renders whichever of the two is present, never
+    # both, so a design still has exactly one home.
+    draft = models.JSONField(default=dict, blank=True)
     duplicate_of = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="duplicates",
     )
