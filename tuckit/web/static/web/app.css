@@ -2506,3 +2506,12 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 .cnode--question { background: var(--paper-solid); border-style: dashed; }
 .cnode--note { background: var(--blue-soft); border-color: transparent; }
 .cnode.is-rec { border-color: var(--blue); }
+
+/* A settled question keeps its rejected options visible but small: they stop
+   competing for space without disappearing, so "why did that lose" is still
+   one click away. */
+.cnode.is-chosen { border-color: var(--blue); border-width: 2px; padding: 10px var(--space-12); }
+.cnode.is-dim { opacity: .55; padding: 7px var(--space-12); }
+.cnode.is-dim .cnode-s, .cnode.is-dim .cnode-b { display: none; }
+.cnode.is-dim .cnode-t { font-weight: 500; font-size: var(--text-sm); color: var(--ink-soft); }
+.cnode.is-dim:hover { opacity: .85; }
