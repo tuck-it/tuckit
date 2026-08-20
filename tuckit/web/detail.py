@@ -3,6 +3,7 @@ import nh3
 
 from tuckit.core.services.activity import label_who, slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
+from tuckit.core.services.canvas import graph_for
 from tuckit.core.services.refs import slice_ref
 from tuckit.core.services.slices import delegation_prompt, stage_of
 
@@ -55,6 +56,14 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
         # Plan, which meant it was unreachable unless you first made a plan —
         # and almost nobody did).
         "constraints_html": render_markdown_html(slice_.constraints),
+        # The canvas source: the draft while a design is being made, the spec's
+        # own heading structure once it has been written. Bodies go through the
+        # same markdown surface as everything else -- there is deliberately no
+        # second, narrower renderer for cards.
+        "canvas_nodes": [
+            dict(node, body_html=render_markdown_html(node.get("body", "")))
+            for node in graph_for(slice_)
+        ],
         "bites": list(list_bites(slice_)),
         "activity": label_who(slice_activity(slice_), viewer),
         "is_modal": is_modal,
