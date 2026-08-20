@@ -1,6 +1,7 @@
 import os
 
 from asgiref.sync import sync_to_async
+from django.conf import settings
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
 from mcp.server.transport_security import TransportSecuritySettings
@@ -30,6 +31,7 @@ from tuckit.core.services.slices import stage_of
 from tuckit.core.services.slices import update_slice as _update_slice
 from tuckit.core.services.state import get_project_state as _get_project_state
 from tuckit.core.services.state import render_slice_markdown
+from tuckit.core.services.watches import open_watch as _open_watch
 
 # `area_id` is `int | str | None` on every tool that can move or filter by area.
 # There is no way to say "clear this field" with a plain `int | None` — None
@@ -404,6 +406,30 @@ async def update_slice(
     return await sync_to_async(_run, thread_sensitive=True)()
 
 
+def _public_origin(ctx) -> str:
+    """The origin an external shell should call back on.
+
+    Pinned by TUCKIT_OAUTH_ISSUER wherever a deployment sets one -- cloud sits
+    behind a proxy, so the request's own Host is the internal address -- and
+    derived from the request otherwise, which is what a self-hosted install
+    needs and what the OAuth metadata endpoints already do. The same setting,
+    because "where does the outside world reach this server" is one fact.
+
+    Scheme: the proxy header first, then the request's own scheme (a bare,
+    un-proxied self-hosted install has no `x-forwarded-proto`, and defaulting
+    to https there hands back a URL that does not resolve), and only then a
+    last-resort "https".
+    """
+    if settings.TUCKIT_OAUTH_ISSUER:
+        return settings.TUCKIT_OAUTH_ISSUER.rstrip("/")
+    request = ctx.request_context.request
+    headers = request.headers if request is not None else {}
+    scheme = (headers.get("x-forwarded-proto")
+              or getattr(getattr(request, "url", None), "scheme", None)
+              or "https")
+    return f"{scheme}://{headers.get('host', '')}".rstrip("/")
+
+
 @mcp.tool()
 async def propose(ctx: Context, slice_id: int, nodes: list[dict]) -> dict:
     """Add nodes to a slice's design canvas while the design is still open.
@@ -424,13 +450,33 @@ async def propose(ctx: Context, slice_id: int, nodes: list[dict]) -> dict:
     and dropped is part of the record, so nothing is ever edited away -- and
     once the design is written the canvas shows the spec's own structure
     instead. Carry every decision you reached here into `update_slice(spec=...)`
-    before you write it: writing the spec retires the canvas."""
+    before you write it: writing the spec retires the canvas.
+
+    When the batch contained a question you also get `watch_url`: an
+    unauthenticated URL, good for fifteen minutes, that answers
+    `{"status": "waiting"}` until someone clicks one of that question's options
+    in their browser and `{"status": "chosen", "choice": "<node id>"}` after.
+    The id it returns is one of your own, so you already know which option won.
+    Poll it from a background shell loop and keep working; never block on it,
+    and keep asking the same question in chat, because someone who never opens
+    the browser must still be able to answer you. A click chooses a direction --
+    it is not approval, and it never stands in for confirmation before writing
+    the spec or shipping."""
     org, user = await require_caller(ctx)
+    origin = _public_origin(ctx)
 
     def _run():
         s = _resolve_slice(org, slice_id)
         added = _propose_nodes(s, nodes, source="agent", member=_acting_member(org, user))
-        return {"slice_id": s.id, "node_ids": [n["id"] for n in added], "count": len(added)}
+        url = ""
+        # No question means nothing to wait for. Issuing a watch anyway would
+        # leave a row nobody ever reads and hand back a URL that can only ever
+        # say "waiting".
+        if any(n.get("kind") == "question" for n in added):
+            _, raw = _open_watch(s)
+            url = f"{origin}/watch/{raw}"
+        return {"slice_id": s.id, "node_ids": [n["id"] for n in added],
+                "count": len(added), "watch_url": url}
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
