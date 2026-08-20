@@ -2542,6 +2542,19 @@ body.canvas-maxed .ob-widget { display: none; }
 .cnode.is-dim .cnode-t { font-weight: 500; font-size: var(--text-sm); color: var(--ink-soft); }
 .cnode.is-dim:hover { opacity: .85; }
 
+/* The title IS the pick control: a real button, in the tab order, styled to
+   occupy exactly the space the heading did. A control that appeared or
+   disappeared with the answer would change a card's height, and the layout is
+   measured before it is placed -- the tree would be laid out from heights
+   nothing on screen has. */
+.cnode-pick {
+  display: block; width: 100%; margin: 0; padding: 0;
+  font: inherit; color: inherit; letter-spacing: inherit; text-align: left;
+  background: none; border: 0; cursor: pointer;
+}
+.cnode-pick:hover { color: var(--blue-strong); }
+.cnode-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
 /* Motion lives on the client: the server only says when a card arrived, and
    the stagger is computed here. That is what keeps a 2s poll from turning into
    a 2s stutter. */
