@@ -6,7 +6,9 @@ from django.views.decorators.http import require_POST
 
 from tuckit.core.services.exceptions import NotFound, InvalidValue
 from tuckit.core.services.resolve import get_slice, get_bite, get_area
-from tuckit.core.services.slices import set_slice_status, update_slice, set_slice_area
+from tuckit.core.services.slices import (
+    set_slice_status, update_slice, set_slice_area, choose_option,
+)
 from tuckit.core.services.bites import create_bite, delete_bite, set_bite_status, update_bite
 from tuckit.web.auth import acting_member, get_current_org
 from tuckit.web.htmx import widget_oob
@@ -108,6 +110,30 @@ def slice_edit(request, slice_id):
     if "constraints" in request.POST: kwargs["constraints"] = request.POST["constraints"]
     update_slice(slice_, **kwargs, member=acting_member(request))
     return _detail(request, slice_)
+
+
+@require_POST
+def slice_choice(request, slice_id):
+    """Someone picked one of a question's options on the canvas.
+
+    204 and nothing else. The canvas owns its own DOM -- measured heights, the
+    set of cards that have already animated, the transforms it computed -- and
+    a re-rendered partial would throw all of that away mid-animation. The
+    client applies the answer itself; the live poll confirms it; this response
+    exists to carry the status and the X-Live-Cursor header.
+
+    A click here settles a DIRECTION and nothing more. It never ships, never
+    writes a spec, and never stands in for an answer in the terminal.
+    """
+    slice_ = _slice_or_404(request, slice_id)
+    try:
+        choose_option(
+            slice_, request.POST.get("node_id", ""),
+            source="human", member=acting_member(request),
+        )
+    except InvalidValue as exc:
+        return HttpResponse(str(exc), status=400, content_type="text/plain")
+    return HttpResponse(status=204)
 
 
 # slice_reassign() is gone. It was a second "set this slice's area" endpoint
