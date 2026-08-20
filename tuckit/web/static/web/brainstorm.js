@@ -273,11 +273,42 @@
       world.appendChild(el);
       cards.push(el);
       byId[el.dataset.id] = el;
+      observer.observe(el);
       added = true;
     });
     if (added || incoming.querySelector("[data-chosen]")) render(false);
     return added;
   }
+
+  /* A mockup in a 264px card is decoration; opened large it is evidence. */
+  stage.addEventListener("click", function (e) {
+    var img = e.target.closest("[data-media]");
+    if (!img) return;
+    e.stopPropagation();
+    var box = document.createElement("div");
+    box.className = "canvas-lightbox";
+    var big = document.createElement("img");
+    big.src = img.src;
+    big.alt = img.alt;
+    box.appendChild(big);
+    box.addEventListener("click", function () { box.remove(); });
+    document.addEventListener("keydown", function esc(ev) {
+      if (ev.key === "Escape") { box.remove(); document.removeEventListener("keydown", esc); }
+    });
+    document.body.appendChild(box);
+  });
+
+  /* width/height on the <img> reserve the box, so a mockup that arrives late
+     changes nothing. This is the net for everything else -- a font swap, an
+     edited body, an image whose dimensions were never recorded. Without the
+     reserved box the page jumps once per image; without this it jumps once
+     per image that forgot to declare one. */
+  var reflowTimer = null;
+  var observer = new ResizeObserver(function () {
+    clearTimeout(reflowTimer);
+    reflowTimer = setTimeout(function () { render(false); }, 60);
+  });
+  cards.forEach(function (el) { observer.observe(el); });
 
   /* Drag the background to pan. */
   var dragging = false, sx = 0, sy = 0;

@@ -2525,3 +2525,23 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 @media (prefers-reduced-motion: reduce) {
   .cnode, .canvas-world, .canvas-edges path { transition: none !important; }
 }
+
+/* A mockup crammed into a 264px card is decoration; opened large it is
+   evidence. The thumbnail's fixed height is the load-bearing part -- a card's
+   height must not depend on how tall the image happens to be, or the whole
+   tree's fit scale moves with it. */
+.cnode-media { display: flex; gap: var(--space-6); margin-top: 9px; flex-wrap: wrap; }
+.cnode-media img {
+  height: 64px; width: auto; max-width: 100%; object-fit: cover;
+  border: 1px solid var(--line); border-radius: var(--radius-small); cursor: zoom-in;
+}
+.cnode.is-dim .cnode-media { display: none; }
+
+.canvas-lightbox {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--ink) 72%, transparent); padding: 5vmin;
+}
+.canvas-lightbox img {
+  max-width: 100%; max-height: 100%;
+  border-radius: var(--radius); box-shadow: 0 8px 40px var(--shadow);
+}

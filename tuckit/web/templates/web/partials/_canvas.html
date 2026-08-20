@@ -28,6 +28,16 @@ never flashes in the wrong spot.
         <h3 class="cnode-t">{{ n.title }}</h3>
         {% if n.summary %}<p class="cnode-s">{{ n.summary }}</p>{% endif %}
         {% if n.body_html %}<div class="cnode-b">{{ n.body_html|safe }}</div>{% endif %}
+        {% if n.media %}
+        <div class="cnode-media">
+          {% for m in n.media %}
+          <img src="{{ m.url }}" alt="{{ m.alt|default:'' }}"
+               {% if m.w %}width="{{ m.w }}"{% endif %}
+               {% if m.h %}height="{{ m.h }}"{% endif %}
+               loading="lazy" data-media>
+          {% endfor %}
+        </div>
+        {% endif %}
       </article>
       {% endfor %}
     </div>
