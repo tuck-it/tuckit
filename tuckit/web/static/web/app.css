@@ -2504,6 +2504,10 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 }
 .canvas.is-max .canvas-stage { flex: 1 1 auto; height: auto; min-height: 0; }
 body.canvas-maxed { overflow: hidden; }
+/* The onboarding widget is fixed at z-index 60, so it floats over a surface
+   whose whole point is an unobstructed view of the tree. It is an app-level
+   affordance and the app is what this state hides. */
+body.canvas-maxed .ob-widget { display: none; }
 
 /* Hidden until the client has measured and placed the cards once, so nothing
    is ever painted at a position the server had to guess. */

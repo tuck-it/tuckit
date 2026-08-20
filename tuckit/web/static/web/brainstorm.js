@@ -340,10 +340,11 @@
     document.body.classList.toggle("canvas-maxed", on);
     if (maxBtn) {
       maxBtn.setAttribute("aria-expanded", on ? "true" : "false");
-      maxBtn.setAttribute("aria-label", on ? "Restore the canvas" : "Maximize the canvas");
+      maxBtn.textContent = on ? "Restore" : "Expand";
     }
-    /* The stage resizes on the next frame; fitting before that measures the old
-       box and lands the tree at a scale for a stage that no longer exists. */
+    /* The stage resizes with the class; fit() has to measure it afterwards, so
+       it waits a frame. Note this makes maximize a no-op in a background tab,
+       where rAF is suspended entirely -- harmless, since nobody is looking. */
     requestAnimationFrame(fit);
   }
 
