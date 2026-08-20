@@ -84,6 +84,12 @@
   margin: 0 0 4px;
 }
 .auth-note strong { color: var(--ink); font-weight: 560; }
+/* Nothing was styling a bare <a> on these screens, so the browser default
+   applied: link blue, then visited purple. Two colours from outside the
+   palette, on the screens where a stranger meets the product — including
+   the checkout page, where the links are the refund policy and the terms. */
+.auth-note a { color: var(--blue); }
+.auth-note a:hover { color: var(--blue-strong); }
 
 /* Register form: organization-URL preview + live slug-availability hint. */
 .slug-preview {
