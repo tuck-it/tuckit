@@ -545,3 +545,64 @@ def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[
             to_value=str(len(fresh)), member=member,
         )
     return fresh
+
+
+def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -> dict:
+    """Record a human's choice of an option that answers a question.
+
+    The canvas is the thinking surface while the design is being made. Once a
+    question is answered (by a human clicking an option in the browser), this
+    function records that choice by setting `chosen` on the parent question node.
+
+    The choice is only recorded while the design canvas is still open (spec is
+    empty) — once the design is written, the canvas shows the spec's own
+    structure instead.
+
+    Returns the updated question node (the parent).
+    """
+    assert_can_write(slice_.org)
+    if (slice_.spec or "").strip():
+        raise InvalidValue(
+            "this slice already has a spec, so its canvas shows the spec's own "
+            "structure -- record a choice only while the design is still being made"
+        )
+
+    nodes = (slice_.draft or {}).get("nodes", [])
+    node_map = {n.get("id"): n for n in nodes}
+
+    # Validate the option node exists.
+    if node_id not in node_map:
+        raise InvalidValue(f"node {node_id!r} is not on this canvas")
+
+    node = node_map[node_id]
+
+    # Validate the node is an option.
+    if node.get("kind") != "option":
+        raise InvalidValue(f"node {node_id!r} is not an option")
+
+    # Validate the parent (question) exists.
+    parent_id = node.get("parent")
+    if parent_id not in node_map:
+        raise InvalidValue(
+            f"parent node {parent_id!r} is not on this canvas"
+        )
+
+    question_node = node_map[parent_id]
+
+    # Validate the parent is a question.
+    if question_node.get("kind") != "question":
+        raise InvalidValue(
+            f"parent node {parent_id!r} is not a question"
+        )
+
+    # Record the choice on the question node.
+    question_node["chosen"] = node_id
+
+    slice_.draft = {"nodes": nodes}
+    with transaction.atomic():
+        slice_.save(update_fields=["draft", "updated_at"])
+        record_activity(
+            slice_.org, source=source, verb="chose", target=slice_,
+            to_value=(node.get("title") or node_id)[:50], member=member,
+        )
+    return question_node
