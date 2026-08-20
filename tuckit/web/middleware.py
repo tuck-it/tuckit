@@ -97,11 +97,13 @@ class WritesBlockedMiddleware:
     permission, and a 403 would tell an agent to stop trying rather than to tell
     its human something.
 
-    How this looks in a browser is deliberately not decided here. htmx swaps the
-    body into whatever the requesting element targets, which is fine as a
-    truthful fallback but is not a designed surface, and this codebase has been
-    bitten repeatedly by swap/OOB behaviour that endpoint tests cannot see. The
-    banner and the upgrade path are a separate, browser-verified piece of work.
+    How this looks in a browser is deliberately not decided here, but two things
+    downstream depend on the shape of this response, and both were found by
+    clicking rather than by any test: base.html repeats a failed request's body
+    as a toast only while it is plain text and under a length ceiling, so a
+    rendered 402 template or a longer paragraph would silently reduce this to
+    "Something went wrong". tests/web/test_blocked_write_reason_reaches_the_
+    screen.py holds that line.
     """
 
     def __init__(self, get_response):

@@ -217,8 +217,15 @@
     document.body.addEventListener("htmx:responseError", function (e) {
       var xhr = e.detail.xhr;
       var body = (xhr.responseText || "").trim();
-      /* Only trust a short plain-text body; an HTML error page is not a message. */
-      var msg = (body && body.length < 200 && body[0] !== "<")
+      /* Only trust a plain-text body; an HTML error page is not a message.
+         The ceiling is a crude proxy for "is this prose or a document", and at
+         200 it was too low: a deployment that closes writes answers with a
+         paragraph — what happened, that nothing was deleted, what to do — and
+         the paragraph was 240 characters, so the one refusal the product takes
+         care to explain was the one that came back as "Something went wrong".
+         Nothing went wrong. The workspace is read-only, on purpose, and the
+         server said so. */
+      var msg = (body && body.length < 600 && body[0] !== "<")
         ? body
         : "Something went wrong (" + xhr.status + "). Nothing was saved.";
       showToast(msg, "err");
