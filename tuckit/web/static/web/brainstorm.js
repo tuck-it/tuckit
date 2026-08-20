@@ -17,6 +17,8 @@
 
   var tx = 24, ty = 20, scale = 1;
   var placed = null;
+  var seen = Object.create(null);        // cards already placed at least once
+  var drawnEdges = Object.create(null);  // edges whose draw-in has already played
 
   function applyView() {
     world.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + scale + ")";
@@ -142,16 +144,60 @@
     cards.forEach(function (el) { heights[el.dataset.id] = el.offsetHeight; });
     placed = layout(cards, heights);
 
+    /* Only cards that ARRIVED animate. Replaying the entrance for a graph that
+       was already complete means every page load opens on ~2s of empty canvas. */
+    var arriving = cards.filter(function (el) { return !seen[el.dataset.id]; });
     cards.forEach(function (el) {
       var p = placed.get(el.dataset.id);
-      if (p) el.style.transform = "translate(" + p.x + "px," + p.y + "px)";
+      if (!p) return;
+      var target = "translate(" + p.x + "px," + p.y + "px)";
+
+      if (seen[el.dataset.id] || cold) {
+        if (cold) { el.style.transition = "none"; el.style.opacity = "1"; }
+        el.style.transform = target;
+        if (cold) requestAnimationFrame(function () { el.style.transition = ""; });
+      } else {
+        var parent = placed.get(el.dataset.parent);
+        el.style.opacity = "0";
+        el.style.transform = parent
+          ? "translate(" + parent.x + "px," + parent.y + "px) scale(.9)"
+          : target;
+        var delay = arriving.indexOf(el) * 90;
+        requestAnimationFrame(function () { requestAnimationFrame(function () {
+          el.style.transitionDelay = delay + "ms";
+          el.style.opacity = "1";
+          el.style.transform = target;
+          setTimeout(function () { el.style.transitionDelay = "0ms"; }, delay + 700);
+        }); });
+      }
+      seen[el.dataset.id] = true;
     });
 
-    drawEdges();
+    drawEdges(cold);
+    follow(arriving);
     root.removeAttribute("data-pending");
   }
 
-  function drawEdges() {
+  /* The tree grows rightwards. A viewport that stays put makes the reader chase
+     each new card by hand -- the exact friction this canvas exists to remove.
+     Yields for 15s after any deliberate pan or zoom. */
+  function follow(arriving) {
+    if (!arriving.length || Date.now() - userMovedAt < 15000) return;
+    var a = Infinity, b = -Infinity, c = Infinity, d = -Infinity;
+    arriving.forEach(function (el) {
+      var p = placed.get(el.dataset.id);
+      if (!p) return;
+      a = Math.min(a, p.x); b = Math.max(b, p.x + NODE_W);
+      c = Math.min(c, p.y); d = Math.max(d, p.y + p.h);
+    });
+    if (a > b) return;
+    tx = Math.min(24, stage.clientWidth * 0.62 - ((a + b) / 2) * scale);
+    ty = stage.clientHeight * 0.5 - ((c + d) / 2) * scale;
+    world.style.transition = "transform .85s var(--ease)";
+    applyView();
+  }
+
+  function drawEdges(cold) {
     var maxX = 0, maxY = 0;
     placed.forEach(function (p) {
       maxX = Math.max(maxX, p.x + NODE_W);
@@ -181,7 +227,56 @@
       path.setAttribute("d", "M" + x1 + "," + y1 + " C" + (x1 + dx) + "," + y1 +
                              " " + (x2 - dx) + "," + y2 + " " + x2 + "," + y2);
       path.classList.toggle("is-taken", byId[pid].dataset.chosen === el.dataset.id);
+
+      if (!drawnEdges[key]) {
+        drawnEdges[key] = true;
+        if (cold) return;                       // cold load: plain solid line
+        var len = path.getTotalLength();
+        path.style.transition = "none";
+        path.style.strokeDasharray = len;
+        path.style.strokeDashoffset = len;
+        requestAnimationFrame(function () { requestAnimationFrame(function () {
+          path.style.transition = "stroke-dashoffset .6s var(--ease), stroke .3s";
+          path.style.strokeDashoffset = "0";
+          /* A dasharray left behind is frozen at the length the path had when
+             it first appeared. The moment the layout moves and the path grows,
+             that stale value repeats as a dash pattern and the edge renders
+             broken -- so drop it once the draw-in has played. */
+          setTimeout(function () {
+            path.style.transition = "";
+            path.style.strokeDasharray = "";
+            path.style.strokeDashoffset = "";
+          }, 1500);
+        }); });
+      }
     });
+  }
+
+  /* Adopt a freshly rendered canvas partial: keep the cards already on screen,
+     append the ones that are new, and let render() animate exactly those.
+     Returns true if anything arrived.
+
+     A caller running this from a polling loop must wrap it in its own
+     try/catch -- live.js catches after invoking its hook and blames the
+     network, so an exception thrown here would surface only as a visual
+     glitch with a silent console. */
+  function syncFromServer(html) {
+    var incoming = document.createElement("div");
+    incoming.innerHTML = html;
+    var added = false;
+    incoming.querySelectorAll(".cnode").forEach(function (el) {
+      var known = byId[el.dataset.id];
+      if (known) {
+        known.dataset.chosen = el.dataset.chosen || "";
+        return;
+      }
+      world.appendChild(el);
+      cards.push(el);
+      byId[el.dataset.id] = el;
+      added = true;
+    });
+    if (added || incoming.querySelector("[data-chosen]")) render(false);
+    return added;
   }
 
   /* Drag the background to pan. */
@@ -214,6 +309,7 @@
   render(true);
 
   window.__canvas = { render: render, layout: layout, fit: fit, setScale: setScale,
+                     sync: syncFromServer,
                      placed: function () { return placed; },
                      view: function () { return { tx: tx, ty: ty, scale: scale }; } };
 })();

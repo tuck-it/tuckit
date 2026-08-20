@@ -2515,3 +2515,13 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 .cnode.is-dim .cnode-s, .cnode.is-dim .cnode-b { display: none; }
 .cnode.is-dim .cnode-t { font-weight: 500; font-size: var(--text-sm); color: var(--ink-soft); }
 .cnode.is-dim:hover { opacity: .85; }
+
+/* Motion lives on the client: the server only says when a card arrived, and
+   the stagger is computed here. That is what keeps a 2s poll from turning into
+   a 2s stutter. */
+.cnode { transition: transform .55s var(--ease), opacity .45s var(--ease),
+                     border-color .3s, box-shadow .3s; }
+.canvas-edges path { transition: stroke .3s; }
+@media (prefers-reduced-motion: reduce) {
+  .cnode, .canvas-world, .canvas-edges path { transition: none !important; }
+}
