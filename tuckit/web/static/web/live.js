@@ -43,7 +43,8 @@
   function label(verb) {
     return { created: "added", status_changed: "updated", moved: "moved",
              shipped: "shipped", dropped: "dropped", planned: "planned a plan on",
-             noted: "noted on", promoted: "promoted", dismissed: "dismissed",
+             noted: "noted on", chose: "chose on",
+             promoted: "promoted", dismissed: "dismissed",
              deleted: "deleted" }[verb] || verb;
   }
 
@@ -76,11 +77,20 @@
      LiveCursorMiddleware); adopting it means the poller resumes from AFTER
      your own writes. Other people's events are unaffected — they land with
      higher ids and still toast. Only ever moves forward. */
+  /* Let a write that is NOT an htmx request adopt the same watermark.
+     brainstorm.js posts a choice with fetch(), which never fires
+     htmx:afterRequest -- so without this the click comes back on the next poll
+     and is announced to the person who just made it, replacing their own
+     toast. Only ever moves forward. */
+  window.__liveAdoptCursor = function (value) {
+    var seen = parseInt(value || "", 10);
+    if (seen && seen > cursor) cursor = seen;
+  };
+
   document.body.addEventListener("htmx:afterRequest", function (e) {
     var xhr = e.detail && e.detail.xhr;
     if (!xhr) return;
-    var seen = parseInt(xhr.getResponseHeader("X-Live-Cursor") || "", 10);
-    if (seen && seen > cursor) cursor = seen;
+    window.__liveAdoptCursor(xhr.getResponseHeader("X-Live-Cursor"));
   });
 
   document.addEventListener("visibilitychange", function () {

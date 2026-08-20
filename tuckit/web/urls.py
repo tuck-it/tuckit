@@ -6,7 +6,7 @@ from django.views.generic import RedirectView
 from tuckit.web.views import (
     pages, slices, mutations, board, capture, health,
     accounts, settings_org, settings_account, settings_shell, routing,
-    onboarding, oauth, social, live, search, export,
+    onboarding, oauth, social, live, search, export, watch,
 )
 from tuckit.web.views import settings as settings_views
 
@@ -29,6 +29,13 @@ auth_patterns = [
 # --- internal JSON API (no HTML pages) ---
 api_patterns = [
     path("api/check-slug", login_not_required(routing.check_slug), name="api_check_slug"),
+    # The one CAPABILITY-TOKEN route in the product -- not the only login-exempt
+    # one (login/, register/, invite/, healthcheck, api/check-slug above, and
+    # the OAuth metadata routes are all login_not_required too), but the only
+    # one whose token IS the authorisation. It lives fifteen minutes and
+    # answers exactly one question. Deliberately outside the tenant prefix --
+    # the shell polling it knows a URL and nothing else, not an org slug.
+    path("watch/<str:token>", login_not_required(watch.canvas_watch), name="canvas_watch"),
 ]
 
 # --- OAuth 2.1 (MCP authorization server; no tenant slug) ---
@@ -110,6 +117,10 @@ app_patterns = [
     path(f"{P}slices/<int:slice_id>/status", mutations.slice_status, name="slice_status"),
     path(f"{P}slices/<int:slice_id>/edit", mutations.slice_edit, name="slice_edit"),
     path(f"{P}slices/<int:slice_id>/tags", mutations.slice_tags, name="slice_tags"),
+    # A click on the canvas. POST-only and login-scoped like every other
+    # mutation here -- the unauthenticated half of this loop is the watch URL
+    # in api_patterns, which only ever reads.
+    path(f"{P}slices/<int:slice_id>/choice", mutations.slice_choice, name="slice_choice"),
     path(f"{P}slices/<int:slice_id>/move", board.slice_move, name="slice_move"),
     # Triage = picking an Area (reversible: an empty area_id sends the slice
     # back to the Inbox). It replaced the old Ticket promote/dismiss flow, and

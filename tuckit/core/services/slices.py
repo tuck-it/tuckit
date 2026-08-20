@@ -10,6 +10,7 @@ from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.tags import get_or_create_tags
 from tuckit.core.services.validation import validate_choice
+from tuckit.core.services.watches import answer_watches, close_watches
 
 
 def list_slices(area: Area, status: str | None = None, tag: str | None = None) -> QuerySet:
@@ -206,6 +207,7 @@ def update_slice(
     old_status = slice_.status
     if title is not None:
         slice_.title = title
+    close_open_watches = False
     if spec is not None:
         slice_.spec = spec
         # A written spec retires the canvas's draft source: from here the
@@ -214,6 +216,17 @@ def update_slice(
         # written spec -- that is the state the draft exists for.
         if spec.strip():
             slice_.draft = {}
+            # The canvas is not a live surface any more, so neither is any URL
+            # waiting on a click against it. Here rather than in the MCP tool
+            # because the browser's inline spec edit comes through this same
+            # service -- doing it in the tool would leave live channels behind
+            # for everybody who writes their spec in the browser. Deferred
+            # until the atomic block below (not run here) so it shares the
+            # fate of the write it belongs to -- otherwise a validate_choice
+            # failure or a save() error below still deletes the watches while
+            # leaving `slice_.draft = {}` an in-memory assignment that never
+            # reaches the database.
+            close_open_watches = True
     if constraints is not None:
         slice_.constraints = constraints
     if duplicate_of is not None:
@@ -227,6 +240,8 @@ def update_slice(
         slice_.rank = rank_for(Slice, {"area": slice_.area}, before=before, after=after)
     with transaction.atomic():
         slice_.save()
+        if close_open_watches:
+            close_watches(slice_)
         if tags is not None:
             slice_.tags.set(get_or_create_tags(slice_.org, tags))
         if status is not None and status != old_status:
@@ -545,3 +560,70 @@ def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[
             to_value=str(len(fresh)), member=member,
         )
     return fresh
+
+
+def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -> dict:
+    """Record a human's choice of an option that answers a question.
+
+    The canvas is the thinking surface while the design is being made. Once a
+    question is answered (by a human clicking an option in the browser), this
+    function records that choice by setting `chosen` on the parent question node.
+
+    The choice is only recorded while the design canvas is still open (spec is
+    empty) — once the design is written, the canvas shows the spec's own
+    structure instead.
+
+    Returns the updated question node (the parent).
+    """
+    assert_can_write(slice_.org)
+    if (slice_.spec or "").strip():
+        raise InvalidValue(
+            "this slice already has a spec, so its canvas shows the spec's own "
+            "structure -- record a choice only while the design is still being made"
+        )
+
+    nodes = (slice_.draft or {}).get("nodes", [])
+    node_map = {n.get("id"): n for n in nodes}
+
+    # Validate the option node exists.
+    if node_id not in node_map:
+        raise InvalidValue(f"node {node_id!r} is not on this canvas")
+
+    node = node_map[node_id]
+
+    # Validate the node is an option.
+    if node.get("kind") != "option":
+        raise InvalidValue(f"node {node_id!r} is not an option")
+
+    # Validate the parent (question) exists.
+    parent_id = node.get("parent")
+    if parent_id not in node_map:
+        raise InvalidValue(
+            f"parent node {parent_id!r} is not on this canvas"
+        )
+
+    question_node = node_map[parent_id]
+
+    # Validate the parent is a question.
+    if question_node.get("kind") != "question":
+        raise InvalidValue(
+            f"parent node {parent_id!r} is not a question"
+        )
+
+    # Record the choice on the question node.
+    question_node["chosen"] = node_id
+
+    slice_.draft = {"nodes": nodes}
+    with transaction.atomic():
+        slice_.save(update_fields=["draft", "updated_at"])
+        record_activity(
+            slice_.org, source=source, verb="chose", target=slice_,
+            to_value=(node.get("title") or node_id)[:50], member=member,
+        )
+        # Inside the transaction: an agent told an answer landed cannot be
+        # un-told, so the message must not outlive a rolled-back write.
+        # question_id=parent_id: only the watch(es) opened for THIS question
+        # may be answered by this click -- a sibling question's watch, opened
+        # separately, is a different capability channel.
+        answer_watches(slice_, node_id, question_id=parent_id)
+    return question_node

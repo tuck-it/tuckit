@@ -8,10 +8,11 @@ from tuckit.core.models.oauth import (
 )
 from tuckit.core.models.social import SocialAccount
 from tuckit.core.models.throttle import ThrottleEpisode
+from tuckit.core.models.watch import CanvasWatch
 
 __all__ = [
     "User", "Org", "OrgMember", "Invitation", "ApiToken",
     "Tag", "Area", "Slice", "Bite", "ActivityEvent", "OrgStatSnapshot",
     "OAuthClient", "OAuthAuthorizationCode", "OAuthAccessToken", "OAuthRefreshToken",
-    "SocialAccount", "ThrottleEpisode",
+    "SocialAccount", "ThrottleEpisode", "CanvasWatch",
 ]

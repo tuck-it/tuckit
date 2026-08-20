@@ -1,4 +1,4 @@
-{% load static %}
+{% load static web_extras %}
 {% comment %}
 The slice as a node graph.
 
@@ -9,6 +9,7 @@ would, and clears data-pending -- until then the stage is hidden, so a card
 never flashes in the wrong spot.
 {% endcomment %}
 <section class="canvas" data-canvas data-pending
+         data-choice-url="{% wurl 'web:slice_choice' slice.id %}"
          aria-label="This slice as a node graph">
   <div class="canvas-bar">
     <button type="button" class="canvas-zoom" data-zoom="out" aria-label="Zoom out">&minus;</button>
@@ -27,7 +28,12 @@ never flashes in the wrong spot.
                data-parent="{{ n.parent|default_if_none:'' }}"
                {% if n.at %}data-at="{{ n.at }}"{% endif %}
                {% if n.chosen %}data-chosen="{{ n.chosen }}"{% endif %}>
+        {% if n.kind == "option" %}
+        <h3 class="cnode-t"><button type="button" class="cnode-pick" data-pick
+                aria-pressed="false">{{ n.title }}</button></h3>
+        {% else %}
         <h3 class="cnode-t">{{ n.title }}</h3>
+        {% endif %}
         {% if n.summary %}<p class="cnode-s">{{ n.summary }}</p>{% endif %}
         {% if n.body_html %}<div class="cnode-b">{{ n.body_html|safe }}</div>{% endif %}
         {% if n.media %}

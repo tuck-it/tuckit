@@ -16,6 +16,7 @@ class ActivityEvent(models.Model):
         ("planned", "planned"),
         ("noted", "noted"),
         ("proposed", "proposed"),
+        ("chose", "chose on"),
         ("promoted", "promoted"),
         ("dismissed", "dismissed"),
         ("deleted", "deleted"),
