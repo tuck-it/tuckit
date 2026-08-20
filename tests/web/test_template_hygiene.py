@@ -5,6 +5,12 @@ and was only caught by opening the page: Django's `{#...#}` comment is
 single-line only, so a comment that wraps is emitted verbatim into the HTML.
 Nothing about the response status or the assertions we normally write catches
 that — only a human (or this test) looking at the output does.
+
+It happened a second time, in 2026-08, on a template in another repo — the
+hosted checkout page, which printed two paragraphs of source commentary above
+the price for weeks. This guard could not have caught it: it walks THIS tree.
+A guard is only as wide as the directory it globs, and the lesson a guard
+encodes does not travel to a sibling repo by itself.
 """
 
 import re
