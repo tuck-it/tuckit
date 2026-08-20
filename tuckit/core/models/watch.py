@@ -19,6 +19,11 @@ class CanvasWatch(models.Model):
     slice = models.ForeignKey(
         "core.Slice", on_delete=models.CASCADE, related_name="canvas_watches")
     token_hash = models.CharField(max_length=64, unique=True)
+    # The question this watch was opened for. A slice can have several open at
+    # once (the skill calls propose per question), and an answer to one is not
+    # an answer to another -- without this, the first click empties every
+    # watch's `choice` and the second click reaches nobody.
+    question_id = models.CharField(max_length=200, blank=True, default="")
     # The node id that was picked; empty until someone picks one.
     choice = models.CharField(max_length=200, blank=True, default="")
     expires_at = models.DateTimeField()

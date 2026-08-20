@@ -207,6 +207,7 @@ def update_slice(
     old_status = slice_.status
     if title is not None:
         slice_.title = title
+    close_open_watches = False
     if spec is not None:
         slice_.spec = spec
         # A written spec retires the canvas's draft source: from here the
@@ -219,8 +220,13 @@ def update_slice(
             # waiting on a click against it. Here rather than in the MCP tool
             # because the browser's inline spec edit comes through this same
             # service -- doing it in the tool would leave live channels behind
-            # for everybody who writes their spec in the browser.
-            close_watches(slice_)
+            # for everybody who writes their spec in the browser. Deferred
+            # until the atomic block below (not run here) so it shares the
+            # fate of the write it belongs to -- otherwise a validate_choice
+            # failure or a save() error below still deletes the watches while
+            # leaving `slice_.draft = {}` an in-memory assignment that never
+            # reaches the database.
+            close_open_watches = True
     if constraints is not None:
         slice_.constraints = constraints
     if duplicate_of is not None:
@@ -234,6 +240,8 @@ def update_slice(
         slice_.rank = rank_for(Slice, {"area": slice_.area}, before=before, after=after)
     with transaction.atomic():
         slice_.save()
+        if close_open_watches:
+            close_watches(slice_)
         if tags is not None:
             slice_.tags.set(get_or_create_tags(slice_.org, tags))
         if status is not None and status != old_status:
@@ -614,5 +622,8 @@ def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -
         )
         # Inside the transaction: an agent told an answer landed cannot be
         # un-told, so the message must not outlive a rolled-back write.
-        answer_watches(slice_, node_id)
+        # question_id=parent_id: only the watch(es) opened for THIS question
+        # may be answered by this click -- a sibling question's watch, opened
+        # separately, is a different capability channel.
+        answer_watches(slice_, node_id, question_id=parent_id)
     return question_node

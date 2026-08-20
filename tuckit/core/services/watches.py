@@ -10,6 +10,7 @@ import hashlib
 import secrets
 from datetime import timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 
 from tuckit.core.models import CanvasWatch
@@ -28,8 +29,17 @@ def hash_watch_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def open_watch(slice_):
-    """Issue a watch on one slice. Returns (watch, raw token).
+def open_watch(slice_, question_id: str = ""):
+    """Issue a watch on one slice, scoped to the question it was opened for.
+    Returns (watch, raw token).
+
+    `question_id` is optional and defaults to "" (unscoped) so existing
+    callers, and any row written before this field existed, keep working: an
+    unscoped watch answers to any question on the slice, which is the old
+    behaviour. A slice can have several watches open at once -- the skill
+    calls propose per question, so two live questions is normal, not an edge
+    case -- and a watch that does not know which question it belongs to
+    cannot tell its own answer from a sibling's.
 
     The raw token is returned once and never stored. Opening also sweeps the
     org's dead watches, so this needs no cron: the write path pays for its own
@@ -40,7 +50,7 @@ def open_watch(slice_):
     raw = secrets.token_urlsafe(32)
     watch = CanvasWatch.objects.create(
         org=slice_.org, slice=slice_, token_hash=hash_watch_token(raw),
-        expires_at=now + WATCH_TTL,
+        question_id=question_id, expires_at=now + WATCH_TTL,
     )
     return watch, raw
 
@@ -62,17 +72,27 @@ def read_watch(raw: str) -> dict | None:
     return {"status": "waiting"}
 
 
-def answer_watches(slice_, node_id: str) -> int:
+def answer_watches(slice_, node_id: str, question_id: str = "") -> int:
     """Tell this slice's live, unanswered watches which node was picked.
 
     Only unanswered ones: an answered watch has been read, or is about to be,
     and rewriting it would change an answer someone may already have acted on.
     The expiry is set to the grace window rather than clamped so a nearly-dead
     watch can still deliver the thing it was waiting for.
+
+    Also only watches for THIS question: `Q(question_id="") | Q(question_id=...)`
+    matches a watch scoped to this question and, for backward compatibility, a
+    watch with no stored question_id at all (an unscoped row, either one opened
+    before this field existed or one whose caller chose not to scope it) --
+    that empty value means "answer me for any question on this slice", which
+    preserves the pre-scoping behaviour for such a row. A watch scoped to a
+    DIFFERENT question is left alone: two questions on one slice means two live
+    watches, and a click on one must not silently answer the other.
     """
     now = timezone.now()
     return CanvasWatch.objects.filter(
-        slice=slice_, choice="", expires_at__gt=now
+        Q(question_id="") | Q(question_id=question_id),
+        slice=slice_, choice="", expires_at__gt=now,
     ).update(choice=node_id, expires_at=now + ANSWER_GRACE)
 
 

@@ -472,8 +472,15 @@ async def propose(ctx: Context, slice_id: int, nodes: list[dict]) -> dict:
         # No question means nothing to wait for. Issuing a watch anyway would
         # leave a row nobody ever reads and hand back a URL that can only ever
         # say "waiting".
-        if any(n.get("kind") == "question" for n in added):
-            _, raw = _open_watch(s)
+        questions = [n for n in added if n.get("kind") == "question"]
+        if questions:
+            # Scope the watch to the first question node in this batch.
+            # Normally there is exactly one -- the skill calls propose per
+            # question -- so this covers the common case exactly. If a caller
+            # sends several questions in one batch, only the first gets a
+            # live watch; the rest are answerable only in chat, because one
+            # `propose` call returns only one `watch_url`.
+            _, raw = _open_watch(s, question_id=questions[0]["id"])
             url = f"{origin}/watch/{raw}"
         return {"slice_id": s.id, "node_ids": [n["id"] for n in added],
                 "count": len(added), "watch_url": url}
