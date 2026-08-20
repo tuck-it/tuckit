@@ -1,6 +1,12 @@
 """Transport-shaped policy that sits between the auth gate and the MCP app."""
 import json
 
+from asgiref.sync import sync_to_async
+from django.db import close_old_connections
+
+# Bound once. thread_sensitive=True is load-bearing: see ResetDatabaseConnections.
+_close_old_connections = sync_to_async(close_old_connections, thread_sensitive=True)
+
 # Kept in the body so an operator reading a 405 in the logs knows it is a
 # deliberate answer and not a routing accident.
 NO_SSE = (
@@ -167,3 +173,63 @@ def _replay(messages):
         return {"type": "http.disconnect"}
 
     return receive
+
+
+class ResetDatabaseConnections:
+    """Give each MCP request Django's connection lifecycle, which it otherwise misses.
+
+    Django closes a request's database connections when its own handler emits
+    `request_started` / `request_finished`. The MCP app is a separate ASGI app
+    mounted beside Django, so those signals never fire for it and nothing ever
+    reaps what its queries opened.
+
+    Every DB call under `/mcp` goes through `sync_to_async(..., thread_sensitive=True)`,
+    which asgiref runs on one shared executor thread for the whole process. Django's
+    connections are thread-local, so all of them accumulate on that single thread and
+    live for as long as the process does. That is fine right up until something else
+    closes the socket from the far end -- a serverless Postgres suspending on idle, a
+    proxy reaping an idle connection, a failover. Django still holds the dead handle,
+    hands it to the next query, and `/mcp` answers "the connection is closed" from
+    then on, permanently, while the Django side of the very same process keeps
+    working because its own requests open and close connections normally.
+
+    This is what happened on 2026-08-20: the web app returned 200s throughout and
+    every MCP tool call failed, until the process was replaced. It had been latent
+    for a month, hidden by a keep-warm cron that pinged a DB-touching healthcheck
+    every four minutes and so never let the database sleep. Removing that cron to
+    measure real load is what exposed it.
+
+    `close_old_connections()` closes anything unusable or past its age (CONN_MAX_AGE
+    defaults to 0, so: everything), and the next query opens a fresh connection. It
+    has to run through `sync_to_async(thread_sensitive=True)` for the same reason the
+    bug exists -- it must land on the thread that owns the connections, not the event
+    loop. Calling it directly from here would close nothing.
+
+    Running it before AND after is deliberate. Before: repair a connection that died
+    while the process sat idle, which is the case that bites. After: leave nothing
+    open behind us, so a database that scales to zero actually can.
+
+    Outermost in the stack on purpose -- outside the auth gate, because
+    authenticating a bearer token is itself a query and would be the first thing to
+    fail on a dead connection.
+
+    Note for whoever greps the logs: "the connection is closed" is also the symptom
+    RefuseSseStream describes, from an entirely different cause (a reaped SSE stream,
+    client-side). Same words, different failure; this one is server-side and only
+    ever follows a period of idleness.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        await _close_old_connections()
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            # finally, not "after a success": a request that raised is exactly
+            # the one most likely to have left a broken connection behind.
+            await _close_old_connections()

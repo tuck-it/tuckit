@@ -25,7 +25,11 @@ from starlette.routing import Mount
 
 from tuckit.core.mcp.auth import BearerAuthMiddleware
 from tuckit.core.mcp.server import _transport_security, mcp
-from tuckit.core.mcp.transport import AcceptClientNotifications, RefuseSseStream
+from tuckit.core.mcp.transport import (
+    AcceptClientNotifications,
+    RefuseSseStream,
+    ResetDatabaseConnections,
+)
 
 MCP_PREFIX = "/mcp"
 
@@ -63,15 +67,21 @@ def build_mcp_app():
     Both transport wrappers sit INSIDE the auth gate on purpose -- see their
     docstrings: an unauthenticated request must still get the 401 that carries
     OAuth discovery, rather than a 405 or a 202 that hides it.
+
+    ResetDatabaseConnections sits OUTSIDE it, for the mirror-image reason:
+    checking a bearer token is a database query, so a connection that died while
+    the process was idle has to be reaped before the auth gate runs, not after.
     """
-    return BearerAuthMiddleware(
-        RefuseSseStream(
-            AcceptClientNotifications(
-                mcp.streamable_http_app(
-                    streamable_http_path="/",
-                    json_response=True,
-                    stateless_http=True,
-                    transport_security=_transport_security,
+    return ResetDatabaseConnections(
+        BearerAuthMiddleware(
+            RefuseSseStream(
+                AcceptClientNotifications(
+                    mcp.streamable_http_app(
+                        streamable_http_path="/",
+                        json_response=True,
+                        stateless_http=True,
+                        transport_security=_transport_security,
+                    )
                 )
             )
         )
