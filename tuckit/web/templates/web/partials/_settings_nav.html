@@ -12,5 +12,12 @@
   <a class="settings-item{% if settings_active == 'org_agent' %} on{% endif %}" href="{% url 'web:settings_org_agent' nav_org.slug %}">Agent</a>
   <a class="settings-item{% if settings_active == 'org_shipped' %} on{% endif %}" href="{% url 'web:settings_org_shipped' nav_org.slug %}">Shipped board</a>
   <a class="settings-item{% if settings_active == 'org_export' %} on{% endif %}" href="{% url 'web:settings_org_export' nav_org.slug %}">Export</a>
+  {% comment %} The deployment's own settings entry, if it configured one. Core
+     neither names it nor owns a page for it — the label and the destination
+     both come from TUCKIT_ENTITLEMENTS_HOOK, so a self-host sees nothing here
+     and the public core stays free of any hosted-product vocabulary. It is an
+     ordinary link out, which is why it carries no `on` state: nothing it points
+     at is a screen this nav knows about. {% endcomment %}
+  {% if ent_action_url %}<a class="settings-item" href="{{ ent_action_url }}">{{ ent_action_label|default:"Details" }}</a>{% endif %}
   {% if can_owner %}<a class="settings-item danger{% if settings_active == 'org_danger' %} on{% endif %}" href="{% url 'web:settings_org_danger' nav_org.slug %}">Danger zone</a>{% endif %}
 </aside>

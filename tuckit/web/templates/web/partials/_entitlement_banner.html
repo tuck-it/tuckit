@@ -1,0 +1,24 @@
+{% comment %}
+  The deployment's notice, if it set one. Core writes none of this text: the
+  sentence, the tone and the link all arrive from TUCKIT_ENTITLEMENTS_HOOK, so
+  a self-host renders nothing here.
+
+  It sits inside <main> rather than above .app because the sidebar is a
+  100dvh sticky column — a strip above the flex row would push it off the
+  bottom of the viewport. Inside .main--board (a flex column) it takes its own
+  row and the board keeps the remaining height.
+
+  Not dismissible on purpose. The two things it says are "this is about to
+  stop" and "this has stopped", and neither becomes less true for being
+  acknowledged.
+{% endcomment %}
+{% if ent_notice %}
+<section class="ent-banner ent-banner--{{ ent_notice_tone|default:'warn' }}"
+         aria-label="Workspace notice">
+  <span class="ent-banner-dot" aria-hidden="true"></span>
+  <p class="ent-banner-text">{{ ent_notice }}</p>
+  {% if ent_action_url %}
+  <a class="btn ent-banner-action" href="{{ ent_action_url }}">{{ ent_action_label|default:"Details" }}</a>
+  {% endif %}
+</section>
+{% endif %}

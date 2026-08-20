@@ -161,3 +161,29 @@ def agent_activity(request):
 
     org = current_org_or_fallback(request)
     return {"agent_activity": active_targets(org) if org else {}}
+
+
+def entitlement_notice(request):
+    """Expose the deployment's notice and its one action link to every template.
+
+    Core supplies neither — `resolve_entitlements` returns empties unless a
+    deployment has configured TUCKIT_ENTITLEMENTS_HOOK, so on a self-host the
+    banner and the settings entry render nothing at all.
+
+    Read here rather than passed by each view because the banner lives in the
+    shell: a warning that only appears on the screens somebody remembered to
+    wire it into is worse than no warning, because it reads as "resolved" on
+    every screen it is missing from.
+    """
+    from tuckit.core.entitlements import resolve_entitlements
+
+    org = current_org_or_fallback(request)
+    if not org:
+        return {}
+    ent = resolve_entitlements(org)
+    return {
+        "ent_notice": ent.notice,
+        "ent_notice_tone": ent.notice_tone,
+        "ent_action_url": ent.action_url,
+        "ent_action_label": ent.action_label,
+    }

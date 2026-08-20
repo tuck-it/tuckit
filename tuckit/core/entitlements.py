@@ -17,6 +17,21 @@ class Entitlements:
     # plans, prices, trials — from leaking into the source-available core.
     writes_blocked_reason: str = ""
 
+    # A sentence the deployment wants shown in the product shell, and the one
+    # link it wants offered alongside it. All four are supplied by the hook and
+    # never composed here, for the same reason writes_blocked_reason is: core
+    # must not learn a deployment's vocabulary. A self-host sets none of them
+    # and the banner and the settings entry simply do not exist.
+    #
+    # notice_tone is "warn" (something is about to happen) or "block"
+    # (something already has). Empty notice = no banner; the action can still
+    # be present on its own, which is how a deployment offers a link to whoever
+    # goes looking for it without interrupting anyone who did not.
+    notice: str = ""
+    notice_tone: str = ""
+    action_url: str = ""
+    action_label: str = ""
+
 
 _UNLIMITED = Entitlements()
 

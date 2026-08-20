@@ -2404,3 +2404,47 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   .row-prog-track i { transition: none; }
   .slice-card { transition: none; }
 }
+
+/* --- Entitlement notice --------------------------------------------------
+   A deployment-supplied sentence at the top of the shell, with its one link.
+   Deliberately not a colour band (see the rule at the top of this file): a
+   paper strip with a hairline and a single tone dot, the same visual grammar
+   the status dots already use. It has to survive being read every day for a
+   week without becoming wallpaper OR becoming an alarm.
+
+   flex: 0 0 auto matters on the Board, where .main--board is a fixed-height
+   flex column — without it the banner would be squeezed to nothing. */
+.ent-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-10) var(--space-12);
+  margin-bottom: var(--space-14);
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font-size: var(--text-base);
+}
+.ent-banner-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--warn);
+}
+.ent-banner-text {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--ink);
+}
+.ent-banner-action { flex: 0 0 auto; }
+/* Already stopped, rather than about to: the edge carries it, so the strip
+   still reads as part of the page instead of shouting over it. */
+.ent-banner--block { border-color: var(--warn); }
+
+@media (max-width: 640px) {
+  .ent-banner { align-items: flex-start; flex-wrap: wrap; }
+  .ent-banner-dot { margin-top: 6px; }
+  .ent-banner-action { margin-left: 18px; }
+}
