@@ -133,6 +133,13 @@ class Invitation(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
+    # When the invitation email actually reached a mail server. NULL means it
+    # did not — no mail server configured, a rejected sender, a wrong password.
+    # A durable field rather than a toast because the failure outlives the
+    # moment: the person who pressed Invite walks away believing it was sent,
+    # and the only other evidence is an invitee who never got in touch. With
+    # this, the members table can say "not emailed" for as long as it is true.
+    emailed_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"invite {self.email} -> {self.org}"

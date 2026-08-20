@@ -102,6 +102,30 @@ REGISTRATION_OPEN = env_bool("TUCKIT_REGISTRATION_OPEN", default=False)
 # site); cloud injects https://tuckit.dev via env. Keeps the public core free
 # of any hardcoded cloud hostname.
 TUCKIT_MARKETING_URL = env("TUCKIT_MARKETING_URL", default="") or ""
+
+# --- Outgoing mail ---------------------------------------------------------
+# Plain SMTP settings, deliberately: every provider worth using speaks it, so
+# which one a deployment pays is a matter of four environment variables and
+# switching costs nothing. Nothing about a provider appears in this repo.
+#
+# Nothing is configured by default and that is the honest state for a fresh
+# checkout — but it must not be a SILENT one. Django's own default points SMTP
+# at localhost:25, so an unconfigured deployment raises ConnectionRefused on
+# every send, which is exactly what a `fail_silently=True` was covering up
+# here: invitations were being posted into nothing, without a trace, for as
+# long as the feature has existed. `email_is_configured()` below gives that
+# state a name so callers can say it out loud instead.
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="") or ""
+EMAIL_PORT = int(env("EMAIL_PORT", default="587"))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="") or ""
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="") or ""
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", default=True)
+EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", default="10"))  # never hang a request on a mail server
+# The address mail comes FROM. It has to be one the sending domain is
+# authorised for (SPF/DKIM), or the mail is delivered to spam, which is
+# indistinguishable from not sending it at all.
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="") or ""
 # Dotted path to a callable run right after signup, as hook(user=, org=).
 # Core ships None (no-op); cloud sets it to attach billing. Never in core.
 TUCKIT_SIGNUP_HOOK = env("TUCKIT_SIGNUP_HOOK", default=None) or None

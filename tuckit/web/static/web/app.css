@@ -911,6 +911,9 @@ body { padding: 0; }
 
 /* Descriptive helper text (not an empty state): quiet but readable, sans. */
 .hint { color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+/* A hint that is reporting a problem rather than explaining a field. Colour
+   alone never carries it (WCAG 1.4.1) — the words say "not emailed". */
+.hint--warn { color: var(--warn); font-size: var(--text-xs); margin-left: var(--space-6); }
 /* A real value the user owns (email, etc.) — full ink, readable size. */
 .settings-value { font-size: var(--text-md); color: var(--ink); }
 

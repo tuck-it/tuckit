@@ -1,3 +1,5 @@
+import json
+
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, HttpResponseForbidden
 from django.urls import reverse
@@ -6,6 +8,7 @@ from django.views.decorators.http import require_POST
 from tuckit.core.models import Invitation
 from tuckit.core.services.exceptions import InvalidValue, LimitReached
 from tuckit.core.services.invitations import cancel_invitation, create_invitation, send_invitation_email
+from tuckit.core.services.mail import MailNotSent
 from tuckit.core.services.oauth_apps import list_connected_apps, disconnect_app
 from tuckit.core.services.orgs import is_org_admin
 from tuckit.core.services.tokens import list_tokens, generate_token, revoke_token
@@ -94,8 +97,22 @@ def invite_create(request):
     except InvalidValue as exc:
         return HttpResponse(str(exc), status=400)
     inv.link = request.build_absolute_uri(reverse("web:invite_accept", args=[inv.token]))
-    send_invitation_email(invitation=inv, link=inv.link)  # optional; link below is the source of truth
-    return render(request, "web/partials/_invite_row.html", {"inv": inv, "org": org})
+    # The invitation stands either way — the link is the source of truth and
+    # can be copied by hand. But whether the email went is not something the
+    # inviter can find out any other way, so say it, both now (toast) and
+    # afterwards (the row reads emailed_at).
+    try:
+        send_invitation_email(invitation=inv, link=inv.link)
+        toast = {"message": f"Invited {inv.email} and emailed the link."}
+    except MailNotSent as exc:
+        toast = {
+            "message": f"Invited {inv.email}, but the email did not go out. {exc} "
+                       "Open Manage to copy the link and send it yourself.",
+            "tone": "err",
+        }
+    resp = render(request, "web/partials/_invite_row.html", {"inv": inv, "org": org})
+    resp["HX-Trigger"] = json.dumps({"tuckit:toast": toast})
+    return resp
 
 
 @require_POST

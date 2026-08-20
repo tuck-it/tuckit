@@ -71,16 +71,28 @@ def cancel_invitation(*, org, invitation_id) -> None:
 
 
 def send_invitation_email(*, invitation, link) -> None:
-    """Optional convenience: email the invite link. The link (shown in-app) is the
-    source of truth; if no mail backend is configured, this fails silently and the
-    self-host operator just copies the link. Never required."""
-    from django.conf import settings
-    from django.core.mail import send_mail
+    """Email the invite link. Raises MailNotSent if it did not go.
 
-    send_mail(
+    The link shown in-app remains the source of truth, and the invitation is
+    valid whether or not this succeeds — a self-host with no mail server copies
+    the link by hand, which is a fine way to invite somebody.
+
+    What is NOT fine is what this used to do. `fail_silently=True` meant that a
+    deployment with no mail server, or a wrong password, or a rejected sender,
+    all looked exactly like a delivered invitation: the row appeared, the
+    inviter moved on, and the invitee never heard anything. Whether the mail
+    went is now the caller's to report, and every caller has somewhere to
+    report it.
+    """
+    from tuckit.core.services.mail import send
+
+    send(
         subject=f"[{invitation.org.name}] Organization invitation",
-        message=f"You've been invited to the {invitation.org.name} organization.\n\nAccept invitation: {link}",
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-        recipient_list=[invitation.email],
-        fail_silently=True,
+        body=(
+            f"You've been invited to the {invitation.org.name} organization.\n\n"
+            f"Accept invitation: {link}"
+        ),
+        to=invitation.email,
     )
+    invitation.emailed_at = timezone.now()
+    invitation.save(update_fields=["emailed_at"])

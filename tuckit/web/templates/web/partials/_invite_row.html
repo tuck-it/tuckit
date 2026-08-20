@@ -6,7 +6,15 @@
     </div>
   </td>
   <td><span class="role-badge role-badge--{{ inv.role }}">{{ inv.get_role_display }}</span></td>
-  <td><span class="status-pill status-pill--pending">Invited</span></td>
+  {% comment %} "Invited" used to be the whole story, and it was the wrong half
+     of it: the invitation existed, and whether anybody had been told was
+     unknowable. An invite that never left the building says so here, for as
+     long as it is true, rather than in a toast that is gone in six seconds.
+     {% endcomment %}
+  <td>
+    <span class="status-pill status-pill--pending">Invited</span>
+    {% if not inv.emailed_at %}<span class="hint hint--warn" title="Open Manage to copy the link and send it yourself">not emailed</span>{% endif %}
+  </td>
   <td class="member-table-actions">
     <button class="btn" type="button" data-modal="small"
             hx-get="{% url 'web:invite_manage' org.slug inv.id %}" hx-target="#detail-modal">Manage</button>
