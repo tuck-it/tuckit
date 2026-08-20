@@ -22,6 +22,54 @@
     world.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + scale + ")";
   }
 
+  var userMovedAt = 0;   // auto-follow yields to a human who just moved the view
+
+  function showScale() {
+    var label = root.querySelector("[data-scale]");
+    if (label) label.textContent = Math.round(scale * 100) + "%";
+  }
+
+  /* Keep whatever is under the middle of the stage under the middle of the
+     stage. transform-origin is 0 0, so scaling on its own would swing the tree
+     away from wherever the reader was looking, and they would have to hunt for
+     it again. */
+  function setScale(next) {
+    next = Math.max(0.25, Math.min(1.6, next));
+    var cx = stage.clientWidth / 2, cy = stage.clientHeight / 2;
+    tx = cx - ((cx - tx) / scale) * next;
+    ty = cy - ((cy - ty) / scale) * next;
+    scale = next;
+    world.style.transition = "transform .3s var(--ease)";
+    showScale();
+    applyView();
+    userMovedAt = Date.now();
+  }
+
+  function bounds() {
+    if (!placed || !placed.size) return null;
+    var a = Infinity, b = -Infinity, c = Infinity, d = -Infinity;
+    placed.forEach(function (p) {
+      a = Math.min(a, p.x); b = Math.max(b, p.x + NODE_W);
+      c = Math.min(c, p.y); d = Math.max(d, p.y + p.h);
+    });
+    return { a: a, b: b, c: c, d: d };
+  }
+
+  function fit() {
+    var r = bounds();
+    if (!r) return;
+    var pad = 40;
+    var w = r.b - r.a, h = r.d - r.c;
+    scale = Math.max(0.25, Math.min(
+      (stage.clientWidth - pad * 2) / w, (stage.clientHeight - pad * 2) / h, 1.6));
+    tx = pad - r.a * scale + Math.max(0, (stage.clientWidth - pad * 2 - w * scale) / 2);
+    ty = pad - r.c * scale + Math.max(0, (stage.clientHeight - pad * 2 - h * scale) / 2);
+    world.style.transition = "transform .45s var(--ease)";
+    showScale();
+    applyView();
+    userMovedAt = Date.now();
+  }
+
   /* Port of canvas.layout(). Same algorithm, real measured heights. */
   function layout(list, heights) {
     var kids = {}, depth = {}, band = {}, cursor = 0;
@@ -142,17 +190,30 @@
     if (e.target.closest(".cnode")) return;
     dragging = true; sx = e.clientX - tx; sy = e.clientY - ty;
     stage.classList.add("is-dragging");
+    world.style.transition = "none";
+    userMovedAt = Date.now();
   });
   window.addEventListener("mousemove", function (e) {
     if (!dragging) return;
     tx = e.clientX - sx; ty = e.clientY - sy; applyView();
   });
   window.addEventListener("mouseup", function () {
+    if (dragging) userMovedAt = Date.now();
     dragging = false; stage.classList.remove("is-dragging");
+  });
+
+  root.querySelectorAll("[data-zoom]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var how = btn.dataset.zoom;
+      if (how === "fit") fit();
+      else setScale(how === "in" ? scale * 1.25 : scale / 1.25);
+    });
   });
 
   applyView();
   render(true);
 
-  window.__canvas = { render: render, layout: layout, placed: function () { return placed; } };
+  window.__canvas = { render: render, layout: layout, fit: fit, setScale: setScale,
+                     placed: function () { return placed; },
+                     view: function () { return { tx: tx, ty: ty, scale: scale }; } };
 })();
