@@ -2451,3 +2451,97 @@ button.htmx-request, a.htmx-request { opacity: .6; }
   .ent-banner-dot { margin-top: 6px; }
   .ent-banner-action { margin-left: 18px; }
 }
+
+/* ---- slice canvas (TP-223) ---------------------------------------------
+   The slice as a left-to-right node tree. Geometry is computed by
+   brainstorm.js from the same algorithm as core/services/canvas.py; this file
+   only says what a card looks like, never where it goes. */
+.canvas { margin: 0 0 var(--space-18); }
+.canvas-bar { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-8); }
+.canvas-zoom {
+  font: inherit; font-size: var(--text-base); line-height: 1;
+  min-width: 26px; height: 24px; padding: 0 var(--space-6);
+  border: 1px solid var(--line); background: var(--paper-raised);
+  color: var(--ink-soft); border-radius: var(--radius-small); cursor: pointer;
+  transition: background .18s, color .18s, border-color .18s;
+}
+.canvas-zoom:hover { background: var(--blue-soft); color: var(--blue-strong); border-color: var(--blue); }
+.canvas-scale {
+  font-size: var(--text-xs); font-weight: 500; color: var(--ink-faint);
+  min-width: 34px; text-align: right;
+}
+
+.canvas-stage {
+  position: relative; overflow: hidden; cursor: grab;
+  height: 60vh; min-height: 320px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--paper-solid);
+}
+.canvas-stage.is-dragging { cursor: grabbing; }
+.canvas-world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.canvas-edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+.canvas-edges path { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.canvas-edges path.is-taken { stroke: var(--blue); stroke-width: 2; }
+
+/* Hidden until the client has measured and placed the cards once, so nothing
+   is ever painted at a position the server had to guess. */
+[data-canvas][data-pending] .canvas-world { opacity: 0; }
+
+.cnode {
+  position: absolute; top: 0; left: 0; width: 264px;
+  padding: 11px var(--space-14); background: var(--paper-raised);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+.cnode-t { margin: 0; font-size: var(--text-base); font-weight: 620; letter-spacing: -.005em; }
+.cnode-s { margin: 3px 0 0; font-size: var(--text-sm); color: var(--ink-soft); }
+.cnode-b {
+  margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line);
+  font-size: var(--text-sm); color: var(--ink-soft);
+}
+.cnode-b > :first-child { margin-top: 0; }
+.cnode-b > :last-child { margin-bottom: 0; }
+.cnode-b img { max-width: 100%; height: auto; }
+.cnode-b table { display: block; overflow-x: auto; }
+.cnode--question { background: var(--paper-solid); border-style: dashed; }
+.cnode--note { background: var(--blue-soft); border-color: transparent; }
+.cnode.is-rec { border-color: var(--blue); }
+
+/* A settled question keeps its rejected options visible but small: they stop
+   competing for space without disappearing, so "why did that lose" is still
+   one click away. */
+.cnode.is-chosen { border-color: var(--blue); border-width: 2px; padding: 10px var(--space-12); }
+.cnode.is-dim { opacity: .55; padding: 7px var(--space-12); }
+.cnode.is-dim .cnode-s, .cnode.is-dim .cnode-b { display: none; }
+.cnode.is-dim .cnode-t { font-weight: 500; font-size: var(--text-sm); color: var(--ink-soft); }
+.cnode.is-dim:hover { opacity: .85; }
+
+/* Motion lives on the client: the server only says when a card arrived, and
+   the stagger is computed here. That is what keeps a 2s poll from turning into
+   a 2s stutter. */
+.cnode { transition: transform .55s var(--ease), opacity .45s var(--ease),
+                     border-color .3s, box-shadow .3s; }
+.canvas-edges path { transition: stroke .3s; }
+@media (prefers-reduced-motion: reduce) {
+  .cnode, .canvas-world, .canvas-edges path { transition: none !important; }
+}
+
+/* A mockup crammed into a 264px card is decoration; opened large it is
+   evidence. The thumbnail's fixed height is the load-bearing part -- a card's
+   height must not depend on how tall the image happens to be, or the whole
+   tree's fit scale moves with it. */
+.cnode-media { display: flex; gap: var(--space-6); margin-top: 9px; flex-wrap: wrap; }
+.cnode-media img {
+  height: 64px; width: auto; max-width: 100%; object-fit: cover;
+  border: 1px solid var(--line); border-radius: var(--radius-small); cursor: zoom-in;
+}
+.cnode.is-dim .cnode-media { display: none; }
+
+.canvas-lightbox {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--ink) 72%, transparent); padding: 5vmin;
+}
+.canvas-lightbox img {
+  max-width: 100%; max-height: 100%;
+  border-radius: var(--radius); box-shadow: 0 8px 40px var(--shadow);
+}

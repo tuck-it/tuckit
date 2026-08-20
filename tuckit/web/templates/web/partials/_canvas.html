@@ -1,0 +1,46 @@
+{% load static %}
+{% comment %}
+The slice as a node graph.
+
+No positions here on purpose: a card's height depends on how its text wraps,
+which only the browser knows. Anything the server placed would be wrong and
+then visibly snap. brainstorm.js measures, runs the same layout canvas.py
+would, and clears data-pending -- until then the stage is hidden, so a card
+never flashes in the wrong spot.
+{% endcomment %}
+<section class="canvas" data-canvas data-pending
+         aria-label="This slice as a node graph">
+  <div class="canvas-bar">
+    <button type="button" class="canvas-zoom" data-zoom="out" aria-label="Zoom out">&minus;</button>
+    <button type="button" class="canvas-zoom" data-zoom="fit">Fit</button>
+    <button type="button" class="canvas-zoom" data-zoom="in" aria-label="Zoom in">+</button>
+    <b class="canvas-scale" data-scale>100%</b>
+  </div>
+  <div class="canvas-stage" data-stage>
+    <div class="canvas-world" data-world>
+      <svg class="canvas-edges" data-edges aria-hidden="true"></svg>
+      {% for n in canvas_nodes %}
+      <article class="cnode cnode--{{ n.kind }}{% if n.recommended %} is-rec{% endif %}"
+               data-id="{{ n.id }}"
+               data-parent="{{ n.parent|default_if_none:'' }}"
+               {% if n.at %}data-at="{{ n.at }}"{% endif %}
+               {% if n.chosen %}data-chosen="{{ n.chosen }}"{% endif %}>
+        <h3 class="cnode-t">{{ n.title }}</h3>
+        {% if n.summary %}<p class="cnode-s">{{ n.summary }}</p>{% endif %}
+        {% if n.body_html %}<div class="cnode-b">{{ n.body_html|safe }}</div>{% endif %}
+        {% if n.media %}
+        <div class="cnode-media">
+          {% for m in n.media %}
+          <img src="{{ m.url }}" alt="{{ m.alt|default:'' }}"
+               {% if m.w %}width="{{ m.w }}"{% endif %}
+               {% if m.h %}height="{{ m.h }}"{% endif %}
+               loading="lazy" data-media>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+<script src="{% static 'web/brainstorm.js' %}" defer></script>

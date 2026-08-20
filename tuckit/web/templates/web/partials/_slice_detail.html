@@ -270,6 +270,13 @@
   </div>
   {% endif %}
 
+  {% comment %}
+  The canvas is an addition, never a replacement: the Spec block below is the
+  inline edit surface, and swapping it out would delete that. Full page only --
+  the modal is a centred card and the tree does not fit in it.
+  {% endcomment %}
+  {% if not is_modal and canvas_nodes %}{% include "web/partials/_canvas.html" %}{% endif %}
+
   <div class="desc-block">
     <div class="section-label">Spec</div>
     <button type="button" class="spec edit-surface" x-show="!editSpec" aria-label="Edit spec"
