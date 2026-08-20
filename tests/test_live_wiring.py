@@ -128,3 +128,12 @@ def test_the_slice_page_ships_the_poller_and_the_canvas(client, member):
     # The canvas owns its own DOM: a #main-content morph would replace the
     # cards mid-animation and lose the client's computed transforms.
     assert 'data-live-refresh="1"' not in html
+
+
+def test_live_can_bring_a_canvas_into_existence():
+    """The cold start: no canvas on the page yet, so there is no window.__canvas
+    to gate on and no brainstorm.js loaded. Gating the merge on the API object
+    alone is what made the first proposal invisible until F5."""
+    js = _live_js()
+    assert "data-graph-slot" in js
+    assert "brainstorm.js" in js

@@ -76,3 +76,27 @@ def test_a_draft_renders_when_the_spec_is_empty(client_local, org):
     assert 'data-parent="n1"' in body
     assert "is-rec" in body                  # the recommendation is marked
     assert "<strong>because</strong>" in body  # body goes through the shared renderer
+
+
+@pytest.mark.django_db
+def test_an_empty_slice_still_offers_a_slot_for_the_canvas(client_local, org):
+    """The canvas is born mid-session: an agent proposes onto a slice that had
+    nothing to draw. Without a slot on the page there is nowhere to put it and
+    nothing to load brainstorm.js, so the first proposal needs a reload."""
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Empty", spec="")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "data-graph-slot" in body
+    assert "data-canvas" not in body      # the slot is empty: no stage yet
+
+
+@pytest.mark.django_db
+def test_the_modal_gets_no_slot_either(client_local, org):
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Empty", spec="")
+    body = client_local.get(
+        f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true"
+    ).content.decode()
+
+    assert "data-graph-slot" not in body

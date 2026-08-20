@@ -114,7 +114,12 @@
   /* The canvas keeps its own DOM. A #main-content morph would replace the
      cards mid-animation and drop every transform the client just computed, so
      it merges from the same page instead -- and it does that whether or not
-     this screen opted into the main-content swap. */
+     this screen opted into the main-content swap.
+
+     Two cases. Once the stage exists, sync() folds the new cards in and
+     animates only those. Before it exists -- a slice nobody has designed yet,
+     which is where every design conversation starts -- there is no stage and no
+     brainstorm.js at all, so the first proposal has to install both. */
   function mergeCanvas() {
     fetch(location.pathname + location.search, {
       headers: { "X-Requested-With": "live" }, credentials: "same-origin"
@@ -123,16 +128,41 @@
       .then(function (html) {
         if (!html) return;
         /* Its own try/catch: the .catch() below reads every failure as a
-           network hiccup, so an exception thrown in sync() would show up as a
+           network hiccup, so an exception thrown in here would show up as a
            visual glitch with a silent console. */
-        try { window.__canvas.sync(html); }
-        catch (e) { console.error("[canvas] sync failed", e); }
+        try {
+          if (window.__canvas) { window.__canvas.sync(html); return; }
+          installCanvas(html);
+        } catch (e) { console.error("[canvas] sync failed", e); }
       })
       .catch(function () { /* transient: the next poll tries again */ });
   }
 
+  /* First nodes ever: move the rendered stage into the slot and load the script
+     that drives it. brainstorm.js is an IIFE that returns immediately when it
+     finds no [data-canvas], so it has to run AFTER the stage is in the DOM --
+     which is also why re-appending the tag is how it gets started, rather than
+     calling something on it.
+
+     The static path is written out here rather than derived. It is safe for the
+     reason the org-scoped routes are not: STATIC_URL is "/static/" and carries
+     no /<org>/ segment. If static files ever move behind a hash or a CDN, read
+     the src off the <script> tag in the fetched HTML instead. */
+  function installCanvas(html) {
+    var slot = document.querySelector("[data-graph-slot]");
+    if (!slot || slot.querySelector("[data-canvas]")) return;
+    var incoming = document.createElement("div");
+    incoming.innerHTML = html;
+    var stage = incoming.querySelector("[data-canvas]");
+    if (!stage) return;                       // still nothing to draw
+    slot.appendChild(stage);
+    var script = document.createElement("script");
+    script.src = "/static/web/brainstorm.js";
+    document.body.appendChild(script);
+  }
+
   window.__liveOnEvents = function (events) {
-    if (window.__canvas) mergeCanvas();
+    if (window.__canvas || document.querySelector("[data-graph-slot]")) mergeCanvas();
     var main = document.getElementById("main-content");
     if (!main || !main.hasAttribute("data-live-refresh")) return;
     htmx.ajax("GET", location.pathname + location.search, {
