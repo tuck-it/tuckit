@@ -208,6 +208,12 @@ def update_slice(
         slice_.title = title
     if spec is not None:
         slice_.spec = spec
+        # A written spec retires the canvas's draft source: from here the
+        # canvas renders the spec's own heading structure instead, so keeping
+        # both would leave two answers to "what is the design". Empty is NOT a
+        # written spec -- that is the state the draft exists for.
+        if spec.strip():
+            slice_.draft = {}
     if constraints is not None:
         slice_.constraints = constraints
     if duplicate_of is not None:
