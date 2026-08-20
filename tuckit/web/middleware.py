@@ -77,3 +77,44 @@ class LiveCursorMiddleware:
 # Ticket table — dropped in 0050. With nothing to resolve the id against, the
 # param is now just an unrecognised query string: pages render and ignore it,
 # which is what they did before it ever existed.
+
+
+class WritesBlockedMiddleware:
+    """Turn WritesBlocked into a response that says why, on every write view.
+
+    A middleware rather than a try/except in each handler: mutations.py alone
+    has a dozen POST endpoints and capture.py more, and the one that gets
+    forgotten is the one a customer meets. process_exception fires for whichever
+    view raised, including views added later.
+
+    The body is the reason itself, verbatim. That is the whole contract of this
+    exception — a status code with no sentence behind it is the failure this
+    replaces, and it is what the seat wall used to do (a bare 402 reading "seat
+    limit reached (3)" with no price, no explanation and no way to act on it).
+
+    402 Payment Required is the honest code: the org may read everything it has,
+    and the block lifts on payment. It is NOT 403 — nothing here is about
+    permission, and a 403 would tell an agent to stop trying rather than to tell
+    its human something.
+
+    How this looks in a browser is deliberately not decided here. htmx swaps the
+    body into whatever the requesting element targets, which is fine as a
+    truthful fallback but is not a designed surface, and this codebase has been
+    bitten repeatedly by swap/OOB behaviour that endpoint tests cannot see. The
+    banner and the upgrade path are a separate, browser-verified piece of work.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_exception(self, request, exception):
+        from django.http import HttpResponse
+
+        from tuckit.core.services.exceptions import WritesBlocked
+
+        if isinstance(exception, WritesBlocked):
+            return HttpResponse(str(exception), status=402, content_type="text/plain; charset=utf-8")
+        return None

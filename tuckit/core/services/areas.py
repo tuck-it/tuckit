@@ -1,6 +1,7 @@
 from django.db.models import QuerySet
 from django.utils.text import slugify
 
+from tuckit.core.entitlements import assert_can_write
 from tuckit.core.models import Area, Org
 from tuckit.core.services.activity import record_activity
 from tuckit.core.services.ranking_helpers import rank_for
@@ -26,6 +27,7 @@ def _unique_slug(org: Org, name: str) -> str:
 
 def create_area(org: Org, name: str, description: str = "", slug: str | None = None,
                 *, source: str = "human", member=None) -> Area:
+    assert_can_write(org)
     slug = slug or _unique_slug(org, name)
     rank = rank_for(Area, {"org": org})
     area = Area.objects.create(
@@ -36,6 +38,7 @@ def create_area(org: Org, name: str, description: str = "", slug: str | None = N
 
 
 def update_area(area: Area, *, name: str | None = None, description: str | None = None) -> Area:
+    assert_can_write(area.org)
     fields = ["updated_at"]
     if name is not None:
         name = name.strip()

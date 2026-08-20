@@ -33,6 +33,12 @@ def record_activity(org, *, source, verb, target, from_value="", to_value="", bo
 
 def add_note(slice_, body: str, *, source: str = "agent", member=None):
     """Append a free-text note to a slice's activity thread."""
+    # Only the deliberate note is gated. record_activity() itself must never be,
+    # because every allowed write calls it to log what it just did — gating it
+    # would make the log lie about operations that actually succeeded.
+    from tuckit.core.entitlements import assert_can_write
+
+    assert_can_write(slice_.org)
     return record_activity(
         slice_.org, source=source, verb="noted", target=slice_, body=body, member=member
     )

@@ -42,6 +42,9 @@ MIDDLEWARE = [
     "tuckit.web.middleware.TenantMiddleware",
     # Must follow TenantMiddleware: it reads request.org, which that one sets.
     "tuckit.web.middleware.LiveCursorMiddleware",
+    # Anywhere below the tenant middleware: it only needs to see the exception,
+    # not request.org. Kept next to it so the write-path middleware stay together.
+    "tuckit.web.middleware.WritesBlockedMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

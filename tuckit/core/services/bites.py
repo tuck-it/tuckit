@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models import QuerySet
 
+from tuckit.core.entitlements import assert_can_write
 from tuckit.core.models import Bite, Slice
 from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.ranking_helpers import rank_for
@@ -29,6 +30,8 @@ def create_bite(
     source: str = "human",
     member=None,
 ) -> Bite:
+    # Gated here rather than in add_bites so a direct caller cannot slip past it.
+    assert_can_write(slice_.org)
     validate_choice(status, Bite.STATUS_CHOICES, "status")
     rank = rank_for(Bite, {"slice": slice_}, before=before, after=after)
     with transaction.atomic():
@@ -62,6 +65,7 @@ def update_bite(
     source: str = "human",
     member=None,
 ) -> Bite:
+    assert_can_write(bite.slice.org)
     old_status = bite.status
     if title is not None:
         bite.title = title
