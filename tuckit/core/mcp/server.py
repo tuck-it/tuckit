@@ -23,6 +23,7 @@ from tuckit.core.services.resolve import get_slice as _resolve_slice
 from tuckit.core.services.resolve import get_slice_flexible as _resolve_slice_flexible
 from tuckit.core.services.members import resolve_member
 from tuckit.core.services.slices import create_slice as _create_slice
+from tuckit.core.services.slices import propose_nodes as _propose_nodes
 from tuckit.core.services.slices import query_slices as _query_slices
 from tuckit.core.services.slices import set_slice_area as _set_slice_area
 from tuckit.core.services.slices import stage_of
@@ -399,6 +400,37 @@ async def update_slice(
             # slice ranked against siblings it no longer has.
             s = _set_slice_area(s, area, source="agent", member=acting)
         return slice_dict(s)
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def propose(ctx: Context, slice_id: int, nodes: list[dict]) -> dict:
+    """Add nodes to a slice's design canvas while the design is still open.
+
+    The canvas is the slice's thinking surface: a left-to-right tree of cards
+    the human watches grow in their browser while you explore. Put each
+    question you are weighing up as a `question` node, and every candidate
+    answer as an `option` node whose `parent` is that question. `note` is for
+    anything that is neither.
+
+    Each node: `id` (yours, unique on this canvas), `parent` (another node's
+    id, or null for the single root), `kind` (question|option|note), `title`,
+    `summary` (one line), `body` (markdown prose, always visible on the card),
+    `media` ([{kind: "image", url, alt, w, h}]), `recommended` (true on the one
+    you would take).
+
+    Append-only, and accepted only while `spec` is empty. A branch you explored
+    and dropped is part of the record, so nothing is ever edited away -- and
+    once the design is written the canvas shows the spec's own structure
+    instead. Carry every decision you reached here into `update_slice(spec=...)`
+    before you write it: writing the spec retires the canvas."""
+    org, user = await require_caller(ctx)
+
+    def _run():
+        s = _resolve_slice(org, slice_id)
+        added = _propose_nodes(s, nodes, source="agent", member=_acting_member(org, user))
+        return {"slice_id": s.id, "node_ids": [n["id"] for n in added], "count": len(added)}
 
     return await sync_to_async(_run, thread_sensitive=True)()
 

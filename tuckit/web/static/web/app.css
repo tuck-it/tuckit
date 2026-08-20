@@ -2483,6 +2483,32 @@ button.htmx-request, a.htmx-request { opacity: .6; }
 .canvas-edges path { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
 .canvas-edges path.is-taken { stroke: var(--blue); stroke-width: 2; }
 
+.canvas-max { margin-left: auto; }
+
+/* Maximized: the same element, fixed to the viewport. Nothing moves in the DOM,
+   so brainstorm.js keeps its measurements, its `seen` set and every transform
+   it has computed -- which is why a canvas that grows while maximized merges
+   normally instead of replaying every card's entrance.
+
+   position:fixed resolves against the viewport only while no ancestor has a
+   transform/filter/contain/perspective. .app and .main have none today; if one
+   ever gains one this silently becomes a box inside the content column.
+
+   z-index 50 sits BELOW .overlay and .canvas-lightbox (both 60): the lightbox
+   is opened from this very surface, so it has to paint above it. */
+.canvas.is-max {
+  position: fixed; inset: 0; z-index: 50;
+  margin: 0; padding: var(--space-10) var(--space-14) var(--space-14);
+  display: flex; flex-direction: column;
+  background: var(--paper);
+}
+.canvas.is-max .canvas-stage { flex: 1 1 auto; height: auto; min-height: 0; }
+body.canvas-maxed { overflow: hidden; }
+/* The onboarding widget is fixed at z-index 60, so it floats over a surface
+   whose whole point is an unobstructed view of the tree. It is an app-level
+   affordance and the app is what this state hides. */
+body.canvas-maxed .ob-widget { display: none; }
+
 /* Hidden until the client has measured and placed the cards once, so nothing
    is ever painted at a position the server had to guess. */
 [data-canvas][data-pending] .canvas-world { opacity: 0; }

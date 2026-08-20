@@ -328,6 +328,40 @@
     dragging = false; stage.classList.remove("is-dragging");
   });
 
+  /* Maximize is a class on the section and nothing more. The element never
+     leaves the DOM, so nothing here has to be re-measured or re-initialised --
+     only the view transform is wrong afterwards, because the stage changed
+     size. fit() is exactly that recomputation; render() would be busywork,
+     since layout() does not read the stage and the cards are a fixed width. */
+  var maxBtn = root.querySelector("[data-maximize]");
+
+  function maximize(on) {
+    root.classList.toggle("is-max", on);
+    document.body.classList.toggle("canvas-maxed", on);
+    if (maxBtn) {
+      maxBtn.setAttribute("aria-expanded", on ? "true" : "false");
+      maxBtn.textContent = on ? "Restore" : "Expand";
+    }
+    /* The stage resizes with the class; fit() has to measure it afterwards, so
+       it waits a frame. Note this makes maximize a no-op in a background tab,
+       where rAF is suspended entirely -- harmless, since nobody is looking. */
+    requestAnimationFrame(fit);
+  }
+
+  if (maxBtn) maxBtn.addEventListener("click", function () {
+    maximize(!root.classList.contains("is-max"));
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || !root.classList.contains("is-max")) return;
+    /* The lightbox opens FROM this surface and registers its own Escape
+       handler. Without this both fire on one keypress: the image closes and
+       the canvas collapses out from under it. Innermost wins. */
+    if (document.querySelector(".canvas-lightbox")) return;
+    maximize(false);
+    if (maxBtn) maxBtn.focus();
+  });
+
   root.querySelectorAll("[data-zoom]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var how = btn.dataset.zoom;
@@ -340,7 +374,7 @@
   render(true);
 
   window.__canvas = { render: render, layout: layout, fit: fit, setScale: setScale,
-                     sync: syncFromServer,
+                     sync: syncFromServer, maximize: maximize,
                      placed: function () { return placed; },
                      view: function () { return { tx: tx, ty: ty, scale: scale }; } };
 })();
