@@ -13,6 +13,7 @@ from tuckit.core.models import (
     ApiToken,
     Area,
     Bite,
+    CanvasWatch,
     Invitation,
     OAuthAccessToken,
     OAuthAuthorizationCode,
@@ -228,6 +229,7 @@ EXCLUDED_MODELS: dict[type, str] = {
     ),
     User: "An account is not owned by an org. People appear in members[] by email.",
     SocialAccount: "Account linkage. Not project data.",
+    CanvasWatch: "A 15-minute capability channel for a canvas click, not project content.",
 }
 
 
