@@ -191,6 +191,17 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 USE_TZ = True
+# Django's own default here is "America/Chicago", which nobody ever chose: it
+# is simply what global_settings ships. Every date the product renders — an
+# activity timestamp, a shipped date, a deadline a deployment is counting down
+# to — was being converted into it, so a reader outside that zone could be
+# shown a date one off from the one on their own calendar.
+#
+# UTC is not a better guess at where anyone is; it is the absence of a guess,
+# and it matches what the database stores. A deployment that knows where its
+# people are sets this. Per-USER timezones are a different, larger thing and
+# this is not a substitute for them.
+TIME_ZONE = env("TUCKIT_TIME_ZONE", default="UTC")
 
 # English UI: django's timesince/date filters render in English
 # ("2 hours ago"), the framework default.
