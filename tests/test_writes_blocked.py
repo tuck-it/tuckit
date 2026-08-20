@@ -18,9 +18,13 @@ from tuckit.core.services.bites import add_bites, create_bite, list_bites, updat
 from tuckit.core.services.exceptions import WritesBlocked
 from tuckit.core.services.slices import create_slice, list_slices, update_slice
 
+# An example of what a deployment might supply, not a string core knows about:
+# core has no concept of trials, plans or billing, and this file is the only
+# place in the repo those words appear. Deliberately not a real hosted URL --
+# the point of the seam is that the core cannot name a product.
 REASON = (
-    "Your 14-day trial ended on 29 Aug 2026. tuckit is read-only until you "
-    "subscribe: https://app.tuckit.dev/cloud/upgrade"
+    "Your trial ended on 29 Aug 2026. This workspace is read-only until you "
+    "subscribe: https://example.com/billing"
 )
 
 
