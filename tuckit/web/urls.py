@@ -6,7 +6,7 @@ from django.views.generic import RedirectView
 from tuckit.web.views import (
     pages, slices, mutations, board, capture, health,
     accounts, settings_org, settings_account, settings_shell, routing,
-    onboarding, oauth, social, live, search, export,
+    onboarding, oauth, social, live, search, export, watch,
 )
 from tuckit.web.views import settings as settings_views
 
@@ -29,6 +29,11 @@ auth_patterns = [
 # --- internal JSON API (no HTML pages) ---
 api_patterns = [
     path("api/check-slug", login_not_required(routing.check_slug), name="api_check_slug"),
+    # The one route in the product with no login. It is a capability URL: the
+    # token IS the authorisation, it lives fifteen minutes, and it answers
+    # exactly one question. Deliberately outside the tenant prefix -- the shell
+    # polling it knows a URL and nothing else, not an org slug.
+    path("watch/<str:token>", login_not_required(watch.canvas_watch), name="canvas_watch"),
 ]
 
 # --- OAuth 2.1 (MCP authorization server; no tenant slug) ---
