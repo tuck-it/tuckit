@@ -137,3 +137,17 @@ def test_live_can_bring_a_canvas_into_existence():
     js = _live_js()
     assert "data-graph-slot" in js
     assert "brainstorm.js" in js
+
+
+def test_the_canvas_can_be_maximized_and_refits():
+    """Static assertions: a maximize that never refits still renders a valid
+    page and returns 200 -- the tree would just sit in the old corner at the
+    old scale, which no endpoint test can see."""
+    web = Path(tuckit.web.__file__).parent
+    js = (web / "static/web/brainstorm.js").read_text()
+    css = (web / "static/web/app.css").read_text()
+
+    assert "data-maximize" in js
+    assert "is-max" in js and "is-max" in css
+    assert "Escape" in js                      # a full-viewport overlay needs a way out
+    assert ".canvas.is-max" in css

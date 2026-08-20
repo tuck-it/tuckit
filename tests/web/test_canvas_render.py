@@ -100,3 +100,16 @@ def test_the_modal_gets_no_slot_either(client_local, org):
     ).content.decode()
 
     assert "data-graph-slot" not in body
+
+
+@pytest.mark.django_db
+def test_the_canvas_offers_a_maximize_control(client_local, org):
+    """The stage is 60vh inside a content column. A tree three columns deep is
+    1116px wide before any margin, so the surface built for comparing options
+    pushes the options off it."""
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Payments", spec="## Goal\ntext")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "data-maximize" in body
+    assert 'aria-expanded="false"' in body
