@@ -10,6 +10,7 @@ from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.tags import get_or_create_tags
 from tuckit.core.services.validation import validate_choice
+from tuckit.core.services.watches import answer_watches, close_watches
 
 
 def list_slices(area: Area, status: str | None = None, tag: str | None = None) -> QuerySet:
@@ -214,6 +215,12 @@ def update_slice(
         # written spec -- that is the state the draft exists for.
         if spec.strip():
             slice_.draft = {}
+            # The canvas is not a live surface any more, so neither is any URL
+            # waiting on a click against it. Here rather than in the MCP tool
+            # because the browser's inline spec edit comes through this same
+            # service -- doing it in the tool would leave live channels behind
+            # for everybody who writes their spec in the browser.
+            close_watches(slice_)
     if constraints is not None:
         slice_.constraints = constraints
     if duplicate_of is not None:
@@ -605,4 +612,7 @@ def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -
             slice_.org, source=source, verb="chose", target=slice_,
             to_value=(node.get("title") or node_id)[:50], member=member,
         )
+        # Inside the transaction: an agent told an answer landed cannot be
+        # un-told, so the message must not outlive a rolled-back write.
+        answer_watches(slice_, node_id)
     return question_node
