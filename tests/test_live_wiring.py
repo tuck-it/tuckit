@@ -4,6 +4,7 @@ import pytest
 from django.urls import reverse
 from tuckit.core.models import Org, OrgMember, User
 from tuckit.core.services.areas import create_area
+from tuckit.core.services.slices import create_slice
 
 import tuckit.web
 
@@ -100,3 +101,30 @@ def test_the_full_replace_workarounds_are_gone():
     js = _live_js()
     assert "typingInMain" not in js
     assert "window.scrollTo" not in js
+
+
+def test_live_merges_the_canvas_instead_of_swapping_it():
+    """Static assertion on purpose: a canvas that silently never updates still
+    renders a valid page and returns 200, so no endpoint test can see it."""
+    js = _live_js()
+    assert "__canvas" in js
+    assert "sync(" in js
+    # Never assemble the path: every route is /<org>/-scoped and a hand-built
+    # one 404s, which endpoint tests cannot catch.
+    assert "location.pathname" in js
+
+
+@pytest.mark.django_db
+def test_the_slice_page_ships_the_poller_and_the_canvas(client, member):
+    org, user = member
+    a = create_area(org, "Backend")
+    s = create_slice(org, area=a, title="Payments", spec="## Goal\ntext")
+    client.force_login(user)
+
+    html = client.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert 'id="live-config"' in html            # the poll the canvas rides
+    assert "brainstorm.js" in html
+    # The canvas owns its own DOM: a #main-content morph would replace the
+    # cards mid-animation and lose the client's computed transforms.
+    assert 'data-live-refresh="1"' not in html

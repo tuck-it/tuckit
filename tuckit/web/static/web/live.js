@@ -111,7 +111,28 @@
      harmless here, since (unlike the old Ticket row) nothing mirrors this
      select into a separate Alpine value that could desync from it.
      #detail-modal is a sibling of #main-content and is never swapped. */
+  /* The canvas keeps its own DOM. A #main-content morph would replace the
+     cards mid-animation and drop every transform the client just computed, so
+     it merges from the same page instead -- and it does that whether or not
+     this screen opted into the main-content swap. */
+  function mergeCanvas() {
+    fetch(location.pathname + location.search, {
+      headers: { "X-Requested-With": "live" }, credentials: "same-origin"
+    })
+      .then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (html) {
+        if (!html) return;
+        /* Its own try/catch: the .catch() below reads every failure as a
+           network hiccup, so an exception thrown in sync() would show up as a
+           visual glitch with a silent console. */
+        try { window.__canvas.sync(html); }
+        catch (e) { console.error("[canvas] sync failed", e); }
+      })
+      .catch(function () { /* transient: the next poll tries again */ });
+  }
+
   window.__liveOnEvents = function (events) {
+    if (window.__canvas) mergeCanvas();
     var main = document.getElementById("main-content");
     if (!main || !main.hasAttribute("data-live-refresh")) return;
     htmx.ajax("GET", location.pathname + location.search, {
