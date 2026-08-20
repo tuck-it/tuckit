@@ -467,3 +467,75 @@ def stage_of(slice_) -> str:
     else:
         counts = stage_counts(slice_)
     return slice_stage(slice_.status, slice_.spec, *counts)
+
+
+NODE_KINDS = {"question", "option", "note"}
+
+# The keys a caller may set. `chosen` is deliberately absent -- it records a
+# human's pick and is written by the choice channel, not by the agent that put
+# the options up. `at` is absent because the server stamps it.
+_NODE_KEYS = ("id", "parent", "kind", "title", "summary", "body", "media", "recommended")
+
+
+def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[dict]:
+    """Append nodes to a slice's draft canvas. Returns what was added.
+
+    Append-only on purpose: a branch that was explored and lost is part of the
+    record, so nothing here edits or removes an existing node. The whole batch
+    is validated before any of it is stored -- a half-applied proposal would
+    leave a canvas nobody authored.
+    """
+    assert_can_write(slice_.org)
+    if (slice_.spec or "").strip():
+        raise InvalidValue(
+            "this slice already has a spec, so its canvas shows the spec's own "
+            "structure -- propose only while the design is still being made"
+        )
+
+    existing = list((slice_.draft or {}).get("nodes", []))
+    known = {n.get("id") for n in existing}
+    has_root = any(not n.get("parent") for n in existing)
+    # One timestamp for the batch: these nodes were thought of together, and
+    # the client's entrance stagger already orders them by position.
+    arrived_at = int(timezone.now().timestamp() * 1000)
+
+    fresh = []
+    for node in nodes:
+        node_id = str(node.get("id") or "").strip()
+        if not node_id:
+            raise InvalidValue("every node needs a non-empty id")
+        if node_id in known:
+            raise InvalidValue(f"node id {node_id!r} is already on this canvas")
+
+        kind = node.get("kind") or "note"
+        if kind not in NODE_KINDS:
+            raise InvalidValue(f"kind must be one of {sorted(NODE_KINDS)}, not {kind!r}")
+
+        parent = node.get("parent") or None
+        if parent is None:
+            if has_root:
+                raise InvalidValue(
+                    f"the canvas already has a root; give {node_id!r} a parent"
+                )
+            has_root = True
+        elif parent not in known:
+            raise InvalidValue(
+                f"parent {parent!r} is not on this canvas -- send it earlier in "
+                f"this same call, or in an earlier one"
+            )
+
+        clean = {k: node[k] for k in _NODE_KEYS if k in node}
+        clean.update(id=node_id, parent=parent, kind=kind, at=arrived_at)
+        fresh.append(clean)
+        known.add(node_id)
+
+    slice_.draft = {"nodes": existing + fresh}
+    with transaction.atomic():
+        slice_.save(update_fields=["draft", "updated_at"])
+        # live.js polls the org activity cursor, so this row is what makes the
+        # canvas grow without a reload rather than being mere bookkeeping.
+        record_activity(
+            slice_.org, source=source, verb="proposed", target=slice_,
+            to_value=str(len(fresh)), member=member,
+        )
+    return fresh
