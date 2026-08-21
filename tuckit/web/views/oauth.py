@@ -7,10 +7,12 @@ from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
 from tuckit.core.models import OAuthClient, OAuthRefreshToken, OrgMember
+from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.oauth import (
     consume_authorization_code, create_authorization_code, create_client,
     issue_tokens, rotate_refresh_token, verify_pkce,
 )
+from tuckit.core.services.orgs import create_org
 from tuckit.core.services.oauth_hook import TokenDenied, run_token_hook
 from tuckit.core.services.tokens import hash_token
 
@@ -79,6 +81,35 @@ def _redirect_error(redirect_uri: str, state: str, error: str):
     return redirect(url)
 
 
+NEW_ORG = "__new__"
+
+
+def _consent_context(client, orgs, src, *, error: str = "") -> dict:
+    """Everything the consent form needs to render — and to re-render after a
+    failure without losing the OAuth request it is in the middle of.
+
+    `src` is request.GET on the way in and request.POST on a failed Allow, so a
+    user who mistypes a workspace name does not get bounced back to the client
+    to start the whole authorization over.
+    """
+    return {
+        "client": client,
+        "orgs": orgs,
+        "redirect_uri": src.get("redirect_uri", ""),
+        "state": src.get("state", ""),
+        "code_challenge": src.get("code_challenge", ""),
+        "code_challenge_method": src.get("code_challenge_method", ""),
+        "scope": src.get("scope", ""),
+        "response_type": src.get("response_type", "code"),
+        "org_name": src.get("org_name", ""),
+        "error": error,
+        # No orgs at all means the only way forward is to make one, so the name
+        # field starts open. Without this a brand-new account renders an empty
+        # required <select> and cannot submit at all.
+        "show_new": (not orgs) or src.get("org_id") == NEW_ORG,
+    }
+
+
 def authorize(request):
     """OAuth 2.1 authorization endpoint. Login-required (LoginRequiredMiddleware).
     GET renders consent + org picker; POST ('Allow') issues an authorization code."""
@@ -103,19 +134,27 @@ def authorize(request):
     orgs = [m.org for m in OrgMember.objects.filter(user=request.user).select_related("org")]
 
     if request.method == "GET":
-        return render(request, "web/oauth/consent.html", {
-            "client": client, "orgs": orgs, "redirect_uri": redirect_uri,
-            "state": state, "code_challenge": code_challenge,
-            "code_challenge_method": method, "scope": scope,
-            "response_type": response_type,
-        })
+        return render(request, "web/oauth/consent.html",
+                      _consent_context(client, orgs, request.GET))
 
-    # POST = Allow
+    # POST = Allow. Reached only after the client and redirect_uri are verified
+    # above, so nothing here can widen the open-redirector surface.
     org_id = request.POST.get("org_id", "")
-    org = next((o for o in orgs if str(o.id) == str(org_id)), None)
-    if org is None:
-        return render(request, "web/oauth/error.html",
-                      {"detail": "Select a workspace to authorize."}, status=400)
+    if org_id == NEW_ORG:
+        try:
+            # Slug omitted on purpose: create_org derives a unique one.
+            org = create_org(request.user, name=request.POST.get("org_name", ""))
+        except InvalidValue as exc:
+            return render(request, "web/oauth/consent.html",
+                          _consent_context(client, orgs, request.POST, error=str(exc)),
+                          status=400)
+    else:
+        org = next((o for o in orgs if str(o.id) == str(org_id)), None)
+        if org is None:
+            return render(request, "web/oauth/consent.html",
+                          _consent_context(client, orgs, request.POST,
+                                           error="Select a workspace to authorize."),
+                          status=400)
     raw_code = create_authorization_code(client, request.user, org, redirect_uri, code_challenge, scope)
     sep = "&" if "?" in redirect_uri else "?"
     url = f"{redirect_uri}{sep}code={raw_code}"
