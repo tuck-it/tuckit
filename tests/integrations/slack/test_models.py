@@ -43,4 +43,5 @@ def test_an_ended_membership_still_resolves_through_the_fk(org, member):
     member.save(update_fields=["ended_at"])
 
     identity.refresh_from_db()
-    assert identity.member_id == member.id  # still there, by design
+    assert identity.member.id == member.id  # FK resolves the ended membership
+    assert identity.member.ended_at is not None  # it is indeed ended
