@@ -102,6 +102,7 @@ def _consent_context(client, orgs, src, *, error: str = "") -> dict:
         "scope": src.get("scope", ""),
         "response_type": src.get("response_type", "code"),
         "org_name": src.get("org_name", ""),
+        "new_org": NEW_ORG,
         "error": error,
         # No orgs at all means the only way forward is to make one, so the name
         # field starts open. Without this a brand-new account renders an empty

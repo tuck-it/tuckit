@@ -1,3 +1,4 @@
+import re
 from urllib.parse import urlparse, parse_qs
 
 import pytest
@@ -13,6 +14,16 @@ def setup(db):
     OrgMember.objects.create(user=user, org=org, role="owner")
     client_obj = oauth.create_client("Claude Code", ["http://localhost:9999/cb"])
     return org, user, client_obj
+
+
+def _new_org_field(body):
+    """The opening tag of the workspace-name field, or None if it is absent.
+
+    Tests read the tag itself rather than resp.context so that they fail when
+    the template stops honouring show_new, not only when the view stops
+    computing it."""
+    match = re.search(r'<label[^>]*id="new-org-field"[^>]*>', body)
+    return match.group(0) if match else None
 
 
 def _params(client_obj, verifier="verifier-1234567890-abcdefghij"):
@@ -158,6 +169,10 @@ def test_consent_offers_creating_a_workspace_when_user_has_none(client, no_org_u
     body = resp.content.decode()
     assert 'value="__new__"' in body
     assert 'name="org_name"' in body
+    # Rendered, not just in the context: the field must not carry `hidden`, or
+    # the only account that needs it cannot see it.
+    assert _new_org_field(body) is not None
+    assert "hidden" not in _new_org_field(body)
 
 
 @pytest.mark.django_db
@@ -169,6 +184,24 @@ def test_consent_offers_creating_a_workspace_alongside_existing_ones(client, set
     assert resp.context["show_new"] is False
     assert org.name in body
     assert 'value="__new__"' in body  # a second workspace is reachable from here too
+    # And the name field is really hidden in the markup. Asserting only
+    # show_new let a version ship where `hidden` rendered but a stray
+    # `display: block` overrode it, so the box showed for everyone.
+    assert "hidden" in _new_org_field(body)
+
+
+@pytest.mark.django_db
+def test_consent_resets_display_for_hidden_fields(client, setup):
+    """`.oauth-field { display: block }` out-ranks the UA stylesheet's
+    [hidden] rule by origin, so hiding the name field needs an explicit reset.
+    Without it the attribute renders, every markup assertion above passes, and
+    the box is still on screen — which is how it shipped once. This is a string
+    check because nothing here executes CSS; only a browser can prove the box
+    is gone."""
+    _org, user, client_obj = setup
+    client.force_login(user)
+    resp = client.get("/oauth/authorize", _params(client_obj))
+    assert ".oauth-field[hidden]" in resp.content.decode()
 
 
 @pytest.mark.django_db
