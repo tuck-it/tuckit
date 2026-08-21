@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     "tuckit.web",
 ]
 
+INSTALLED_APPS = INSTALLED_APPS + ["tuckit.integrations.slack"]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -196,6 +198,18 @@ SOCIAL_PROVIDERS = {
     }.items()
     if cfg
 }
+
+# --- Slack integration ---
+# All three empty (the default) means the integration does not exist: no URLs
+# are mounted and no Settings entry renders. A self-host registers its own
+# Slack app and supplies these; there is no shared hosted app.
+SLACK_CLIENT_ID = env("SLACK_CLIENT_ID", default="")
+SLACK_CLIENT_SECRET = env("SLACK_CLIENT_SECRET", default="")
+SLACK_SIGNING_SECRET = env("SLACK_SIGNING_SECRET", default="")
+
+# A separate switch: without it install and unfurling still work and only the
+# @mention handler is unavailable.
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
