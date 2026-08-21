@@ -19,6 +19,7 @@
     .oauth-field select { width: 100%; }
     .oauth-actions { display: flex; gap: 10px; justify-content: flex-end; }
     .oauth-scope { font-size: .85rem; color: var(--muted); margin: 0 0 18px; }
+    .oauth-error { color: var(--warn); margin: 0 0 18px; font-size: .9rem; }
   </style>
 </head>
 <body>
@@ -26,13 +27,21 @@
     <form class="oauth-card" method="post" action="{% url 'web:oauth_authorize' %}">
       {% csrf_token %}
       <h1>Authorize {{ client.name|default:"this app" }}</h1>
-      <p>It wants to read and write your tuckit Areas, Slices, Plans, and Bites over MCP.</p>
+      <p>It wants to read and write your tuckit Areas, Slices, and Bites over MCP.</p>
+      {% if error %}<p class="oauth-error" role="alert">{{ error }}</p>{% endif %}
 
       <label class="oauth-field">
         <span>Workspace</span>
-        <select name="org_id" required>
+        <select name="org_id" id="org-select" required>
           {% for o in orgs %}<option value="{{ o.id }}">{{ o.name }}</option>{% endfor %}
+          <option value="__new__"{% if show_new %} selected{% endif %}>+ Create a new workspace</option>
         </select>
+      </label>
+
+      <label class="oauth-field" id="new-org-field"{% if not show_new %} hidden{% endif %}>
+        <span>Workspace name</span>
+        <input type="text" name="org_name" value="{{ org_name }}" maxlength="120"
+               autocomplete="off" placeholder="e.g. My App">
       </label>
 
       <input type="hidden" name="response_type" value="{{ response_type }}">
@@ -49,5 +58,17 @@
       </div>
     </form>
   </div>
+  <script>
+    // Progressive enhancement only: the server already picked the right initial
+    // state via show_new, so a no-JS browser can still create a workspace.
+    (function () {
+      var sel = document.getElementById('org-select');
+      var field = document.getElementById('new-org-field');
+      if (!sel || !field) return;
+      sel.addEventListener('change', function () {
+        field.hidden = sel.value !== '__new__';
+      });
+    })();
+  </script>
 </body>
 </html>

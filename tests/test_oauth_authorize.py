@@ -146,3 +146,35 @@ def test_authorize_bad_redirect_uri_still_wins_over_workspace_creation(client, n
     resp = client.post("/oauth/authorize", p)
     assert resp.status_code == 400
     assert Org.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_consent_offers_creating_a_workspace_when_user_has_none(client, no_org_user):
+    user, client_obj = no_org_user
+    client.force_login(user)
+    resp = client.get("/oauth/authorize", _params(client_obj))
+    assert resp.status_code == 200
+    assert resp.context["show_new"] is True
+    body = resp.content.decode()
+    assert 'value="__new__"' in body
+    assert 'name="org_name"' in body
+
+
+@pytest.mark.django_db
+def test_consent_offers_creating_a_workspace_alongside_existing_ones(client, setup):
+    org, user, client_obj = setup
+    client.force_login(user)
+    resp = client.get("/oauth/authorize", _params(client_obj))
+    body = resp.content.decode()
+    assert resp.context["show_new"] is False
+    assert org.name in body
+    assert 'value="__new__"' in body  # a second workspace is reachable from here too
+
+
+@pytest.mark.django_db
+def test_consent_does_not_mention_plans(client, setup):
+    """Plan was deleted by the two-layer model; the consent copy still said it."""
+    _org, user, client_obj = setup
+    client.force_login(user)
+    resp = client.get("/oauth/authorize", _params(client_obj))
+    assert "Plans" not in resp.content.decode()
