@@ -20,6 +20,7 @@ from tuckit.core.services.bites import (
     list_bites as _list_bites,
     update_bite as _update_bite,
 )
+from tuckit.core.services.orgs import append_priority_policy as _append_priority_policy
 from tuckit.core.services.resolve import get_area
 from tuckit.core.services.resolve import get_bite as _resolve_bite
 from tuckit.core.services.resolve import get_slice as _resolve_slice
@@ -159,6 +160,27 @@ async def get_project_state(ctx: Context, area_id: int | None = None) -> dict:
     def _run():
         area = get_area(org, area_id) if area_id is not None else None
         return _get_project_state(org, area=area, caller_user=user)
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def append_priority_policy(ctx: Context, line: str) -> dict:
+    """Add one line to this org's priority policy — what counts as which
+    priority, in this org's own words.
+
+    Append only. You cannot edit or remove a line from here; a person does that
+    in the web UI. That asymmetry is deliberate: the policy is written slowly,
+    out of corrections to classifications that were wrong, and it is not
+    something one call of yours should be able to undo.
+
+    Do not call this on your own initiative. It is for a line your human partner
+    has just agreed to — usually the reason they gave when they corrected a
+    priority you set. Propose the wording, get a yes, then write it."""
+    org, _user = await require_caller(ctx)
+
+    def _run():
+        return {"priority_policy": _append_priority_policy(org, line).priority_policy}
 
     return await sync_to_async(_run, thread_sensitive=True)()
 

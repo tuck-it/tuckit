@@ -202,3 +202,26 @@ def leave_org(user, *, org) -> None:
     if OrgMember.objects.filter(user=user).count() <= 1:
         raise InvalidValue("You can't leave your last organization.")
     end_membership(membership)
+
+
+def append_priority_policy(org: Org, line: str) -> Org:
+    """Add one line to the org's priority policy. Append only.
+
+    There is deliberately no replace and no delete on this path. The policy is
+    the most expensive text on a board -- it is written a line at a time, over
+    weeks, out of corrections a person made to a wrong classification -- and an
+    agent holding a tool that could overwrite it would eventually overwrite it.
+    Editing and removing lines live in the web UI, where a person is doing it.
+
+    The blank check runs BEFORE the write, so a refused line costs nothing: a
+    guard that raised after assigning would still have spent the text it exists
+    to protect.
+    """
+    text = line.strip()
+    if not text:
+        raise InvalidValue("priority policy line is empty")
+    org.priority_policy = f"{org.priority_policy}\n{text}".strip()
+    # updated_at is listed explicitly because auto_now does not fire on a
+    # partial save without it -- the pattern the rest of this repo follows.
+    org.save(update_fields=["priority_policy", "updated_at"])
+    return org

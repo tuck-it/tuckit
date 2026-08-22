@@ -1,13 +1,20 @@
 import pytest
 
-# Twelve tools, one vocabulary: areas, slices, bites, notes, and the design
-# canvas. Every tool an agent can call is on this list, and the list is the
-# product's agent-facing API — it grows only on purpose.
+# Thirteen tools, one vocabulary: areas, slices, bites, notes, the design
+# canvas, and the priority policy. Every tool an agent can call is on this
+# list, and the list is the product's agent-facing API — it grows only on
+# purpose, which is what this number being hand-written is for.
+#
+# append_priority_policy (TP-178) is the thirteenth. It earns a tool of its own
+# rather than a field on update_slice because the policy is append-only for
+# agents: bolted onto a general update tool it would become "one more field",
+# and one day something would overwrite weeks of accumulated criteria with "".
 EXPECTED = {
     "get_project_state", "list_areas", "create_area",
     "list_slices", "get_slice", "create_slice", "update_slice", "add_note",
     "list_bites", "add_bites", "update_bite",
     "propose",
+    "append_priority_policy",
 }
 
 # Removed for good, with the reason each one cannot come back:
@@ -34,12 +41,12 @@ REMOVED = {
 
 
 @pytest.mark.asyncio
-async def test_registered_tools_are_exactly_the_twelve():
+async def test_registered_tools_are_exactly_the_thirteen():
     from tuckit.core.mcp.server import mcp
 
     tools = {t.name for t in await mcp.list_tools()}
     assert tools == EXPECTED
-    assert len(tools) == 12
+    assert len(tools) == 13
     assert tools.isdisjoint(REMOVED)
 
 
