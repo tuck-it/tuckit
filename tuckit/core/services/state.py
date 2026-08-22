@@ -7,7 +7,8 @@ from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
 from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import list_bites
 from tuckit.core.services.slices import (
-    annotate_stage_counts, filed_slices, inbox_slices, list_slices, stage_column, stage_of,
+    PRIORITY_ORDER, annotate_stage_counts, filed_slices, inbox_slices, list_slices,
+    priority_sort_key, stage_column, stage_of,
 )
 
 STALE_DAYS = 7
@@ -214,7 +215,7 @@ def home_state(org: Org) -> dict:
             filed_slices(Slice.objects.filter(org=org)).select_related("area", "org")
         )
         .prefetch_related("tags")
-        .order_by("rank")
+        .order_by(*PRIORITY_ORDER)
     )
     now = timezone.now()
     stale_cutoff = now - timedelta(days=STALE_DAYS)
@@ -222,7 +223,11 @@ def home_state(org: Org) -> dict:
         [s for s in slices if stage_of(s) == "executing"],
         # False sorts before True, so stalled slices come first. Staleness is a
         # sort key here and nowhere a filter.
-        key=lambda s: (s.updated_at >= stale_cutoff, s.area.name, s.rank),
+        #
+        # This Python sort REPLACES the queryset's PRIORITY_ORDER for this band,
+        # so priority has to be named again or it is silently dropped -- staleness
+        # and area stay ahead of it (they group the band), priority orders within.
+        key=lambda s: (s.updated_at >= stale_cutoff, s.area.name, *priority_sort_key(s)),
     )
     shipped = sorted(
         [s for s in slices if s.status == "shipped"],
@@ -302,6 +307,11 @@ def your_turn(org: Org) -> list[dict]:
             .select_related("area", "org")
         )
         .prefetch_related("tags")
+        # Deliberately NOT PRIORITY_ORDER. This band answers "what has been
+        # waiting longest for a human", and sorting it by priority would bury a
+        # stalled low-priority slice forever -- which is the state that most
+        # needs a person to look. The next reader will think this was missed;
+        # it was not.
         .order_by("updated_at")
     )
     _ACTIONS = {"needs_design": "write the spec", "ready_to_ship": "verify and ship"}
@@ -345,7 +355,7 @@ def roadmap_state(org: Org) -> dict:
     def bucket(status: str) -> list:
         return sorted(
             [s for s in slices if s.status == status],
-            key=lambda s: (s.area.name, s.rank),
+            key=lambda s: (s.area.name, *priority_sort_key(s)),
         )
 
     shipped = sorted(
@@ -392,7 +402,7 @@ def roadmap_board_view(org: Org) -> dict:
             filed_slices(Slice.objects.filter(org=org)).select_related("area", "org")
         )
         .prefetch_related("tags")
-        .order_by("area__name", "rank")
+        .order_by("area__name", *PRIORITY_ORDER)
     )
     columns: dict[str, list] = {key: [] for key in STAGE_BOARD_ORDER if key != "shipped"}
     dropped_count = 0
@@ -440,7 +450,7 @@ def area_board_view(area: Area) -> dict:
             Slice.objects.filter(area=area).select_related("area", "org")
         )
         .prefetch_related("tags")
-        .order_by("rank")  # explicit: annotate_stage_counts drops Meta.ordering
+        .order_by(*PRIORITY_ORDER)  # explicit: annotate_stage_counts drops Meta.ordering
     )
     columns: dict[str, list] = {key: [] for key in STAGE_BOARD_ORDER if key != "shipped"}
     dropped_count = 0

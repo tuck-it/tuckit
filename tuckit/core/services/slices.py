@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, F, Q, QuerySet
 from django.utils import timezone
 
 from tuckit.core.entitlements import assert_can_write
@@ -11,6 +11,28 @@ from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.tags import get_or_create_tags
 from tuckit.core.services.validation import validate_choice
 from tuckit.core.services.watches import answer_watches, close_watches
+
+
+# The board's one ordering. priority first, then the manual rank inside it --
+# priority replaces nothing, it sits above. Dropping rank would erase every
+# hand-made ordering already on the board, so the two are a pair.
+#
+# nulls_last is spelled out rather than left to the backend because the two
+# backends disagree: Postgres puts NULLs last in ASC, sqlite puts them first.
+# Relying on the default sorts unranked work to the bottom in production and to
+# the top locally, and a green sqlite suite cannot see it.
+#
+# EVERY surface that shows slices to a person or an agent must use this, or the
+# board disagrees with itself depending on which screen you are looking at.
+# The deliberate exceptions are listed in test_priority_ordering.py, which also
+# pins the full set of surfaces so a new one cannot quietly skip it.
+PRIORITY_ORDER = (F("priority").asc(nulls_last=True), "rank")
+
+
+def priority_sort_key(slice_):
+    """The same ordering for call sites that sort in Python rather than SQL.
+    None sorts last, which is what nulls_last does in the query."""
+    return (slice_.priority is None, slice_.priority or 0, slice_.rank)
 
 
 def list_slices(area: Area, status: str | None = None, tag: str | None = None) -> QuerySet:
@@ -71,7 +93,7 @@ def query_slices(org, *, area=None, status=None, tag=None, query=None,
     # order_by is explicit because the stage annotation adds a GROUP BY, and
     # Django does not apply Meta.ordering to aggregate queries — without this the
     # rank order silently disappears and the board comes back in table order.
-    qs = qs.prefetch_related("tags").distinct().order_by("rank")
+    qs = qs.prefetch_related("tags").distinct().order_by(*PRIORITY_ORDER)
     if limit:
         qs = qs[:limit]
     return list(qs)
@@ -83,7 +105,9 @@ STATUS_ORDER = ["open", "shipped", "dropped"]
 def grouped_slices(area: Area) -> list[tuple[str, list[Slice]]]:
     """Slices of an area grouped by status in canonical order:
     list of (status, [slices]) tuples. Tags are prefetched."""
-    slices = list(list_slices(area).prefetch_related("tags"))
+    # Meta.ordering is rank-only and knows nothing about priority, so the
+    # ordering is spelled out here rather than inherited.
+    slices = list(list_slices(area).prefetch_related("tags").order_by(*PRIORITY_ORDER))
     return [(s, [x for x in slices if x.status == s]) for s in STATUS_ORDER]
 
 
