@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.db.models import Count
 from django.utils import timezone
 
 from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
@@ -20,17 +21,43 @@ def _slice_brief(slice_: Slice) -> dict:
     return {"id": slice_.id, "title": slice_.title, "tags": _tag_names(slice_)}
 
 
-def _area_state(area: Area) -> dict:
+# How many open slices one area may spell out before the response starts
+# summarising instead. get_project_state is the FIRST call of every session, and
+# an uncapped roadmap made it grow without limit: at 140 open slices the reply
+# was a multi-thousand-token wall, so the one tool built to orient you got less
+# usable exactly as the board got harder to read. Whatever is cut is always
+# reported -- a silent truncation reads as "that was all of it", which is a
+# worse failure than the wall.
+ROADMAP_LIMIT = 20
+
+
+def _area_state(area: Area, *, limit: int = ROADMAP_LIMIT) -> dict:
     slices = list(list_slices(area).prefetch_related("tags"))
     shipped = [s for s in slices if s.status == "shipped"]
     open_ = [s for s in slices if s.status == "open"]
+    dropped = [s for s in slices if s.status == "dropped"]
+
+    # Sliced in Python, not in the query. The rows are already hydrated for the
+    # counts below, so cutting here costs nothing and pushing the limit into SQL
+    # would cost one COUNT per area per status -- an N+1 bought for no gain. The
+    # payload is what was too big, never the fetch.
+    visible = open_[:limit]
 
     return {
         "name": area.name,
         "slug": area.slug,
         "shipped": [_slice_brief(s) for s in shipped],
-        "roadmap": [_slice_brief(s) for s in open_],
-        "counts": {"shipped": len(shipped)},
+        "roadmap": [_slice_brief(s) for s in visible],
+        # open/dropped were both absent. Without `open` the caller had to count
+        # the roadmap array by hand (and now cannot, since it is capped);
+        # without `dropped` there was no way to learn what this board does with
+        # what it captures.
+        "counts": {
+            "open": len(open_),
+            "shipped": len(shipped),
+            "dropped": len(dropped),
+        },
+        "roadmap_omitted": len(open_) - len(visible),
     }
 
 
@@ -41,6 +68,11 @@ def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> d
     # predicate (see slices.py); spelling `area__isnull=True` here again is how
     # the two halves of the split drift apart.
     inbox_qs = inbox_slices(org)
+    # inbox_slices() orders by -created_at, so the last row is the oldest thing
+    # nobody has filed. "34 waiting" is a number you can look past; "the oldest
+    # has sat untouched for 40 days" is one that decides something.
+    oldest = inbox_qs.last()
+    now = timezone.now()
     return {
         "caller": {
             "user_email": caller_user.email if caller_user is not None else None,
@@ -48,12 +80,51 @@ def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> d
             "org_name": org.name,
         },
         "org": {"name": org.name, "description": org.description},
+        "totals": _org_totals(org),
         "inbox": {
             # One COUNT(*) + one 10-row fetch, not two full hydrations.
             "open_count": inbox_qs.count(),
+            "oldest_idle_days": (now - oldest.updated_at).days if oldest else None,
             "recent": [{"id": t.id, "title": t.title} for t in inbox_qs[:10]],
         },
         "areas": [_area_state(a) for a in areas],
+    }
+
+
+def _org_totals(org: Org) -> dict:
+    """The shape of the pile, as opposed to its contents.
+
+    `drop_ratio` is the number this board could never show: the share of
+    everything ever captured that a human later decided was not work. It is the
+    denominator for "will anyone actually do this later?" -- a question the
+    review skills ask on every finding and, without this, answer from nothing.
+
+    `by_source` is free for the same reason: create_slice stamps source="agent"
+    on every MCP write, so who fills this board has been recorded all along and
+    read by no one.
+
+    Two GROUP BY queries for the whole org, not one per area.
+    """
+    rows = org.slices.values("status").annotate(n=Count("id"))
+    counts = {r["status"]: r["n"] for r in rows}
+    open_ct = counts.get("open", 0)
+    shipped_ct = counts.get("shipped", 0)
+    dropped_ct = counts.get("dropped", 0)
+    decided = open_ct + shipped_ct + dropped_ct
+
+    by_source = {
+        r["source"]: r["n"]
+        for r in org.slices.values("source").annotate(n=Count("id"))
+    }
+    return {
+        "open": open_ct,
+        "shipped": shipped_ct,
+        "dropped": dropped_ct,
+        "drop_ratio": round(dropped_ct / decided, 2) if decided else 0.0,
+        "by_source": {
+            "human": by_source.get("human", 0),
+            "agent": by_source.get("agent", 0),
+        },
     }
 
 
