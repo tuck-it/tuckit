@@ -448,9 +448,15 @@ async def propose(ctx: Context, slice_id: int, nodes: list[dict]) -> dict:
 
     Append-only, and accepted only while `spec` is empty. A branch you explored
     and dropped is part of the record, so nothing is ever edited away -- and
-    once the design is written the canvas shows the spec's own structure
-    instead. Carry every decision you reached here into `update_slice(spec=...)`
-    before you write it: writing the spec retires the canvas.
+    the record outlives the spec being written, permanently. It is how anyone
+    later finds out what was weighed and why the losing options lost, so put
+    real reasoning in the bodies rather than labels.
+
+    Writing the spec closes the record to new writes, not to reading. Settle it
+    BEFORE you write: record the choice you actually landed on, because
+    afterwards the tree is read-only and a stale `chosen` cannot be corrected.
+    You do not need to copy the tree into the spec to keep it -- the spec
+    carries the conclusion, the record keeps the reasoning that produced it.
 
     When the batch contained a question you also get `watch_url`: an
     unauthenticated URL, good for fifteen minutes, that answers

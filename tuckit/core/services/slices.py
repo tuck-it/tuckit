@@ -499,7 +499,7 @@ _NODE_KEYS = ("id", "parent", "kind", "title", "summary", "body", "media", "reco
 
 
 def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[dict]:
-    """Append nodes to a slice's decision_tree canvas. Returns what was added.
+    """Append nodes to a slice's decision record. Returns what was added.
 
     Append-only on purpose: a branch that was explored and lost is part of the
     record, so nothing here edits or removes an existing node. The whole batch
@@ -569,9 +569,9 @@ def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -
     question is answered (by a human clicking an option in the browser), this
     function records that choice by setting `chosen` on the parent question node.
 
-    The choice is only recorded while the design canvas is still open (spec is
-    empty) — once the design is written, the canvas shows the spec's own
-    structure instead.
+    The choice is only recorded while the design is still open (spec is empty).
+    Once the spec is written the record is closed to new writes and kept as it
+    stands, so a choice reached late has to be recorded before that.
 
     Returns the updated question node (the parent).
     """
