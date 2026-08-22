@@ -5,18 +5,6 @@ from tuckit.core.services.slices import create_slice
 
 
 @pytest.mark.django_db
-def test_every_heading_becomes_a_card(client_local, org):
-    a = create_area(org, "Backend")
-    s = create_slice(a.org, area=a, title="Payments",
-                     spec="## Goal\ntext\n\n### Detail\nmore")
-    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
-
-    assert "data-canvas" in body
-    assert body.count('class="cnode') >= 3      # root + Goal + Detail
-    assert 'data-parent=""' in body             # exactly one root
-
-
-@pytest.mark.django_db
 def test_the_canvas_stays_off_the_modal(client_local, org):
     # D15: the canvas needs a full page. The modal is a centred card and
     # cannot hold the tree.
@@ -44,32 +32,39 @@ def test_the_spec_block_survives_next_to_the_canvas(client_local, org):
     # addition, never a replacement.
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Payments", spec="## Goal\ntext")
+    s.decision_tree = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
+                                  "title": "Which way?", "summary": "", "body": ""}]}
+    s.save(update_fields=["decision_tree"])
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert "data-canvas" in body
     assert 'class="spec-edit' in body       # the textarea is still there
+    assert 'data-id="n1"' in body           # spec and record coexist (TP-238)
 
 
 @pytest.mark.django_db
 def test_the_stage_starts_pending_so_nothing_flashes_unplaced(client_local, org):
     a = create_area(org, "Backend")
-    s = create_slice(a.org, area=a, title="Payments", spec="## Goal\ntext")
+    s = create_slice(a.org, area=a, title="Payments", spec="")
+    s.decision_tree = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
+                                  "title": "Which way?", "summary": "", "body": ""}]}
+    s.save(update_fields=["decision_tree"])
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert "data-pending" in body
 
 
 @pytest.mark.django_db
-def test_a_draft_renders_when_the_spec_is_empty(client_local, org):
+def test_a_decision_tree_renders_when_the_spec_is_empty(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Designing", spec="")
-    s.draft = {"nodes": [
+    s.decision_tree = {"nodes": [
         {"id": "n1", "parent": None, "kind": "question",
          "title": "Which way?", "summary": "", "body": "", "at": 1787200000000},
         {"id": "n2", "parent": "n1", "kind": "option", "recommended": True,
          "title": "This way", "summary": "cheap", "body": "**because**"},
     ]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert 'data-id="n2"' in body
@@ -108,7 +103,10 @@ def test_the_canvas_offers_a_maximize_control(client_local, org):
     1116px wide before any margin, so the surface built for comparing options
     pushes the options off it."""
     a = create_area(org, "Backend")
-    s = create_slice(a.org, area=a, title="Payments", spec="## Goal\ntext")
+    s = create_slice(a.org, area=a, title="Payments", spec="")
+    s.decision_tree = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
+                                  "title": "Which way?", "summary": "", "body": ""}]}
+    s.save(update_fields=["decision_tree"])
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert "data-maximize" in body
@@ -119,11 +117,11 @@ def test_the_canvas_offers_a_maximize_control(client_local, org):
 def test_an_option_card_carries_a_pick_control(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(org, area=a, title="Designing", spec="")
-    s.draft = {"nodes": [
+    s.decision_tree = {"nodes": [
         {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
         {"id": "o1", "parent": "q1", "kind": "option", "title": "Left"},
     ]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert "data-pick" in body
@@ -132,13 +130,39 @@ def test_an_option_card_carries_a_pick_control(client_local, org):
     assert f"/{org.slug}/slices/{s.id}/choice" in body
 
 
+
+
 @pytest.mark.django_db
-def test_a_spec_derived_card_offers_nothing_to_pick(client_local, org):
-    """Once the spec is written the canvas is a view of it. Every node is a
-    note, and there is no question left open."""
+def test_a_closed_record_offers_nothing_to_pick(client_local, org):
+    """Once the spec is written the record stops accepting writes, so a pick
+    control on it can only ever produce a 400 and a failure toast. It used to be
+    unreachable because the record was deleted at that point; keeping the record
+    is what made this state possible.
+    """
     a = create_area(org, "Backend")
-    s = create_slice(org, area=a, title="Payments", spec="## Goal\ntext")
+    s = create_slice(a.org, area=a, title="Decided", spec="## Decision\nA.")
+    s.decision_tree = {"nodes": [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "Left"},
+    ]}
+    s.save(update_fields=["decision_tree"])
+
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
-    assert "data-canvas" in body
-    assert "data-pick" not in body
+    assert 'data-id="o1"' in body      # the record is still drawn...
+    assert "data-pick" not in body     # ...but it is read-only
+
+
+@pytest.mark.django_db
+def test_an_open_record_still_offers_a_pick(client_local, org):
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Designing", spec="")
+    s.decision_tree = {"nodes": [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "Left"},
+    ]}
+    s.save(update_fields=["decision_tree"])
+
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "data-pick" in body

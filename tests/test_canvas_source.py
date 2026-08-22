@@ -1,61 +1,46 @@
 import pytest
 
-from tuckit.core.services.canvas import graph_for, nodes_from_spec
+from tuckit.core.services.canvas import graph_for
 from tuckit.core.services.slices import create_slice
 
 
-def test_headings_become_a_nested_tree():
-    nodes = nodes_from_spec("## One\nbody one\n\n### Under one\ndeeper\n\n## Two\n", "T")
-    by_title = {n["title"]: n for n in nodes}
-
-    assert by_title["T"]["parent"] is None
-    assert by_title["One"]["parent"] == by_title["T"]["id"]
-    assert by_title["Under one"]["parent"] == by_title["One"]["id"]
-    assert by_title["Two"]["parent"] == by_title["T"]["id"]
-    assert by_title["One"]["body"] == "body one"
-
-
-def test_prose_before_the_first_heading_lands_on_the_root():
-    nodes = nodes_from_spec("intro line\n\n## One\n", "T")
-    assert nodes[0]["body"] == "intro line"
-
-
-def test_a_spec_with_no_headings_is_a_single_root_node():
-    nodes = nodes_from_spec("just prose", "T")
-    assert len(nodes) == 1
-    assert nodes[0]["body"] == "just prose"
-
-
-def test_a_deeper_heading_after_a_shallower_one_climbs_back_out():
-    # ### under ## under #, then a second # -- the stack has to unwind two
-    # levels, not one.
-    nodes = nodes_from_spec("# A\n## B\n### C\n# D\n", "T")
-    by_title = {n["title"]: n for n in nodes}
-    assert by_title["C"]["parent"] == by_title["B"]["id"]
-    assert by_title["D"]["parent"] == by_title["T"]["id"]
-
-
 @pytest.mark.django_db
-def test_graph_uses_draft_while_the_spec_is_empty(org, area):
+def test_graph_uses_the_decision_tree_while_the_spec_is_empty(org, area):
     s = create_slice(org, area=area, title="Canvas", spec="")
-    s.draft = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
+    s.decision_tree = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
                           "title": "Root", "summary": "", "body": ""}]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
 
     assert [n["id"] for n in graph_for(s)] == ["n1"]
 
 
 @pytest.mark.django_db
-def test_graph_switches_to_the_spec_once_it_is_written(org, area):
+def test_graph_still_shows_the_decision_tree_after_a_spec_is_written(org, area):
     s = create_slice(org, area=area, title="Canvas", spec="")
-    s.draft = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
-                          "title": "Root", "summary": "", "body": ""}]}
+    s.decision_tree = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
+                                  "title": "Root", "summary": "", "body": ""}]}
     s.spec = "## Decided\nthe design"
-    s.save(update_fields=["draft", "spec"])
+    s.save(update_fields=["decision_tree", "spec"])
 
     titles = [n["title"] for n in graph_for(s)]
-    assert "Decided" in titles
-    assert "Root" not in titles
+    assert titles == ["Root"]
+    assert "Decided" not in titles   # the spec has its own surface; this is not it
+
+
+@pytest.mark.django_db
+def test_a_spec_with_no_decision_tree_draws_nothing(org, area):
+    """No fallback to heading parsing. A spec's table of contents drawn as a
+    tree reads as a decision tree and is not one."""
+    s = create_slice(org, area=area, title="Canvas", spec="## One\n## Two\n")
+    assert graph_for(s) == []
+
+
+def test_the_heading_parser_is_gone():
+    """Guard: it draws a table of contents in the shape of a decision record,
+    which is exactly the confusion TP-238 removed. Not a harmless fallback."""
+    import tuckit.core.services.canvas as canvas_module
+
+    assert not hasattr(canvas_module, "nodes_from_spec")
 
 
 @pytest.mark.django_db

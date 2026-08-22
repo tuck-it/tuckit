@@ -8,13 +8,13 @@ from tuckit.core.services.slices import create_slice
 def test_media_renders_a_thumbnail_with_reserved_dimensions(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Canvas", spec="")
-    s.draft = {"nodes": [{
+    s.decision_tree = {"nodes": [{
         "id": "n1", "parent": None, "kind": "option", "title": "Mockup",
         "summary": "", "body": "",
         "media": [{"kind": "image", "url": "/static/web/brand/symbol.png",
                    "alt": "Wireframe", "w": 800, "h": 600}],
     }]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
@@ -39,12 +39,12 @@ def test_media_without_dimensions_still_renders(client_local, org):
     # know them must still be able to attach a mockup.
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Canvas", spec="")
-    s.draft = {"nodes": [{
+    s.decision_tree = {"nodes": [{
         "id": "n1", "parent": None, "kind": "option", "title": "Mockup",
         "summary": "", "body": "",
         "media": [{"kind": "image", "url": "/static/web/brand/symbol.png"}],
     }]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
 
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 

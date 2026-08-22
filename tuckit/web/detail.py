@@ -56,10 +56,15 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
         # Plan, which meant it was unreachable unless you first made a plan —
         # and almost nobody did).
         "constraints_html": render_markdown_html(slice_.constraints),
-        # The canvas source: the draft while a design is being made, the spec's
-        # own heading structure once it has been written. Bodies go through the
+        # The canvas source is the decision record, always -- the spec has its
+        # own block on this page and is not drawn here. Bodies go through the
         # same markdown surface as everything else -- there is deliberately no
         # second, narrower renderer for cards.
+        # A written spec closes the record to new writes (propose_nodes and
+        # choose_option both reject one), so a pick control on it could only
+        # ever 400. Before TP-238 this state was unreachable because the record
+        # was deleted at that point; keeping it is what made it possible.
+        "canvas_closed": bool((slice_.spec or "").strip()),
         "canvas_nodes": [
             dict(node, body_html=render_markdown_html(node.get("body", "")))
             for node in graph_for(slice_)

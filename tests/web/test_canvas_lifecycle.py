@@ -6,7 +6,7 @@ from tuckit.core.services.slices import create_slice, propose_nodes
 
 
 @pytest.mark.django_db
-def test_editing_the_spec_in_the_browser_retires_the_canvas(client_local, org):
+def test_editing_the_spec_in_the_browser_keeps_the_decision_record(client_local, org):
     """The web inline edit and the MCP tool are two doors onto one service. A
     fix applied to only one of them leaves the other silently broken."""
     a = create_area(org, "Backend")
@@ -20,12 +20,16 @@ def test_editing_the_spec_in_the_browser_retires_the_canvas(client_local, org):
     )
 
     s.refresh_from_db()
-    assert s.draft == {}
+    assert s.spec.startswith("## Decision")
+    assert [n["id"] for n in s.decision_tree["nodes"]] == ["n1"]
 
 
 @pytest.mark.django_db
-def test_the_canvas_switches_source_rather_than_disappearing(client_local, org):
-    """D14: the canvas is visible in every state; only its source changes."""
+def test_the_canvas_keeps_drawing_the_same_record_after_a_spec_lands(client_local, org):
+    """It used to swap source -- decision record while undesigned, the spec's
+    headings afterwards. It no longer swaps, because the two are not two answers
+    to one question: the record is how this was decided and it outlives the
+    spec being written (TP-238)."""
     a = create_area(org, "Backend")
     s = create_slice(org, area=a, title="Canvas", spec="")
     propose_nodes(s, [{"id": "n1", "parent": None, "kind": "question", "title": "Q"}])
@@ -41,5 +45,9 @@ def test_the_canvas_switches_source_rather_than_disappearing(client_local, org):
 
     after = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "data-canvas" in after            # still there
-    assert 'data-id="n1"' not in after       # draft is gone
-    assert after.count('class="cnode') >= 3  # root + Goal + Detail, from the spec
+    assert 'data-id="n1"' in after           # ...and it is still the SAME record
+    # ...and only that record: the spec's headings are not drawn as cards. The
+    # spec still renders in its own block on the page, which is not this.
+    # 'class="cnode' alone also matches cnode-t/-s/-b inside a card, so count
+    # the article's own class pair.
+    assert after.count('class="cnode cnode--') == 1

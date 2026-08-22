@@ -100,11 +100,10 @@ SLICES = EntitySpec(
         "title": lambda s: s.title,
         "spec": lambda s: s.spec,
         "constraints": lambda s: s.constraints,
-        # The undecided brainstorm, when there is one. It is in-flight rather
-        # than settled, but a half-finished design is exactly the thing this
-        # product promises to hold onto across sessions -- an export that
-        # quietly dropped it would hand back less than the app remembers.
-        "draft": lambda s: s.draft,
+        # How this slice was decided -- the options that were weighed and the
+        # one that won. An export that dropped it would hand back less than the
+        # app remembers, and this is the part that cannot be reconstructed.
+        "decision_tree": lambda s: s.decision_tree,
         "status": lambda s: s.status,
         "stage": lambda s: s.export_stage,
         "tags": _tags,

@@ -37,7 +37,7 @@ def test_the_browser_door_retires_the_channel_too(client_local, org):
 
 @pytest.mark.django_db
 def test_the_whole_loop_from_click_to_url(client_local, org):
-    """Browser click -> POST -> draft -> watch -> the URL a shell polls. Every
+    """Browser click -> POST -> decision_tree -> watch -> the URL a shell polls. Every
     piece is tested on its own; this is the only test that proves they are
     connected."""
     a = create_area(org, "Backend")

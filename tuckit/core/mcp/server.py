@@ -448,9 +448,17 @@ async def propose(ctx: Context, slice_id: int, nodes: list[dict]) -> dict:
 
     Append-only, and accepted only while `spec` is empty. A branch you explored
     and dropped is part of the record, so nothing is ever edited away -- and
-    once the design is written the canvas shows the spec's own structure
-    instead. Carry every decision you reached here into `update_slice(spec=...)`
-    before you write it: writing the spec retires the canvas.
+    the record outlives the spec being written, permanently. It is how anyone
+    later finds out what was weighed and why the losing options lost, so put
+    real reasoning in the bodies rather than labels.
+
+    Writing the spec closes the record to new writes: from then on `propose`
+    is rejected while the slice has one. Settle it BEFORE you write, because
+    correcting a stale `chosen` afterwards means clearing the spec first.
+
+    Note the record is not yet readable back over MCP -- `get_slice` does not
+    return it. Until it does, carry the decisions that a later session needs
+    into the spec as well; the canvas is the human's view of them.
 
     When the batch contained a question you also get `watch_url`: an
     unauthenticated URL, good for fifteen minutes, that answers

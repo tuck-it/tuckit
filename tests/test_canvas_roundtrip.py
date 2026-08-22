@@ -104,7 +104,7 @@ def test_a_later_click_on_the_first_question_still_reaches_its_own_watch(org, ar
 def test_an_empty_spec_is_not_a_written_one(org, area):
     """'' means "still being designed". Retiring the watch there would kill the
     channel in the middle of the conversation it exists for -- the same rule
-    that stops an empty spec wiping the draft."""
+    that stops an empty spec wiping the decision_tree."""
     s = create_slice(org, area=area, title="Canvas", spec="")
     _tree(s)
     _, raw = open_watch(s)

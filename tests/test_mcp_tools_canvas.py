@@ -23,8 +23,8 @@ def _seed():
 
 
 @sync_to_async
-def _draft_ids(slice_id):
-    return [n["id"] for n in Slice.objects.get(id=slice_id).draft.get("nodes", [])]
+def _decision_tree_ids(slice_id):
+    return [n["id"] for n in Slice.objects.get(id=slice_id).decision_tree.get("nodes", [])]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -42,12 +42,12 @@ async def test_propose_puts_nodes_on_the_canvas():
 
     assert out["count"] == 2
     assert out["node_ids"] == ["q1", "o1"]
-    assert await _draft_ids(s["id"]) == ["q1", "o1"]
+    assert await _decision_tree_ids(s["id"]) == ["q1", "o1"]
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_writing_the_spec_over_mcp_retires_the_canvas():
+async def test_writing_the_spec_over_mcp_keeps_the_decision_record():
     _org, raw, area_id = await _seed()
     ctx = make_ctx(raw)
     s = await create_slice(ctx, "Canvas", area_id=area_id)
@@ -56,7 +56,7 @@ async def test_writing_the_spec_over_mcp_retires_the_canvas():
 
     await update_slice(ctx, s["id"], spec="## Decision\nOn the slice.")
 
-    assert await _draft_ids(s["id"]) == []
+    assert await _decision_tree_ids(s["id"]) == ["q1"]
 
 
 @pytest.mark.django_db(transaction=True)

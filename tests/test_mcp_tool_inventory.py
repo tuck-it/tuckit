@@ -97,3 +97,26 @@ async def test_every_registered_tool_goes_through_the_rate_limiter():
             f"{name} does not resolve auth through require_org/require_caller, "
             f"so it never reaches the rate limiter"
         )
+
+
+def test_the_canvas_docstrings_do_not_teach_the_deleted_behaviour():
+    """A docstring is the agent-facing contract, so a stale one is a behaviour
+    change as far as agents are concerned. These described a destroy that no
+    longer happens, and an agent that believes it treats the decision record as
+    disposable -- carrying it into the spec by hand and letting the tree go
+    (TP-238).
+    """
+    import inspect
+
+    from tuckit.core.mcp import server
+    from tuckit.core.services import slices
+
+    # Whole source, not just getdoc(): the first version of this guard read
+    # docstrings only, and the same claim sat untouched in both InvalidValue
+    # messages -- which is the text an agent actually receives when it gets the
+    # rule wrong, so it teaches harder than the docstring does.
+    gone = ("retires the canvas", "the spec's own structure", "draft canvas")
+    for owner in (server.propose, slices.propose_nodes, slices.choose_option):
+        src = inspect.getsource(owner)
+        for lie in gone:
+            assert lie not in src, f"{owner.__name__} still says {lie!r}"
