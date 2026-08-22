@@ -187,6 +187,15 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
 
     if not unfurls:
         return
-    SlackClient(install.bot_token).chat_unfurl(
-        channel=event.get("channel", ""), ts=event.get("message_ts", ""), unfurls=unfurls,
-    )
+    try:
+        SlackClient(install.bot_token).chat_unfurl(
+            channel=event.get("channel", ""), ts=event.get("message_ts", ""), unfurls=unfurls,
+        )
+    except SlackApiError:
+        # Deliberately swallowed, not just uncaught: this is the one path in
+        # the whole integration where a failure must not speak. Any message
+        # back -- to Slack, to a user-visible log, to anywhere -- would tell
+        # someone whether a ref they are not permitted to see exists, which
+        # is exactly the leak this bite exists to prevent. The log line below
+        # carries no ref, title or URL for the same reason.
+        logger.warning("chat.unfurl failed for team %s", team_id)

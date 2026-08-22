@@ -12,6 +12,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
+from tuckit.integrations.slack.api import SlackApiError
 from tuckit.integrations.slack.handlers import handle_link_shared
 from tuckit.integrations.slack.models import SlackIdentity, SlackInstall, SlackUnfurl
 
@@ -73,3 +74,25 @@ def test_the_ref_is_expanded_again_after_the_cooldown_expires(
     )
     handle_link_shared(team_id="T1", event=event_for(url))
     assert len(fake_slack.unfurled) == 2
+
+
+def test_a_failed_chat_unfurl_call_does_not_propagate(
+    install, member, slice_factory, fake_slack, settings, monkeypatch,
+):
+    """chat.unfurl can fail (SlackApiError from `_call`) after a permitted,
+    non-cooldown ref has already been decided eligible. That failure must be
+    swallowed, not raised: this is the one path in the integration where
+    speaking at all -- even a log with the ref in it -- would confirm to
+    whoever is asking that something exists. This test pins that the handler
+    returns cleanly rather than letting the daemon thread running it crash.
+    """
+    SlackIdentity.objects.create(install=install, slack_user_id="U9", member=member)
+    target = slice_factory(title="Whatever")
+    url = f"{settings.TUCKIT_BASE_URL}/{install.org.slug}/?slice={target.id}"
+
+    def boom(**kwargs):
+        raise SlackApiError("chat.unfurl: some_slack_error")
+
+    monkeypatch.setattr(fake_slack, "chat_unfurl", boom)
+
+    handle_link_shared(team_id="T1", event=event_for(url))  # must not raise
