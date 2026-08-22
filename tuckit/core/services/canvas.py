@@ -96,7 +96,7 @@ def _kind(node):
     return node.get("kind") or "note"
 
 
-def question_state(question, nodes):
+def question_state(question, nodes, *, closed=False):
     """answered | waiting | passed.
 
     `passed` is a question nobody answered and the conversation moved past: a
@@ -111,6 +111,12 @@ def question_state(question, nodes):
     """
     if question.get("chosen"):
         return "answered"
+    # A sealed record (the slice has a spec) can no longer be written to, so
+    # nothing on it is anyone's turn. Slice 208 is the real case: the design
+    # finished around two of its questions, which have neither an answer nor a
+    # later sibling -- without this they would ask forever.
+    if closed:
+        return "passed"
     at = question.get("at") or 0
     parent = question.get("parent")
     for other in nodes:
@@ -135,8 +141,11 @@ def is_locked(question, nodes):
     return any(n.get("parent") == chosen for n in nodes)
 
 
-def spine_for(nodes):
+def spine_for(nodes, *, closed=False):
     """The decision record in reading order: one flat list of rows.
+
+    `closed` is the slice having a spec: the record is sealed, so no question
+    on it is still asking.
 
     Linear, so unlike the map this needs no re-parenting -- with the rows in
     the right ORDER it does not matter which node the author hung the
@@ -160,7 +169,7 @@ def spine_for(nodes):
 
         if _kind(node) == "question":
             options = [c for c in children if _kind(c) == "option"]
-            state = question_state(node, nodes)
+            state = question_state(node, nodes, closed=closed)
             chosen = by_id.get(node.get("chosen") or "")
             rows.append({
                 "node": node, "row": "question", "state": state,

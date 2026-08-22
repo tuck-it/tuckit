@@ -91,3 +91,26 @@ def test_reparenting_leaves_the_stored_nodes_untouched():
 def test_reparenting_does_nothing_to_an_unanswered_question():
     nodes = [_q("q1"), _o("o1", "q1"), _n("d1", "q1")]
     assert {n["id"]: n["parent"] for n in reparented(nodes)}["d1"] == "q1"
+
+
+def test_a_sealed_record_asks_nobody_anything():
+    """A question left unanswered when the spec was written is not your turn.
+
+    Slice 208 is the real case: two of its questions have no answer AND no
+    later sibling to mark them as passed over, because the design simply
+    finished around them. Reading `waiting` off that would have the board
+    claim someone's turn forever, on a record nothing can be written to.
+    """
+    nodes = [_q("q1"), _o("o1", "q1")]
+
+    assert question_state(nodes[0], nodes, closed=True) == "passed"
+    assert question_state(nodes[0], nodes) == "waiting"
+
+
+def test_a_sealed_record_offers_no_options_to_pick_from():
+    nodes = [_q("q1"), _o("o1", "q1")]
+
+    row = spine_for(nodes, closed=True)[0]
+    assert row["state"] == "passed"
+    assert row["options"] == []
+    assert [o["id"] for o in row["rejected"]] == ["o1"]

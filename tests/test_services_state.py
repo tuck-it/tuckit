@@ -782,8 +782,8 @@ def test_shipped_slices_never_reach_your_turn(org, area):
 
 # ---- the decision record over MCP ----------------------------------------
 
-def _with_record(org, area, nodes):
-    s = create_slice(org, area=area, title="Canvas", spec="designed")
+def _with_record(org, area, nodes, spec="designed"):
+    s = create_slice(org, area=area, title="Canvas", spec=spec)
     s.decision_tree = {"nodes": nodes}
     s.save(update_fields=["decision_tree"])
     return s
@@ -809,16 +809,33 @@ def test_the_decision_record_reaches_an_agent_with_node_ids(org, area):
 
 @pytest.mark.django_db
 def test_each_question_reports_which_state_it_is_in(org, area):
+    # An OPEN record: one question was moved past, the next one is asking.
     s = _with_record(org, area, [
         {"id": "r", "parent": None, "kind": "note", "title": "Problem", "at": 1},
         {"id": "q1", "parent": "r", "kind": "question", "title": "First", "at": 1},
         {"id": "q2", "parent": "r", "kind": "question", "title": "Second", "at": 2},
-    ])
+    ], spec="")
 
     out = render_slice_markdown(s)
 
     assert "First -- passed" in out
     assert "Second -- waiting" in out
+
+
+@pytest.mark.django_db
+def test_a_sealed_record_tells_an_agent_that_nothing_is_still_asking(org, area):
+    # Slice 208's real shape: the design finished around a question that has
+    # neither an answer nor a later sibling. Reporting it as `waiting` would
+    # send an agent chasing an answer on a record it cannot even write to.
+    s = _with_record(org, area, [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Left open", "at": 1},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "A", "at": 1},
+    ])
+
+    out = render_slice_markdown(s)
+
+    assert "Left open -- passed" in out
+    assert "waiting" not in out
 
 
 @pytest.mark.django_db

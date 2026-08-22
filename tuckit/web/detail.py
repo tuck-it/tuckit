@@ -109,7 +109,7 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
                  node=_with_body(row["node"]),
                  options=[_with_body(o) for o in row["options"]],
                  rejected=[_with_body(o) for o in row["rejected"]])
-            for row in spine_for(graph_for(slice_))
+            for row in spine_for(graph_for(slice_), closed=bool((slice_.spec or '').strip()))
         ],
         "bites": list(list_bites(slice_)),
         "activity": label_who(slice_activity(slice_), viewer),

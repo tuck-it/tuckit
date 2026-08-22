@@ -164,7 +164,7 @@ def _render_decisions(slice_):
         return []
 
     rows = ["## Decisions", ""]
-    for row in spine_for(nodes):
+    for row in spine_for(nodes, closed=bool((slice_.spec or "").strip())):
         node = row["node"]
         title = node.get("title", "")
         if row["row"] == "question":
