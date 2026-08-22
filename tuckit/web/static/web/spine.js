@@ -54,4 +54,25 @@
       if (window.showToast) window.showToast("Couldn't reach the server.", "err");
     });
   });
+
+  /* The map starts closed. Reading the record is the common case, and opening
+     the stage costs a measure-and-place pass nobody asked for. */
+  var toggle = document.querySelector("[data-view-toggle]");
+  var slot = document.querySelector("[data-graph-slot]");
+  if (toggle && slot) {
+    slot.hidden = true;
+    toggle.addEventListener("click", function () {
+      var open = toggle.getAttribute("aria-pressed") === "true";
+      toggle.setAttribute("aria-pressed", open ? "false" : "true");
+      slot.hidden = open;
+      /* The stage was hidden until this instant, so brainstorm.js measured it
+         at zero. Re-fitting is the entire correction: layout() never reads the
+         stage, and the cards are a fixed width. */
+      if (!open && window.__canvas) window.__canvas.fit();
+    });
+  }
+
+  /* A canvas born mid-session lands inside a hidden slot, and stays hidden on
+     purpose. The spine grows at the same moment, and that is where the reader
+     is looking -- yanking the map open would move the page under them. */
 })();

@@ -6,8 +6,10 @@ from tuckit.core.services.slices import create_slice
 
 @pytest.mark.django_db
 def test_the_canvas_stays_off_the_modal(client_local, org):
-    # D15: the canvas needs a full page. The modal is a centred card and
-    # cannot hold the tree.
+    # D15, still true of the STAGE: it needs a full page, and the modal is
+    # a centred card. What changed with the spine is that the record no
+    # longer needs the stage to be readable, so the modal does get it --
+    # see test_the_record_now_reaches_the_modal (TP-259).
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Payments", spec="## Goal\ntext")
     body = client_local.get(

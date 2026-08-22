@@ -13,7 +13,16 @@ read identically to one that hung it off the winning option.
 {% endcomment %}
 <section class="spine" data-spine aria-label="Decision record"
          data-choice-url="{% wurl 'web:slice_choice' slice.id %}">
-  <div class="section-label">Decisions</div>
+  <div class="spine-bar">
+    <div class="section-label">Decisions</div>
+    {% comment %}The map is a second opinion on the same record. It only
+    exists on the full page -- a stage needs room a centred modal has not
+    got -- and it starts closed, because reading is the common case.
+    {% endcomment %}
+    {% if not is_modal and canvas_nodes %}
+    <button type="button" class="spine-toggle" data-view-toggle aria-pressed="false">Map</button>
+    {% endif %}
+  </div>
   {% for r in spine_rows %}
     {% if r.row == "question" %}
       {% if r.state == "passed" %}

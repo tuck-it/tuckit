@@ -95,3 +95,45 @@ def test_the_spine_is_not_a_stage(client_local, org):
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert "data-spine" in body
+
+
+@pytest.mark.django_db
+def test_the_record_now_reaches_the_modal(client_local, org):
+    # TP-259. The record was kept off the modal because a STAGE does not fit a
+    # centred card. A document does, and the record no longer needs the stage
+    # to be readable.
+    s = _slice_with(org, ANSWERED)
+    body = client_local.get(
+        f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true"
+    ).content.decode()
+
+    assert "data-spine" in body
+    assert "WHY-IT-WON" in body
+
+
+@pytest.mark.django_db
+def test_the_modal_still_gets_no_stage(client_local, org):
+    s = _slice_with(org, ANSWERED)
+    body = client_local.get(
+        f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true"
+    ).content.decode()
+
+    assert "data-canvas" not in body
+
+
+@pytest.mark.django_db
+def test_the_full_page_offers_the_map_as_a_toggle_and_opens_on_the_spine(client_local, org):
+    s = _slice_with(org, ANSWERED)
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert 'data-view-toggle aria-pressed="false"' in body
+
+
+@pytest.mark.django_db
+def test_a_modal_offers_no_map_toggle_because_it_has_no_map(client_local, org):
+    s = _slice_with(org, ANSWERED)
+    body = client_local.get(
+        f"/{org.slug}/slices/{s.id}/?modal=1", HTTP_HX_REQUEST="true"
+    ).content.decode()
+
+    assert "data-view-toggle" not in body

@@ -2659,3 +2659,17 @@ body.canvas-maxed .ob-widget { display: none; }
 .spine-fold > summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .spine-alt { margin-top: var(--space-6); font-size: var(--text-sm); color: var(--ink-soft); }
 .spine-alt p { margin: 2px 0 0; }
+
+.spine-bar { display: flex; align-items: center; gap: var(--space-6); }
+.spine-toggle {
+  margin-left: auto; font: inherit; font-size: var(--text-xs);
+  padding: 2px var(--space-8); cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-small);
+  background: var(--paper-raised); color: var(--ink-soft);
+  transition: background .18s, color .18s, border-color .18s;
+}
+.spine-toggle:hover { border-color: var(--blue); color: var(--blue-strong); }
+.spine-toggle[aria-pressed="true"] {
+  background: var(--blue-soft); color: var(--blue-strong); border-color: var(--blue);
+}
+.spine-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
