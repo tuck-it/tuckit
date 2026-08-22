@@ -34,6 +34,26 @@ def test_every_tool_is_strict_and_closed():
         assert set(schema["required"]) == set(schema["properties"])
 
 
+def test_no_tool_property_is_numeric_a_model_must_never_return_a_pk():
+    """The slice's landmine: NEVER GIVE THE MODEL A PK.
+
+    Every ref the model can hand back (e.g. add_note's `ref`) must be a
+    string like "TP-214", resolved later by parse_ref() inside the caller's
+    own org. If any tool property were typed "integer" or "number", the
+    model could return a bare primary key instead, and a hostile or
+    confused completion could then be used to reach another org's row.
+    This workspace has already overwritten two slices by confusing a ref
+    with a pk — this test pins the schema so that mistake cannot recur
+    silently through a one-line type change.
+    """
+    for tool in build_tools(["oss"]):
+        for prop_name, prop_schema in tool["input_schema"]["properties"].items():
+            assert prop_schema["type"] not in ("integer", "number"), (
+                f"{tool['name']}.{prop_name} must not be numeric; "
+                "the model must never be able to emit a primary key"
+            )
+
+
 def test_tool_use_blocks_become_intents(monkeypatch):
     monkeypatch.setattr(
         "tuckit.integrations.slack.interpret._call_model",
