@@ -131,8 +131,15 @@
      which is where every design conversation starts -- there is no stage and no
      brainstorm.js at all, so the first proposal has to install both. */
   function mergeCanvas(url) {
+    /* An explicit url is the record's own address, handed over by spine.js
+       after an answer. It may carry ?modal=1, and slice_detail only honours
+       that WITH the htmx header -- without it the modal would be handed the
+       full page, splicing a Map toggle into a card that has no map behind it.
+       The poll path keeps exactly the headers it always had. */
+    var headers = { "X-Requested-With": "live" };
+    if (url) headers["HX-Request"] = "true";
     return fetch(url || (location.pathname + location.search), {
-      headers: { "X-Requested-With": "live" }, credentials: "same-origin"
+      headers: headers, credentials: "same-origin"
     })
       .then(function (r) { return r.ok ? r.text() : null; })
       .then(function (html) {

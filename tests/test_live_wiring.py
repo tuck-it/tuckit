@@ -219,3 +219,30 @@ def test_the_spine_has_a_live_path_and_binds_only_once():
 
     # The map is closed by CSS, not by a script that has to run first.
     assert "[data-graph-slot] { display: none; }" in css
+
+
+def test_the_spine_refresh_keeps_its_baseline_and_its_address():
+    """Two orderings this file exists to hold still.
+
+    The live baseline must be captured BEFORE folds are reopened: `.open`
+    reflects into the attribute, so a baseline taken afterwards holds markup no
+    server render produces, and every later poll then tears the section down.
+    That regression has already landed once in these six lines.
+
+    And an answer refreshes from the record's own address, carried on the
+    element -- `location.pathname` is the board when the record is open in a
+    modal, and refreshing from it leaves a recorded answer invisible.
+    """
+    from pathlib import Path
+    import tuckit.web
+
+    web = Path(tuckit.web.__file__).parent
+    live = (web / "static/web/live.js").read_text()
+    js = (web / "static/web/spine.js").read_text()
+    spine = (web / "templates/web/partials/_spine.html").read_text()
+
+    assert live.index("lastSpine = fresh.innerHTML") < live.index("open = true")
+    assert "data-refresh-url" in spine and "refreshUrl" in js
+    # ?modal=1 is only honoured alongside the htmx header, so the refresh has
+    # to send it or the modal gets handed the full page.
+    assert 'headers["HX-Request"]' in live

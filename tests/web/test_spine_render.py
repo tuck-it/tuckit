@@ -167,3 +167,20 @@ def test_an_abandoned_branch_survives_inside_the_fold(client_local, org):
 
     assert "ABANDONED-REASONING" in body
     assert "went-this-way" in body
+
+
+@pytest.mark.django_db
+def test_a_modal_refresh_still_gets_a_modal(client_local, org):
+    # The refresh after an answer goes to the record's own address, which
+    # carries ?modal=1. slice_detail only honours that with the htmx header --
+    # without it the modal would be handed the full page and a Map toggle it
+    # has no map for.
+    s = _slice_with(org, ANSWERED)
+    body = client_local.get(
+        f"/{org.slug}/slices/{s.id}/?modal=1",
+        HTTP_HX_REQUEST="true", HTTP_X_REQUESTED_WITH="live",
+    ).content.decode()
+
+    assert "data-spine" in body
+    assert "data-view-toggle" not in body
+    assert 'data-refresh-url="' in body and "modal=1" in body
