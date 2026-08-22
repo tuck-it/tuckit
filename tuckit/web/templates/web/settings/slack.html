@@ -1,0 +1,27 @@
+{% extends "web/settings_base.html" %}
+{% block settings_title %}Organization · Slack{% endblock %}
+{% block settings_content %}
+<div class="settings-title">Slack</div>
+<section class="group settings-section">
+  {% if install %}
+    <div class="settings-subhead">Connected</div>
+    <div class="list-card">
+      <div class="token-row">
+        <div>
+          <div class="token-name">{{ install.team_name|default:install.team_id }}</div>
+          <div class="hint">
+            {% if install.installed_by %}Installed by {{ install.installed_by.user.email }}{% else %}Installed by a member who has since left{% endif %}
+          </div>
+        </div>
+        <form method="post" action="{% url 'web:slack_disconnect' org.slug %}" hx-post="{% url 'web:slack_disconnect' org.slug %}" hx-confirm="Disconnect this Slack workspace?">
+          {% csrf_token %}
+          <button type="submit" class="ghost">Disconnect</button>
+        </form>
+      </div>
+    </div>
+  {% else %}
+    <div class="hint">Connect a Slack workspace so mentions of the bot can read and write slices there.</div>
+    <a class="btn" href="{% url 'web:slack_install_begin' org.slug %}">Connect to Slack</a>
+  {% endif %}
+</section>
+{% endblock %}

@@ -10,4 +10,5 @@ def slack_urlpatterns() -> list:
         return []
     return [
         path("slack/events", views.slack_events, name="slack_events"),
+        path("slack/oauth/callback", views.slack_install_callback, name="slack_install_callback"),
     ]
