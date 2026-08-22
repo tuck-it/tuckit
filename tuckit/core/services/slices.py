@@ -6,6 +6,7 @@ from tuckit.core.entitlements import assert_can_write
 from tuckit.core.models import Area, Org, Slice
 from tuckit.core.services.activity import record_activity, status_verb
 from tuckit.core.services.bites import bite_progress
+from tuckit.core.services.canvas import is_locked
 from tuckit.core.services.exceptions import InvalidValue
 from tuckit.core.services.ranking_helpers import rank_for
 from tuckit.core.services.tags import get_or_create_tags
@@ -703,6 +704,19 @@ def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -
     if question_node.get("kind") != "question":
         raise InvalidValue(
             f"parent node {parent_id!r} is not a question"
+        )
+
+    # A choice is a moment, not a setting. It stays editable only while it has
+    # produced nothing, which is what makes correcting a misclick safe and
+    # changing your mind two days later not: everything under the chosen
+    # option exists BECAUSE of it. Changing direction after that is a NEW
+    # slice, and this record stays the snapshot it was.
+    if is_locked(question_node, nodes):
+        raise InvalidValue(
+            f"{parent_id!r} is locked: work already hangs off "
+            f"{question_node['chosen']!r}. Re-answering would re-read all of "
+            f"it as the result of a decision that never produced it -- start "
+            f"a new slice instead."
         )
 
     # Record the choice on the question node.

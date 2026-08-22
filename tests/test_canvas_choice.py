@@ -100,3 +100,63 @@ def test_a_written_spec_leaves_nothing_to_choose(org, area):
 
     with pytest.raises(InvalidValue):
         choose_option(s, "o2")
+
+
+def _canvas(org, area, extra=()):
+    s = create_slice(org, area=area, title="Canvas", spec="")
+    nodes = [{"id": "q1", "parent": None, "kind": "question", "title": "which?"},
+             {"id": "o1", "parent": "q1", "kind": "option", "title": "a"},
+             {"id": "o2", "parent": "q1", "kind": "option", "title": "b"}]
+    s.decision_tree = {"nodes": nodes + list(extra)}
+    s.save(update_fields=["decision_tree"])
+    return s
+
+
+@pytest.mark.django_db
+def test_a_misclick_can_be_corrected_while_nothing_has_been_built_on_it(org, area):
+    s = _canvas(org, area)
+    choose_option(s, "o2")
+
+    choose_option(s, "o1")
+
+    s.refresh_from_db()
+    q1 = next(n for n in s.decision_tree["nodes"] if n["id"] == "q1")
+    assert q1["chosen"] == "o1"
+
+
+@pytest.mark.django_db
+def test_the_question_locks_once_the_answer_has_children(org, area):
+    s = _canvas(org, area, extra=[
+        {"id": "d1", "parent": "o2", "kind": "note", "title": "because"}])
+    choose_option(s, "o2")
+
+    with pytest.raises(InvalidValue) as e:
+        choose_option(s, "o1")
+
+    assert "locked" in str(e.value).lower()
+    s.refresh_from_db()
+    q1 = next(n for n in s.decision_tree["nodes"] if n["id"] == "q1")
+    assert q1["chosen"] == "o2"          # the snapshot is intact
+
+
+@pytest.mark.django_db
+def test_a_locked_question_still_rejects_even_when_the_spec_is_empty(org, area):
+    # The lock is about children, not about the spec. Guarding only on the
+    # spec was the old rule, and it let two days of work be re-attributed.
+    s = _canvas(org, area, extra=[
+        {"id": "d1", "parent": "o2", "kind": "note", "title": "because"}])
+    choose_option(s, "o2")
+    assert s.spec == ""
+
+    with pytest.raises(InvalidValue):
+        choose_option(s, "o1")
+
+
+@pytest.mark.django_db
+def test_a_written_spec_still_seals_the_record(org, area):
+    s = _canvas(org, area)
+    s.spec = "designed"
+    s.save(update_fields=["spec"])
+
+    with pytest.raises(InvalidValue):
+        choose_option(s, "o1")
