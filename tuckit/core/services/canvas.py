@@ -138,7 +138,15 @@ def is_locked(question, nodes):
     chosen = question.get("chosen")
     if not chosen:
         return False
-    return any(n.get("parent") == chosen for n in nodes)
+    # The continuation counts wherever its author hung it. Correct callers put
+    # it under the winner; every canvas written before that rule put it under
+    # the question -- and reading only the first would report those as
+    # unlocked however much was built on the answer.
+    return any(
+        n.get("parent") == chosen
+        or (n.get("parent") == question["id"] and _kind(n) != "option")
+        for n in nodes
+    )
 
 
 def spine_for(nodes, *, closed=False):

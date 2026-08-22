@@ -128,3 +128,26 @@ def test_the_rejected_fold_comes_after_the_winner_never_before_it():
 
     assert rows[0]["rejected"] == []                       # not on the question
     assert [o["id"] for o in rows[1]["rejected"]] == ["o1"]  # on the winner
+
+
+def test_a_legacy_canvas_locks_on_work_hung_off_the_question():
+    """The lock has to see the continuation wherever its author put it.
+
+    Reading only the chosen option's children means every canvas written
+    before the parent rule -- which is every canvas that exists -- reports as
+    unlocked no matter how much was built on the answer. That is the same
+    blind spot the whole picture had, arriving through the back door.
+    """
+    legacy = [_q("q1", chosen="o1"), _o("o1", "q1"), _n("d1", "q1", at=2)]
+    assert is_locked(legacy[0], legacy) is True
+
+    modern = [_q("q1", chosen="o1"), _o("o1", "q1"), _n("d1", "o1", at=2)]
+    assert is_locked(modern[0], modern) is True
+
+
+def test_options_alone_do_not_lock_a_question():
+    # Candidates are not work built on the answer; they are the answer's
+    # alternatives, and a misclick has to stay correctable while that is all
+    # there is.
+    nodes = [_q("q1", chosen="o1"), _o("o1", "q1"), _o("o2", "q1")]
+    assert is_locked(nodes[0], nodes) is False
