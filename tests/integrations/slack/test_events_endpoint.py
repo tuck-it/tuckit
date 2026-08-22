@@ -5,6 +5,7 @@ import json
 import time
 
 import pytest
+from django.db import transaction
 from django.urls import clear_url_caches
 
 import tuckit.urls as root_urls
@@ -107,6 +108,36 @@ def test_the_same_event_id_is_only_processed_once(client, monkeypatch):
     assert post(client, body).status_code == 200
     assert queued == ["slack.app_mention"]
     assert SlackEvent.objects.filter(event_id="Ev123").count() == 1
+
+
+def test_the_job_is_queued_only_after_the_row_commits(client, monkeypatch):
+    """Pins the on_commit ordering directly, without needing a real race.
+
+    The view wraps its write in its own `transaction.atomic()`. Wrapping the
+    whole request in an *outer* atomic block here turns the view's block into
+    a savepoint: on_commit callbacks registered inside a savepoint are held
+    until the outermost transaction actually commits, not when the savepoint
+    is released. So while we are still inside the `with` below, the row has
+    been written but is not durable yet, and nothing may have been queued. A
+    bare `enqueue(...)` in place of `transaction.on_commit(...)` would run
+    immediately and fail the first assertion.
+    """
+    queued = []
+    monkeypatch.setattr(
+        "tuckit.integrations.slack.views.enqueue",
+        lambda name, payload: queued.append(name),
+    )
+    body = {
+        "type": "event_callback", "event_id": "EvOrdering", "team_id": "T1",
+        "event": {"type": "app_mention", "channel": "C1", "user": "U1", "ts": "1.0"},
+    }
+    with transaction.atomic():
+        assert post(client, body).status_code == 200
+        # Still inside the outer transaction: the row is not durable yet, so
+        # the on_commit hook must not have fired.
+        assert queued == []
+    # The outer commit has now run the deferred on_commit hooks.
+    assert queued == ["slack.app_mention"]
 
 
 def test_the_enqueued_payload_carries_team_id_and_event(client, monkeypatch):
