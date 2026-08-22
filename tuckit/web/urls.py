@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.urls import path
 from django.views.generic import RedirectView
 
+from tuckit.integrations.slack.urls import slack_urlpatterns
 from tuckit.web.views import (
     pages, slices, mutations, board, capture, health,
     accounts, settings_org, settings_account, settings_shell, routing,
@@ -81,6 +82,11 @@ settings_patterns = [
     path("<slug:org_slug>/settings/account", settings_shell.settings_account_root, name="settings_account_root"),
 ]
 
+# --- Slack integration (no tenant slug; org resolved from team_id) ---
+slack_patterns = [
+    *slack_urlpatterns(),
+]
+
 # --- bare root ---
 root_patterns = [
     path("", routing.root_redirect, name="root"),
@@ -137,5 +143,5 @@ home_patterns = [
 
 urlpatterns = (
     auth_patterns + api_patterns + oauth_patterns + settings_patterns
-    + root_patterns + app_patterns + home_patterns
+    + slack_patterns + root_patterns + app_patterns + home_patterns
 )
