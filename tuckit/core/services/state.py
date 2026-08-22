@@ -42,6 +42,14 @@ def _area_state(area: Area, *, limit: int = ROADMAP_LIMIT) -> dict:
     # counts below, so cutting here costs nothing and pushing the limit into SQL
     # would cost one COUNT per area per status -- an N+1 bought for no gain. The
     # payload is what was too big, never the fetch.
+    #
+    # Sorted BEFORE the cut. Without this the cap keeps whichever slices sat
+    # highest in the manual order, which is an arbitrary sample dressed up as a
+    # summary -- exactly what TP-253 shipped, and what this repays. list_slices
+    # orders by priority already, but that is not something this line should
+    # have to depend on: the sort is what makes the cut meaningful, so it is
+    # stated where the cut happens.
+    open_.sort(key=priority_sort_key)
     visible = open_[:limit]
 
     return {
@@ -80,7 +88,15 @@ def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> d
             "org_slug": org.slug,
             "org_name": org.name,
         },
-        "org": {"name": org.name, "description": org.description},
+        "org": {
+            "name": org.name,
+            "description": org.description,
+            # What counts as which priority, in this org's own words. Handed to
+            # the agent because the agent is what classifies; no other tracker
+            # gives its classifier this, which is why "when is it urgent?" lives
+            # in everyone's prompts instead of on their board.
+            "priority_policy": org.priority_policy,
+        },
         "totals": _org_totals(org),
         "inbox": {
             # One COUNT(*) + one 10-row fetch, not two full hydrations.

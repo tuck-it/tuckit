@@ -142,9 +142,18 @@ async def get_project_state(ctx: Context, area_id: int | None = None) -> dict:
     denominator for "will anyone actually do this later?", and a board that
     drops most of what it collects is telling you the honest answer is no.
 
-    Each area's `roadmap` is capped. `counts.open` is the real number and
-    `roadmap_omitted` is how many were left out — the list is a sample once
-    that is above zero, never the whole board."""
+    Each area's `roadmap` is capped, and what survives the cap is now the
+    highest-priority work rather than whatever sat highest in the manual order.
+    `counts.open` is the real number and `roadmap_omitted` is how many were
+    left out — the list is a sample once that is above zero, never the whole
+    board.
+
+    `org.priority_policy` is what counts as which priority HERE, written by a
+    person in their own words. Read it before you set a priority: 1 is the most
+    urgent, 5 the least, and what qualifies for each is whatever that text says
+    — not your own sense of what is usually urgent. An empty policy is normal;
+    classify from general judgement then, and say that you did, so the person
+    can correct you. Those corrections are how the policy gets written."""
     org, user = await require_caller(ctx)
 
     def _run():
