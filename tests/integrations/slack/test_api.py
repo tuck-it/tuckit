@@ -57,9 +57,13 @@ def test_exchange_oauth_code_raises_on_ok_false(settings, monkeypatch):
 
 def test_chat_unfurl_sends_the_map_as_a_json_string_not_an_object():
     """Slack types `unfurls` as a string: "URL-encoded JSON map with keys set
-    to URLs featured in the message". An object is not rejected -- Slack
-    answers ok:true and renders nothing -- so this is the only layer that can
-    catch it. Every handler test stubs SlackClient and would stay green.
+    to URLs featured in the message", unlike every other argument we send.
+
+    This pins conformance to the documented type. It is NOT a regression test:
+    the live API accepts a bare object over a JSON body too, verified against a
+    real workspace. Send the documented shape so a future tightening cannot
+    reach us, and do not cite this test as evidence that the object form is
+    broken.
     """
     seen = {}
 

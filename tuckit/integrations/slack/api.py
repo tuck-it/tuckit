@@ -54,13 +54,13 @@ class SlackClient:
         return data.get("messages", [])
 
     def chat_unfurl(self, *, channel: str, ts: str, unfurls: dict) -> None:
-        # `unfurls` is the one argument Slack types as a STRING rather than an
-        # object: "URL-encoded JSON map with keys set to URLs featured in the
-        # message". Sent as a bare object it is not rejected -- Slack answers
-        # ok:true and draws nothing, so the failure is invisible from here and
-        # from any test that stubs this client. Serialise it. `blocks`
-        # elsewhere really is an array over a JSON body, so this is local to
-        # this method rather than a rule about the whole API.
+        # Slack types `unfurls` as a STRING -- "URL-encoded JSON map with keys
+        # set to URLs featured in the message" -- while every other argument
+        # here is typed as its natural JSON shape. The live API also accepts a
+        # bare object over a JSON body and renders it correctly (checked
+        # against a real workspace on 2026-08-22, both shapes drew the card),
+        # so this is conformance to the documented type, not a workaround for
+        # an observed failure. Do not read it as one.
         self._call("chat.unfurl", channel=channel, ts=ts, unfurls=json.dumps(unfurls))
 
     # No users.info here. Every name the bot prints comes from the OrgMember
