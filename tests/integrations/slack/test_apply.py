@@ -90,6 +90,45 @@ def test_a_queue_retry_with_the_same_dedupe_key_does_not_duplicate_the_slice(org
     assert Slice.objects.filter(title="Retried thing").count() == 1
 
 
+def test_a_retry_with_intents_reordered_does_not_swap_slice_contents(org, member):
+    """`interpret()` is a fresh model call on every retry and nothing pins
+    the order it returns intents in. A key built from list position (e.g.
+    f"{dedupe_key}:{i}") would let a reordered retry overwrite slice A with
+    intent B's title/spec and vice versa -- not a duplicate (the unique
+    constraint still holds), but silently wrong content on two real rows,
+    which is worse than the duplication this whole mechanism exists to
+    prevent. The key must instead follow the intent's own content, so intent
+    B carries B's key no matter where a retry's response places it.
+    """
+    intent_a = Intent("create_slice", {"title": "Alpha", "spec": "alpha work", "area": ""})
+    intent_b = Intent("create_slice", {"title": "Beta", "spec": "beta work", "area": ""})
+
+    first = apply_intents(
+        org=org, member=member, intents=[intent_a, intent_b],
+        dedupe_key="slack:C123:333.444",
+    )
+    # Remember which ref got which content on the first pass. A full swap
+    # would still leave "exactly one Alpha row and one Beta row somewhere"
+    # true, so counting title/spec pairs alone cannot tell a clean run from
+    # a swap -- only checking that THIS SPECIFIC ref kept ITS content can.
+    ref_by_title = {r.label: r.ref for r in first}
+
+    # Retry: same dedupe_key (same Slack message), but the model's response
+    # came back with the two intents in the opposite order.
+    apply_intents(
+        org=org, member=member, intents=[intent_b, intent_a],
+        dedupe_key="slack:C123:333.444",
+    )
+
+    assert Slice.objects.count() == 2
+    alpha = Slice.objects.get(title="Alpha")
+    beta = Slice.objects.get(title="Beta")
+    assert f"{org.key}-{alpha.number}" == ref_by_title["Alpha"]
+    assert f"{org.key}-{beta.number}" == ref_by_title["Beta"]
+    assert alpha.spec == "alpha work"
+    assert beta.spec == "beta work"
+
+
 def test_apply_intents_does_not_share_one_transaction():
     """Rule 2 is "each intent commits independently" -- guard it directly.
 

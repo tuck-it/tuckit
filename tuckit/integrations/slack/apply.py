@@ -7,6 +7,8 @@ activity logging stay on the path, and a model-supplied ref is resolved with
 confused model that invents a ref cannot reach a primary key, and cannot
 reach another org's board.
 """
+import hashlib
+import json
 import logging
 from dataclasses import dataclass
 
@@ -28,6 +30,36 @@ class Applied:
     ref: str = ""
     label: str = ""
     error: str = ""
+
+
+def _content_fingerprint(intent) -> str:
+    """A stable, per-process-independent fingerprint of what an intent DOES,
+    not where it sits in the list.
+
+    `interpret()` is a fresh model call on every retry, and nothing pins the
+    order it returns intents in -- two create_slice intents can come back
+    swapped. A positional key (index in the list) would then let a retry
+    overwrite slice A with intent B's title/spec and vice versa: not a
+    duplicate (the unique constraint still holds), but silently wrong
+    content on two real rows, which is worse than the duplicate it would
+    replace. Hashing the intent's own tool + args instead means intent B
+    always carries B's key regardless of where a retry's response places it.
+
+    json.dumps(..., sort_keys=True) rather than str(args): dict insertion
+    order is not guaranteed to survive a re-serialization by the model
+    across calls, and Python's hash() is salted per process (PYTHONHASHSEED)
+    so it would not even reproduce within one process reliably -- hashlib is
+    the only one of the three options that is actually stable.
+
+    Two genuinely identical intents (same tool, same args) in one thread
+    collide onto the same fingerprint, so the second overwrites the first
+    rather than creating a second slice. That is treated as correct here:
+    a model returning two identical create_slice calls for one mention is
+    almost certainly repeating itself, not describing two real pieces of
+    work, and collapsing them to one slice is the safer reading.
+    """
+    payload = json.dumps([intent.tool, intent.args], sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
 def _resolve_slice(org, ref: str) -> Slice:
@@ -109,21 +141,24 @@ def apply_intents(*, org, member, intents, dedupe_key: str = "") -> list[Applied
     on top of Slack's own retries, and one that never touches the SlackEvent
     row that dedupes those. If `apply_intents` already created some slices
     before a later step failed, a retry must not create them again. Per
-    intent, `f"{dedupe_key}:{i}"` becomes create_slice's `external_key`,
-    which makes a repeat call update the same slice in place instead of
-    duplicating it (see slice_services.create_slice's docstring). Only
-    create_slice gets this: it is the only handler whose repeat write is
-    actually a duplicate board item, and it is the only one with an existing
-    idempotency mechanism to reuse -- add_note and create_area are not
-    covered, see the NOTE comments on their handlers.
+    intent, `f"{dedupe_key}:{_content_fingerprint(intent)}"` becomes
+    create_slice's `external_key`, which makes a repeat call update the same
+    slice in place instead of duplicating it (see
+    slice_services.create_slice's docstring). The key is keyed by the
+    intent's own content, not its position in the list -- see
+    _content_fingerprint's docstring for why a positional key is unsafe.
+    Only create_slice gets this: it is the only handler whose repeat write
+    is actually a duplicate board item, and it is the only one with an
+    existing idempotency mechanism to reuse -- add_note and create_area are
+    not covered, see the NOTE comments on their handlers.
     """
     results = []
-    for i, intent in enumerate(intents):
+    for intent in intents:
         handler = HANDLERS.get(intent.tool)
         if handler is None:
             results.append(Applied(ok=False, error=f"unknown action {intent.tool}"))
             continue
-        external_key = f"{dedupe_key}:{i}" if dedupe_key else ""
+        external_key = f"{dedupe_key}:{_content_fingerprint(intent)}" if dedupe_key else ""
         try:
             results.append(handler(org, member, intent.args, external_key))
         except WritesBlocked as exc:
