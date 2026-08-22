@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -185,6 +186,12 @@ def slack_install_callback(request):
             "team_name": data["team"].get("name", ""),
             "bot_token": data["access_token"],
             "bot_user_id": data.get("bot_user_id", ""),
+            # Stamped so slack_install_confirm can refuse a re-point that
+            # sat unconfirmed past STATE_MAX_AGE_SECONDS -- Django's default
+            # session lifetime is ~2 weeks, far longer than a bot token
+            # authorization should remain actionable by whoever (possibly
+            # someone else entirely, by then) happens to click Confirm.
+            "created_at": time.time(),
         }
         messages.info(
             request,
@@ -211,6 +218,23 @@ def slack_install_callback(request):
 # --- Settings page ---
 
 
+def _pop_pending_switch_if_expired(request, org):
+    """Return the org's pending re-point if it exists and is still within
+    STATE_MAX_AGE_SECONDS of when it was stashed. Reuses that constant
+    rather than a second number: the signed `state` that authorized the
+    OAuth exchange in the first place is only valid for that same window, so
+    a re-point proposal outliving it is stale by the same standard. An
+    expired (or otherwise absent-for-this-org) entry is garbage-collected
+    here rather than left to rot in the session."""
+    pending = request.session.get(PENDING_SWITCH_SESSION_KEY)
+    if not pending or pending.get("org_id") != org.id:
+        return None
+    if time.time() - pending.get("created_at", 0) > STATE_MAX_AGE_SECONDS:
+        del request.session[PENDING_SWITCH_SESSION_KEY]
+        return None
+    return pending
+
+
 def settings_slack(request):
     org = request.org
     if request.GET.get("cancel_slack_switch"):
@@ -220,8 +244,7 @@ def settings_slack(request):
     ctx = settings_context(request, active="org_slack")
     ctx["org"] = org
     ctx["install"] = SlackInstall.objects.filter(org=org).select_related("installed_by__user").first()
-    pending = request.session.get(PENDING_SWITCH_SESSION_KEY)
-    ctx["pending_switch"] = pending if pending and pending.get("org_id") == org.id else None
+    ctx["pending_switch"] = _pop_pending_switch_if_expired(request, org)
     return render(request, "web/settings/slack.html", ctx)
 
 
@@ -235,9 +258,14 @@ def slack_install_confirm(request):
     org = request.org
     if not is_org_admin(request.user, org):
         return HttpResponseForbidden("You don't have permission.")
-    pending = request.session.get(PENDING_SWITCH_SESSION_KEY)
-    if not pending or pending.get("org_id") != org.id:
-        return HttpResponse("nothing pending", status=400)
+    pending = _pop_pending_switch_if_expired(request, org)
+    if pending is None:
+        # Either nothing was ever pending, or it just aged out and was
+        # garbage-collected above. Either way there is nothing safe to
+        # apply -- tell the person to start the connection over rather than
+        # silently doing nothing or applying a stale token.
+        messages.error(request, "That Slack connection request is no longer valid. Connect again to retry.")
+        return redirect_response(request, "web:settings_slack", org_slug=org.slug)
 
     from tuckit.core.models import OrgMember
 

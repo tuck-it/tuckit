@@ -92,6 +92,21 @@ def test_begin_refuses_a_non_admin_member(client, org, member_factory):
     assert r.status_code == 403
 
 
+@pytest.mark.parametrize("role", ["owner", "admin"])
+def test_begin_succeeds_for_every_admin_role(client, org, member_factory, role):
+    """is_org_admin's actual contract is role__in=["owner", "admin"], but
+    every other test in this file that exercises an admin gate does so
+    through client_local/`member` (role="owner") or an explicit
+    role="member" -- never role="admin". A narrowing of is_org_admin to
+    just ["owner"] would still pass every one of those. This pins the
+    "admin" half of the contract on the install path."""
+    m = member_factory(org, role=role)
+    client.force_login(m.user)
+    r = client.get(f"/{org.slug}/settings/slack/connect")
+    assert r.status_code == 302
+    assert r["Location"].startswith("https://slack.com/oauth/v2/authorize")
+
+
 # --- callback: happy path, admin gate, cross-org, departed member ---
 
 def test_callback_stores_the_install(client_local, org, monkeypatch):
@@ -199,6 +214,54 @@ def test_the_same_team_id_reconnecting_is_not_treated_as_a_repoint(client_local,
     assert install.bot_token == "xoxb-new"
 
 
+def test_an_expired_pending_switch_is_refused(client_local, org, member, monkeypatch):
+    """Django's default session lifetime is roughly two weeks and this
+    project does not override it, so without an expiry a re-point
+    authorised today could be confirmed weeks later against a bot token
+    that may no longer be valid, by someone who has long forgotten they
+    started it. Confirming re-uses STATE_MAX_AGE_SECONDS (one number, not
+    two) as the same window the signed OAuth state itself would have used."""
+    from tuckit.integrations.slack.views import PENDING_SWITCH_SESSION_KEY, STATE_MAX_AGE_SECONDS
+
+    SlackInstall.objects.create(
+        org=org, team_id="T-OLD", team_name="Old Co", bot_token="xoxb-old",
+        bot_user_id="U-OLD", installed_by=member,
+    )
+    _mock_exchange(monkeypatch, team_id="T-NEW", team_name="New Co", token="xoxb-new")
+    client_local.get(f"/slack/oauth/callback?code=abc&state={_signed_state(org.id)}")
+
+    session = client_local.session
+    session[PENDING_SWITCH_SESSION_KEY]["created_at"] -= STATE_MAX_AGE_SECONDS + 1
+    session.save()
+
+    r = client_local.post(f"/{org.slug}/settings/slack/confirm")
+    assert r.status_code in (302, 204)
+    install = SlackInstall.objects.get(org=org)
+    assert install.team_id == "T-OLD"
+    assert install.bot_token == "xoxb-old"
+    # The stale entry must not linger for a second confirm attempt to abuse.
+    assert PENDING_SWITCH_SESSION_KEY not in client_local.session
+
+
+def test_settings_page_does_not_offer_an_expired_pending_switch(client_local, org, member, monkeypatch):
+    from tuckit.integrations.slack.views import PENDING_SWITCH_SESSION_KEY, STATE_MAX_AGE_SECONDS
+
+    SlackInstall.objects.create(
+        org=org, team_id="T-OLD", team_name="Old Co", bot_token="xoxb-old",
+        bot_user_id="U-OLD", installed_by=member,
+    )
+    _mock_exchange(monkeypatch, team_id="T-NEW", team_name="New Co", token="xoxb-new")
+    client_local.get(f"/slack/oauth/callback?code=abc&state={_signed_state(org.id)}")
+
+    session = client_local.session
+    session[PENDING_SWITCH_SESSION_KEY]["created_at"] -= STATE_MAX_AGE_SECONDS + 1
+    session.save()
+
+    r = client_local.get(f"/{org.slug}/settings/slack")
+    assert r.status_code == 200
+    assert b"Switch Slack workspace" not in r.content
+
+
 def test_confirming_the_pending_switch_replaces_the_install(client_local, org, member, monkeypatch):
     SlackInstall.objects.create(
         org=org, team_id="T-OLD", team_name="Old Co", bot_token="xoxb-old",
@@ -267,3 +330,19 @@ def test_disconnect_removes_the_install(client_local, org, member):
     r = client_local.post(f"/{org.slug}/settings/slack/disconnect")
     assert r.status_code in (302, 204)
     assert SlackInstall.objects.filter(org=org).count() == 0
+
+
+def test_disconnect_refuses_a_non_admin_member(client, org, member, member_factory):
+    """The fourth gate. Every other admin-gated path (begin, callback,
+    confirm) has its own refuses-a-non-admin test; this one was missing,
+    and dropping is_org_admin from slack_disconnect alone would still pass
+    the rest of the suite without it."""
+    SlackInstall.objects.create(
+        org=org, team_id="T1", team_name="Acme", bot_token="xoxb-1",
+        bot_user_id="U0", installed_by=member,
+    )
+    non_admin = member_factory(org, role="member")
+    client.force_login(non_admin.user)
+    r = client.post(f"/{org.slug}/settings/slack/disconnect")
+    assert r.status_code == 403
+    assert SlackInstall.objects.filter(org=org).exists()
