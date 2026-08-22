@@ -6,7 +6,7 @@ from tuckit.core.services.slices import create_slice, propose_nodes
 
 
 @pytest.mark.django_db
-def test_editing_the_spec_in_the_browser_retires_the_canvas(client_local, org):
+def test_editing_the_spec_in_the_browser_keeps_the_decision_record(client_local, org):
     """The web inline edit and the MCP tool are two doors onto one service. A
     fix applied to only one of them leaves the other silently broken."""
     a = create_area(org, "Backend")
@@ -20,7 +20,8 @@ def test_editing_the_spec_in_the_browser_retires_the_canvas(client_local, org):
     )
 
     s.refresh_from_db()
-    assert s.decision_tree == {}
+    assert s.spec.startswith("## Decision")
+    assert [n["id"] for n in s.decision_tree["nodes"]] == ["n1"]
 
 
 @pytest.mark.django_db

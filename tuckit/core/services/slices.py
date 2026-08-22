@@ -210,22 +210,22 @@ def update_slice(
     close_open_watches = False
     if spec is not None:
         slice_.spec = spec
-        # A written spec retires the canvas's decision_tree source: from here the
-        # canvas renders the spec's own heading structure instead, so keeping
-        # both would leave two answers to "what is the design". Empty is NOT a
-        # written spec -- that is the state the decision_tree exists for.
         if spec.strip():
-            slice_.decision_tree = {}
-            # The canvas is not a live surface any more, so neither is any URL
-            # waiting on a click against it. Here rather than in the MCP tool
-            # because the browser's inline spec edit comes through this same
-            # service -- doing it in the tool would leave live channels behind
-            # for everybody who writes their spec in the browser. Deferred
-            # until the atomic block below (not run here) so it shares the
-            # fate of the write it belongs to -- otherwise a validate_choice
-            # failure or a save() error below still deletes the watches while
-            # leaving `slice_.decision_tree = {}` an in-memory assignment that never
-            # reaches the database.
+            # The decision record STAYS. It answers a different question from
+            # the spec -- how this was decided, not what it is -- so there are
+            # never "two answers" for one of them to win. An earlier version
+            # cleared it here and destroyed it permanently (TP-238).
+            #
+            # What a written spec still does is CLOSE the record: propose_nodes
+            # and choose_option reject a slice that has one, and the watches go
+            # for the same reason -- a click channel with no open question
+            # answers nothing. Here rather than in the MCP tool because the
+            # browser's inline spec edit comes through this same service, and
+            # doing it in the tool would leave live channels behind for
+            # everybody who writes their spec in the browser. Deferred until
+            # the atomic block below so it shares the fate of the write it
+            # belongs to -- otherwise a validate_choice failure or a save()
+            # error below would still delete the watches.
             close_open_watches = True
     if constraints is not None:
         slice_.constraints = constraints

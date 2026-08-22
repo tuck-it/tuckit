@@ -1,6 +1,14 @@
 import pytest
 
-from tuckit.core.services.slices import create_slice, propose_nodes, update_slice
+from tuckit.core.models import CanvasWatch
+from tuckit.core.services.exceptions import InvalidValue
+from tuckit.core.services.slices import (
+    choose_option,
+    create_slice,
+    propose_nodes,
+    update_slice,
+)
+from tuckit.core.services.watches import open_watch
 
 
 @pytest.mark.django_db
@@ -28,14 +36,17 @@ def test_decision_tree_round_trips_a_node_tree(org, area):
 
 
 @pytest.mark.django_db
-def test_writing_a_spec_retires_the_decision_tree(org, area):
+def test_writing_a_spec_keeps_the_decision_record(org, area):
+    """The record of HOW a design was decided is not a draft of the design.
+    Writing the spec used to destroy it, with no way to get it back."""
     s = create_slice(org, area=area, title="Canvas", spec="")
     propose_nodes(s, [{"id": "n1", "parent": None, "kind": "question", "title": "Q"}])
 
     update_slice(s, spec="## Decision\nWe went with A.")
 
     s.refresh_from_db()
-    assert s.decision_tree == {}
+    assert s.spec.startswith("## Decision")
+    assert [n["id"] for n in s.decision_tree["nodes"]] == ["n1"]
 
 
 @pytest.mark.django_db
@@ -60,3 +71,38 @@ def test_an_unrelated_update_leaves_the_decision_tree_alone(org, area):
 
     s.refresh_from_db()
     assert [n["id"] for n in s.decision_tree["nodes"]] == ["n1"]
+
+
+@pytest.mark.django_db
+def test_writing_a_spec_still_closes_open_watches(org, area):
+    """Keeping the record is not the same as keeping the question open. A click
+    channel with no open question answers nothing."""
+    s = create_slice(org, area=area, title="Canvas", spec="")
+    propose_nodes(s, [{"id": "q1", "parent": None, "kind": "question", "title": "Q"}])
+    open_watch(s, question_id="q1")
+
+    update_slice(s, spec="## Decided\nthe design")
+
+    assert not CanvasWatch.objects.filter(slice=s).exists()
+
+
+@pytest.mark.django_db
+def test_a_written_spec_still_closes_the_record_to_new_writes(org, area):
+    """The record survives, and it freezes. Reopening it is a separate question
+    (TP-240), not something to pick up in passing here."""
+    s = create_slice(org, area=area, title="Canvas", spec="")
+    propose_nodes(s, [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "Left"},
+    ])
+    update_slice(s, spec="## Decided\nthe design")
+    s.refresh_from_db()
+
+    with pytest.raises(InvalidValue):
+        propose_nodes(s, [{"id": "o2", "parent": "q1", "kind": "option", "title": "Right"}])
+    with pytest.raises(InvalidValue):
+        choose_option(s, "o1")
+
+    # ...and the record is still all there after both rejections.
+    s.refresh_from_db()
+    assert [n["id"] for n in s.decision_tree["nodes"]] == ["q1", "o1"]
