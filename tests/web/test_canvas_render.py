@@ -113,3 +113,32 @@ def test_the_canvas_offers_a_maximize_control(client_local, org):
 
     assert "data-maximize" in body
     assert 'aria-expanded="false"' in body
+
+
+@pytest.mark.django_db
+def test_an_option_card_carries_a_pick_control(client_local, org):
+    a = create_area(org, "Backend")
+    s = create_slice(org, area=a, title="Designing", spec="")
+    s.draft = {"nodes": [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "Left"},
+    ]}
+    s.save(update_fields=["draft"])
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "data-pick" in body
+    # The address is rendered, never assembled in JS: these routes are
+    # org-scoped and a hand-built path 404s where no test can see it.
+    assert f"/{org.slug}/slices/{s.id}/choice" in body
+
+
+@pytest.mark.django_db
+def test_a_spec_derived_card_offers_nothing_to_pick(client_local, org):
+    """Once the spec is written the canvas is a view of it. Every node is a
+    note, and there is no question left open."""
+    a = create_area(org, "Backend")
+    s = create_slice(org, area=a, title="Payments", spec="## Goal\ntext")
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "data-canvas" in body
+    assert "data-pick" not in body

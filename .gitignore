@@ -20,6 +20,9 @@ __pycache__/
 .claude/
 .serena/
 .superpowers/
+# Review packages and other per-slice working files written by the tuckit
+# skills. Local-only: a stray `git add -A` would publish them.
+.tuckit/
 
 # Brainstorming specs and implementation plans — local-only, never publish
 docs/superpowers/

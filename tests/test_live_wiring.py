@@ -151,3 +151,26 @@ def test_the_canvas_can_be_maximized_and_refits():
     assert "is-max" in js and "is-max" in css
     assert "Escape" in js                      # a full-viewport overlay needs a way out
     assert ".canvas.is-max" in css
+
+
+def test_the_canvas_posts_a_choice_and_skips_its_own_echo():
+    """Static wiring guards. Two failures here are invisible to every endpoint
+    test: an hx-post that never binds on a live-arrived card, and a fetch whose
+    cursor is never adopted -- which makes your own click come back two seconds
+    later announced as somebody else's, replacing your own toast."""
+    from pathlib import Path
+    import tuckit.web
+
+    web = Path(tuckit.web.__file__).parent
+    js = (web / "static/web/brainstorm.js").read_text()
+    live = (web / "static/web/live.js").read_text()
+    css = (web / "static/web/app.css").read_text()
+    canvas = (web / "templates/web/partials/_canvas.html").read_text()
+
+    assert "data-pick" in js and "data-pick" in canvas
+    assert "choiceUrl" in js                     # read off the element, not built
+    assert "hx-post" not in canvas               # live-arrived cards are never processed
+    assert "__liveAdoptCursor" in js and "__liveAdoptCursor" in live
+    assert "X-Live-Cursor" in js
+    assert "chose" in live                       # the verb has a label
+    assert ".cnode-pick" in css

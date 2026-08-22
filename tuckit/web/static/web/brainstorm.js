@@ -137,6 +137,8 @@
       el.classList.toggle("is-chosen", !!winner && winner === el.dataset.id);
       el.classList.toggle("is-dim",
         !!winner && winner !== el.dataset.id && el.classList.contains("cnode--option"));
+      var pick = el.querySelector("[data-pick]");
+      if (pick) pick.setAttribute("aria-pressed", winner === el.dataset.id ? "true" : "false");
     });
 
     // PASS 2 -- measure, lay out, place
@@ -296,6 +298,61 @@
       if (ev.key === "Escape") { box.remove(); document.removeEventListener("keydown", esc); }
     });
     document.body.appendChild(box);
+  });
+
+  /* Choosing. A delegated listener rather than an attribute on the card:
+     cards that arrive on the live poll are appended by syncFromServer(), and
+     nothing runs htmx.process() over them -- an hx-post would bind on a cold
+     load and silently do nothing on exactly the cards this exists for.
+
+     The address is read off the element because these routes are org-scoped;
+     a path assembled here would 404 in a way no endpoint test can see. */
+  var choiceUrl = root.dataset.choiceUrl || "";
+
+  function cookie(name) {
+    var hit = document.cookie.split("; ").find(function (row) {
+      return row.indexOf(name + "=") === 0;
+    });
+    return hit ? decodeURIComponent(hit.slice(name.length + 1)) : "";
+  }
+
+  stage.addEventListener("click", function (e) {
+    var pick = e.target.closest("[data-pick]");
+    var card = pick && pick.closest(".cnode");
+    if (!card || !choiceUrl) return;
+
+    var body = new URLSearchParams();
+    body.set("node_id", card.dataset.id);
+    fetch(choiceUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "X-CSRFToken": cookie("csrftoken"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }).then(function (res) {
+      if (!res.ok) {
+        if (window.showToast) window.showToast("Couldn't record that choice.", "err");
+        return;
+      }
+      /* Skip past our own write. This is a fetch, so live.js never sees the
+         htmx event it usually adopts the cursor from. */
+      if (window.__liveAdoptCursor) window.__liveAdoptCursor(res.headers.get("X-Live-Cursor"));
+      /* Answer locally rather than waiting up to two seconds for the poll:
+         the answer is stored on the question, which is where render() reads
+         it from. Its own try/catch -- a throw inside a promise chain would
+         surface as a visual glitch with a silent console. */
+      try {
+        var question = card.dataset.parent && byId[card.dataset.parent];
+        if (question) {
+          question.dataset.chosen = card.dataset.id;
+          render(false);
+        }
+      } catch (err) { console.error("[canvas] choice render failed", err); }
+    }).catch(function () {
+      if (window.showToast) window.showToast("Couldn't reach the server.", "err");
+    });
   });
 
   /* width/height on the <img> reserve the box, so a mockup that arrives late
