@@ -3,7 +3,7 @@ import nh3
 
 from tuckit.core.services.activity import label_who, slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
-from tuckit.core.services.canvas import graph_for
+from tuckit.core.services.canvas import graph_for, spine_for
 from tuckit.core.services.orgs import policy_line_for
 from tuckit.core.services.refs import slice_ref
 from tuckit.core.services.slices import delegation_prompt, stage_of
@@ -26,6 +26,13 @@ def render_markdown_html(text: str) -> str:
 
 # Back-compat alias (slice spec uses the same sanitizer).
 render_spec_html = render_markdown_html
+
+
+def _with_body(node: dict) -> dict:
+    """A canvas node with its markdown body rendered, leaving the stored one
+    alone -- the record is append-only and nothing on a read path may edit it.
+    """
+    return dict(node, body_html=render_markdown_html(node.get("body", "")))
 
 
 def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
@@ -73,6 +80,16 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
         "canvas_nodes": [
             dict(node, body_html=render_markdown_html(node.get("body", "")))
             for node in graph_for(slice_)
+        ],
+        # The reading view. Bodies ARE rendered here, unlike on the map: a
+        # spine row is as wide as the page column, so prose costs nothing, and
+        # this is the surface that has to answer "why did that win".
+        "spine_rows": [
+            dict(row,
+                 node=_with_body(row["node"]),
+                 options=[_with_body(o) for o in row["options"]],
+                 rejected=[_with_body(o) for o in row["rejected"]])
+            for row in spine_for(graph_for(slice_))
         ],
         "bites": list(list_bites(slice_)),
         "activity": label_who(slice_activity(slice_), viewer),

@@ -2542,19 +2542,6 @@ body.canvas-maxed .ob-widget { display: none; }
 .cnode.is-dim .cnode-t { font-weight: 500; font-size: var(--text-sm); color: var(--ink-soft); }
 .cnode.is-dim:hover { opacity: .85; }
 
-/* The title IS the pick control: a real button, in the tab order, styled to
-   occupy exactly the space the heading did. A control that appeared or
-   disappeared with the answer would change a card's height, and the layout is
-   measured before it is placed -- the tree would be laid out from heights
-   nothing on screen has. */
-.cnode-pick {
-  display: block; width: 100%; margin: 0; padding: 0;
-  font: inherit; color: inherit; letter-spacing: inherit; text-align: left;
-  background: none; border: 0; cursor: pointer;
-}
-.cnode-pick:hover { color: var(--blue-strong); }
-.cnode-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-
 /* Motion lives on the client: the server only says when a card arrived, and
    the stagger is computed here. That is what keeps a 2s poll from turning into
    a 2s stutter. */
@@ -2617,3 +2604,58 @@ body.canvas-maxed .ob-widget { display: none; }
   font-size: var(--text-xs);
   min-width: 0;
 }
+
+/* ---- decision spine (TP-263) --------------------------------------------
+   The record as a document, not a picture. There is no stage here, so nothing
+   in this block places anything: rows stack, the column is whatever the page
+   gives it, and the reader never zooms. */
+.spine { margin: 0 0 var(--space-18); }
+.spine-row {
+  padding: var(--space-8) 0 var(--space-8) var(--space-12);
+  border-left: 2px solid var(--line);
+}
+.spine-q { margin: 0; font-size: var(--text-base); font-weight: 620; letter-spacing: -.005em; }
+.spine-sum { margin: 3px 0 0; font-size: var(--text-sm); color: var(--ink-soft); }
+.spine-body { margin-top: var(--space-6); font-size: var(--text-sm); color: var(--ink-soft); }
+.spine-body > :first-child { margin-top: 0; }
+.spine-body > :last-child { margin-bottom: 0; }
+.spine-body img { max-width: 100%; height: auto; }
+.spine-body table { display: block; overflow-x: auto; }
+.spine-state { font-size: var(--text-xs); color: var(--ink-faint); }
+
+/* One meaning per channel. Blue is the human's decision and nothing else --
+   the node graph used to spend it on the agent's recommendation too, which is
+   how one screen ended up with four cards that all looked chosen. The only
+   other coloured state is the one that is actually actionable. */
+.spine-row--chosen { border-left-color: var(--blue); }
+.spine-row--q.is-waiting { border-left-color: var(--warn); }
+.spine-rec {
+  font-size: var(--text-xs); font-weight: 500; color: var(--ink-faint);
+  border: 1px solid var(--line); border-radius: var(--radius-small);
+  padding: 1px var(--space-4);
+}
+
+.spine-opt {
+  margin-top: var(--space-8); padding-left: var(--space-10);
+  border-left: 1px solid var(--line);
+}
+.spine-opt-t { margin: 0; font-size: var(--text-sm); font-weight: 560; }
+.spine-pick {
+  margin-top: var(--space-4); font: inherit; font-size: var(--text-xs);
+  padding: 2px var(--space-8); cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-small);
+  background: var(--paper-raised); color: var(--ink-soft);
+  transition: background .18s, color .18s, border-color .18s;
+}
+.spine-pick:hover { background: var(--blue-soft); color: var(--blue-strong); border-color: var(--blue); }
+.spine-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* Folded, never deleted. The losing branch keeps its reasoning in the DOM, so
+   "why did that lose" is genuinely one click away. The node graph made that
+   claim in a comment and then used display:none, which put the answer out of
+   reach of a click AND of a screen reader. */
+.spine-fold { margin: var(--space-4) 0 var(--space-4) var(--space-12); }
+.spine-fold > summary { font-size: var(--text-xs); color: var(--ink-faint); cursor: pointer; }
+.spine-fold > summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.spine-alt { margin-top: var(--space-6); font-size: var(--text-sm); color: var(--ink-soft); }
+.spine-alt p { margin: 2px 0 0; }

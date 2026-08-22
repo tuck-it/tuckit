@@ -165,15 +165,23 @@ def test_the_canvas_posts_a_choice_and_skips_its_own_echo():
     import tuckit.web
 
     web = Path(tuckit.web.__file__).parent
-    js = (web / "static/web/brainstorm.js").read_text()
+    js = (web / "static/web/spine.js").read_text()
+    graph = (web / "static/web/brainstorm.js").read_text()
     live = (web / "static/web/live.js").read_text()
     css = (web / "static/web/app.css").read_text()
+    spine = (web / "templates/web/partials/_spine.html").read_text()
     canvas = (web / "templates/web/partials/_canvas.html").read_text()
 
-    assert "data-pick" in js and "data-pick" in canvas
+    assert "data-pick" in js and "data-pick" in spine
     assert "choiceUrl" in js                     # read off the element, not built
-    assert "hx-post" not in canvas               # live-arrived cards are never processed
+    assert "hx-post" not in spine                # live-arrived rows are never processed
     assert "__liveAdoptCursor" in js and "__liveAdoptCursor" in live
     assert "X-Live-Cursor" in js
     assert "chose" in live                       # the verb has a label
-    assert ".cnode-pick" in css
+    assert ".spine-pick" in css
+
+    # Exactly one surface writes the choice. The map is a second opinion on
+    # the record, never a second way to write it -- and a card title, which is
+    # what you click to READ a node, must not be a control at all.
+    assert "data-pick" not in canvas
+    assert "data-pick" not in graph

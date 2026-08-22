@@ -290,6 +290,7 @@
   with. Always rendering an empty stage was the other option and it is worse: a
   framed box on every undesigned slice, which TP-223 deliberately refused.
   {% endcomment %}
+  {% if spine_rows %}{% include "web/partials/_spine.html" %}{% endif %}
   {% if not is_modal %}
   <div data-graph-slot>{% if canvas_nodes %}{% include "web/partials/_canvas.html" %}{% endif %}</div>
   {% endif %}

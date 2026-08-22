@@ -1,0 +1,9 @@
+{% comment %}Thumbnails for one spine row. Height-capped in CSS so a mockup
+never decides how tall a row is.{% endcomment %}
+<div class="cnode-media">
+  {% for m in media %}
+  <img src="{{ m.url }}" alt="{{ m.alt|default:'' }}"
+       {% if m.w %}width="{{ m.w }}"{% endif %}
+       {% if m.h %}height="{{ m.h }}"{% endif %} loading="lazy" data-media>
+  {% endfor %}
+</div>

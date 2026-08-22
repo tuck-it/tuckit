@@ -28,12 +28,12 @@ never flashes in the wrong spot.
                data-parent="{{ n.parent|default_if_none:'' }}"
                {% if n.at %}data-at="{{ n.at }}"{% endif %}
                {% if n.chosen %}data-chosen="{{ n.chosen }}"{% endif %}>
-        {% if n.kind == "option" and not canvas_closed %}
-        <h3 class="cnode-t"><button type="button" class="cnode-pick" data-pick
-                aria-pressed="false">{{ n.title }}</button></h3>
-        {% else %}
+        {% comment %} The map is a second opinion on the record, never a second way to
+           write it. Answering happens on the spine, where the reasoning is
+           readable -- and a card title is a thing you click to READ, which is
+           the likeliest way a wrong answer got recorded when the title was
+           itself the control. {% endcomment %}
         <h3 class="cnode-t">{{ n.title }}</h3>
-        {% endif %}
         {% if n.summary %}<p class="cnode-s">{{ n.summary }}</p>{% endif %}
         {% if n.body_html %}<div class="cnode-b">{{ n.body_html|safe }}</div>{% endif %}
         {% if n.media %}
