@@ -32,6 +32,28 @@ def org_shipped(request):
     return render(request, "web/settings/org_shipped.html", ctx)
 
 
+def org_priority(request):
+    org = request.org
+    ctx = settings_context(request, active="org_priority")
+    ctx["org"] = org
+    return render(request, "web/settings/org_priority.html", ctx)
+
+
+@require_POST
+def priority_policy(request):
+    org = request.org
+    if not is_org_admin(request.user, org):
+        return HttpResponseForbidden("You don't have permission.")
+    # A FULL REWRITE, unlike the MCP path, which can only append. This is the
+    # other half of that asymmetry on purpose: a person editing their own
+    # criteria has to be able to delete a line that turned out wrong, and an
+    # agent must not be able to. Blank is a legitimate value -- it is where
+    # every org starts -- so clearing the box clears the policy.
+    org.priority_policy = request.POST.get("policy", "").strip()
+    org.save(update_fields=["priority_policy", "updated_at"])
+    return HttpResponse(status=204)
+
+
 @require_POST
 def token_create(request):
     org = request.org

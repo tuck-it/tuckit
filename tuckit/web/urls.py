@@ -65,6 +65,10 @@ settings_patterns = [
     path("<slug:org_slug>/settings/invites/<int:invitation_id>/cancel", settings_views.invite_cancel, name="invite_cancel"),
     path("<slug:org_slug>/settings/invites/<int:invitation_id>/manage", settings_views.invite_manage, name="invite_manage"),
     path("<slug:org_slug>/settings/agent", settings_views.org_agent, name="settings_org_agent"),
+    # Page and mutation split the way shipped-board does it, so a fixed page
+    # path and its action never collide.
+    path("<slug:org_slug>/settings/priority", settings_views.org_priority, name="settings_org_priority"),
+    path("<slug:org_slug>/settings/priority/policy", settings_views.priority_policy, name="priority_policy"),
     path("<slug:org_slug>/settings/tokens", settings_views.token_create, name="token_create"),
     path("<slug:org_slug>/settings/tokens/<int:token_id>/revoke", settings_views.token_revoke, name="token_revoke"),
     path("<slug:org_slug>/settings/agent/apps/<str:client_id>/disconnect", settings_views.oauth_disconnect, name="oauth_disconnect"),
