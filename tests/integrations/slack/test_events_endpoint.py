@@ -181,6 +181,49 @@ def test_an_unrecognised_event_type_is_acked_and_not_queued(client, monkeypatch)
     assert not SlackEvent.objects.filter(event_id="EvUnknown").exists()
 
 
+def test_a_failed_enqueue_gives_the_idempotency_token_back(monkeypatch):
+    """A burned token loses the event forever, so it must not be burned.
+
+    The SlackEvent row is written and committed before enqueue runs. If
+    enqueue then fails (Cloud Tasks 503, IAM gap, misconfigured queue) and the
+    row survives, Slack's retry of the same event_id finds it, takes the
+    IntegrityError branch, answers 200 and queues nothing: no job, no
+    placeholder, no reply, and no further retry coming. The row that exists to
+    make Slack's retry safe would be the thing that defeated it.
+
+    A separate Client with raise_request_exception=False is needed because the
+    on_commit hook re-raises: the view really does 500, and the default test
+    client would surface that as a raised exception instead of a response.
+    """
+    from django.test import Client as DjangoClient
+
+    calls = []
+
+    def flaky(name, payload):
+        calls.append(name)
+        if len(calls) == 1:
+            raise RuntimeError("Cloud Tasks refused the task")
+
+    monkeypatch.setattr("tuckit.integrations.slack.views.enqueue", flaky)
+    body = {
+        "type": "event_callback", "event_id": "EvBurned", "team_id": "T1",
+        "event": {"type": "app_mention", "channel": "C1", "user": "U1", "ts": "1.0"},
+    }
+    failing_client = DjangoClient(raise_request_exception=False)
+
+    # First delivery: enqueue fails, so Slack must be told to retry (5xx) and
+    # the row must not be left behind.
+    first = post(failing_client, body)
+    assert first.status_code == 500
+    assert not SlackEvent.objects.filter(event_id="EvBurned").exists()
+
+    # Slack's retry of the SAME event_id must now be allowed to do the work.
+    second = post(failing_client, body)
+    assert second.status_code == 200
+    assert calls == ["slack.app_mention", "slack.app_mention"]
+    assert SlackEvent.objects.filter(event_id="EvBurned").count() == 1
+
+
 def test_endpoint_is_absent_when_not_configured(client, settings):
     settings.SLACK_SIGNING_SECRET = ""
     settings.SLACK_CLIENT_ID = ""
@@ -190,3 +233,42 @@ def test_endpoint_is_absent_when_not_configured(client, settings):
     from tuckit.integrations.slack.urls import slack_urlpatterns
 
     assert slack_urlpatterns() == []
+
+
+def test_the_settings_routes_are_absent_when_not_configured(settings):
+    """Resolved through the LIVE URLconf, not the builder function.
+
+    The org-scoped Slack settings routes were mounted unconditionally while
+    the org-less ones were gated, so an unconfigured deployment still served
+    /<org>/settings/slack with a working "Connect to Slack" button, and
+    slack_install_begin raised NoReverseMatch (a 500) for any admin who
+    reached it. The nav link is hidden in that state, which is why nothing
+    caught it.
+
+    Asserting against slack_settings_urlpatterns() alone would not catch the
+    regression that matters: web/urls.py could stop calling the builder and
+    re-list the four paths itself, and a builder-only test would stay green.
+    So this resolves real paths and reverses real names.
+    """
+    from django.urls import NoReverseMatch, Resolver404, resolve, reverse
+
+    # Configured (the autouse fixture's state): all four exist.
+    assert resolve("/acme/settings/slack").view_name == "web:settings_slack"
+    for name in ("settings_slack", "slack_install_begin",
+                 "slack_install_confirm", "slack_disconnect"):
+        assert reverse(f"web:{name}", kwargs={"org_slug": "acme"})
+
+    settings.SLACK_SIGNING_SECRET = ""
+    settings.SLACK_CLIENT_ID = ""
+    settings.SLACK_CLIENT_SECRET = ""
+    _reload_urlconf()
+    # The autouse _configured fixture restores the real settings and reloads
+    # the URLconf on teardown, so nothing needs unwinding here.
+    for path_ in ("/acme/settings/slack", "/acme/settings/slack/connect",
+                  "/acme/settings/slack/confirm", "/acme/settings/slack/disconnect"):
+        with pytest.raises(Resolver404):
+            resolve(path_)
+    for name in ("settings_slack", "slack_install_begin",
+                 "slack_install_confirm", "slack_disconnect"):
+        with pytest.raises(NoReverseMatch):
+            reverse(f"web:{name}", kwargs={"org_slug": "acme"})

@@ -30,10 +30,9 @@ def _configured(settings):
     # and is evaluated once, at import time -- see
     # test_events_endpoint._reload_urlconf for the full explanation of why a
     # bare `settings` fixture is not enough to make the route reachable. The
-    # connect page itself lives in the ordinary, unconditionally-mounted
-    # org-scoped settings patterns, so only the callback needs this, but
-    # reloading unconditionally here keeps this fixture simple and matches
-    # what test_events_endpoint.py already does.
+    # org-scoped settings routes come from slack_settings_urlpatterns() and
+    # are gated the same way, so the reload is what makes every route in this
+    # file reachable, not just the callback.
     settings.SLACK_CLIENT_ID = "1.2"
     settings.SLACK_CLIENT_SECRET = "s"
     settings.SLACK_SIGNING_SECRET = "sign"
@@ -72,14 +71,23 @@ def test_begin_scopes_exclude_the_forbidden_ones(client_local, org):
     """The slice constraints forbid users:read.email, message.channels,
     message.im and reactions:write. A wrong implementation that widened
     BOT_SCOPES would still redirect successfully, so this has to check the
-    actual scope list rather than just the status code."""
+    actual scope list rather than just the status code.
+
+    `users:read` joined the list once SlackClient.users_info went: every name
+    the bot prints comes from the OrgMember behind the Slack user, and a
+    granted scope cannot be narrowed later without re-prompting every
+    installed workspace.
+    """
     from urllib.parse import parse_qs, urlparse
 
     r = client_local.get(f"/{org.slug}/settings/slack/connect")
     query = parse_qs(urlparse(r["Location"]).query)
     scopes = query["scope"][0].split(",")
-    for forbidden in ("users:read.email", "message.channels", "message.im", "reactions:write"):
+    for forbidden in ("users:read", "users:read.email", "message.channels",
+                      "message.im", "reactions:write"):
         assert forbidden not in scopes
+    # The floor has a ceiling too: the scopes it does ask for must still be there.
+    assert "app_mentions:read" in scopes and "chat:write" in scopes
 
 
 def test_begin_refuses_a_non_admin_member(client, org, member_factory):

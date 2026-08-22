@@ -30,6 +30,25 @@ class Applied:
     ref: str = ""
     label: str = ""
     error: str = ""
+    url: str = ""
+
+
+def _slice_url(slice_) -> str:
+    """The absolute deep link to one slice, for the result card to hang the
+    ref on.
+
+    reverse('web:slice'), never a hand-assembled path: every page route in
+    this app is org-scoped, and a path built by hand here would 404 while
+    every endpoint test stayed green. TUCKIT_BASE_URL supplies the origin
+    because Slack needs an absolute URL and there is no request in scope --
+    this runs inside a queue job, not a view.
+    """
+    from django.conf import settings
+    from django.urls import reverse
+
+    return settings.TUCKIT_BASE_URL.rstrip("/") + reverse(
+        "web:slice", kwargs={"org_slug": slice_.org.slug, "slice_id": slice_.id},
+    )
 
 
 def _content_fingerprint(intent) -> str:
@@ -87,7 +106,8 @@ def _create_slice(org, member, args, external_key: str = "") -> Applied:
         source="agent", member=member, created_by=member,
         external_key=external_key,
     )
-    return Applied(ok=True, ref=slice_ref(created), label=created.title)
+    return Applied(ok=True, ref=slice_ref(created), label=created.title,
+                   url=_slice_url(created))
 
 
 def _create_area(org, member, args, external_key: str = "") -> Applied:
@@ -111,7 +131,8 @@ def _add_note(org, member, args, external_key: str = "") -> Applied:
     # so it is also out of scope here -- see bite-247-notes.txt.
     target = _resolve_slice(org, args["ref"])
     activity_services.add_note(target, args["body"], source="agent", member=member)
-    return Applied(ok=True, ref=slice_ref(target), label=target.title)
+    return Applied(ok=True, ref=slice_ref(target), label=target.title,
+                   url=_slice_url(target))
 
 
 def _ask_clarification(org, member, args, external_key: str = "") -> Applied:

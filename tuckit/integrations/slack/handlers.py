@@ -134,7 +134,6 @@ def handle_app_mention(*, team_id: str, event: dict) -> None:
             results=results,
             actor_name=member.user.get_full_name() or member.user.email,
             message_count=len(texts),
-            board_url=f"{settings.TUCKIT_BASE_URL}/{org.slug}/",
         ),
     )
 
@@ -179,6 +178,7 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
         return
 
     unfurls = {}
+    expanded_refs = []
     cutoff = timezone.now() - UNFURL_COOLDOWN
     for link in event.get("links", []):
         url = link.get("url", "")
@@ -192,7 +192,7 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
         if recent:
             continue
         unfurls[url] = cards.unfurl_block(found)
-        SlackUnfurl.objects.update_or_create(install=install, ref=ref)
+        expanded_refs.append(ref)
 
     if not unfurls:
         return
@@ -208,3 +208,11 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
         # is exactly the leak this bite exists to prevent. The log line below
         # carries no ref, title or URL for the same reason.
         logger.warning("chat.unfurl failed for team %s", team_id)
+        return
+
+    # Written only now, after Slack accepted the call. The cooldown record is
+    # a note that a card was drawn, so a failed unfurl must not leave one
+    # behind: it would suppress that ref for the next hour and the reader
+    # would get silence for a card they never saw.
+    for ref in expanded_refs:
+        SlackUnfurl.objects.update_or_create(install=install, ref=ref)

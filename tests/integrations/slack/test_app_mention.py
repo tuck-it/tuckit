@@ -1,7 +1,9 @@
 # tests/integrations/slack/test_app_mention.py
 import pytest
 
+from tests.integrations.slack.test_cards import text_of
 from tuckit.core.models import Slice
+from tuckit.core.services.refs import slice_ref
 from tuckit.integrations.slack.handlers import handle_app_mention
 from tuckit.integrations.slack.interpret import Intent, TooManyIntents
 from tuckit.integrations.slack.models import SlackIdentity, SlackInstall
@@ -39,7 +41,16 @@ def test_linked_user_gets_a_placeholder_then_an_update(install, member, fake_sla
     assert len(fake_slack.posted) == 1
     assert len(fake_slack.updated) == 1
     assert fake_slack.updated[0]["ts"] == "ts-1"
-    assert Slice.objects.get(title="The bug").area is None
+    created = Slice.objects.get(title="The bug")
+    assert created.area is None
+    # The placeholder and the card that replaces it must both carry content.
+    # FakeSlack.replies is two messages, so the counts are pinned too.
+    assert "2 messages" in fake_slack.posted[0]["text"]
+    said = text_of(fake_slack.updated[0]["blocks"])
+    assert slice_ref(created) in said
+    assert "The bug" in said
+    assert f"/slices/{created.id}/" in said
+    assert member.user.email in said
 
 
 def test_over_the_cap_writes_nothing_and_says_so(install, member, fake_slack, monkeypatch):
@@ -51,7 +62,12 @@ def test_over_the_cap_writes_nothing_and_says_so(install, member, fake_slack, mo
     monkeypatch.setattr("tuckit.integrations.slack.handlers.interpret", boom)
     handle_app_mention(team_id="T1", event=EVENT)
     assert Slice.objects.count() == 0
+    # `len(updated) == 1` alone passes for a card that says nothing at all,
+    # which is the failure this test names. Read what the person sees.
     assert len(fake_slack.updated) == 1
+    said = text_of(fake_slack.updated[0]["blocks"])
+    assert "more than five separate things" in said
+    assert "have not filed anything" in said
 
 
 def test_a_model_failure_replaces_the_placeholder_rather_than_going_silent(
@@ -64,8 +80,13 @@ def test_a_model_failure_replaces_the_placeholder_rather_than_going_silent(
 
     monkeypatch.setattr("tuckit.integrations.slack.handlers.interpret", boom)
     handle_app_mention(team_id="T1", event=EVENT)
-    assert len(fake_slack.updated) == 1
     assert Slice.objects.count() == 0
+    # Same point as the cap test above: replacing the placeholder with an
+    # empty card is still going silent, so assert the sentence, not the count.
+    assert len(fake_slack.updated) == 1
+    said = text_of(fake_slack.updated[0]["blocks"])
+    assert "could not read this thread" in said
+    assert "Mention me again to retry" in said
 
 
 def test_an_unknown_team_is_ignored(fake_slack):

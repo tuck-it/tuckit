@@ -54,10 +54,9 @@ class SlackClient:
     def chat_unfurl(self, *, channel: str, ts: str, unfurls: dict) -> None:
         self._call("chat.unfurl", channel=channel, ts=ts, unfurls=unfurls)
 
-    def users_info(self, *, user_id: str) -> dict:
-        # users:read only. We never request users:read.email, so nothing here
-        # can return one — see the slice constraints.
-        return self._call("users.info", user=user_id)["user"]
+    # No users.info here. Every name the bot prints comes from the OrgMember
+    # behind the Slack user, so a Slack profile lookup would buy nothing and
+    # cost the users:read scope on every install -- see BOT_SCOPES in views.py.
 
 
 def exchange_oauth_code(*, code: str, redirect_uri: str) -> dict:

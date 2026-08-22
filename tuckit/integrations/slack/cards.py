@@ -11,16 +11,26 @@ def placeholder_text(message_count: int) -> str:
     return f"Reading this thread ({message_count} {noun})…"
 
 
-def result_blocks(*, results, actor_name: str, message_count: int, board_url: str) -> list:
+def result_blocks(*, results, actor_name: str, message_count: int) -> list:
     """One card listing every outcome.
 
     The card names who caused it, because for the people in the thread without
     tuckit accounts this is the only notice their words reached the board.
+
+    Each ref links to its own slice, carried on the result as `url` (see
+    apply._slice_url). It used to link every ref to the board root, so
+    clicking TP-300 landed on a board and left the reader to find TP-300
+    themselves.
     """
     lines = []
     for result in results:
         if result.ok:
-            label = f"<{board_url}|{result.ref}> {result.label}" if result.ref else result.label
+            if result.ref and result.url:
+                label = f"<{result.url}|{result.ref}> {result.label}"
+            elif result.ref:
+                label = f"{result.ref} {result.label}"
+            else:
+                label = result.label
             lines.append(f"• {label}")
         else:
             lines.append(f"• _not filed_ — {result.error}")

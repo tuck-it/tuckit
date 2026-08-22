@@ -3,8 +3,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.urls import path
 from django.views.generic import RedirectView
 
-from tuckit.integrations.slack import views as slack_views
-from tuckit.integrations.slack.urls import slack_urlpatterns
+from tuckit.integrations.slack.urls import slack_settings_urlpatterns, slack_urlpatterns
 from tuckit.web.views import (
     pages, slices, mutations, board, capture, health,
     accounts, settings_org, settings_account, settings_shell, routing,
@@ -77,11 +76,10 @@ settings_patterns = [
     path("<slug:org_slug>/settings/delete", settings_org.org_delete, name="org_delete"),
     # --- Slack (org-scoped settings page + the OAuth hop that starts it;
     #     the callback that finishes it has no org slug -- see slack_patterns
-    #     below -- so the org rides in the signed state instead). ---
-    path("<slug:org_slug>/settings/slack", slack_views.settings_slack, name="settings_slack"),
-    path("<slug:org_slug>/settings/slack/connect", slack_views.slack_install_begin, name="slack_install_begin"),
-    path("<slug:org_slug>/settings/slack/confirm", slack_views.slack_install_confirm, name="slack_install_confirm"),
-    path("<slug:org_slug>/settings/slack/disconnect", slack_views.slack_disconnect, name="slack_disconnect"),
+    #     below -- so the org rides in the signed state instead). Gated on the
+    #     Slack credentials exactly like slack_patterns is: an unconfigured
+    #     deployment mounts neither half. ---
+    *slack_settings_urlpatterns(),
     # --- account settings pages + mutations (Task 5) ---
     path("<slug:org_slug>/settings/account/profile", settings_account.account_profile, name="settings_account_profile"),
     path("<slug:org_slug>/settings/account/organizations", settings_account.account_orgs, name="settings_account_orgs"),

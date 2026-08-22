@@ -35,6 +35,29 @@ EVENT_JOBS = {
 }
 
 
+def _enqueue_or_release(event_id: str, job_name: str, payload: dict) -> None:
+    """Queue the job, and hand the idempotency token back if that fails.
+
+    The SlackEvent row exists to make Slack's retry safe, so it must not
+    outlive a delivery that queued nothing. If `enqueue` raises (Cloud Tasks
+    unreachable, IAM refused, queue misconfigured) and the row stayed, Slack's
+    retry of the same event_id would hit the row, take the IntegrityError
+    branch below, answer 200 and queue nothing -- the event would be lost with
+    no job, no placeholder and no reply. Deleting it first means the retry is
+    allowed to do the work.
+
+    This runs from transaction.on_commit, so the row is already committed and
+    the delete is its own statement rather than a rollback of an open block.
+    The re-raise is deliberate: it becomes a 500, which is the only thing that
+    makes Slack retry at all.
+    """
+    try:
+        enqueue(job_name, payload)
+    except Exception:
+        SlackEvent.objects.filter(event_id=event_id).delete()
+        raise
+
+
 @csrf_exempt
 @login_not_required
 @require_POST
@@ -86,10 +109,17 @@ def slack_events(request):
             # genuine concurrent race (two requests interleaved); the DB
             # unique constraint on event_id is the defence there, not a test.
             transaction.on_commit(
-                lambda: enqueue(job_name, {"team_id": payload.get("team_id", ""), "event": event})
+                lambda: _enqueue_or_release(
+                    event_id, job_name,
+                    {"team_id": payload.get("team_id", ""), "event": event},
+                )
             )
     except IntegrityError:
-        # The retry, or its twin racing the original. Already handled.
+        # A row for this event_id already exists, which means an earlier
+        # delivery got as far as queueing the job -- a failed enqueue takes
+        # the row back out again (see _enqueue_or_release), so the row's
+        # presence really does mean the work is already on its way. Nothing
+        # to do but ack, so Slack stops retrying.
         return HttpResponse(status=200)
 
     return HttpResponse(status=200)
@@ -97,12 +127,16 @@ def slack_events(request):
 
 # --- Install OAuth flow ---
 #
-# Everything the bot needs and nothing else. users:read.email,
-# message.channels, message.im and reactions:write are deliberately absent —
-# see the slice constraints before adding to this list.
+# Everything the bot needs and nothing else. users:read, users:read.email,
+# message.channels, message.im and reactions:write are deliberately absent --
+# see the slice constraints before adding to this list. users:read went out
+# with SlackClient.users_info: every name the bot prints comes from the
+# OrgMember behind the Slack user (member.user), never from a Slack profile
+# lookup. A granted scope cannot be narrowed without re-prompting every
+# installed workspace, so an unused one is not free.
 BOT_SCOPES = [
     "app_mentions:read", "chat:write", "channels:history", "groups:history",
-    "links:read", "links:write", "users:read", "commands",
+    "links:read", "links:write", "commands",
 ]
 INSTALL_STATE_SALT = "slack-install"
 STATE_MAX_AGE_SECONDS = 600
