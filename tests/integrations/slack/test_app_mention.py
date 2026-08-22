@@ -25,6 +25,29 @@ EVENT = {"type": "app_mention", "channel": "C1", "user": "U9", "ts": "1.0", "thr
          "text": "<@U0> file it"}
 
 
+TOP_LEVEL_EVENT = {"type": "app_mention", "channel": "C1", "user": "U9", "ts": "1.0",
+                   "text": "<@U0> file it"}
+
+
+def test_the_connect_prompt_reaches_the_channel_when_the_mention_starts_no_thread(install, fake_slack):
+    """The button is the only way anyone learns they must connect, so where it
+    lands decides whether the integration looks broken on first use.
+
+    A top-level mention has no thread_ts of its own. Addressing the ephemeral
+    at the mention's own ts puts it in a thread that does not exist yet:
+    Slack accepts it, shows it only inside that thread, and leaves nothing in
+    the channel -- an ephemeral leaves no reply count the way a real message
+    does. Verified against a real workspace, where it read as total silence.
+    """
+    handle_app_mention(team_id="T1", event=TOP_LEVEL_EVENT)
+    assert fake_slack.ephemeral[0]["thread_ts"] is None
+
+
+def test_the_connect_prompt_stays_in_the_thread_when_the_mention_is_already_in_one(install, fake_slack):
+    handle_app_mention(team_id="T1", event=EVENT)
+    assert fake_slack.ephemeral[0]["thread_ts"] == "0.9"
+
+
 def test_unlinked_user_gets_an_ephemeral_prompt_and_no_placeholder(install, fake_slack):
     handle_app_mention(team_id="T1", event=EVENT)
     assert fake_slack.ephemeral and not fake_slack.posted
