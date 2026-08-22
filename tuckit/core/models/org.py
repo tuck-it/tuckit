@@ -17,6 +17,12 @@ class Org(models.Model):
     # leave the entire Inbox unnamable.
     key = models.CharField(max_length=6, unique=True, validators=[_KEY_VALIDATOR])
     description = models.TextField(blank=True, default="")
+    # What counts as which priority, in this org's own words. Read by agents so
+    # they can classify; written by people. Free prose because the qualifying
+    # reasons are endless and business-specific -- a roadmap commitment, a
+    # customer's request, an investor's deadline -- and a hardcoded list would
+    # impose our priorities on someone else's company.
+    priority_policy = models.TextField(blank=True, default="")
     onboarding_dismissed = models.BooleanField(default=False)
     onboarding_completed = models.BooleanField(default=False)
     shipped_board_mode = models.CharField(

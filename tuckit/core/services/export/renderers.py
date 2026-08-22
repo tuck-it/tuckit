@@ -34,7 +34,13 @@ def _envelope(snapshot: Snapshot, *, view: str, exported_at: datetime) -> dict:
         # envelope, not a row. Leaving it out would quietly drop text a human
         # wrote, which is exactly what "lossless" must not mean.
         "org": {"slug": org.slug, "name": org.name, "key": org.key,
-                "description": org.description},
+                "description": org.description,
+                # Org-level prose like the description, and the one piece of
+                # text that makes every row's `priority` number readable. It is
+                # written a line at a time out of corrections, so an export
+                # that dropped it would hand back the numbers without the
+                # vocabulary that gives them meaning.
+                "priority_policy": org.priority_policy},
     }
 
 

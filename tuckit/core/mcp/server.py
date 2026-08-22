@@ -20,6 +20,7 @@ from tuckit.core.services.bites import (
     list_bites as _list_bites,
     update_bite as _update_bite,
 )
+from tuckit.core.services.orgs import append_priority_policy as _append_priority_policy
 from tuckit.core.services.resolve import get_area
 from tuckit.core.services.resolve import get_bite as _resolve_bite
 from tuckit.core.services.resolve import get_slice as _resolve_slice
@@ -142,14 +143,44 @@ async def get_project_state(ctx: Context, area_id: int | None = None) -> dict:
     denominator for "will anyone actually do this later?", and a board that
     drops most of what it collects is telling you the honest answer is no.
 
-    Each area's `roadmap` is capped. `counts.open` is the real number and
-    `roadmap_omitted` is how many were left out — the list is a sample once
-    that is above zero, never the whole board."""
+    Each area's `roadmap` is capped, and what survives the cap is now the
+    highest-priority work rather than whatever sat highest in the manual order.
+    `counts.open` is the real number and `roadmap_omitted` is how many were
+    left out — the list is a sample once that is above zero, never the whole
+    board.
+
+    `org.priority_policy` is what counts as which priority HERE, written by a
+    person in their own words. Read it before you set a priority: 1 is the most
+    urgent, 5 the least, and what qualifies for each is whatever that text says
+    — not your own sense of what is usually urgent. An empty policy is normal;
+    classify from general judgement then, and say that you did, so the person
+    can correct you. Those corrections are how the policy gets written."""
     org, user = await require_caller(ctx)
 
     def _run():
         area = get_area(org, area_id) if area_id is not None else None
         return _get_project_state(org, area=area, caller_user=user)
+
+    return await sync_to_async(_run, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def append_priority_policy(ctx: Context, line: str) -> dict:
+    """Add one line to this org's priority policy — what counts as which
+    priority, in this org's own words.
+
+    Append only. You cannot edit or remove a line from here; a person does that
+    in the web UI. That asymmetry is deliberate: the policy is written slowly,
+    out of corrections to classifications that were wrong, and it is not
+    something one call of yours should be able to undo.
+
+    Do not call this on your own initiative. It is for a line your human partner
+    has just agreed to — usually the reason they gave when they corrected a
+    priority you set. Propose the wording, get a yes, then write it."""
+    org, _user = await require_caller(ctx)
+
+    def _run():
+        return {"priority_policy": _append_priority_policy(org, line).priority_policy}
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -321,6 +352,7 @@ async def create_slice(
     spec: str = "",
     constraints: str = "",
     status: str = "open",
+    priority: int | None = None,
     tags: list[str] | None = None,
     assignee: str | None = None,
     external_key: str = "",
@@ -350,7 +382,12 @@ async def create_slice(
     `status` carries the DECISION only — open / shipped / dropped. Progress is
     read from `stage`, never from `status`. external_key makes re-runs
     idempotent (same key updates instead of duplicating). assignee = 'me' or an
-    email. Optionally position with after_id/before_id (another slice's id)."""
+    email. Optionally position with after_id/before_id (another slice's id).
+
+    `priority`: 1 (most urgent) to 5, or 0 to clear it. What qualifies for each
+    number is `org.priority_policy` from get_project_state — read it first. With
+    no policy written, use your own judgement and SAY you did, so a person can
+    correct it; those corrections are how the policy gets written."""
     org, user = await require_caller(ctx)
 
     def _run():
@@ -364,7 +401,8 @@ async def create_slice(
         creator = _acting_member(org, user)
         s = _create_slice(
             org, area=area, title=title, spec=spec, constraints=constraints,
-            status=status, tags=tags, after=after, before=before, source="agent",
+            status=status, priority=priority, tags=tags, after=after,
+            before=before, source="agent",
             assignee_member=member, external_key=external_key, created_by=creator,
             member=creator,
         )
@@ -379,12 +417,17 @@ async def create_slice(
 # to close an entire org, and that is too much to buy with a typo.
 BATCH_LIMIT = 200
 
-# Fields a batch may set. Both are reversible by design: `status` records a
-# decision that can be decided again, and clearing or setting an area is
-# explicitly two-way. Everything else a batch could touch destroys text that
-# was written once -- the same shape as the spec overwrite that permanently
-# erased a decision record (TP-238) -- so a batch is not allowed to carry it.
-BATCH_FIELDS = ("status", "area_id")
+# Fields a batch may set. All three are reversible by design: `status` records
+# a decision that can be decided again, clearing or setting an area is
+# explicitly two-way, and a priority can be re-set or cleared with 0.
+# Everything else a batch could touch destroys text that was written once --
+# the same shape as the spec overwrite that permanently erased a decision
+# record (TP-238) -- so a batch is not allowed to carry it.
+#
+# priority belongs here because triage is the case the batch exists for: it is
+# the field you are most likely to set across twenty captures at once, and
+# making that cost twenty calls is what the batch was built to end.
+BATCH_FIELDS = ("status", "area_id", "priority")
 
 
 @mcp.tool()
@@ -395,6 +438,7 @@ async def update_slice(
     spec: str | None = None,
     constraints: str | None = None,
     status: str | None = None,
+    priority: int | None = None,
     area_id: int | str | None = None,
     tags: list[str] | None = None,
     assignee: str | None = None,
@@ -417,9 +461,15 @@ async def update_slice(
     `stage` (list_slices/get_slice report it). after_id/before_id fold in
     reorder. `assignee`: '' clears, 'me' = you, '<email>' = that member.
 
+    `priority`: 1 (most urgent) to 5, or 0 to clear it. What qualifies for each
+    number is `org.priority_policy` from get_project_state — read it first. With
+    no policy written, use your own judgement and SAY you did, so a person can
+    correct it; those corrections are how the policy gets written.
+
     `slice_id` also takes a LIST, to file or close many slices in one call —
     tidying a board should not cost more per slice than filling it did. A batch
-    may set only `status` and `area_id`, the two reversible decisions; passing
+    may set only `status`, `area_id` and `priority`, the reversible decisions;
+    passing
     `spec`, `constraints` or `title` with a list is refused rather than applied,
     because one body text written across many slices cannot be undone. Unknown
     ids fail the whole call, so "how many actually closed" is never a guess.
@@ -444,7 +494,7 @@ async def update_slice(
         acting = _acting_member(org, user)
         s = _update_slice(
             s, title=title, spec=spec, constraints=constraints, status=status,
-            tags=tags, assignee=assignee, assignee_member=member,
+            priority=priority, tags=tags, assignee=assignee, assignee_member=member,
             before=before, after=after, source="agent", member=acting,
         )
         if moved:

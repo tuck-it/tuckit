@@ -105,6 +105,12 @@ SLICES = EntitySpec(
         # app remembers, and this is the part that cannot be reconstructed.
         "decision_tree": lambda s: s.decision_tree,
         "status": lambda s: s.status,
+        # A decision a person made, like `status` -- not an observation. It is
+        # also half of the board's ordering (priority first, `rank` inside it),
+        # so an export without it could not reproduce the order the team saw.
+        # What each number MEANS is org-level prose and rides in the envelope
+        # alongside the description, not on every row.
+        "priority": lambda s: s.priority,
         "stage": lambda s: s.export_stage,
         "tags": _tags,
         "assignee": lambda s: _email(s.assignee),
@@ -179,6 +185,11 @@ EXCLUDED: dict[type, dict[str, str]] = {
         "slug": "Carried in the envelope's org block.",
         "key": "Carried in the envelope's org block — it is the prefix in every ref.",
         "description": "Carried in the envelope's org block.",
+        "priority_policy": (
+            "Carried in the envelope's org block, next to the description — it is "
+            "org-level prose, not a per-row column, and it is what makes each "
+            "slice's priority number mean anything."
+        ),
         "onboarding_dismissed": "UI state for the first-run widget, not project data.",
         "onboarding_completed": "Same — first-run UI state.",
         "shipped_board_mode": "A board display preference, not something a team needs back.",

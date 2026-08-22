@@ -434,7 +434,12 @@ def test_project_state_names_the_org_not_a_product(org):
     org.save(update_fields=["description", "updated_at"])
     state = get_project_state(org)
     assert "product" not in state
-    assert state["org"] == {"name": org.name, "description": "our company"}
+    # priority_policy is unwritten here, which is every org's starting state.
+    # That it CARRIES a written one is pinned in test_mcp_tools_state.py, where
+    # the agent-facing contract lives.
+    assert state["org"] == {
+        "name": org.name, "description": "our company", "priority_policy": "",
+    }
 
 
 @pytest.mark.django_db

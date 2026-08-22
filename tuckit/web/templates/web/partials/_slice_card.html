@@ -18,6 +18,7 @@
     <span class="card-title">{{ slice.title }}</span>
     <span class="card-sub">
       {% ref_of slice %}
+      {% include "web/partials/_priority_badge.html" %}
       {% if show_area %}<span>{{ slice.area.name }}</span>{% endif %}
       {% if slice.stage == "needs_steps" %}<span>needs steps</span>
       {% elif slice.stage != "needs_design" %}<span>{% bite_progress slice %}</span>{% endif %}

@@ -19,6 +19,15 @@
     <a class="area-chip" href="{% wurl 'web:inbox' %}">{% icon "inbox" "icon area-chip-icon" %}Inbox</a>
     {% endif %}
     {% ref_of slice copy=True %}
+    {% include "web/partials/_priority_badge.html" %}
+    {% comment %}
+      The criteria, next to the number, for the person actually looking at the
+      work. Jira has had per-priority descriptions for years and shows them
+      only to whoever administers the scheme; this is the half that is missing
+      everywhere. Empty policy renders nothing, and the bare number is then the
+      most honest prompt to go write one.
+    {% endcomment %}
+    {% if policy_line %}<span class="priority-policy-line">{{ policy_line }}</span>{% endif %}
     {% if slice.status == 'dropped' %}<span class="dropped-tag">dropped</span>{% endif %}
     {% comment %}
       Everything you can DO to this record lives in this one row — the row that

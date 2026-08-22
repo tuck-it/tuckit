@@ -7,7 +7,8 @@ from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
 from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import list_bites
 from tuckit.core.services.slices import (
-    annotate_stage_counts, filed_slices, inbox_slices, list_slices, stage_column, stage_of,
+    PRIORITY_ORDER, annotate_stage_counts, filed_slices, inbox_slices, list_slices,
+    priority_sort_key, stage_column, stage_of,
 )
 
 STALE_DAYS = 7
@@ -41,6 +42,14 @@ def _area_state(area: Area, *, limit: int = ROADMAP_LIMIT) -> dict:
     # counts below, so cutting here costs nothing and pushing the limit into SQL
     # would cost one COUNT per area per status -- an N+1 bought for no gain. The
     # payload is what was too big, never the fetch.
+    #
+    # Sorted BEFORE the cut. Without this the cap keeps whichever slices sat
+    # highest in the manual order, which is an arbitrary sample dressed up as a
+    # summary -- exactly what TP-253 shipped, and what this repays. list_slices
+    # orders by priority already, but that is not something this line should
+    # have to depend on: the sort is what makes the cut meaningful, so it is
+    # stated where the cut happens.
+    open_.sort(key=priority_sort_key)
     visible = open_[:limit]
 
     return {
@@ -79,7 +88,15 @@ def get_project_state(org: Org, area: Area | None = None, caller_user=None) -> d
             "org_slug": org.slug,
             "org_name": org.name,
         },
-        "org": {"name": org.name, "description": org.description},
+        "org": {
+            "name": org.name,
+            "description": org.description,
+            # What counts as which priority, in this org's own words. Handed to
+            # the agent because the agent is what classifies; no other tracker
+            # gives its classifier this, which is why "when is it urgent?" lives
+            # in everyone's prompts instead of on their board.
+            "priority_policy": org.priority_policy,
+        },
         "totals": _org_totals(org),
         "inbox": {
             # One COUNT(*) + one 10-row fetch, not two full hydrations.
@@ -134,6 +151,13 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False, *,
     lines = [f"# {slice_.title}", "", f"Status: {slice_.status}"]
     if tags:
         lines[-1] += f" · {tags}"
+    # Only when someone set it. An unranked slice printing a number would be the
+    # renderer inventing a decision nobody made -- the same rule the board badge
+    # follows. What the number MEANS is org.priority_policy, which the agent
+    # already has from get_project_state; repeating it on every slice would be
+    # the same paragraph N times in one session.
+    if slice_.priority:
+        lines.append(f"Priority: {slice_.priority}")
     # What to do next, derived from the spec and the slice's steps — the first thing a
     # caller needs, and the reason get_slice is worth calling before anything
     # else. Never stored; see slice_stage().
@@ -214,7 +238,7 @@ def home_state(org: Org) -> dict:
             filed_slices(Slice.objects.filter(org=org)).select_related("area", "org")
         )
         .prefetch_related("tags")
-        .order_by("rank")
+        .order_by(*PRIORITY_ORDER)
     )
     now = timezone.now()
     stale_cutoff = now - timedelta(days=STALE_DAYS)
@@ -222,7 +246,11 @@ def home_state(org: Org) -> dict:
         [s for s in slices if stage_of(s) == "executing"],
         # False sorts before True, so stalled slices come first. Staleness is a
         # sort key here and nowhere a filter.
-        key=lambda s: (s.updated_at >= stale_cutoff, s.area.name, s.rank),
+        #
+        # This Python sort REPLACES the queryset's PRIORITY_ORDER for this band,
+        # so priority has to be named again or it is silently dropped -- staleness
+        # and area stay ahead of it (they group the band), priority orders within.
+        key=lambda s: (s.updated_at >= stale_cutoff, s.area.name, *priority_sort_key(s)),
     )
     shipped = sorted(
         [s for s in slices if s.status == "shipped"],
@@ -302,6 +330,11 @@ def your_turn(org: Org) -> list[dict]:
             .select_related("area", "org")
         )
         .prefetch_related("tags")
+        # Deliberately NOT PRIORITY_ORDER. This band answers "what has been
+        # waiting longest for a human", and sorting it by priority would bury a
+        # stalled low-priority slice forever -- which is the state that most
+        # needs a person to look. The next reader will think this was missed;
+        # it was not.
         .order_by("updated_at")
     )
     _ACTIONS = {"needs_design": "write the spec", "ready_to_ship": "verify and ship"}
@@ -345,7 +378,7 @@ def roadmap_state(org: Org) -> dict:
     def bucket(status: str) -> list:
         return sorted(
             [s for s in slices if s.status == status],
-            key=lambda s: (s.area.name, s.rank),
+            key=lambda s: (s.area.name, *priority_sort_key(s)),
         )
 
     shipped = sorted(
@@ -392,7 +425,7 @@ def roadmap_board_view(org: Org) -> dict:
             filed_slices(Slice.objects.filter(org=org)).select_related("area", "org")
         )
         .prefetch_related("tags")
-        .order_by("area__name", "rank")
+        .order_by("area__name", *PRIORITY_ORDER)
     )
     columns: dict[str, list] = {key: [] for key in STAGE_BOARD_ORDER if key != "shipped"}
     dropped_count = 0
@@ -440,7 +473,7 @@ def area_board_view(area: Area) -> dict:
             Slice.objects.filter(area=area).select_related("area", "org")
         )
         .prefetch_related("tags")
-        .order_by("rank")  # explicit: annotate_stage_counts drops Meta.ordering
+        .order_by(*PRIORITY_ORDER)  # explicit: annotate_stage_counts drops Meta.ordering
     )
     columns: dict[str, list] = {key: [] for key in STAGE_BOARD_ORDER if key != "shipped"}
     dropped_count = 0

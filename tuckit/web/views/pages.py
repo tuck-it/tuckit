@@ -15,6 +15,7 @@ from tuckit.core.services.state import (
 from tuckit.core.services.activity import label_who
 from tuckit.web.auth import get_current_org
 from tuckit.core.models import Slice
+from tuckit.core.services.slices import PRIORITY_ORDER
 
 # The two shared predicates split the world in half but do not cover it:
 # inbox_filter() is `area IS NULL AND status = 'open'` and filed_slices() is
@@ -86,7 +87,7 @@ def roadmap(request):
                     qs, key=lambda s: (s.completed_at or s.updated_at), reverse=True,
                 )
             else:
-                filter_slices = list(qs.order_by("area__name", "rank"))
+                filter_slices = list(qs.order_by("area__name", *PRIORITY_ORDER))
         else:
             filter_slices = roadmap_state(org).get(status, [])
         return render(request, "web/roadmap.html", {
@@ -129,7 +130,7 @@ def areas(request):
             slices = list(
                 annotate_stage_counts(
                     Slice.objects.filter(area=a).exclude(status="dropped")
-                ).order_by("rank")
+                ).order_by(*PRIORITY_ORDER)
             )
             cards.append({
                 "area": a,

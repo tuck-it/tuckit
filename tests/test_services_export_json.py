@@ -36,8 +36,27 @@ def test_envelope_carries_schema_version_and_org_identity(org):
     assert env["schema_version"] == 1
     assert env["view"] == "full"
     assert env["org"] == {"slug": "acme", "name": "Acme", "key": org.key,
-                          "description": "we make things"}
+                          "description": "we make things",
+                          "priority_policy": ""}
     assert "exported_at" in env
+
+
+@pytest.mark.django_db
+def test_the_envelope_carries_the_priority_policy_a_person_wrote(org):
+    """The equality check above pins the envelope's shape with an unwritten
+    policy, which is every org's starting state -- so on its own it would pass
+    just as happily if the key were hardcoded to "". This pins the value.
+
+    It matters because the policy is what makes each row's `priority` number
+    readable. An export carrying the numbers without the sentences that define
+    them hands back a ranking nobody can interpret.
+    """
+    org.priority_policy = "1 = money this week\n2 = a date promised outside"
+    org.save(update_fields=["priority_policy", "updated_at"])
+
+    assert _dump(org)["tuckit_export"]["org"]["priority_policy"] == (
+        "1 = money this week\n2 = a date promised outside"
+    )
 
 
 @pytest.mark.django_db

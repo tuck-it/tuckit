@@ -1,0 +1,51 @@
+{% extends "web/settings_base.html" %}
+{% block settings_title %}Organization · Priority policy{% endblock %}
+{% block settings_content %}
+<div class="settings-title">Priority policy</div>
+<section class="group settings-section">
+  <div class="settings-row">
+    <div class="settings-row-text">
+      <div class="settings-row-label">What counts as which priority</div>
+      {% comment %}
+        The description says WHO reads this, because that is the point of the
+        field. Every other tracker either has nowhere to write the criteria or
+        shows them only to whoever administers the scheme — so "when is this
+        urgent?" ends up inside someone's prompt instead of on the board, where
+        the team cannot see it and nothing versions it.
+      {% endcomment %}
+      <div class="settings-row-desc">
+        Slices are ranked 1 (most urgent) to 5. Write what earns each number
+        here, in your own words — your agents read this before they rank
+        anything, so it is what stops them guessing from general instinct
+        instead of how this business actually works. An agent can add a line;
+        only an admin can edit or remove one.
+      </div>
+    </div>
+    {% comment %}
+      Same shape as the org description row: a stacked control that owns its own
+      Save. Not a new pattern.
+    {% endcomment %}
+    <div class="settings-row-control settings-row-stack">
+      <form hx-post="{% url 'web:priority_policy' org.slug %}" hx-swap="none"
+            {% comment %} hx-on:: runs in the GLOBAL scope — showToast is global,
+               and nothing here reads an x-data name, which is the mistake that
+               broke the org description save once. {% endcomment %}
+            hx-on::after-request="showToast(event.detail.successful ? 'Saved.' : (event.detail.xhr.responseText || 'Could not save. Nothing changed.'), event.detail.successful ? 'ok' : 'err')">
+        {% comment %}
+          The placeholder is load-bearing, not decoration. Nobody writes into an
+          empty box — this org's own description has been "" since the day it
+          was created — and an example is the only friction remover on this
+          page. It is shaped the way policy_line_for() parses ("1 = ..."), so
+          what a person writes naturally is also what the badge can explain.
+        {% endcomment %}
+        <textarea name="policy" class="spec-edit" rows="6"
+                  aria-label="Priority policy"
+                  placeholder="1 = money in hand this week&#10;2 = a date we promised someone outside&#10;3 = this quarter's roadmap&#10;4 = worth doing, no clock on it&#10;5 = someday">{{ org.priority_policy }}</textarea>
+        <div class="settings-row-actions">
+          <button type="submit" class="btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

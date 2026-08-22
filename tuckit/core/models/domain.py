@@ -40,6 +40,14 @@ class Slice(models.Model):
         ("dropped", "Dropped"),
     ]
     SOURCE_CHOICES = [("human", "Human"), ("agent", "Agent")]
+    # 1 is the most urgent, matching the P1 convention every tracker uses.
+    # Integers rather than names on purpose: the NUMBERS are the vocabulary and
+    # Org.priority_policy supplies their meaning, so the product shipping
+    # "Urgent"/"High" would put a second vocabulary on the same screen and give
+    # a classifying agent two things to obey. Integer rather than CharField
+    # because string ordering follows the database collation, which has already
+    # bitten `rank` here once.
+    PRIORITY_CHOICES = [(n, str(n)) for n in range(1, 6)]
 
     area = models.ForeignKey(
         Area, null=True, blank=True, on_delete=models.SET_NULL, related_name="slices",
@@ -64,6 +72,14 @@ class Slice(models.Model):
         on_delete=models.SET_NULL, related_name="assigned_slices",
     )
     constraints = models.TextField(blank=True, default="")
+    # NULL means nobody has ranked this yet -- a real state, not a missing
+    # value, and the one every existing row starts in. Every ORDER BY that
+    # touches this column must say nulls_last explicitly: Postgres puts NULLs
+    # last in ASC and sqlite puts them first, so the default sorts the board
+    # one way locally and the other way in production.
+    priority = models.PositiveSmallIntegerField(
+        null=True, blank=True, choices=PRIORITY_CHOICES,
+    )
     # How this slice was decided: {"nodes": [...]} -- the questions that were
     # asked, every option that was weighed, and which one won. Append-only.
     #

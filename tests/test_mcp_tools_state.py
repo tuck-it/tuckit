@@ -193,3 +193,69 @@ def _age_an_inbox_capture(org, *, days):
     # auto_now/auto_now_add ignore assignment; move the columns with an UPDATE.
     then = timezone.now() - timedelta(days=days)
     Slice.objects.filter(id=s.id).update(created_at=then, updated_at=then)
+
+
+# --- priority: the criteria, and a cap that means something (TP-178) ---------
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_project_state_carries_the_priority_policy():
+    """An agent that cannot read the policy has nothing to classify against,
+    and falls back to its own priors -- which know general urgency and not this
+    company's."""
+    org = await _make_org()
+    _, raw = await _make_token(org)
+    await _set_policy(org, "1 = money in hand this week. 2 = a date promised outside.")
+
+    state = await get_project_state(make_ctx(raw))
+
+    assert "money in hand" in state["org"]["priority_policy"]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_an_unwritten_policy_is_an_empty_string_not_an_error():
+    """Empty is the normal state of every org before anyone writes one."""
+    org = await _make_org()
+    _, raw = await _make_token(org)
+
+    assert (await get_project_state(make_ctx(raw)))["org"]["priority_policy"] == ""
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_the_capped_roadmap_keeps_the_highest_priorities():
+    """TP-253 capped this list before anything could rank it, so the 20 it kept
+    were whichever happened to sit highest in the manual order. This is the
+    line that makes the cap mean something.
+
+    The ranked slice is the LAST one created, so it sits at the bottom of rank
+    order and outside the cap entirely. If the sort did not happen before the
+    cut it would not merely be in the wrong position -- it would be missing.
+    """
+    from tuckit.core.services.state import ROADMAP_LIMIT
+
+    org = await _make_org()
+    _, raw = await _make_token(org)
+    await _add_slices(org, open_n=ROADMAP_LIMIT + 5)
+    await _rank_one_slice_last_created(org, priority=1)
+
+    area = (await get_project_state(make_ctx(raw)))["areas"][0]
+
+    assert area["roadmap"][0]["title"] == "Open %d" % (ROADMAP_LIMIT + 4)
+    assert area["roadmap_omitted"] == 5
+
+
+@sync_to_async
+def _set_policy(org, text):
+    org.priority_policy = text
+    org.save(update_fields=["priority_policy", "updated_at"])
+
+
+@sync_to_async
+def _rank_one_slice_last_created(org, *, priority):
+    from tuckit.core.models import Slice
+
+    last = Slice.objects.filter(org=org).order_by("-id").first()
+    Slice.objects.filter(id=last.id).update(priority=priority)

@@ -2584,3 +2584,36 @@ body.canvas-maxed .ob-widget { display: none; }
   max-width: 100%; max-height: 100%;
   border-radius: var(--radius); box-shadow: 0 8px 40px var(--shadow);
 }
+
+/* --- Priority (TP-178) ---------------------------------------------------
+   The number alone. No tier name is rendered anywhere: the NUMBERS are the
+   vocabulary and Org.priority_policy supplies their meaning, so an "Urgent"
+   label here would sit on the same screen as whatever the person wrote in
+   their own policy.
+
+   Deliberately ONE neutral colour for all five levels. Splitting the scale by
+   hue would mean re-checking WCAG contrast for five foreground/background
+   pairs in a repo that has already been through a contrast audit once, and it
+   would buy nothing: the digit already says the rank, and the badge is never
+   the only signal — the board is sorted by it. */
+.priority-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  padding: 0 var(--space-4);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+}
+/* The criteria beside the number, in the detail crumb. Wraps rather than
+   truncates: a rule you can only half-read is worse than one you scroll to. */
+.priority-policy-line {
+  color: var(--ink-faint);
+  font-size: var(--text-xs);
+  min-width: 0;
+}

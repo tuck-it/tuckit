@@ -3,7 +3,7 @@ from django.shortcuts import render
 
 from tuckit.core.services.exceptions import NotFound
 from tuckit.core.services.resolve import get_area_by_slug, get_slice
-from tuckit.core.services.slices import list_slices
+from tuckit.core.services.slices import PRIORITY_ORDER, list_slices
 from tuckit.core.services.state import AREA_STATUS_KEYS, area_board_view
 from tuckit.web.auth import acting_member, get_current_org
 from tuckit.web.detail import slice_detail_context
@@ -23,7 +23,8 @@ def area_view(request, slug):
             "area": area,
             "filter_status": status,
             "filter_slices": list(
-                list_slices(area, status=status).prefetch_related("tags").order_by("rank")
+                list_slices(area, status=status).prefetch_related("tags")
+                .order_by(*PRIORITY_ORDER)
             ),
         })
     board = area_board_view(area)

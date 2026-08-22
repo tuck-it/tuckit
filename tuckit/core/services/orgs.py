@@ -202,3 +202,48 @@ def leave_org(user, *, org) -> None:
     if OrgMember.objects.filter(user=user).count() <= 1:
         raise InvalidValue("You can't leave your last organization.")
     end_membership(membership)
+
+
+def append_priority_policy(org: Org, line: str) -> Org:
+    """Add one line to the org's priority policy. Append only.
+
+    There is deliberately no replace and no delete on this path. The policy is
+    the most expensive text on a board -- it is written a line at a time, over
+    weeks, out of corrections a person made to a wrong classification -- and an
+    agent holding a tool that could overwrite it would eventually overwrite it.
+    Editing and removing lines live in the web UI, where a person is doing it.
+
+    The blank check runs BEFORE the write, so a refused line costs nothing: a
+    guard that raised after assigning would still have spent the text it exists
+    to protect.
+    """
+    text = line.strip()
+    if not text:
+        raise InvalidValue("priority policy line is empty")
+    org.priority_policy = f"{org.priority_policy}\n{text}".strip()
+    # updated_at is listed explicitly because auto_now does not fire on a
+    # partial save without it -- the pattern the rest of this repo follows.
+    org.save(update_fields=["priority_policy", "updated_at"])
+    return org
+
+
+def policy_line_for(org, priority: int | None) -> str:
+    """The line of this org's policy that explains one priority number, or "".
+
+    Matched by leading number so a person can write the policy the way they
+    would write it anyway ("1 = ..."), with no form to fill in. A policy that
+    does not follow that shape simply yields nothing here -- the number still
+    renders, and prose the product cannot parse is still prose the AGENT reads
+    in full, which is where it actually matters.
+
+    The digit must not be followed by another digit, so a policy opening with
+    "10 years of..." does not get claimed by priority 1.
+    """
+    if priority is None or not org.priority_policy:
+        return ""
+    head = str(priority)
+    for line in org.priority_policy.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(head) and not stripped[len(head):len(head) + 1].isdigit():
+            return stripped
+    return ""
