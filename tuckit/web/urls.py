@@ -80,6 +80,7 @@ settings_patterns = [
     #     below -- so the org rides in the signed state instead). ---
     path("<slug:org_slug>/settings/slack", slack_views.settings_slack, name="settings_slack"),
     path("<slug:org_slug>/settings/slack/connect", slack_views.slack_install_begin, name="slack_install_begin"),
+    path("<slug:org_slug>/settings/slack/confirm", slack_views.slack_install_confirm, name="slack_install_confirm"),
     path("<slug:org_slug>/settings/slack/disconnect", slack_views.slack_disconnect, name="slack_disconnect"),
     # --- account settings pages + mutations (Task 5) ---
     path("<slug:org_slug>/settings/account/profile", settings_account.account_profile, name="settings_account_profile"),

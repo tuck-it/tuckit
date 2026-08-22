@@ -2,6 +2,26 @@
 {% block settings_title %}Organization · Slack{% endblock %}
 {% block settings_content %}
 <div class="settings-title">Slack</div>
+
+{% if pending_switch %}
+<section class="group settings-section settings-section--danger">
+  <div class="settings-subhead">Switch Slack workspace?</div>
+  <div class="hint">
+    {% if install %}Currently connected to {{ install.team_name|default:install.team_id }}. {% endif %}
+    Switching to {{ pending_switch.team_name|default:pending_switch.team_id }} disconnects the current
+    workspace -- every card and unfurl will move to the new one.
+  </div>
+  <div class="settings-row-actions">
+    <a class="ghost" href="?cancel_slack_switch=1">Cancel</a>
+    <form method="post" action="{% url 'web:slack_install_confirm' org.slug %}" hx-post="{% url 'web:slack_install_confirm' org.slug %}"
+          hx-confirm="Switch to {{ pending_switch.team_name|default:pending_switch.team_id }}? This disconnects the current workspace.">
+      {% csrf_token %}
+      <button type="submit" class="btn danger">Confirm switch</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
 <section class="group settings-section">
   {% if install %}
     <div class="settings-subhead">Connected</div>
@@ -13,15 +33,21 @@
             {% if install.installed_by %}Installed by {{ install.installed_by.user.email }}{% else %}Installed by a member who has since left{% endif %}
           </div>
         </div>
+        {% if can_admin %}
         <form method="post" action="{% url 'web:slack_disconnect' org.slug %}" hx-post="{% url 'web:slack_disconnect' org.slug %}" hx-confirm="Disconnect this Slack workspace?">
           {% csrf_token %}
           <button type="submit" class="ghost">Disconnect</button>
         </form>
+        {% endif %}
       </div>
     </div>
   {% else %}
     <div class="hint">Connect a Slack workspace so mentions of the bot can read and write slices there.</div>
-    <a class="btn" href="{% url 'web:slack_install_begin' org.slug %}">Connect to Slack</a>
+    {% if can_admin %}
+      <a class="btn" href="{% url 'web:slack_install_begin' org.slug %}">Connect to Slack</a>
+    {% else %}
+      <div class="hint">Only an org admin can connect Slack.</div>
+    {% endif %}
   {% endif %}
 </section>
 {% endblock %}

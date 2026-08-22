@@ -103,6 +103,13 @@ BOT_SCOPES = [
 INSTALL_STATE_SALT = "slack-install"
 STATE_MAX_AGE_SECONDS = 600
 
+# Session key for a re-point awaiting confirmation. Connecting a Slack
+# workspace is an org-level configuration change with real consequences (the
+# bot token changes, so does where every card and unfurl goes), so a second
+# team_id arriving for an org that already has an install is never applied
+# silently -- see slack_install_callback and slack_install_confirm below.
+PENDING_SWITCH_SESSION_KEY = "slack_pending_switch"
+
 
 def _callback_url(request) -> str:
     return request.build_absolute_uri(reverse("web:slack_install_callback"))
@@ -111,9 +118,14 @@ def _callback_url(request) -> str:
 def slack_install_begin(request):
     """Start the OAuth handshake. Runs inside TenantMiddleware (org-scoped
     URL), so request.org is already resolved and request.user is already
-    confirmed to be an active member of it -- that membership check is what
-    makes it safe to fold the org id into the signed state below."""
-    state = signing.dumps({"org_id": request.org.id}, salt=INSTALL_STATE_SALT)
+    confirmed to be an active member of it. Connecting (or re-pointing) the
+    org's Slack workspace is an org-level configuration change, the same
+    class of action as slack_disconnect, so it is admin-gated the same way
+    -- membership alone is not enough."""
+    org = request.org
+    if not is_org_admin(request.user, org):
+        return HttpResponseForbidden("You don't have permission.")
+    state = signing.dumps({"org_id": org.id}, salt=INSTALL_STATE_SALT)
     query = urlencode({
         "client_id": settings.SLACK_CLIENT_ID,
         "scope": ",".join(BOT_SCOPES),
@@ -147,16 +159,45 @@ def slack_install_callback(request):
     if membership is None:
         return HttpResponse("invalid state", status=400)
 
+    # Same rule as slack_install_begin: reaching this endpoint with a
+    # validly-signed state proves membership, not permission. A non-admin who
+    # somehow replays or is handed a state naming their own org must still be
+    # refused here, not just kept off the Connect button.
+    if not is_org_admin(request.user, org):
+        return HttpResponseForbidden("You don't have permission.")
+
     try:
         data = exchange_oauth_code(code=request.GET.get("code", ""), redirect_uri=_callback_url(request))
     except SlackApiError as exc:
         messages.error(request, f"Slack refused the install: {exc}")
         return redirect("web:settings_slack", org_slug=org.slug)
 
+    new_team_id = data["team"]["id"]
+    existing = SlackInstall.objects.filter(org=org).first()
+    if existing is not None and existing.team_id != new_team_id:
+        # One team_id maps to exactly one org, and re-pointing an existing
+        # install asks first: stash the exchanged credentials and send the
+        # admin to the settings page rather than overwriting a working
+        # integration underneath whoever is currently relying on it.
+        request.session[PENDING_SWITCH_SESSION_KEY] = {
+            "org_id": org.id,
+            "team_id": new_team_id,
+            "team_name": data["team"].get("name", ""),
+            "bot_token": data["access_token"],
+            "bot_user_id": data.get("bot_user_id", ""),
+        }
+        messages.info(
+            request,
+            f"This org is already connected to '{existing.team_name or existing.team_id}'. "
+            f"Confirm on the Slack settings page to switch to "
+            f"'{data['team'].get('name', new_team_id)}' instead.",
+        )
+        return redirect("web:settings_slack", org_slug=org.slug)
+
     SlackInstall.objects.update_or_create(
         org=org,
         defaults={
-            "team_id": data["team"]["id"],
+            "team_id": new_team_id,
             "team_name": data["team"].get("name", ""),
             "bot_token": data["access_token"],
             "bot_user_id": data.get("bot_user_id", ""),
@@ -172,10 +213,48 @@ def slack_install_callback(request):
 
 def settings_slack(request):
     org = request.org
+    if request.GET.get("cancel_slack_switch"):
+        pending = request.session.get(PENDING_SWITCH_SESSION_KEY)
+        if pending and pending.get("org_id") == org.id:
+            del request.session[PENDING_SWITCH_SESSION_KEY]
     ctx = settings_context(request, active="org_slack")
     ctx["org"] = org
     ctx["install"] = SlackInstall.objects.filter(org=org).select_related("installed_by__user").first()
+    pending = request.session.get(PENDING_SWITCH_SESSION_KEY)
+    ctx["pending_switch"] = pending if pending and pending.get("org_id") == org.id else None
     return render(request, "web/settings/slack.html", ctx)
+
+
+@require_POST
+def slack_install_confirm(request):
+    """Apply a re-point that slack_install_callback held back for
+    confirmation. Admin-gated for the same reason slack_install_begin is --
+    and re-checked here rather than trusted from the moment the pending
+    switch was stashed, because the person confirming may not be the same
+    person (or even the same admin) who started the OAuth hop."""
+    org = request.org
+    if not is_org_admin(request.user, org):
+        return HttpResponseForbidden("You don't have permission.")
+    pending = request.session.get(PENDING_SWITCH_SESSION_KEY)
+    if not pending or pending.get("org_id") != org.id:
+        return HttpResponse("nothing pending", status=400)
+
+    from tuckit.core.models import OrgMember
+
+    membership = OrgMember.objects.filter(org=org, user=request.user).first()
+    SlackInstall.objects.update_or_create(
+        org=org,
+        defaults={
+            "team_id": pending["team_id"],
+            "team_name": pending["team_name"],
+            "bot_token": pending["bot_token"],
+            "bot_user_id": pending["bot_user_id"],
+            "installed_by": membership,
+        },
+    )
+    del request.session[PENDING_SWITCH_SESSION_KEY]
+    messages.success(request, f"Connected to {pending['team_name'] or pending['team_id']}.")
+    return redirect_response(request, "web:settings_slack", org_slug=org.slug)
 
 
 @require_POST
