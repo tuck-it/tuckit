@@ -12,6 +12,7 @@
   <a class="settings-item{% if settings_active == 'org_agent' %} on{% endif %}" href="{% url 'web:settings_org_agent' nav_org.slug %}">Agent</a>
   <a class="settings-item{% if settings_active == 'org_shipped' %} on{% endif %}" href="{% url 'web:settings_org_shipped' nav_org.slug %}">Shipped board</a>
   <a class="settings-item{% if settings_active == 'org_export' %} on{% endif %}" href="{% url 'web:settings_org_export' nav_org.slug %}">Export</a>
+  {% if slack_configured %}<a class="settings-item{% if settings_active == 'org_slack' %} on{% endif %}" href="{% url 'web:settings_slack' nav_org.slug %}">Slack</a>{% endif %}
   {% comment %} The deployment's own settings entry, if it configured one. Core
      neither names it nor owns a page for it — the label and the destination
      both come from TUCKIT_ENTITLEMENTS_HOOK, so a self-host sees nothing here

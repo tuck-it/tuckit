@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.urls import path
 from django.views.generic import RedirectView
 
+from tuckit.integrations.slack.urls import slack_settings_urlpatterns, slack_urlpatterns
 from tuckit.web.views import (
     pages, slices, mutations, board, capture, health,
     accounts, settings_org, settings_account, settings_shell, routing,
@@ -80,12 +81,23 @@ settings_patterns = [
          name="settings_org_export_download"),
     path("<slug:org_slug>/settings/danger", settings_org.org_danger, name="settings_org_danger"),
     path("<slug:org_slug>/settings/delete", settings_org.org_delete, name="org_delete"),
+    # --- Slack (org-scoped settings page + the OAuth hop that starts it;
+    #     the callback that finishes it has no org slug -- see slack_patterns
+    #     below -- so the org rides in the signed state instead). Gated on the
+    #     Slack credentials exactly like slack_patterns is: an unconfigured
+    #     deployment mounts neither half. ---
+    *slack_settings_urlpatterns(),
     # --- account settings pages + mutations (Task 5) ---
     path("<slug:org_slug>/settings/account/profile", settings_account.account_profile, name="settings_account_profile"),
     path("<slug:org_slug>/settings/account/organizations", settings_account.account_orgs, name="settings_account_orgs"),
     path("<slug:org_slug>/settings/account/orgs", settings_account.org_create, name="account_org_create"),
     path("<slug:org_slug>/settings/account/orgs/<int:org_id>/leave", settings_account.org_leave, name="account_org_leave"),
     path("<slug:org_slug>/settings/account", settings_shell.settings_account_root, name="settings_account_root"),
+]
+
+# --- Slack integration (no tenant slug; org resolved from team_id) ---
+slack_patterns = [
+    *slack_urlpatterns(),
 ]
 
 # --- bare root ---
@@ -148,5 +160,5 @@ home_patterns = [
 
 urlpatterns = (
     auth_patterns + api_patterns + oauth_patterns + settings_patterns
-    + root_patterns + app_patterns + home_patterns
+    + slack_patterns + root_patterns + app_patterns + home_patterns
 )

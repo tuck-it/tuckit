@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+{% include "registration/_auth_head.html" with page_title="Slack connected" %}
+<body>
+  <main class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-brand" aria-label="tuckit">{% include "web/partials/_brand.html" with word_only=1 %}</div>
+      <h1 class="auth-title">Connected to {{ org.name }}</h1>
+      <p class="auth-sub">Your Slack account is now linked. Go back to Slack and mention the bot again.</p>
+    </div>
+  </main>
+</body>
+</html>
