@@ -56,12 +56,12 @@ def test_it_leaks_nothing_about_the_slice(client, org):
     # original "o1") can coincidentally contain the slice's own small integer
     # id on a fresh sqlite test db (rowid 1) -- a false leak signal, not a
     # real one, since the returned node id is explicitly safe to echo back.
-    s.draft = {"nodes": [
+    s.decision_tree = {"nodes": [
         {"id": "q-charge", "parent": None, "kind": "question", "title": "Charge per seat?"},
         {"id": "o-yes", "parent": "q-charge", "kind": "option", "title": "Yes",
          "body": "internal reasoning nobody outside should read"},
     ]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
     _, raw = open_watch(s)
     answer_watches(s, "o-yes")
 

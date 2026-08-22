@@ -210,12 +210,12 @@ def update_slice(
     close_open_watches = False
     if spec is not None:
         slice_.spec = spec
-        # A written spec retires the canvas's draft source: from here the
+        # A written spec retires the canvas's decision_tree source: from here the
         # canvas renders the spec's own heading structure instead, so keeping
         # both would leave two answers to "what is the design". Empty is NOT a
-        # written spec -- that is the state the draft exists for.
+        # written spec -- that is the state the decision_tree exists for.
         if spec.strip():
-            slice_.draft = {}
+            slice_.decision_tree = {}
             # The canvas is not a live surface any more, so neither is any URL
             # waiting on a click against it. Here rather than in the MCP tool
             # because the browser's inline spec edit comes through this same
@@ -224,7 +224,7 @@ def update_slice(
             # until the atomic block below (not run here) so it shares the
             # fate of the write it belongs to -- otherwise a validate_choice
             # failure or a save() error below still deletes the watches while
-            # leaving `slice_.draft = {}` an in-memory assignment that never
+            # leaving `slice_.decision_tree = {}` an in-memory assignment that never
             # reaches the database.
             close_open_watches = True
     if constraints is not None:
@@ -499,7 +499,7 @@ _NODE_KEYS = ("id", "parent", "kind", "title", "summary", "body", "media", "reco
 
 
 def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[dict]:
-    """Append nodes to a slice's draft canvas. Returns what was added.
+    """Append nodes to a slice's decision_tree canvas. Returns what was added.
 
     Append-only on purpose: a branch that was explored and lost is part of the
     record, so nothing here edits or removes an existing node. The whole batch
@@ -513,7 +513,7 @@ def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[
             "structure -- propose only while the design is still being made"
         )
 
-    existing = list((slice_.draft or {}).get("nodes", []))
+    existing = list((slice_.decision_tree or {}).get("nodes", []))
     known = {n.get("id") for n in existing}
     has_root = any(not n.get("parent") for n in existing)
     # One timestamp for the batch: these nodes were thought of together, and
@@ -550,9 +550,9 @@ def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[
         fresh.append(clean)
         known.add(node_id)
 
-    slice_.draft = {"nodes": existing + fresh}
+    slice_.decision_tree = {"nodes": existing + fresh}
     with transaction.atomic():
-        slice_.save(update_fields=["draft", "updated_at"])
+        slice_.save(update_fields=["decision_tree", "updated_at"])
         # live.js polls the org activity cursor, so this row is what makes the
         # canvas grow without a reload rather than being mere bookkeeping.
         record_activity(
@@ -582,7 +582,7 @@ def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -
             "structure -- record a choice only while the design is still being made"
         )
 
-    nodes = (slice_.draft or {}).get("nodes", [])
+    nodes = (slice_.decision_tree or {}).get("nodes", [])
     node_map = {n.get("id"): n for n in nodes}
 
     # Validate the option node exists.
@@ -613,9 +613,9 @@ def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -
     # Record the choice on the question node.
     question_node["chosen"] = node_id
 
-    slice_.draft = {"nodes": nodes}
+    slice_.decision_tree = {"nodes": nodes}
     with transaction.atomic():
-        slice_.save(update_fields=["draft", "updated_at"])
+        slice_.save(update_fields=["decision_tree", "updated_at"])
         record_activity(
             slice_.org, source=source, verb="chose", target=slice_,
             to_value=(node.get("title") or node_id)[:50], member=member,

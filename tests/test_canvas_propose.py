@@ -16,7 +16,7 @@ def test_a_first_call_seeds_the_root_and_stamps_arrival(org, area):
     added = propose_nodes(s, [_n("n1"), _n("n2", "n1", kind="option")])
 
     s.refresh_from_db()
-    assert [n["id"] for n in s.draft["nodes"]] == ["n1", "n2"]
+    assert [n["id"] for n in s.decision_tree["nodes"]] == ["n1", "n2"]
     assert all(isinstance(n["at"], int) and n["at"] > 0 for n in added)
 
 
@@ -28,7 +28,7 @@ def test_a_later_call_appends_instead_of_replacing(org, area):
     propose_nodes(s, [_n("n2", "n1")])
 
     s.refresh_from_db()
-    assert [n["id"] for n in s.draft["nodes"]] == ["n1", "n2"]
+    assert [n["id"] for n in s.decision_tree["nodes"]] == ["n1", "n2"]
 
 
 @pytest.mark.django_db
@@ -87,7 +87,7 @@ def test_a_malformed_node_rejects_the_whole_batch(org, area, bad):
         propose_nodes(s, [_n("n2", "n1"), bad])
 
     s.refresh_from_db()
-    assert [n["id"] for n in s.draft["nodes"]] == ["n1"]
+    assert [n["id"] for n in s.decision_tree["nodes"]] == ["n1"]
 
 
 @pytest.mark.django_db

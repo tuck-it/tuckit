@@ -122,10 +122,10 @@ def nodes_from_spec(spec, title):
 def graph_for(slice_):
     """The canvas source for one slice.
 
-    `draft` while the design is still being made, the spec's own structure once
+    `decision_tree` while the design is still being made, the spec's own structure once
     it has been written. The two are exclusive in storage, so this never has to
     merge them -- and an untouched slice simply has nothing to draw.
     """
     if (slice_.spec or "").strip():
         return nodes_from_spec(slice_.spec, slice_.title)
-    return (slice_.draft or {}).get("nodes", [])
+    return (slice_.decision_tree or {}).get("nodes", [])

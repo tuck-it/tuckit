@@ -56,7 +56,7 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
         # Plan, which meant it was unreachable unless you first made a plan —
         # and almost nobody did).
         "constraints_html": render_markdown_html(slice_.constraints),
-        # The canvas source: the draft while a design is being made, the spec's
+        # The canvas source: the decision_tree while a design is being made, the spec's
         # own heading structure once it has been written. Bodies go through the
         # same markdown surface as everything else -- there is deliberately no
         # second, narrower renderer for cards.

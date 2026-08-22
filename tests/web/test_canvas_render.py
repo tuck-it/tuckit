@@ -60,16 +60,16 @@ def test_the_stage_starts_pending_so_nothing_flashes_unplaced(client_local, org)
 
 
 @pytest.mark.django_db
-def test_a_draft_renders_when_the_spec_is_empty(client_local, org):
+def test_a_decision_tree_renders_when_the_spec_is_empty(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(a.org, area=a, title="Designing", spec="")
-    s.draft = {"nodes": [
+    s.decision_tree = {"nodes": [
         {"id": "n1", "parent": None, "kind": "question",
          "title": "Which way?", "summary": "", "body": "", "at": 1787200000000},
         {"id": "n2", "parent": "n1", "kind": "option", "recommended": True,
          "title": "This way", "summary": "cheap", "body": "**because**"},
     ]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert 'data-id="n2"' in body
@@ -119,11 +119,11 @@ def test_the_canvas_offers_a_maximize_control(client_local, org):
 def test_an_option_card_carries_a_pick_control(client_local, org):
     a = create_area(org, "Backend")
     s = create_slice(org, area=a, title="Designing", spec="")
-    s.draft = {"nodes": [
+    s.decision_tree = {"nodes": [
         {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
         {"id": "o1", "parent": "q1", "kind": "option", "title": "Left"},
     ]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert "data-pick" in body

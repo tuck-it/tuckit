@@ -20,7 +20,7 @@ def test_editing_the_spec_in_the_browser_retires_the_canvas(client_local, org):
     )
 
     s.refresh_from_db()
-    assert s.draft == {}
+    assert s.decision_tree == {}
 
 
 @pytest.mark.django_db
@@ -41,5 +41,5 @@ def test_the_canvas_switches_source_rather_than_disappearing(client_local, org):
 
     after = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
     assert "data-canvas" in after            # still there
-    assert 'data-id="n1"' not in after       # draft is gone
+    assert 'data-id="n1"' not in after       # decision_tree is gone
     assert after.count('class="cnode') >= 3  # root + Goal + Detail, from the spec

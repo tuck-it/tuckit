@@ -36,11 +36,11 @@ def test_a_deeper_heading_after_a_shallower_one_climbs_back_out():
 
 
 @pytest.mark.django_db
-def test_graph_uses_draft_while_the_spec_is_empty(org, area):
+def test_graph_uses_the_decision_tree_while_the_spec_is_empty(org, area):
     s = create_slice(org, area=area, title="Canvas", spec="")
-    s.draft = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
+    s.decision_tree = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
                           "title": "Root", "summary": "", "body": ""}]}
-    s.save(update_fields=["draft"])
+    s.save(update_fields=["decision_tree"])
 
     assert [n["id"] for n in graph_for(s)] == ["n1"]
 
@@ -48,10 +48,10 @@ def test_graph_uses_draft_while_the_spec_is_empty(org, area):
 @pytest.mark.django_db
 def test_graph_switches_to_the_spec_once_it_is_written(org, area):
     s = create_slice(org, area=area, title="Canvas", spec="")
-    s.draft = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
+    s.decision_tree = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
                           "title": "Root", "summary": "", "body": ""}]}
     s.spec = "## Decided\nthe design"
-    s.save(update_fields=["draft", "spec"])
+    s.save(update_fields=["decision_tree", "spec"])
 
     titles = [n["title"] for n in graph_for(s)]
     assert "Decided" in titles

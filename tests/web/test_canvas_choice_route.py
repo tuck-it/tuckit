@@ -25,7 +25,7 @@ def test_a_click_settles_the_question(client_local, org):
 
     assert res.status_code == 204
     s.refresh_from_db()
-    assert next(n for n in s.draft["nodes"] if n["id"] == "q1")["chosen"] == "o2"
+    assert next(n for n in s.decision_tree["nodes"] if n["id"] == "q1")["chosen"] == "o2"
 
 
 @pytest.mark.django_db
@@ -85,4 +85,4 @@ def test_a_stranger_cannot_choose(client, org):
 
     assert res.status_code in (302, 404)
     s.refresh_from_db()
-    assert "chosen" not in next(n for n in s.draft["nodes"] if n["id"] == "q1")
+    assert "chosen" not in next(n for n in s.decision_tree["nodes"] if n["id"] == "q1")

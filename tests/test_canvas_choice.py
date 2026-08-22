@@ -14,7 +14,7 @@ def _tree(slice_):
 
 
 def _question(slice_):
-    return next(n for n in slice_.draft["nodes"] if n["id"] == "q1")
+    return next(n for n in slice_.decision_tree["nodes"] if n["id"] == "q1")
 
 
 @pytest.mark.django_db
@@ -28,7 +28,7 @@ def test_choosing_marks_the_question_not_the_option(org, area):
     assert _question(s)["chosen"] == "o2"
     # The option itself is untouched: "which one won" is a fact about the
     # question, and storing it twice would let the two disagree.
-    assert "chosen" not in next(n for n in s.draft["nodes"] if n["id"] == "o2")
+    assert "chosen" not in next(n for n in s.decision_tree["nodes"] if n["id"] == "o2")
 
 
 @pytest.mark.django_db
@@ -92,7 +92,7 @@ def test_an_orphan_option_cannot_be_chosen(org, area):
 @pytest.mark.django_db
 def test_a_written_spec_leaves_nothing_to_choose(org, area):
     """Same rule as propose_nodes: once a spec exists the canvas is derived
-    from it, and a derived view has no draft to write into."""
+    from it, and a derived view has no decision_tree to write into."""
     s = create_slice(org, area=area, title="Canvas", spec="")
     _tree(s)
     s.spec = "## Decided\nWe went with Right."
