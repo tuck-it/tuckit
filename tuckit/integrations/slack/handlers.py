@@ -7,8 +7,11 @@ ephemeral answer, and the view that enqueued this job does not yet know who
 the person is, so this ordering can only happen here, in the slow path.
 """
 import logging
+from datetime import timedelta
+from urllib.parse import parse_qs, urlparse
 
 from django.conf import settings
+from django.utils import timezone
 
 from tuckit.core.models import Area, Slice
 from tuckit.core.services.refs import slice_ref
@@ -19,12 +22,13 @@ from tuckit.integrations.slack.identity import connect_blocks, connect_state, re
 from tuckit.integrations.slack.interpret import (
     InterpretationUnavailable, TooManyIntents, interpret,
 )
-from tuckit.integrations.slack.models import SlackInstall
+from tuckit.integrations.slack.models import SlackInstall, SlackUnfurl
 from tuckit.integrations.slack.queue import job
 
 logger = logging.getLogger(__name__)
 
 MAX_THREAD_MESSAGES = 100
+UNFURL_COOLDOWN = timedelta(minutes=60)
 
 
 def _open_slices(org) -> list[tuple[str, str]]:
@@ -123,4 +127,66 @@ def handle_app_mention(*, team_id: str, event: dict) -> None:
             message_count=len(texts),
             board_url=f"{settings.TUCKIT_BASE_URL}/{org.slug}/",
         ),
+    )
+
+
+def _slice_from_url(org, url: str):
+    """The slice a tuckit URL points at, or None.
+
+    Filtered by `org` -- the org that owns the Slack install doing the
+    lookup, never the org slug embedded in the URL itself, since that slug is
+    just text a link-paster could put anything in. Returning None rather than
+    raising matters here: an error would itself confirm the slice exists,
+    which is the leak this bite exists to prevent.
+    """
+    parsed = urlparse(url)
+    slice_id = (parse_qs(parsed.query).get("slice") or [""])[0]
+    if not slice_id.isdigit():
+        return None
+    return Slice.objects.filter(org=org, id=int(slice_id)).select_related("area", "org").first()
+
+
+@job("slack.link_shared")
+def handle_link_shared(*, team_id: str, event: dict) -> None:
+    """Unfurl tuckit links pasted into Slack, permission-checked and rate-limited.
+
+    Two rules, both borrowed from Linear, both about not leaking:
+
+    1. The person who pasted the link must resolve to a member of the org
+       that owns the ref, via resolve_member(). An unresolvable person, or a
+       ref belonging to another org, produces no unfurl at all -- not an
+       error message, which would itself confirm the ref exists. This is the
+       one place in this slice where silence, not a spoken failure, is
+       correct.
+    2. The same ref is not re-expanded within UNFURL_COOLDOWN, so a ref
+       repeated in an active channel does not redraw a card every time.
+    """
+    install = SlackInstall.objects.filter(team_id=team_id).select_related("org").first()
+    if install is None:
+        return
+
+    member = resolve_member(install, event.get("user", ""))
+    if member is None:
+        return
+
+    unfurls = {}
+    cutoff = timezone.now() - UNFURL_COOLDOWN
+    for link in event.get("links", []):
+        url = link.get("url", "")
+        found = _slice_from_url(install.org, url)
+        if found is None:
+            continue
+        ref = slice_ref(found)
+        recent = SlackUnfurl.objects.filter(
+            install=install, ref=ref, last_unfurled_at__gte=cutoff,
+        ).exists()
+        if recent:
+            continue
+        unfurls[url] = cards.unfurl_block(found)
+        SlackUnfurl.objects.update_or_create(install=install, ref=ref)
+
+    if not unfurls:
+        return
+    SlackClient(install.bot_token).chat_unfurl(
+        channel=event.get("channel", ""), ts=event.get("message_ts", ""), unfurls=unfurls,
     )

@@ -51,6 +51,9 @@ class SlackClient:
         data = self._call("conversations.replies", channel=channel, ts=thread_ts, limit=limit)
         return data.get("messages", [])
 
+    def chat_unfurl(self, *, channel: str, ts: str, unfurls: dict) -> None:
+        self._call("chat.unfurl", channel=channel, ts=ts, unfurls=unfurls)
+
     def users_info(self, *, user_id: str) -> dict:
         # users:read only. We never request users:read.email, so nothing here
         # can return one — see the slice constraints.

@@ -56,3 +56,19 @@ class SlackEvent(models.Model):
     """
     event_id = models.CharField(max_length=64, unique=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
+class SlackUnfurl(models.Model):
+    """When a ref was last expanded, per install.
+
+    A ref repeated in an active channel should not redraw a card every time;
+    Linear uses a 60-minute window and it reads well.
+    """
+    install = models.ForeignKey(SlackInstall, on_delete=models.CASCADE, related_name="unfurls")
+    ref = models.CharField(max_length=32)
+    last_unfurled_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["install", "ref"], name="uniq_slack_unfurl_per_ref"),
+        ]

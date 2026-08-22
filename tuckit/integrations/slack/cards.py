@@ -39,3 +39,27 @@ def result_blocks(*, results, actor_name: str, message_count: int, board_url: st
 
 def failure_blocks(message: str) -> list:
     return [{"type": "section", "text": {"type": "mrkdwn", "text": f":warning: {message}"}}]
+
+
+def unfurl_block(slice_) -> dict:
+    """The Slack chat.unfurl payload for one tuckit link.
+
+    Imports refs/slices services locally, not at module scope, so this module
+    stays free of tuckit imports at import time (see the module docstring) --
+    it only needs them once a real slice is being rendered.
+    """
+    from tuckit.core.services.refs import slice_ref
+    from tuckit.core.services.slices import stage_of
+
+    area = slice_.area.name if slice_.area else "Inbox"
+    return {
+        "blocks": [
+            {"type": "section", "text": {
+                "type": "mrkdwn",
+                "text": f"*{slice_ref(slice_)}  {slice_.title}*",
+            }},
+            {"type": "context", "elements": [{
+                "type": "mrkdwn", "text": f"{area}  ·  {stage_of(slice_)}",
+            }]},
+        ],
+    }
