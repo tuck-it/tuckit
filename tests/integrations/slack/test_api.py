@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 
@@ -51,3 +53,24 @@ def test_exchange_oauth_code_raises_on_ok_false(settings, monkeypatch):
     with pytest.raises(SlackApiError, match="invalid_code"):
         from tuckit.integrations.slack.api import exchange_oauth_code
         exchange_oauth_code(code="test-code", redirect_uri="https://example.com/callback")
+
+
+def test_chat_unfurl_sends_the_map_as_a_json_string_not_an_object():
+    """Slack types `unfurls` as a string: "URL-encoded JSON map with keys set
+    to URLs featured in the message". An object is not rejected -- Slack
+    answers ok:true and renders nothing -- so this is the only layer that can
+    catch it. Every handler test stubs SlackClient and would stay green.
+    """
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"ok": True})
+
+    card = {"blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "*TP-1*"}}]}
+    client_with(handler).chat_unfurl(
+        channel="C1", ts="1.0", unfurls={"https://app.tuckit.dev/?slice=1": card},
+    )
+
+    assert isinstance(seen["unfurls"], str), "sent as an object; Slack will silently draw nothing"
+    assert json.loads(seen["unfurls"]) == {"https://app.tuckit.dev/?slice=1": card}

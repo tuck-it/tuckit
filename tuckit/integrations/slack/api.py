@@ -1,3 +1,5 @@
+import json
+
 import httpx
 from django.conf import settings
 
@@ -52,7 +54,14 @@ class SlackClient:
         return data.get("messages", [])
 
     def chat_unfurl(self, *, channel: str, ts: str, unfurls: dict) -> None:
-        self._call("chat.unfurl", channel=channel, ts=ts, unfurls=unfurls)
+        # `unfurls` is the one argument Slack types as a STRING rather than an
+        # object: "URL-encoded JSON map with keys set to URLs featured in the
+        # message". Sent as a bare object it is not rejected -- Slack answers
+        # ok:true and draws nothing, so the failure is invisible from here and
+        # from any test that stubs this client. Serialise it. `blocks`
+        # elsewhere really is an array over a JSON body, so this is local to
+        # this method rather than a rule about the whole API.
+        self._call("chat.unfurl", channel=channel, ts=ts, unfurls=json.dumps(unfurls))
 
     # No users.info here. Every name the bot prints comes from the OrgMember
     # behind the Slack user, so a Slack profile lookup would buy nothing and
