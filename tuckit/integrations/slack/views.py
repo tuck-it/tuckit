@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_not_required
+from django.contrib.auth.decorators import login_not_required, login_required
 from django.core import signing
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
@@ -16,7 +16,10 @@ from django.views.decorators.http import require_POST
 
 from tuckit.core.services.orgs import is_org_admin
 from tuckit.integrations.slack.api import SlackApiError, exchange_oauth_code
-from tuckit.integrations.slack.models import SlackEvent, SlackInstall
+from tuckit.integrations.slack.identity import (
+    CONNECT_STATE_MAX_AGE_SECONDS, CONNECT_STATE_SALT, connect_blocks, connect_state,
+)
+from tuckit.integrations.slack.models import SlackEvent, SlackIdentity, SlackInstall
 from tuckit.integrations.slack.queue import enqueue
 from tuckit.integrations.slack.signing import SlackSignatureError, verify_signature
 from tuckit.web.htmx import redirect_response
@@ -296,3 +299,118 @@ def slack_disconnect(request):
     SlackInstall.objects.filter(org=org).delete()
     messages.success(request, "Disconnected from Slack.")
     return redirect_response(request, "web:settings_slack", org_slug=org.slug)
+
+
+# --- Connect: linking a Slack user to the tuckit member behind them ---
+#
+# No org slug in any of these three routes -- same reason as slack_events and
+# slack_install_callback: Slack (or a Slack user's browser, arriving from an
+# ephemeral message) does not carry one. The org travels inside the signed
+# `state` (by way of the SlackInstall it names), never as a path parameter.
+
+
+@login_not_required
+def slack_connect_begin(request):
+    """The unauthenticated entry the ephemeral connect button points at.
+
+    An anonymous visitor must not lose the signed state on the way through
+    login, so it is forwarded as `?next=` on the login URL rather than
+    dropped. An already-authenticated visitor (clicking the button in a
+    browser where they are already signed into tuckit) skips the login hop
+    entirely and goes straight to the callback.
+    """
+    state = request.GET.get("state", "")
+    callback_url = f"{reverse('web:slack_connect_callback')}?{urlencode({'state': state})}"
+    if request.user.is_authenticated:
+        return redirect(callback_url)
+    return redirect(f"{reverse('web:login')}?{urlencode({'next': callback_url})}")
+
+
+@login_required
+def slack_connect_callback(request):
+    """Complete the link: the person currently logged into tuckit becomes the
+    OrgMember behind this Slack user, for this install.
+
+    Reached only by a person clicking a button while logged into tuckit --
+    never by an email match, never by a service account -- which is the whole
+    point: Slack's email field is workspace-owned and unverified, so it must
+    never be trusted as identity evidence.
+    """
+    try:
+        state = signing.loads(
+            request.GET.get("state", ""), salt=CONNECT_STATE_SALT,
+            max_age=CONNECT_STATE_MAX_AGE_SECONDS,
+        )
+    except signing.BadSignature:
+        return HttpResponse("invalid state", status=400)
+
+    from tuckit.core.models import OrgMember
+
+    install = SlackInstall.objects.filter(id=state.get("install_id")).select_related("org").first()
+    if install is None:
+        return HttpResponse("invalid state", status=400)
+
+    # OrgMember.objects is the active manager, so an ended membership does not
+    # match here either -- someone who left cannot re-link themselves.
+    membership = OrgMember.objects.filter(org=install.org, user=request.user).first()
+    if membership is None:
+        return HttpResponse("you are not a member of this workspace", status=403)
+
+    SlackIdentity.objects.update_or_create(
+        install=install, slack_user_id=state.get("slack_user_id"),
+        defaults={"member": membership},
+    )
+    return render(request, "web/slack/connected.html", {"org": install.org})
+
+
+@csrf_exempt
+@login_not_required
+@require_POST
+def slack_command(request):
+    """POST /slack/command -- Slack slash commands.
+
+    Verified exactly as slack_events verifies event callbacks. Slack sends
+    slash commands form-encoded, so request.body must be read before
+    request.POST touches the stream -- reversing the order re-serialises the
+    body and the HMAC stops matching what Slack actually signed.
+    """
+    raw_body = request.body
+    try:
+        verify_signature(
+            signing_secret=settings.SLACK_SIGNING_SECRET,
+            timestamp=request.headers.get("X-Slack-Request-Timestamp", ""),
+            raw_body=raw_body,
+            signature=request.headers.get("X-Slack-Signature", ""),
+        )
+    except SlackSignatureError as exc:
+        logger.warning("rejected a Slack slash command: %s", exc)
+        return HttpResponse(status=401)
+
+    text = (request.POST.get("text") or "").strip()
+    team_id = request.POST.get("team_id", "")
+    user_id = request.POST.get("user_id", "")
+
+    # /tuckit connect is the only subcommand this integration supports. The
+    # button in the ephemeral reply to a failed mention is the primary path
+    # to linking an account; this is only a second way in for someone who
+    # already knows the slash command exists.
+    if text != "connect":
+        return JsonResponse({
+            "response_type": "ephemeral",
+            "text": "The only command I understand is `/tuckit connect`.",
+        })
+
+    install = SlackInstall.objects.filter(team_id=team_id).first()
+    if install is None:
+        return JsonResponse({
+            "response_type": "ephemeral",
+            "text": "This Slack workspace is not connected to a tuckit org yet.",
+        })
+
+    connect_url = request.build_absolute_uri(
+        f"{reverse('web:slack_connect_begin')}?{urlencode({'state': connect_state(install, user_id)})}"
+    )
+    return JsonResponse({
+        "response_type": "ephemeral",
+        "blocks": connect_blocks(connect_url),
+    })
