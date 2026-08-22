@@ -2680,3 +2680,16 @@ body.canvas-maxed .ob-widget { display: none; }
   background: var(--blue-soft); color: var(--blue-strong); border-color: var(--blue);
 }
 .spine-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* Folding a branch. .cnode is already position:absolute, so this anchors to
+   the card without anything else changing. */
+.cnode-fold {
+  position: absolute; right: -9px; top: 50%; transform: translateY(-50%);
+  min-width: 18px; height: 18px; padding: 0 4px; cursor: pointer;
+  font: inherit; font-size: var(--text-xs); line-height: 1;
+  border: 1px solid var(--line); border-radius: var(--radius-small);
+  background: var(--paper-raised); color: var(--ink-faint);
+}
+.cnode-fold[aria-expanded="false"] { background: var(--blue-soft); color: var(--blue-strong); }
+.cnode-fold:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.canvas-stage:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }

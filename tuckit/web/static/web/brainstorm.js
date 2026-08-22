@@ -15,6 +15,26 @@
   var byId = {};
   cards.forEach(function (el) { byId[el.dataset.id] = el; });
 
+  /* Mirror of canvas.visible_under(). Collapsing is client-only: there is no
+     stored collapse state, so the server's first-paint guess never has one to
+     honour. */
+  var collapsed = Object.create(null);
+
+  function visible(list) {
+    var hidden = {}, changed = true;
+    while (changed) {
+      changed = false;
+      list.forEach(function (el) {
+        var p = el.dataset.parent;
+        if (p && !hidden[el.dataset.id] && (collapsed[p] || hidden[p])) {
+          hidden[el.dataset.id] = true;
+          changed = true;
+        }
+      });
+    }
+    return list.filter(function (el) { return !hidden[el.dataset.id]; });
+  }
+
   var tx = 24, ty = 20, scale = 1;
   var placed = null;
   var seen = Object.create(null);        // cards already placed at least once
@@ -36,7 +56,11 @@
      away from wherever the reader was looking, and they would have to hunt for
      it again. */
   function setScale(next) {
-    next = Math.max(0.25, Math.min(1.6, next));
+    /* A floor of 0.25 made "Fit" name a scale it then refused to apply --
+       the same defect class as a comment promising a click that does not
+       exist. Labelled cards rarely reach this now, but when they do it draws
+       small rather than lying. */
+    next = Math.max(0.05, Math.min(1.6, next));
     var cx = stage.clientWidth / 2, cy = stage.clientHeight / 2;
     tx = cx - ((cx - tx) / scale) * next;
     ty = cy - ((cy - ty) / scale) * next;
@@ -62,7 +86,7 @@
     if (!r) return;
     var pad = 40;
     var w = r.b - r.a, h = r.d - r.c;
-    scale = Math.max(0.25, Math.min(
+    scale = Math.max(0.05, Math.min(
       (stage.clientWidth - pad * 2) / w, (stage.clientHeight - pad * 2) / h, 1.6));
     tx = pad - r.a * scale + Math.max(0, (stage.clientWidth - pad * 2 - w * scale) / 2);
     ty = pad - r.c * scale + Math.max(0, (stage.clientHeight - pad * 2 - h * scale) / 2);
@@ -145,14 +169,21 @@
     });
 
     // PASS 2 -- measure, lay out, place
+    var shown = visible(cards);
+    var onScreen = {};
+    shown.forEach(function (el) { onScreen[el.dataset.id] = true; });
+    cards.forEach(function (el) {
+      el.style.display = onScreen[el.dataset.id] ? "" : "none";
+    });
+
     var heights = {};
-    cards.forEach(function (el) { heights[el.dataset.id] = el.offsetHeight; });
-    placed = layout(cards, heights);
+    shown.forEach(function (el) { heights[el.dataset.id] = el.offsetHeight; });
+    placed = layout(shown, heights);
 
     /* Only cards that ARRIVED animate. Replaying the entrance for a graph that
        was already complete means every page load opens on ~2s of empty canvas. */
-    var arriving = cards.filter(function (el) { return !seen[el.dataset.id]; });
-    cards.forEach(function (el) {
+    var arriving = shown.filter(function (el) { return !seen[el.dataset.id]; });
+    shown.forEach(function (el) {
       var p = placed.get(el.dataset.id);
       if (!p) return;
       var target = "translate(" + p.x + "px," + p.y + "px)";
@@ -214,6 +245,14 @@
     cards.forEach(function (el) {
       var pid = el.dataset.parent;
       if (!pid) return;
+      /* Either end may have been folded away. A path left behind would hang
+         in space, anchored to a card nobody can see. */
+      var path0 = svg.querySelector('[data-k="' + pid + '>' + el.dataset.id + '"]');
+      if (!placed.get(pid) || !placed.get(el.dataset.id)) {
+        if (path0) path0.remove();
+        delete drawnEdges[pid + ">" + el.dataset.id];
+        return;
+      }
       var a = placed.get(pid), b = placed.get(el.dataset.id);
       if (!a || !b) return;
 
@@ -323,7 +362,7 @@
   /* Drag the background to pan. */
   var dragging = false, sx = 0, sy = 0;
   stage.addEventListener("mousedown", function (e) {
-    if (e.target.closest(".cnode")) return;
+    if (!spaceDown && e.target.closest(".cnode")) return;
     dragging = true; sx = e.clientX - tx; sy = e.clientY - ty;
     stage.classList.add("is-dragging");
     world.style.transition = "none";
@@ -372,6 +411,63 @@
     if (maxBtn) maxBtn.focus();
   });
 
+  /* Wheel PANS, Cmd/Ctrl+wheel ZOOMS -- what every canvas tool does. Without
+     it the wheel scrolls the document, so a reader trying to explore the map
+     scrolls straight past it. passive:false is required: the browser assumes
+     a wheel listener is passive and ignores preventDefault otherwise. */
+  stage.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      setScale(scale * (e.deltaY < 0 ? 1.08 : 1 / 1.08));
+      return;
+    }
+    world.style.transition = "none";
+    tx -= e.deltaX;
+    ty -= e.deltaY;
+    userMovedAt = Date.now();
+    applyView();
+  }, { passive: false });
+
+  /* Space+drag pans from anywhere, cards included -- the only way to move a
+     dense tree without hunting for a patch of background. */
+  var spaceDown = false;
+  document.addEventListener("keydown", function (e) {
+    if (e.code === "Space" && root.contains(document.activeElement)) {
+      spaceDown = true;
+      stage.classList.add("is-dragging");
+      e.preventDefault();
+    }
+  });
+  document.addEventListener("keyup", function (e) {
+    if (e.code !== "Space") return;
+    spaceDown = false;
+    if (!dragging) stage.classList.remove("is-dragging");
+  });
+
+  stage.addEventListener("keydown", function (e) {
+    if (e.key === "1" && e.shiftKey) { fit(); e.preventDefault(); }
+    else if (e.key === "0" && (e.metaKey || e.ctrlKey)) { setScale(1); e.preventDefault(); }
+    else if (e.key === "+" || e.key === "=") { setScale(scale * 1.25); e.preventDefault(); }
+    else if (e.key === "-") { setScale(scale / 1.25); e.preventDefault(); }
+  });
+
+  /* Folding a branch. One function so the button and window.__canvas.collapse
+     take the same path -- a check that drives a private variable is checking
+     something no user can reach. */
+  function setCollapsed(id, on) {
+    collapsed[id] = !!on;
+    var btn = byId[id] && byId[id].querySelector("[data-fold]");
+    if (btn) btn.setAttribute("aria-expanded", on ? "false" : "true");
+    render(false);
+  }
+
+  stage.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-fold]");
+    if (!btn) return;
+    var id = btn.closest(".cnode").dataset.id;
+    setCollapsed(id, !collapsed[id]);
+  });
+
   root.querySelectorAll("[data-zoom]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var how = btn.dataset.zoom;
@@ -384,6 +480,7 @@
   render(true);
 
   window.__canvas = { render: render, layout: layout, fit: fit, setScale: setScale,
+                     collapse: setCollapsed,
                      sync: syncFromServer, maximize: maximize,
                      placed: function () { return placed; },
                      view: function () { return { tx: tx, ty: ty, scale: scale }; } };

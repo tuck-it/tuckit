@@ -19,7 +19,7 @@ never flashes in the wrong spot.
     <button type="button" class="canvas-zoom canvas-max" data-maximize
             aria-expanded="false">Expand</button>
   </div>
-  <div class="canvas-stage" data-stage>
+  <div class="canvas-stage" data-stage tabindex="0">
     <div class="canvas-world" data-world>
       <svg class="canvas-edges" data-edges aria-hidden="true"></svg>
       {% for n in canvas_nodes %}
@@ -35,6 +35,10 @@ never flashes in the wrong spot.
            itself the control. {% endcomment %}
         <h3 class="cnode-t">{{ n.title }}</h3>
         {% if n.summary %}<p class="cnode-s">{{ n.summary }}</p>{% endif %}
+        {% if n.child_count %}
+        <button type="button" class="cnode-fold" data-fold aria-expanded="true"
+                aria-label="Collapse this branch">{{ n.child_count }}</button>
+        {% endif %}
         {% if n.media %}
         <div class="cnode-media">
           {% for m in n.media %}

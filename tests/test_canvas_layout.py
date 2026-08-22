@@ -1,6 +1,7 @@
 import pytest
 
-from tuckit.core.services.canvas import COL_W, NODE_W, ROW_GAP, layout
+from tuckit.core.services.canvas import (
+    COL_W, NODE_W, ROW_GAP, layout, visible_under)
 
 
 def _tree():
@@ -62,3 +63,24 @@ def test_missing_heights_fall_back_to_a_default():
 def test_row_gap_is_honoured_between_siblings():
     pos = layout(_tree(), {})
     assert pos["b2"]["y"] - (pos["b1"]["y"] + pos["b1"]["h"]) == ROW_GAP
+
+
+# ---- collapsing a branch --------------------------------------------------
+
+def test_collapsing_a_node_hides_everything_beneath_it():
+    nodes = [{"id": "a", "parent": None}, {"id": "b", "parent": "a"},
+             {"id": "c", "parent": "b"}, {"id": "d", "parent": "a"}]
+
+    assert [n["id"] for n in visible_under(nodes, {"b"})] == ["a", "b", "d"]
+
+
+def test_a_collapsed_node_itself_stays_visible():
+    nodes = [{"id": "a", "parent": None}, {"id": "b", "parent": "a"}]
+
+    assert [n["id"] for n in visible_under(nodes, {"a"})] == ["a"]
+
+
+def test_nothing_collapsed_shows_everything():
+    nodes = [{"id": "a", "parent": None}, {"id": "b", "parent": "a"}]
+
+    assert len(visible_under(nodes, set())) == 2

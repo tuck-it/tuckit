@@ -1,3 +1,5 @@
+from collections import Counter
+
 import markdown as md
 import nh3
 
@@ -26,6 +28,18 @@ def render_markdown_html(text: str) -> str:
 
 # Back-compat alias (slice spec uses the same sanitizer).
 render_spec_html = render_markdown_html
+
+
+def _map_nodes(slice_) -> list[dict]:
+    """Nodes for the map, re-parented and counted.
+
+    The count is stamped here rather than worked out in the template, which
+    has no logic in it and should not gain any: it is how many children a card
+    would fold away, and the fold control only exists when there are some.
+    """
+    nodes = reparented(graph_for(slice_))
+    counts = Counter(n.get("parent") for n in nodes if n.get("parent"))
+    return [dict(n, child_count=counts.get(n["id"], 0)) for n in nodes]
 
 
 def _with_body(node: dict) -> dict:
@@ -86,7 +100,7 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
         #   - no body. A card is a label. Prose on cards is what made one tree
         #     3240x5537px, which is why Fit bottomed out at 25% and still did
         #     not fit. The spine is where prose belongs.
-        "canvas_nodes": reparented(graph_for(slice_)),
+        "canvas_nodes": _map_nodes(slice_),
         # The reading view. Bodies ARE rendered here, unlike on the map: a
         # spine row is as wide as the page column, so prose costs nothing, and
         # this is the surface that has to answer "why did that win".

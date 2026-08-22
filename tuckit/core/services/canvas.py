@@ -208,3 +208,24 @@ def reparented(nodes):
             node = dict(node, parent=winner)
         out.append(node)
     return out
+
+
+def visible_under(nodes, collapsed):
+    """The nodes still on screen when `collapsed` ids have their subtrees shut.
+
+    A collapsed node stays; its descendants do not. It lives here rather than
+    only in the browser so the rule can be checked without one -- the server
+    never collapses anything itself, because there is no stored collapse state
+    and first paint has nothing to remember.
+    """
+    hidden = set()
+    changed = True
+    while changed:
+        changed = False
+        for node in nodes:
+            parent = node.get("parent")
+            if parent and node["id"] not in hidden \
+                    and (parent in collapsed or parent in hidden):
+                hidden.add(node["id"])
+                changed = True
+    return [n for n in nodes if n["id"] not in hidden]
