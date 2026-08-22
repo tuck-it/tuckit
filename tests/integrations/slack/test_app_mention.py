@@ -8,30 +8,10 @@ from tuckit.integrations.slack.models import SlackIdentity, SlackInstall
 
 pytestmark = pytest.mark.django_db
 
-
-class FakeSlack:
-    def __init__(self, *a, **k):
-        self.posted, self.updated, self.ephemeral = [], [], []
-
-    def post_message(self, **kw):
-        self.posted.append(kw)
-        return "ts-1"
-
-    def update_message(self, **kw):
-        self.updated.append(kw)
-
-    def post_ephemeral(self, **kw):
-        self.ephemeral.append(kw)
-
-    def conversations_replies(self, **kw):
-        return [{"user": "U1", "text": "the bug"}, {"user": "U2", "text": "@Tuckit file it"}]
-
-
-@pytest.fixture
-def fake_slack(monkeypatch):
-    holder = FakeSlack()
-    monkeypatch.setattr("tuckit.integrations.slack.handlers.SlackClient", lambda *a, **k: holder)
-    return holder
+# FakeSlack and the fake_slack fixture come from tests/integrations/slack/conftest.py
+# (shared by every handler test, per bite 252) rather than a local copy here --
+# a local copy would silently drift from the shared one as later bites (e.g. 249's
+# chat_unfurl/unfurled) extend it.
 
 
 @pytest.fixture
