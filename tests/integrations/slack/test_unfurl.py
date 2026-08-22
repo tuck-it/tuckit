@@ -24,8 +24,12 @@ def install(org):
     return SlackInstall.objects.create(org=org, team_id="T1", bot_token="x", bot_user_id="U0")
 
 
-def event_for(url: str) -> dict:
-    return {"type": "link_shared", "channel": "C1", "user": "U9", "message_ts": "1.0",
+def event_for(url: str, channel: str = "C1") -> dict:
+    """One link_shared. `channel` is a parameter because the cooldown is keyed
+    on it -- a helper that hard-codes one channel cannot see a cooldown that
+    leaks across channels, which is precisely the defect this file missed.
+    """
+    return {"type": "link_shared", "channel": channel, "user": "U9", "message_ts": "1.0",
             "links": [{"url": url, "domain": "app.tuckit.dev"}]}
 
 
@@ -60,6 +64,43 @@ def test_the_same_ref_is_not_expanded_twice_within_the_hour(
     handle_link_shared(team_id="T1", event=event_for(url))
     handle_link_shared(team_id="T1", event=event_for(url))
     assert len(fake_slack.unfurled) == 1
+
+
+def test_the_same_ref_in_another_channel_is_still_expanded(
+    install, member, slice_factory, fake_slack, settings,
+):
+    """The cooldown stops a channel from redrawing the same card, not a
+    workspace from ever seeing it twice.
+
+    Alice shares a ref in #eng; ten minutes later Bob shares it in #design.
+    Bob's channel must get a card. Keyed on (install, ref) alone, Bob sees
+    nothing at all -- and unfurling is the one path that is forbidden to
+    explain itself, so nothing is logged and nobody can tell why.
+    """
+    SlackIdentity.objects.create(install=install, slack_user_id="U9", member=member)
+    target = slice_factory(title="Shared twice")
+    url = f"{settings.TUCKIT_BASE_URL}/{install.org.slug}/?slice={target.id}"
+
+    handle_link_shared(team_id="T1", event=event_for(url, channel="C-eng"))
+    handle_link_shared(team_id="T1", event=event_for(url, channel="C-design"))
+
+    assert len(fake_slack.unfurled) == 2
+    assert [u["channel"] for u in fake_slack.unfurled] == ["C-eng", "C-design"]
+
+
+def test_the_cooldown_is_recorded_against_the_channel_it_was_drawn_in(
+    install, member, slice_factory, fake_slack, settings,
+):
+    """A second card in the same channel is still suppressed."""
+    SlackIdentity.objects.create(install=install, slack_user_id="U9", member=member)
+    target = slice_factory(title="Repeated in one channel")
+    url = f"{settings.TUCKIT_BASE_URL}/{install.org.slug}/?slice={target.id}"
+
+    handle_link_shared(team_id="T1", event=event_for(url, channel="C-eng"))
+    handle_link_shared(team_id="T1", event=event_for(url, channel="C-eng"))
+
+    assert len(fake_slack.unfurled) == 1
+    assert SlackUnfurl.objects.filter(install=install, channel="C-eng").count() == 1
 
 
 def test_the_ref_is_expanded_again_after_the_cooldown_expires(
