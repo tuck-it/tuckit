@@ -207,6 +207,12 @@ SLACK_CLIENT_ID = env("SLACK_CLIENT_ID", default="")
 SLACK_CLIENT_SECRET = env("SLACK_CLIENT_SECRET", default="")
 SLACK_SIGNING_SECRET = env("SLACK_SIGNING_SECRET", default="")
 
+# Absolute origin the Slack integration builds links against (e.g. the
+# ephemeral connect button and the result card's board link). Built here
+# rather than from a request, because the app_mention handler runs as a
+# queued job with no request in scope.
+TUCKIT_BASE_URL = env("TUCKIT_BASE_URL", default="http://localhost:8000")
+
 # Queue backend for async job execution (e.g., processing Slack events).
 # Cloud deployments will set this to a Cloud Tasks backend; self-hosts use
 # the in-process default.
