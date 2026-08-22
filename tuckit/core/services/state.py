@@ -151,6 +151,13 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False, *,
     lines = [f"# {slice_.title}", "", f"Status: {slice_.status}"]
     if tags:
         lines[-1] += f" · {tags}"
+    # Only when someone set it. An unranked slice printing a number would be the
+    # renderer inventing a decision nobody made -- the same rule the board badge
+    # follows. What the number MEANS is org.priority_policy, which the agent
+    # already has from get_project_state; repeating it on every slice would be
+    # the same paragraph N times in one session.
+    if slice_.priority:
+        lines.append(f"Priority: {slice_.priority}")
     # What to do next, derived from the spec and the slice's steps — the first thing a
     # caller needs, and the reason get_slice is worth calling before anything
     # else. Never stored; see slice_stage().

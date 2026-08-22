@@ -599,3 +599,103 @@ async def test_every_slice_in_a_batch_keeps_its_own_activity_row():
 
     for sid in ids:
         assert "dropped" in await get_slice(ctx, sid, with_activity=True)
+
+
+# --- priority (TP-178) ------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_an_agent_can_set_and_read_priority():
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, "Leak", area_id=area_id, priority=1)
+
+    assert created["priority"] == 1
+    assert (await list_slices(ctx, area_id))[0]["priority"] == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_priority_is_absent_until_someone_sets_it():
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, "Unranked", area_id=area_id)
+
+    assert created["priority"] is None
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_a_priority_outside_the_scale_is_refused():
+    """Silently clamping would let an agent think it filed something urgent."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, "Thing", area_id=area_id)
+
+    with pytest.raises(InvalidValue):
+        await update_slice(ctx, created["id"], priority=9)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_priority_can_be_cleared_back_to_unset():
+    """Unset is a real value, so there has to be a way back to it -- the same
+    reversibility area_id has."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, "Thing", area_id=area_id, priority=2)
+
+    assert (await update_slice(ctx, created["id"], priority=0))["priority"] is None
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_a_batch_can_set_priority():
+    """Triage is the case this exists for: twenty captures, one call."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    ids = [(await create_slice(ctx, f"S{i}", area_id=area_id))["id"] for i in range(3)]
+
+    rows = await update_slice(ctx, ids, priority=3)
+
+    assert [r["priority"] for r in rows] == [3, 3, 3]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_a_batch_still_refuses_the_fields_that_destroy_text():
+    """priority joining the batch must not widen it. The reason spec/title are
+    refused is that one body written across many slices cannot be undone, and
+    that is unchanged by priority being reversible."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    ids = [(await create_slice(ctx, f"S{i}", area_id=area_id))["id"] for i in range(2)]
+
+    with pytest.raises(InvalidValue):
+        await update_slice(ctx, ids, spec="one body for all of them")
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_get_slice_shows_the_priority_someone_set():
+    """get_slice returns markdown, not slice_dict, so serializing priority did
+    not reach the single-slice read path -- the one an agent calls before it
+    touches the work."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, "Leak", area_id=area_id, priority=1)
+
+    assert "Priority: 1" in await get_slice(ctx, created["id"])
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_get_slice_prints_no_priority_line_when_nobody_ranked_it():
+    """Unset must not render as a number: that would be the renderer inventing
+    a decision nobody made."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, "Unranked", area_id=area_id)
+
+    assert "Priority:" not in await get_slice(ctx, created["id"])

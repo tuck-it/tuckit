@@ -128,6 +128,7 @@ def create_slice(
     spec: str = "",
     constraints: str = "",
     status: str = "open",
+    priority: int | None = None,
     tags: list[str] | None = None,
     before: Slice | None = None,
     after: Slice | None = None,
@@ -169,7 +170,7 @@ def create_slice(
             # promised "Setting an area later files it."
             update_slice(
                 existing, title=title, spec=spec or None,
-                constraints=constraints or None, tags=tags,
+                constraints=constraints or None, priority=priority, tags=tags,
                 assignee=(1 if assignee_member is not None else None),
                 assignee_member=assignee_member, source=source, member=member,
             )
@@ -182,6 +183,12 @@ def create_slice(
                 existing.save(update_fields=["created_by", "updated_at"])
             return existing
     validate_choice(status, Slice.STATUS_CHOICES, "status")
+    # 0 means "unset", matching update_slice's clear signal, and unset is
+    # already the default -- so it normalises to None rather than erroring.
+    if priority == 0:
+        priority = None
+    if priority is not None:
+        validate_choice(priority, Slice.PRIORITY_CHOICES, "priority")
     rank = rank_for(Slice, {"area": area}, before=before, after=after)
     with transaction.atomic():
         if number is None:
@@ -193,6 +200,7 @@ def create_slice(
             spec=spec,
             constraints=constraints,
             status=status,
+            priority=priority,
             rank=rank,
             source=source,
             number=number,
@@ -214,6 +222,7 @@ def update_slice(
     spec: str | None = None,
     constraints: str | None = None,
     status: str | None = None,
+    priority: int | None = None,
     tags: list[str] | None = None,
     duplicate_of: Slice | None = None,
     assignee=None,
@@ -258,6 +267,14 @@ def update_slice(
     if status is not None:
         validate_choice(status, Slice.STATUS_CHOICES, "status")
         _apply_status(slice_, status)
+    if priority is not None:
+        # 0 clears. None means "leave it alone", so it cannot double as the
+        # clear signal -- the same shape as assignee='' elsewhere in this file.
+        if priority == 0:
+            slice_.priority = None
+        else:
+            validate_choice(priority, Slice.PRIORITY_CHOICES, "priority")
+            slice_.priority = priority
     if assignee is not None:
         slice_.assignee = assignee_member
     if before is not None or after is not None:

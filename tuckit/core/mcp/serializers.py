@@ -33,6 +33,9 @@ def slice_dict(slice_, *, now=None) -> dict:
         "ref": slice_ref(slice_),
         "title": slice_.title,
         "status": slice_.status,
+        # None means nobody has ranked it -- a real state, not a gap. What each
+        # number means is org.priority_policy, from get_project_state.
+        "priority": slice_.priority,
         "tags": tag_names(slice_),
         "area_id": slice_.area_id,
         "assignee": (slice_.assignee.user.email if slice_.assignee_id else None),
