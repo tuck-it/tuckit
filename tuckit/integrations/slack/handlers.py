@@ -65,9 +65,18 @@ def handle_app_mention(*, team_id: str, event: dict) -> None:
     if member is None:
         # No placeholder: nothing is going to happen, and a public "working on
         # it…" that resolves to nothing is worse than an ephemeral answer.
+        #
+        # thread_ts is the mention's OWN thread, never reply_ts. reply_ts falls
+        # back to the mention's ts, and an ephemeral addressed to a message
+        # that has no thread yet is accepted (ok:true) and then shown only
+        # inside a thread nobody has opened -- the channel shows nothing at
+        # all, because an ephemeral leaves no reply count behind the way the
+        # placeholder does. This button IS the discovery path for connecting,
+        # so hiding it reads to a first-time user as "the bot is broken",
+        # which is the exact failure this branch exists to avoid.
         url = f"{settings.TUCKIT_BASE_URL}/slack/connect?state={connect_state(install, slack_user_id)}"
         client.post_ephemeral(
-            channel=channel, user=slack_user_id, thread_ts=reply_ts,
+            channel=channel, user=slack_user_id, thread_ts=event.get("thread_ts"),
             text="Connect your tuckit account to use this.",
             blocks=connect_blocks(url),
         )
