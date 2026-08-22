@@ -15,7 +15,8 @@ def assert_queue_backend_contract(backend, poll_timeout_seconds: float = 5.0) ->
     """Contract: a queue backend must call the job handler with the payload.
 
     This assertion is shared by all backends (in-process, Cloud Tasks, etc.)
-    and must pass for both core and cloud.
+    and must pass for both core and cloud. Handlers are called with keyword
+    arguments unpacked from the payload: handler(**payload).
 
     Args:
         backend: A callable(job_name: str, payload: dict) backend to test
@@ -25,11 +26,11 @@ def assert_queue_backend_contract(backend, poll_timeout_seconds: float = 5.0) ->
         AssertionError: If the job handler was not called
     """
     # Set up a test job that marks itself as run
-    test_state = {"was_called": False, "received_payload": None}
+    test_state = {"was_called": False, "received_kwargs": None}
 
-    def test_job_handler(payload: dict) -> None:
+    def test_job_handler(*, key: str, number: int) -> None:
         test_state["was_called"] = True
-        test_state["received_payload"] = payload
+        test_state["received_kwargs"] = {"key": key, "number": number}
 
     JOBS["__contract_test_job__"] = test_job_handler
     test_payload = {"key": "value", "number": 42}
@@ -53,7 +54,7 @@ def assert_queue_backend_contract(backend, poll_timeout_seconds: float = 5.0) ->
         "Either the backend did not execute the job, or execution took too long."
     )
 
-    # Assert the payload was passed correctly
-    assert test_state["received_payload"] == test_payload, (
-        f"Payload mismatch. Expected {test_payload}, got {test_state['received_payload']}"
+    # Assert the payload was passed correctly (as keyword arguments)
+    assert test_state["received_kwargs"] == test_payload, (
+        f"Payload mismatch. Expected {test_payload}, got {test_state['received_kwargs']}"
     )

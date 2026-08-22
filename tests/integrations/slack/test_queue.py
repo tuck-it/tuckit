@@ -25,12 +25,12 @@ def test_payload_must_be_json_serialisable():
 
     # Register a dummy job
     @job("test_job")
-    def handler(payload):
+    def handler(*, key: str):
         pass
 
     # Try to enqueue with a non-serialisable payload
     with pytest.raises(TypeError, match="not JSON-serializable"):
-        enqueue("test_job", {"obj": NonSerializable()})
+        enqueue("test_job", {"key": NonSerializable()})
 
     # Clean up
     del JOBS["test_job"]
@@ -39,22 +39,38 @@ def test_payload_must_be_json_serialisable():
 def test_in_process_backend_satisfies_the_contract():
     """Test that the in-process backend passes the queue contract.
 
-    This test verifies that the backend actually executes the job on a thread
-    and passes the payload correctly. If the backend did nothing, the contract
-    test would hang until timeout and fail.
+    This test verifies that the backend actually executes the job on a thread,
+    unpacks the payload as keyword arguments, and passes them correctly.
+    If the backend did nothing, the contract test would hang until timeout and fail.
     """
     assert_queue_backend_contract(in_process_backend)
 
 
+def test_unknown_job_name_raises_rather_than_passing_silently():
+    """Test that enqueue() raises KeyError for unregistered jobs at call time.
+
+    The job name is validated at the call site (where enqueue() is called),
+    not later on a background thread. This ensures the caller learns of the
+    error immediately, with a traceback that still belongs to them.
+    """
+    # Try to enqueue a job that is not registered
+    with pytest.raises(KeyError, match="No handler registered for job 'nonexistent'"):
+        enqueue("nonexistent", {"some": "data"})
+
+
 def test_run_job_calls_the_registered_handler():
-    """Test that run_job() executes the registered handler with the payload."""
+    """Test that run_job() executes the registered handler with keyword arguments.
+
+    The payload dict is unpacked as **kwargs and passed to the handler,
+    which must have keyword-only parameters matching the payload keys.
+    """
     calls = []
 
     @job("tracked_job")
-    def handler(payload):
-        calls.append(payload)
+    def handler(*, key: str, value: int):
+        calls.append({"key": key, "value": value})
 
-    test_payload = {"key": "value"}
+    test_payload = {"key": "test", "value": 42}
     run_job("tracked_job", test_payload)
 
     assert len(calls) == 1
@@ -67,14 +83,14 @@ def test_run_job_calls_the_registered_handler():
 def test_enqueue_returns_immediately():
     """Test that enqueue() returns without waiting for job completion.
 
-    The job runs on a background thread (or is deferred to a queue), so
-    enqueue() should return immediately even though the job has not
+    The job runs on a background daemon thread (or is deferred to a queue),
+    so enqueue() should return immediately even though the job has not
     finished yet.
     """
     job_completed = False
 
     @job("slow_job")
-    def slow_handler(payload):
+    def slow_handler():
         nonlocal job_completed
         import time
         time.sleep(0.5)  # Simulate a slow job
