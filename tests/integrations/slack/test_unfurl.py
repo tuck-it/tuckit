@@ -144,11 +144,12 @@ def test_a_successful_unfurl_records_the_cooldown(
 
 
 def composer_event_for(url: str) -> dict:
-    """What Slack sends while the link is still in the composer.
+    """A link_shared with no message to attach to.
 
-    No message exists yet, so there is no message_ts to attach an unfurl to.
-    Slack sends this in ADDITION to the conversations_history event that
-    follows once the message is posted, so a paste produces two events.
+    Named for the composer because that is the documented source that has no
+    ts yet. We have NOT observed Slack sending one -- the handler's skip log
+    has never fired in production -- so treat this as the shape of a guard,
+    not as a recording of real traffic.
     """
     return {"type": "link_shared", "channel": "C1", "user": "U9", "source": "composer",
             "unfurl_id": "C1.123.abc",
@@ -168,12 +169,11 @@ def test_a_composer_preview_is_not_answered_at_all(
 def test_a_composer_preview_does_not_burn_the_cooldown(
     install, member, slice_factory, fake_slack, settings,
 ):
-    """The real event lands milliseconds later and must still be answered.
+    """A call that cannot land must not cost the ref its hour.
 
-    This is the half that made the defect invisible: the composer call
-    'succeeded', so the cooldown row was written, and the posted-message event
-    that followed was skipped as a repeat. One paste, no card, and the ref
-    unexpandable for an hour.
+    chat.unfurl with an empty ts returns ok:true, so without the guard the
+    cooldown row is written for an unfurl nobody ever saw, and every later
+    attempt at that ref is skipped as a repeat for the next hour.
     """
     SlackIdentity.objects.create(install=install, slack_user_id="U9", member=member)
     slice_ = slice_factory()

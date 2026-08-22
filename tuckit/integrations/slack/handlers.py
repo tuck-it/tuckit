@@ -186,16 +186,19 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
     if member is None:
         return
 
-    # Slack fires link_shared twice for one paste: once from the COMPOSER,
-    # while the message is still being typed and therefore has no ts yet, and
-    # once from conversations_history for the posted message. Answering the
-    # composer event with chat.unfurl(ts="") is accepted -- ok:true -- and
-    # draws nothing, and then the cooldown row written below suppresses the
-    # real event that arrives milliseconds later. One paste, one silent call,
-    # and the ref stays unexpandable for an hour. We do not want composer
-    # previews at all, so the event without a message to attach to is not our
-    # business. The log line names no ref, title or URL: the silence rule in
-    # this handler covers logs too.
+    # An event with no message_ts has no message to attach an unfurl to.
+    # chat.unfurl(ts="") is ACCEPTED by Slack -- ok:true -- and draws nothing,
+    # and the cooldown row written below would then suppress any later attempt
+    # at the same ref for an hour. So the guard is about never burning the
+    # cooldown on a call that cannot land.
+    #
+    # It is a guard, NOT a fix for an observed failure. It shipped in v0.65.0
+    # on the theory that Slack was sending a second, composer-sourced event
+    # without a ts; the log line below has never fired since, so that theory
+    # has no evidence behind it. Do not cite it as the reason unfurls once
+    # looked broken -- that was a synthetic URL nobody would ever share.
+    # The log names no ref, title or URL: this handler's silence rule covers
+    # logs too.
     message_ts = event.get("message_ts") or ""
     if not message_ts:
         logger.info(
