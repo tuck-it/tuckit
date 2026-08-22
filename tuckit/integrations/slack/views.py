@@ -35,13 +35,25 @@ EVENT_JOBS = {
 }
 
 
+class _DuplicateDelivery(Exception):
+    """Slack re-delivered an event_id we have already accepted.
+
+    Its own type so the `except` in slack_events can mean exactly the
+    SlackEvent row conflict and nothing else. Catching `IntegrityError`
+    around the whole atomic block would also swallow one raised by
+    _enqueue_or_release, which runs from the on_commit hook and so surfaces
+    at the block's __exit__, inside the same try. That is a lost event
+    wearing a duplicate's clothes; see the comment at the raise site.
+    """
+
+
 def _enqueue_or_release(event_id: str, job_name: str, payload: dict) -> None:
     """Queue the job, and hand the idempotency token back if that fails.
 
     The SlackEvent row exists to make Slack's retry safe, so it must not
     outlive a delivery that queued nothing. If `enqueue` raises (Cloud Tasks
     unreachable, IAM refused, queue misconfigured) and the row stayed, Slack's
-    retry of the same event_id would hit the row, take the IntegrityError
+    retry of the same event_id would hit the row, take the duplicate-delivery
     branch below, answer 200 and queue nothing -- the event would be lost with
     no job, no placeholder and no reply. Deleting it first means the retry is
     allowed to do the work.
@@ -50,6 +62,37 @@ def _enqueue_or_release(event_id: str, job_name: str, payload: dict) -> None:
     the delete is its own statement rather than a rollback of an open block.
     The re-raise is deliberate: it becomes a 500, which is the only thing that
     makes Slack retry at all.
+
+    THE TRADE THIS MAKES, and what is still exposed
+    -----------------------------------------------
+    Releasing the token trades "the event is lost forever" for "the event may
+    be executed twice". Both outcomes are reachable, because we cannot tell a
+    backend that never accepted the task from one that accepted it and then
+    failed to say so: if `enqueue` raises AFTER the queue has taken the task
+    (a client-side timeout on an accepted submit, a dropped response), we
+    delete the row anyway, Slack retries, and the job runs a SECOND time.
+
+    That is the right way round. Losing the event is silent and permanent:
+    no job, no placeholder, no reply, and no further retry coming, so nobody
+    finds out until someone asks why the bot ignored them. A double execution
+    is visible and bounded, and the operation this integration exists to
+    perform is idempotent under it: create_slice dedupes on `external_key`,
+    so a second run finds the slice the first one made instead of making
+    another.
+
+    EXACTLY TWO of the writes a re-run makes to the board are not covered by
+    that: `add_note` and `create_area`. Neither has an idempotency key (see
+    the NOTE comments on apply._add_note and apply._create_area), so running
+    the same job twice appends the note a second time or creates a second
+    area with the same name. The fourth intent, `ask_clarification`, writes
+    nothing and is safe. Slack-side, a re-run also posts a second placeholder
+    and a second result card in the thread, which is noise rather than
+    corrupted data.
+
+    Give those two a key (or make the queue submit itself idempotent) before
+    treating a double execution here as harmless, and re-read this paragraph
+    if an intent type is added: a new non-idempotent operation joins the
+    exposed list silently, because nothing in the type system says so.
     """
     try:
         enqueue(job_name, payload)
@@ -96,7 +139,22 @@ def slack_events(request):
 
     try:
         with transaction.atomic():
-            SlackEvent.objects.create(event_id=event_id)
+            try:
+                SlackEvent.objects.create(event_id=event_id)
+            except IntegrityError as exc:
+                # Scoped to THIS statement on purpose. Only the unique
+                # constraint on event_id proves another delivery already owns
+                # this event; every other IntegrityError means something else
+                # entirely. In particular _enqueue_or_release runs from the
+                # on_commit hook below, so anything it raises surfaces at this
+                # atomic block's __exit__ -- inside the outer try. Catching
+                # IntegrityError out there would answer 200 to a failed
+                # enqueue, Slack would never retry, and the event would be
+                # lost silently: the exact failure _enqueue_or_release exists
+                # to close. Re-raised as a distinct type so the two cannot be
+                # confused; pinned by
+                # tests/integrations/slack/test_events_endpoint.py::test_an_integrity_error_from_the_enqueue_path_is_not_read_as_a_duplicate.
+                raise _DuplicateDelivery(event_id) from exc
             # transaction.on_commit, not a bare call: the SlackEvent row must
             # be durable before the job exists, or a retry that arrives while
             # this transaction is still open would not see the row yet, miss
@@ -114,7 +172,7 @@ def slack_events(request):
                     {"team_id": payload.get("team_id", ""), "event": event},
                 )
             )
-    except IntegrityError:
+    except _DuplicateDelivery:
         # A row for this event_id already exists, which means an earlier
         # delivery got as far as queueing the job -- a failed enqueue takes
         # the row back out again (see _enqueue_or_release), so the row's

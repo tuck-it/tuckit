@@ -224,6 +224,56 @@ def test_a_failed_enqueue_gives_the_idempotency_token_back(monkeypatch):
     assert SlackEvent.objects.filter(event_id="EvBurned").count() == 1
 
 
+def test_an_integrity_error_from_the_enqueue_path_is_not_read_as_a_duplicate(monkeypatch):
+    """The release path must not be able to disguise itself as a duplicate.
+
+    `_enqueue_or_release` runs from `transaction.on_commit`, so anything it
+    raises surfaces at the view's `with transaction.atomic():` __exit__, which
+    sits INSIDE the same `try` that catches `IntegrityError` to mean "another
+    delivery already owns this event_id". An `IntegrityError` coming out of
+    the queue backend (a Cloud Tasks client wrapping a DB write, a queue-row
+    conflict, anything at all) therefore used to be answered with 200: the row
+    was correctly released, Slack was told everything was fine, no retry ever
+    came and the event was lost silently -- the exact failure
+    `_enqueue_or_release` exists to close, arriving through a narrower door.
+
+    So the two halves are asserted together and neither one alone is the
+    point: the row is released AND the response is a 5xx. An implementation
+    that released the row and still answered 200 loses the event just as
+    completely as one that kept the row.
+
+    Distinct from test_the_same_event_id_is_only_processed_once, which must
+    keep answering 200 for a genuine second delivery.
+    """
+    from django.db import IntegrityError
+    from django.test import Client as DjangoClient
+
+    calls = []
+
+    def raises_integrity_error(name, payload):
+        calls.append(name)
+        raise IntegrityError("the queue backend hit a constraint of its own")
+
+    monkeypatch.setattr(
+        "tuckit.integrations.slack.views.enqueue", raises_integrity_error,
+    )
+    body = {
+        "type": "event_callback", "event_id": "EvIntegrity", "team_id": "T1",
+        "event": {"type": "app_mention", "channel": "C1", "user": "U1", "ts": "1.0"},
+    }
+    failing_client = DjangoClient(raise_request_exception=False)
+
+    r = post(failing_client, body)
+
+    # It really did reach the queue backend: without this the test would also
+    # pass for an implementation that never enqueued at all.
+    assert calls == ["slack.app_mention"]
+    # Slack only retries on a 5xx, and only a retry can still save this event.
+    assert r.status_code >= 500
+    # And the token is handed back, so that retry is allowed to do the work.
+    assert not SlackEvent.objects.filter(event_id="EvIntegrity").exists()
+
+
 def test_endpoint_is_absent_when_not_configured(client, settings):
     settings.SLACK_SIGNING_SECRET = ""
     settings.SLACK_CLIENT_ID = ""
