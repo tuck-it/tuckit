@@ -161,8 +161,8 @@
       el.classList.toggle("is-chosen", !!winner && winner === el.dataset.id);
       el.classList.toggle("is-dim",
         !!winner && winner !== el.dataset.id && el.classList.contains("cnode--option"));
-      if (el.classList.contains("cnode--question"))
-        el.classList.toggle("is-settled", !!el.dataset.chosen);
+      if (el.classList.contains("cnode--question") && el.dataset.chosen)
+        el.dataset.state = "answered";     // the server stamps the rest
       // Once the answer is in, the agent's preference is noise on the picture.
       if (winner && el.classList.contains("cnode--option"))
         el.classList.remove("is-rec");
@@ -432,7 +432,10 @@
      dense tree without hunting for a patch of background. */
   var spaceDown = false;
   document.addEventListener("keydown", function (e) {
-    if (e.code === "Space" && root.contains(document.activeElement)) {
+    /* Only when the stage itself holds focus. Guarding on the whole root
+       swallowed Space on Fit/Zoom/Expand, which is how a keyboard user
+       presses a button. */
+    if (e.code === "Space" && document.activeElement === stage) {
       spaceDown = true;
       stage.classList.add("is-dragging");
       e.preventDefault();

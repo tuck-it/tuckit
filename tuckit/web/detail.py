@@ -5,7 +5,8 @@ import nh3
 
 from tuckit.core.services.activity import label_who, slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
-from tuckit.core.services.canvas import graph_for, reparented, spine_for
+from tuckit.core.services.canvas import (
+    graph_for, question_state, reparented, spine_for)
 from tuckit.core.services.orgs import policy_line_for
 from tuckit.core.services.refs import slice_ref
 from tuckit.core.services.slices import delegation_prompt, stage_of
@@ -30,6 +31,25 @@ def render_markdown_html(text: str) -> str:
 render_spec_html = render_markdown_html
 
 
+def _row_bodies(row: dict) -> dict:
+    """One spine row with every markdown body on it rendered.
+
+    Recurses into a rejected option's `descendants`, which are spine rows of
+    their own: an abandoned branch keeps its reasoning, and the map has no
+    bodies to fall back on.
+    """
+    return dict(
+        row,
+        node=_with_body(row["node"]),
+        options=[_with_body(o) for o in row["options"]],
+        rejected=[
+            dict(_with_body(o),
+                 descendants=[_row_bodies(r) for r in o.get("descendants", [])])
+            for o in row["rejected"]
+        ],
+    )
+
+
 def _map_nodes(slice_) -> list[dict]:
     """Nodes for the map, re-parented and counted.
 
@@ -37,9 +57,20 @@ def _map_nodes(slice_) -> list[dict]:
     has no logic in it and should not gain any: it is how many children a card
     would fold away, and the fold control only exists when there are some.
     """
-    nodes = reparented(graph_for(slice_))
+    raw = graph_for(slice_)
+    closed = bool((slice_.spec or "").strip())
+    nodes = reparented(raw)
     counts = Counter(n.get("parent") for n in nodes if n.get("parent"))
-    return [dict(n, child_count=counts.get(n["id"], 0)) for n in nodes]
+    return [
+        dict(n,
+             child_count=counts.get(n["id"], 0),
+             # Same derivation the spine uses. Without it the map paints every
+             # unanswered question as "your turn", including the ones the
+             # conversation walked past and the ones a written spec sealed.
+             state=(question_state(n, raw, closed=closed)
+                    if (n.get("kind") or "note") == "question" else ""))
+        for n in nodes
+    ]
 
 
 def _with_body(node: dict) -> dict:
@@ -105,11 +136,9 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
         # spine row is as wide as the page column, so prose costs nothing, and
         # this is the surface that has to answer "why did that win".
         "spine_rows": [
-            dict(row,
-                 node=_with_body(row["node"]),
-                 options=[_with_body(o) for o in row["options"]],
-                 rejected=[_with_body(o) for o in row["rejected"]])
-            for row in spine_for(graph_for(slice_), closed=bool((slice_.spec or '').strip()))
+            _row_bodies(row)
+            for row in spine_for(graph_for(slice_),
+                                 closed=bool((slice_.spec or "").strip()))
         ],
         "bites": list(list_bites(slice_)),
         "activity": label_who(slice_activity(slice_), viewer),

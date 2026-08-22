@@ -636,15 +636,17 @@ def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[
                 f"this same call, or in an earlier one"
             )
         else:
-            # A parent created earlier in THIS batch is absent from
-            # existing_by_id, so the guard skips it -- correct, since a node
-            # born in this call cannot already have been answered.
             _assert_parent_accepts(existing_by_id, parent, kind, node_id)
 
         clean = {k: node[k] for k in _NODE_KEYS if k in node}
         clean.update(id=node_id, parent=parent, kind=kind, at=arrived_at)
         fresh.append(clean)
         known.add(node_id)
+        # Nodes from THIS batch join the lookup as they validate. A node born
+        # in this call cannot have been answered -- but it can be an option
+        # that did not win, and a batch that adds a fresh option and hangs
+        # progress off it would otherwise slip past both guards.
+        existing_by_id[node_id] = clean
 
     slice_.decision_tree = {"nodes": existing + fresh}
     with transaction.atomic():

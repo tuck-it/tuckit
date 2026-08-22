@@ -184,3 +184,19 @@ def test_a_rejected_batch_stores_none_of_itself(org, area):
 
     s.refresh_from_db()
     assert not any(n["id"] == "ok" for n in s.decision_tree["nodes"])
+
+
+@pytest.mark.django_db
+def test_a_new_option_in_this_batch_cannot_carry_progress_either(org, area):
+    # The hole the first two guards left: q1 is answered with o1, and one call
+    # adds a fresh option o3 plus a note under it. o3 exists only inside this
+    # batch, so a lookup built from stored nodes alone never sees it -- and a
+    # node lands under an option that did not win.
+    s = _answered(org, area)
+
+    with pytest.raises(InvalidValue) as e:
+        propose_nodes(s, [_n("o3", "q1", kind="option"), _n("d1", "o3")])
+
+    assert "'o1'" in str(e.value)
+    s.refresh_from_db()
+    assert not any(n["id"] == "o3" for n in s.decision_tree["nodes"])

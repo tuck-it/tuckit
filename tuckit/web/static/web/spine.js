@@ -1,10 +1,16 @@
-/* Choosing an option, for every surface that offers it.
+/* The decision record's controls: choosing an option, and the map toggle.
 
-   Delegated on `document` rather than bound to a container: the spine and the
-   node graph both carry [data-pick] controls, and cards arriving on the live
-   poll are appended without anything re-binding them. One implementation of an
-   irreversible POST is the right number. */
+   Everything here is delegated on `document` and guarded by a sentinel,
+   because this file is loaded from _spine.html which renders INSIDE
+   .detail-body -- the hx-target of Reopen, Restore, Ship, the spec editor, the
+   constraints editor and every bite edit. htmx re-creates and evaluates script
+   tags in swapped content, so without the sentinel each swap would stack
+   another listener and one "Choose this" click would fire N irreversible
+   POSTs. */
 (function () {
+  if (window.__spine) return;
+  window.__spine = true;
+
   function cookie(name) {
     var hit = document.cookie.split("; ").find(function (row) {
       return row.indexOf(name + "=") === 0;
@@ -20,9 +26,10 @@
        see. */
     var host = pick.closest("[data-choice-url]");
     var choiceUrl = host && host.dataset.choiceUrl;
-    var id = pick.dataset.id || (pick.closest("[data-id]") || {}).dataset.id;
+    var id = pick.dataset.id;
     if (!choiceUrl || !id) return;
 
+    pick.disabled = true;
     var body = new URLSearchParams();
     body.set("node_id", id);
     fetch(choiceUrl, {
@@ -35,44 +42,42 @@
       body: body.toString(),
     }).then(function (res) {
       if (!res.ok) {
-        /* A refusal here is usually the lock: something already hangs off the
-           current answer, so re-answering would re-read all of it as the
-           result of a decision that never produced it. */
-        if (window.showToast) window.showToast("Couldn't record that choice.", "err");
-        return;
+        pick.disabled = false;
+        /* Show the server's own words. A refusal here is nearly always the
+           lock, and its message says WHY and what to do instead (start a new
+           slice) -- swallowing that for a generic toast turns a rule being
+           taught into a button that mysteriously fails. */
+        return res.text().then(function (why) {
+          if (window.showToast) window.showToast(why.trim() || "Couldn't record that choice.", "err");
+        });
       }
       /* Skip past our own write -- this is a fetch, so live.js never sees the
          htmx event it usually adopts the cursor from. */
       if (window.__liveAdoptCursor) window.__liveAdoptCursor(res.headers.get("X-Live-Cursor"));
-      /* The spine is server-rendered per row, so redraw it from the server
-         rather than guessing here: the answer changes a question's state, its
-         chosen row, its fold, and whether it is locked, all at once. */
-      if (window.htmx) window.htmx.ajax("GET", location.pathname + location.search,
-                                        { target: "#main-content", select: "#main-content" });
+      /* Redraw from the server: one answer changes the question's state, its
+         chosen row, its fold and whether it is locked, all at once. */
+      if (window.__liveRefreshSpine) window.__liveRefreshSpine();
       else location.reload();
     }).catch(function () {
+      pick.disabled = false;
       if (window.showToast) window.showToast("Couldn't reach the server.", "err");
     });
   });
 
-  /* The map starts closed. Reading the record is the common case, and opening
-     the stage costs a measure-and-place pass nobody asked for. */
-  var toggle = document.querySelector("[data-view-toggle]");
-  var slot = document.querySelector("[data-graph-slot]");
-  if (toggle && slot) {
-    slot.hidden = true;
-    toggle.addEventListener("click", function () {
-      var open = toggle.getAttribute("aria-pressed") === "true";
-      toggle.setAttribute("aria-pressed", open ? "false" : "true");
-      slot.hidden = open;
-      /* The stage was hidden until this instant, so brainstorm.js measured it
-         at zero. Re-fitting is the entire correction: layout() never reads the
-         stage, and the cards are a fixed width. */
-      if (!open && window.__canvas) window.__canvas.fit();
-    });
-  }
-
-  /* A canvas born mid-session lands inside a hidden slot, and stays hidden on
-     purpose. The spine grows at the same moment, and that is where the reader
-     is looking -- yanking the map open would move the page under them. */
+  /* The map is a second opinion on the same record. It starts closed -- the
+     default lives in CSS, not here, so it survives a swap and never flashes
+     open before this file runs. */
+  document.addEventListener("click", function (e) {
+    var toggle = e.target.closest("[data-view-toggle]");
+    if (!toggle) return;
+    var slot = document.querySelector("[data-graph-slot]");
+    if (!slot) return;
+    var open = toggle.getAttribute("aria-pressed") === "true";
+    toggle.setAttribute("aria-pressed", open ? "false" : "true");
+    slot.classList.toggle("is-open", !open);
+    /* The stage was display:none until this instant, so brainstorm.js measured
+       it at zero. Re-fitting is the entire correction: layout() never reads the
+       stage, and the cards are a fixed width. */
+    if (!open && window.__canvas) window.__canvas.fit();
+  });
 })();

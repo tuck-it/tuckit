@@ -27,7 +27,8 @@ never flashes in the wrong spot.
                data-id="{{ n.id }}"
                data-parent="{{ n.parent|default_if_none:'' }}"
                {% if n.at %}data-at="{{ n.at }}"{% endif %}
-               {% if n.chosen %}data-chosen="{{ n.chosen }}"{% endif %}>
+               {% if n.chosen %}data-chosen="{{ n.chosen }}"{% endif %}
+               {% if n.state %}data-state="{{ n.state }}"{% endif %}>
         {% comment %} The map is a second opinion on the record, never a second way to
            write it. Answering happens on the spine, where the reasoning is
            readable -- and a card title is a thing you click to READ, which is
@@ -37,7 +38,7 @@ never flashes in the wrong spot.
         {% if n.summary %}<p class="cnode-s">{{ n.summary }}</p>{% endif %}
         {% if n.child_count %}
         <button type="button" class="cnode-fold" data-fold aria-expanded="true"
-                aria-label="Collapse this branch">{{ n.child_count }}</button>
+                aria-label="Collapse this branch">+{{ n.child_count }}</button>
         {% endif %}
         {% if n.media %}
         <div class="cnode-media">

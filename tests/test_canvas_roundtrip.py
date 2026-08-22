@@ -52,11 +52,20 @@ def test_writing_the_spec_retires_the_channel(org, area):
 
 
 def _two_questions(slice_):
+    """Two questions open at once, as siblings under the root.
+
+    They used to be stacked -- q2 hanging off one of q1's options before
+    anyone had picked it. propose_nodes refuses that now: a node placed under
+    an option before the question is answered is progress attributed to a
+    choice nobody made. Siblings are also what this file's tests are named
+    for, and the watch scoping they guard is unchanged either way.
+    """
     propose_nodes(slice_, [
-        {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
+        {"id": "root", "parent": None, "kind": "note", "title": "Deciding"},
+        {"id": "q1", "parent": "root", "kind": "question", "title": "Which way?"},
         {"id": "q1o1", "parent": "q1", "kind": "option", "title": "Left"},
         {"id": "q1o2", "parent": "q1", "kind": "option", "title": "Right"},
-        {"id": "q2", "parent": "q1o1", "kind": "question", "title": "How far?"},
+        {"id": "q2", "parent": "root", "kind": "question", "title": "How far?"},
         {"id": "q2o1", "parent": "q2", "kind": "option", "title": "A little"},
         {"id": "q2o2", "parent": "q2", "kind": "option", "title": "A lot"},
     ])

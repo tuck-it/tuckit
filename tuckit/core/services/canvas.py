@@ -152,16 +152,22 @@ def is_locked(question, nodes):
 def spine_for(nodes, *, closed=False):
     """The decision record in reading order: one flat list of rows.
 
-    `closed` is the slice having a spec: the record is sealed, so no question
-    on it is still asking.
-
     Linear, so unlike the map this needs no re-parenting -- with the rows in
     the right ORDER it does not matter which node the author hung the
-    continuation on. That is what makes every canvas written before this
-    rule existed readable rather than merely present.
+    continuation on. That is what makes every canvas written before this rule
+    existed readable rather than merely present.
 
     A row is {node, row, state, locked, options, rejected}; `state`, `locked`,
-    `options` and `rejected` only carry meaning on a question row.
+    `options` and `rejected` only carry meaning on a question row, and on an
+    answered question they ride on the CHOSEN row instead, so the losers print
+    below the winner rather than above it.
+
+    Each rejected option carries `descendants`: the rows built under it before
+    it lost. Dropping those was silent data loss -- the map has no bodies, so
+    an abandoned branch would have been unreachable everywhere.
+
+    `closed` is the slice having a spec: the record is sealed, so no question
+    on it is still asking.
     """
     by_id = {n["id"]: n for n in nodes}
     seq = {n["id"]: i for i, n in enumerate(nodes)}
@@ -169,47 +175,60 @@ def spine_for(nodes, *, closed=False):
     for node in nodes:
         kids.setdefault(node.get("parent"), []).append(node)
 
-    rows = []
+    def ordered(children):
+        return sorted((c for c in children if _kind(c) != "option"),
+                      key=lambda n: (n.get("at") or 0, seq[n["id"]]))
 
-    def walk(node):
+    def branch_under(node):
+        out = []
+        for child in ordered(kids.get(node["id"], [])):
+            walk(child, out)
+        return out
+
+    def walk(node, rows):
         children = kids.get(node["id"], [])
-        after = [c for c in children if _kind(c) != "option"]
 
-        if _kind(node) == "question":
-            options = [c for c in children if _kind(c) == "option"]
-            state = question_state(node, nodes, closed=closed)
-            chosen = by_id.get(node.get("chosen") or "")
-            rows.append({
-                "node": node, "row": "question", "state": state,
-                "locked": is_locked(node, nodes),
-                "options": options if state == "waiting" else [],
-                "rejected": [] if state == "waiting"
-                            else [o for o in options if o is not chosen],
-            })
-            if chosen is not None:
-                # The losers hang off the WINNER's row, not the question's, so
-                # the fold prints below the option that won. Above it, a reader
-                # meets the rejected list before the answer -- which is the
-                # exact "wait, what did I pick?" this view exists to end.
-                rows.append({"node": chosen, "row": "chosen", "state": None,
-                             "locked": False, "options": [],
-                             "rejected": rows[-1]["rejected"]})
-                rows[-2]["rejected"] = []
-                # The continuation can hang off either one. Correct callers
-                # put it under the chosen option; every canvas older than that
-                # rule put it under the question, and both have to read.
-                after = [c for c in kids.get(chosen["id"], [])
-                         if _kind(c) != "option"] + after
-        else:
+        if _kind(node) != "question":
             rows.append({"node": node, "row": "note", "state": None,
                          "locked": False, "options": [], "rejected": []})
+            for child in ordered(children):
+                walk(child, rows)
+            return
 
-        for child in sorted(after, key=lambda n: (n.get("at") or 0, seq[n["id"]])):
-            walk(child)
+        options = [c for c in children if _kind(c) == "option"]
+        state = question_state(node, nodes, closed=closed)
+        chosen = by_id.get(node.get("chosen") or "")
+        losers = [] if state == "waiting" else [o for o in options if o is not chosen]
+        losers = [dict(o, descendants=branch_under(o)) for o in losers]
 
+        question_row = {
+            "node": node, "row": "question", "state": state,
+            "locked": is_locked(node, nodes),
+            "options": options if state == "waiting" else [],
+            "rejected": [] if chosen is not None else losers,
+        }
+        rows.append(question_row)
+
+        after = ordered(children)
+        if chosen is not None:
+            # The losers hang off the WINNER's row so the fold prints below the
+            # option that won. Above it, a reader meets the rejected list
+            # before the answer -- the exact "wait, what did I pick?" this view
+            # exists to end.
+            rows.append({"node": chosen, "row": "chosen", "state": None,
+                         "locked": False, "options": [], "rejected": losers})
+            # The continuation can hang off either one. Callers write it under
+            # the winner now; every canvas older than that rule put it under
+            # the question, and both have to read.
+            after = ordered(kids.get(chosen["id"], [])) + after
+
+        for child in after:
+            walk(child, rows)
+
+    rows = []
     for node in nodes:
         if not node.get("parent"):
-            walk(node)
+            walk(node, rows)
     return rows
 
 
@@ -231,24 +250,3 @@ def reparented(nodes):
             node = dict(node, parent=winner)
         out.append(node)
     return out
-
-
-def visible_under(nodes, collapsed):
-    """The nodes still on screen when `collapsed` ids have their subtrees shut.
-
-    A collapsed node stays; its descendants do not. It lives here rather than
-    only in the browser so the rule can be checked without one -- the server
-    never collapses anything itself, because there is no stored collapse state
-    and first paint has nothing to remember.
-    """
-    hidden = set()
-    changed = True
-    while changed:
-        changed = False
-        for node in nodes:
-            parent = node.get("parent")
-            if parent and node["id"] not in hidden \
-                    and (parent in collapsed or parent in hidden):
-                hidden.add(node["id"])
-                changed = True
-    return [n for n in nodes if n["id"] not in hidden]

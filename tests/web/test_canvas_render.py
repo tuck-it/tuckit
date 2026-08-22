@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from tuckit.core.services.areas import create_area
@@ -199,8 +201,12 @@ def test_the_edge_runs_through_the_winner_not_past_it(client_local, org):
     # display-time re-parent.
     body = _drawn(client_local, org, STRAY)
 
-    assert 'data-id="d1"' in body and 'data-parent="o1"' in body
-    assert 'data-parent="q1"' in body          # the options still hang off q1
+    stage = body.split("data-canvas", 1)[1]
+    parents = dict(re.findall(r'data-id="(\w+)"\s+data-parent="(\w*)"', stage))
+
+    assert parents["d1"] == "o1"       # the note moved under the winner
+    assert parents["o1"] == "q1"       # ...and the options did not move
+    assert parents["o2"] == "q1"
 
 
 @pytest.mark.django_db
@@ -216,3 +222,38 @@ def test_a_map_card_carries_no_body(client_local, org):
 def test_the_reasoning_is_still_on_the_page_in_the_spine(client_local, org):
     # Dropping it from the card must not drop it from the screen.
     assert "LONG-REASONING" in _drawn(client_local, org, STRAY)
+
+
+@pytest.mark.django_db
+def test_the_map_only_alarms_about_a_question_that_is_actually_waiting(client_local, org):
+    # The map paints [data-state="waiting"] with --warn. Before the server
+    # stamped the state it painted EVERY question, so slice 208's abandoned
+    # questions would have gone on demanding attention forever.
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Sealed", spec="designed")
+    s.decision_tree = {"nodes": [
+        {"id": "r", "parent": None, "kind": "note", "title": "Problem", "at": 1},
+        {"id": "q1", "parent": "r", "kind": "question", "title": "Left open", "at": 1},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "A", "at": 1},
+    ]}
+    s.save(update_fields=["decision_tree"])
+    stage = client_local.get(
+        f"/{org.slug}/slices/{s.id}/").content.decode().split("data-canvas", 1)[1]
+
+    assert 'data-state="passed"' in stage
+    assert 'data-state="waiting"' not in stage
+
+
+@pytest.mark.django_db
+def test_an_open_question_on_an_unsealed_record_does_alarm(client_local, org):
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Designing", spec="")
+    s.decision_tree = {"nodes": [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Which?", "at": 1},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "A", "at": 1},
+    ]}
+    s.save(update_fields=["decision_tree"])
+    stage = client_local.get(
+        f"/{org.slug}/slices/{s.id}/").content.decode().split("data-canvas", 1)[1]
+
+    assert 'data-state="waiting"' in stage

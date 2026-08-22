@@ -185,3 +185,37 @@ def test_the_canvas_posts_a_choice_and_skips_its_own_echo():
     # what you click to READ a node, must not be a control at all.
     assert "data-pick" not in canvas
     assert "data-pick" not in graph
+
+
+def test_the_spine_has_a_live_path_and_binds_only_once():
+    """Two failures no endpoint test can see.
+
+    The spine carries the pick controls, so without a live path a question
+    proposed mid-session is unanswerable until the human reloads -- the exact
+    "the poll is 200 but the screen never grows" symptom, on the surface the
+    whole design conversation runs through.
+
+    And _spine.html renders INSIDE .detail-body, the hx-target of Reopen,
+    Restore, Ship and every inline editor. htmx re-evaluates script tags in
+    swapped content, so a spine.js without a sentinel would stack one more
+    document listener per swap and turn one click into N irreversible POSTs.
+    """
+    from pathlib import Path
+    import tuckit.web
+
+    web = Path(tuckit.web.__file__).parent
+    live = (web / "static/web/live.js").read_text()
+    js = (web / "static/web/spine.js").read_text()
+    css = (web / "static/web/app.css").read_text()
+    detail = (web / "templates/web/partials/_slice_detail.html").read_text()
+
+    assert "data-spine" in live                  # the poll refreshes it
+    assert "__liveRefreshSpine" in live and "__liveRefreshSpine" in js
+    assert "window.__spine" in js                # bind-once sentinel
+
+    # The spine sits inside the swap target, which is why the sentinel matters.
+    body_at = detail.index('class="detail-body')
+    assert detail.index("_spine.html") > body_at
+
+    # The map is closed by CSS, not by a script that has to run first.
+    assert "[data-graph-slot] { display: none; }" in css

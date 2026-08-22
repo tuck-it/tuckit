@@ -2535,8 +2535,13 @@ body.canvas-maxed .ob-widget { display: none; }
 }
 /* An unanswered question is the only thing on the map worth an alarm colour,
    and it stops being one the moment it is settled. */
-.cnode--question { border-color: var(--warn); }
-.cnode--question.is-settled { border-color: var(--line); }
+/* Only a question actually waiting on someone gets the alarm colour. The
+   server stamps the state, because `passed` and a sealed record are both
+   derivations the browser cannot make from data-chosen alone -- and painting
+   every question amber is how slice 208's abandoned questions would have gone
+   on demanding attention forever. */
+.cnode--question { border-color: var(--line); }
+.cnode--question[data-state="waiting"] { border-color: var(--warn); }
 
 /* A settled question keeps its rejected options, quieter. Nothing is hidden:
    the old rule blanked the summary with display:none while the comment above
@@ -2568,7 +2573,6 @@ body.canvas-maxed .ob-widget { display: none; }
   height: 64px; width: auto; max-width: 100%; object-fit: cover;
   border: 1px solid var(--line); border-radius: var(--radius-small); cursor: zoom-in;
 }
-.cnode.is-dim .cnode-media { display: none; }
 
 .canvas-lightbox {
   position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
@@ -2693,3 +2697,10 @@ body.canvas-maxed .ob-widget { display: none; }
 .cnode-fold[aria-expanded="false"] { background: var(--blue-soft); color: var(--blue-strong); }
 .cnode-fold:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .canvas-stage:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+
+/* The map is closed until asked for. In CSS rather than JS so it survives an
+   htmx swap of .detail-body and never flashes open before spine.js runs. */
+[data-graph-slot] { display: none; }
+[data-graph-slot].is-open { display: block; }
+.spine-alt--sub { margin-left: var(--space-10); padding-left: var(--space-8);
+                  border-left: 1px solid var(--line); }

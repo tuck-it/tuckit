@@ -35,6 +35,15 @@ read identically to one that hung it off the winning option.
         <div class="spine-alt"><b>{{ o.title }}</b>
           {% if o.summary %}<p>{{ o.summary }}</p>{% endif %}
           {% if o.body_html %}<div class="spine-body">{{ o.body_html|safe }}</div>{% endif %}
+          {% comment %}What was built under this option before it lost.
+          Older canvases carry these, and the map has no bodies -- folding
+          them here is the only place that reasoning survives.{% endcomment %}
+          {% for s in o.descendants %}
+          <div class="spine-alt spine-alt--sub"><b>{{ s.node.title }}</b>
+            {% if s.node.summary %}<p>{{ s.node.summary }}</p>{% endif %}
+            {% if s.node.body_html %}<div class="spine-body">{{ s.node.body_html|safe }}</div>{% endif %}
+          </div>
+          {% endfor %}
         </div>
         {% endfor %}
       </details>
@@ -92,6 +101,15 @@ read identically to one that hung it off the winning option.
       <div class="spine-alt"><b>{{ o.title }}</b>
         {% if o.summary %}<p>{{ o.summary }}</p>{% endif %}
         {% if o.body_html %}<div class="spine-body">{{ o.body_html|safe }}</div>{% endif %}
+        {% comment %}What was built under this option before it lost.
+        Older canvases carry these, and the map has no bodies -- folding
+        them here is the only place that reasoning survives.{% endcomment %}
+        {% for s in o.descendants %}
+        <div class="spine-alt spine-alt--sub"><b>{{ s.node.title }}</b>
+          {% if s.node.summary %}<p>{{ s.node.summary }}</p>{% endif %}
+          {% if s.node.body_html %}<div class="spine-body">{{ s.node.body_html|safe }}</div>{% endif %}
+        </div>
+        {% endfor %}
       </div>
       {% endfor %}
     </details>

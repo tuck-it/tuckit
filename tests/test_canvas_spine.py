@@ -151,3 +151,43 @@ def test_options_alone_do_not_lock_a_question():
     # there is.
     nodes = [_q("q1", chosen="o1"), _o("o1", "q1"), _o("o2", "q1")]
     assert is_locked(nodes[0], nodes) is False
+
+
+def test_work_done_under_an_option_that_lost_is_not_dropped():
+    """A branch explored and abandoned is the record, not noise.
+
+    Walking only the winner's children made every node under a losing option
+    vanish from the spine -- and since the map carries no bodies, their
+    reasoning became unreachable on every surface. `propose` refuses to create
+    these now, but the record is append-only and older canvases hold them.
+    """
+    nodes = [_q("q1", chosen="o1"), _o("o1", "q1"), _o("o2", "q1"),
+             _n("d9", "o2", at=2), _q("q5", "d9", at=3)]
+
+    rows = spine_for(nodes)
+    lost = rows[1]["rejected"][0]
+
+    assert lost["id"] == "o2"
+    assert [r["node"]["id"] for r in lost["descendants"]] == ["d9", "q5"]
+
+
+def test_an_option_that_lost_with_nothing_under_it_carries_an_empty_branch():
+    nodes = [_q("q1", chosen="o1"), _o("o1", "q1"), _o("o2", "q1")]
+
+    assert spine_for(nodes)[1]["rejected"][0]["descendants"] == []
+
+
+def test_a_note_alongside_the_options_locks_the_first_answer_immediately():
+    """The cost of the wider lock, stated plainly.
+
+    The spec's table says the lock fires when the CHOSEN option has children.
+    Counting the question's non-option children too is what makes the legacy
+    shape lock at all -- but it also means an agent that parks a context note
+    beside the options seals the very first pick, and a genuine misclick there
+    is uncorrectable. Guard 1 refuses such a note on an ANSWERED question, so
+    this only arises when the note lands before anyone picks.
+    """
+    nodes = [_q("q1", chosen="o1"), _o("o1", "q1"), _o("o2", "q1"),
+             _n("context", "q1")]
+
+    assert is_locked(nodes[0], nodes) is True

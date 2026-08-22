@@ -1,7 +1,17 @@
 import pytest
 
+from django.conf import settings
+
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
+
+
+def _app_css():
+    from pathlib import Path
+
+    import tuckit.web
+
+    return (Path(tuckit.web.__file__).parent / "static/web/app.css").read_text()
 
 
 def _slice_with(org, nodes, spec=""):
@@ -91,10 +101,15 @@ def test_a_question_the_conversation_moved_past_stops_asking(client_local, org):
 
 @pytest.mark.django_db
 def test_the_spine_is_not_a_stage(client_local, org):
+    # The record renders as a document: no stage element, nothing to measure,
+    # place, zoom or fit inside it.
     s = _slice_with(org, ANSWERED)
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+    spine = body.split("data-spine", 1)[1].split("</section>", 1)[0]
 
     assert "data-spine" in body
+    assert "data-stage" not in spine
+    assert "data-canvas" not in spine
 
 
 @pytest.mark.django_db
@@ -127,6 +142,12 @@ def test_the_full_page_offers_the_map_as_a_toggle_and_opens_on_the_spine(client_
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert 'data-view-toggle aria-pressed="false"' in body
+    # Closed by default in CSS, not by a script that has to run first --
+    # otherwise a slow load paints the map and runs a measure pass nobody
+    # asked for.
+    assert "[data-graph-slot] { display: none; }" in (
+        (settings.BASE_DIR / "tuckit/web/static/web/app.css").read_text()
+        if hasattr(settings, "BASE_DIR") else _app_css())
 
 
 @pytest.mark.django_db
@@ -137,3 +158,16 @@ def test_a_modal_offers_no_map_toggle_because_it_has_no_map(client_local, org):
     ).content.decode()
 
     assert "data-view-toggle" not in body
+
+
+@pytest.mark.django_db
+def test_an_abandoned_branch_survives_inside_the_fold(client_local, org):
+    # The map carries no bodies any more, so if the spine drops what was built
+    # under a losing option that reasoning is unreachable everywhere.
+    s = _slice_with(org, ANSWERED + [
+        {"id": "d9", "parent": "o2", "kind": "note", "title": "went-this-way",
+         "body": "ABANDONED-REASONING", "at": 2}])
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "ABANDONED-REASONING" in body
+    assert "went-this-way" in body
