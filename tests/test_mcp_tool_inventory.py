@@ -111,8 +111,12 @@ def test_the_canvas_docstrings_do_not_teach_the_deleted_behaviour():
     from tuckit.core.mcp import server
     from tuckit.core.services import slices
 
+    # Whole source, not just getdoc(): the first version of this guard read
+    # docstrings only, and the same claim sat untouched in both InvalidValue
+    # messages -- which is the text an agent actually receives when it gets the
+    # rule wrong, so it teaches harder than the docstring does.
     gone = ("retires the canvas", "the spec's own structure", "draft canvas")
     for owner in (server.propose, slices.propose_nodes, slices.choose_option):
-        doc = inspect.getdoc(owner) or ""
+        src = inspect.getsource(owner)
         for lie in gone:
-            assert lie not in doc, f"{owner.__name__} still says {lie!r}"
+            assert lie not in src, f"{owner.__name__} still says {lie!r}"

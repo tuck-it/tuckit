@@ -91,8 +91,8 @@ def test_an_orphan_option_cannot_be_chosen(org, area):
 
 @pytest.mark.django_db
 def test_a_written_spec_leaves_nothing_to_choose(org, area):
-    """Same rule as propose_nodes: once a spec exists the canvas is derived
-    from it, and a derived view has no decision_tree to write into."""
+    """Same rule as propose_nodes: once a spec exists the record is closed to
+    new writes. It is still drawn -- it is just read-only."""
     s = create_slice(org, area=area, title="Canvas", spec="")
     _tree(s)
     s.spec = "## Decided\nWe went with Right."

@@ -130,3 +130,39 @@ def test_an_option_card_carries_a_pick_control(client_local, org):
     assert f"/{org.slug}/slices/{s.id}/choice" in body
 
 
+
+
+@pytest.mark.django_db
+def test_a_closed_record_offers_nothing_to_pick(client_local, org):
+    """Once the spec is written the record stops accepting writes, so a pick
+    control on it can only ever produce a 400 and a failure toast. It used to be
+    unreachable because the record was deleted at that point; keeping the record
+    is what made this state possible.
+    """
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Decided", spec="## Decision\nA.")
+    s.decision_tree = {"nodes": [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "Left"},
+    ]}
+    s.save(update_fields=["decision_tree"])
+
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert 'data-id="o1"' in body      # the record is still drawn...
+    assert "data-pick" not in body     # ...but it is read-only
+
+
+@pytest.mark.django_db
+def test_an_open_record_still_offers_a_pick(client_local, org):
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Designing", spec="")
+    s.decision_tree = {"nodes": [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Which way?"},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "Left"},
+    ]}
+    s.save(update_fields=["decision_tree"])
+
+    body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+    assert "data-pick" in body

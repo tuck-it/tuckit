@@ -452,11 +452,13 @@ async def propose(ctx: Context, slice_id: int, nodes: list[dict]) -> dict:
     later finds out what was weighed and why the losing options lost, so put
     real reasoning in the bodies rather than labels.
 
-    Writing the spec closes the record to new writes, not to reading. Settle it
-    BEFORE you write: record the choice you actually landed on, because
-    afterwards the tree is read-only and a stale `chosen` cannot be corrected.
-    You do not need to copy the tree into the spec to keep it -- the spec
-    carries the conclusion, the record keeps the reasoning that produced it.
+    Writing the spec closes the record to new writes: from then on `propose`
+    is rejected while the slice has one. Settle it BEFORE you write, because
+    correcting a stale `chosen` afterwards means clearing the spec first.
+
+    Note the record is not yet readable back over MCP -- `get_slice` does not
+    return it. Until it does, carry the decisions that a later session needs
+    into the spec as well; the canvas is the human's view of them.
 
     When the batch contained a question you also get `watch_url`: an
     unauthenticated URL, good for fifteen minutes, that answers

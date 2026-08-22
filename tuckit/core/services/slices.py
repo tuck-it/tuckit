@@ -509,8 +509,8 @@ def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[
     assert_can_write(slice_.org)
     if (slice_.spec or "").strip():
         raise InvalidValue(
-            "this slice already has a spec, so its canvas shows the spec's own "
-            "structure -- propose only while the design is still being made"
+            "this slice already has a spec, so its decision record is closed "
+            "-- propose only while the design is still being made"
         )
 
     existing = list((slice_.decision_tree or {}).get("nodes", []))
@@ -578,8 +578,8 @@ def choose_option(slice_, node_id: str, *, source: str = "human", member=None) -
     assert_can_write(slice_.org)
     if (slice_.spec or "").strip():
         raise InvalidValue(
-            "this slice already has a spec, so its canvas shows the spec's own "
-            "structure -- record a choice only while the design is still being made"
+            "this slice already has a spec, so its decision record is closed "
+            "-- record a choice only while the design is still being made"
         )
 
     nodes = (slice_.decision_tree or {}).get("nodes", [])
