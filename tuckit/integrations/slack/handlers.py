@@ -118,7 +118,16 @@ def handle_app_mention(*, team_id: str, event: dict) -> None:
         ))
         return
 
-    results = apply_intents(org=org, member=member, intents=intents)
+    # Cloud Tasks retries a failing job by calling this handler again from
+    # the top, bypassing the SlackEvent dedupe that guards Slack's own
+    # retries (that row is written by the view, before this job ever runs).
+    # channel + the mention's own ts is stable across such a retry and needs
+    # nothing new threaded through the job payload -- see apply_intents'
+    # docstring for why only create_slice is covered.
+    results = apply_intents(
+        org=org, member=member, intents=intents,
+        dedupe_key=f"slack:{channel}:{event.get('ts', '')}",
+    )
     reply(
         text="Filed",
         blocks=cards.result_blocks(

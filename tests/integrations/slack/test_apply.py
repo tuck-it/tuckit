@@ -74,6 +74,22 @@ def test_ask_clarification_writes_nothing(org, member):
     assert Slice.objects.count() == 0
 
 
+def test_a_queue_retry_with_the_same_dedupe_key_does_not_duplicate_the_slice(org, member):
+    """Cloud Tasks retries the whole job on any later failure (chat.update,
+    a second intent, an exception past this point), calling apply_intents
+    again with the identical intents and the identical dedupe_key. That
+    retry bypasses the SlackEvent row that dedupes Slack's own retries (see
+    apply_intents' docstring), so create_slice's external_key is the only
+    thing standing between a retry and a second slice on the board -- the
+    single worst failure mode this product exists to prevent. The retry must
+    land on the SAME slice, not create a second one.
+    """
+    intents = [Intent("create_slice", {"title": "Retried thing", "spec": "why", "area": ""})]
+    apply_intents(org=org, member=member, intents=intents, dedupe_key="slack:C123:111.222")
+    apply_intents(org=org, member=member, intents=intents, dedupe_key="slack:C123:111.222")
+    assert Slice.objects.filter(title="Retried thing").count() == 1
+
+
 def test_apply_intents_does_not_share_one_transaction():
     """Rule 2 is "each intent commits independently" -- guard it directly.
 
