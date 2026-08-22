@@ -371,3 +371,231 @@ async def test_create_slice_with_a_machine_token_records_no_capturer():
     _org, _other, raw, _area_id = await _seed()
     s = await create_slice(make_ctx(raw), "From a headless agent")
     assert await _created_by_email(s["id"]) is None
+
+
+# --- the agent-facing board gets a time axis (TP-252) --------------------
+#
+# Every field below existed on the model and reached nobody: an agent could
+# not tell a five-minute-old capture from a forty-day-old one, so nothing on
+# its board ever looked stale -- while that same agent was doing most of the
+# adding. 140 open slices, 109 of them closed unread in one pass, is what that
+# blindness cost.
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_slice_rows_carry_age_and_idle_days():
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    await create_slice(ctx, "Fresh", area_id=area_id)
+
+    row = (await list_slices(ctx, area_id))[0]
+
+    assert row["age_days"] == 0
+    assert row["idle_days"] == 0
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_age_days_counts_from_creation_not_from_the_last_edit():
+    """The two numbers answer different questions. A slice reopened and
+    rewritten every week is young by idle_days and old by age_days, and it is
+    the second one that says "we have been carrying this since June"."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from tuckit.core.models import Slice
+
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, "Carried", area_id=area_id)
+
+    # auto_now_add/auto_now ignore assignment, so both columns are moved with
+    # an UPDATE that bypasses save().
+    @sync_to_async
+    def _backdate():
+        now = timezone.now()
+        Slice.objects.filter(id=created["id"]).update(
+            created_at=now - timedelta(days=40), updated_at=now - timedelta(days=7),
+        )
+
+    await _backdate()
+
+    row = (await list_slices(ctx, area_id))[0]
+
+    assert row["age_days"] == 40
+    assert row["idle_days"] == 7
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_one_response_measures_every_row_from_the_same_instant():
+    """Reading the clock per row makes a long list disagree with itself, and a
+    test that only checks one row would never see it. Pinned by handing the
+    serializer an explicit `now` and proving the tool does the same."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from tuckit.core.mcp.serializers import slice_dict
+    from tuckit.core.models import Slice
+
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    for title in ("A", "B", "C"):
+        await create_slice(ctx, title, area_id=area_id)
+
+    @sync_to_async
+    def _serialize_with_a_fixed_clock():
+        now = timezone.now() + timedelta(days=10)
+        return [slice_dict(s, now=now) for s in Slice.objects.all()]
+
+    rows = await _serialize_with_a_fixed_clock()
+
+    assert {r["age_days"] for r in rows} == {10}
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_the_write_paths_report_the_time_axis_too():
+    """create/update deliberately omit `stage` (see above), but not these: a
+    caller that just filed something is exactly who should see that the thing
+    it duplicated has been sitting there for a month."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+
+    created = await create_slice(ctx, "New", area_id=area_id)
+    updated = await update_slice(ctx, created["id"], title="Renamed")
+
+    assert created["age_days"] == 0 and created["idle_days"] == 0
+    assert updated["age_days"] == 0 and updated["idle_days"] == 0
+
+
+# --- the way out costs what the way in cost (TP-254) ---------------------
+#
+# add_bites and propose take lists; nothing that closes anything did. Clearing
+# 109 slices took 109 calls, while creating them had been one-at-a-time over
+# forty days where each felt free. The asymmetry was in the type signature.
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_one_call_closes_many_slices():
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    ids = [(await create_slice(ctx, f"S{i}", area_id=area_id))["id"] for i in range(5)]
+
+    rows = await update_slice(ctx, ids, status="dropped")
+
+    assert [r["status"] for r in rows] == ["dropped"] * 5
+    assert {r["title"] for r in rows} == {f"S{i}" for i in range(5)}
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_a_single_id_still_returns_a_bare_dict():
+    """Every existing caller passes an int. Wrapping that in a list would break
+    all of them at once."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    created = await create_slice(ctx, "Solo", area_id=area_id)
+
+    updated = await update_slice(ctx, created["id"], status="shipped")
+
+    assert isinstance(updated, dict) and updated["status"] == "shipped"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_a_batch_files_and_unfiles_too():
+    """area_id is the other reversible decision, so triage is a batch as well."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    ids = [(await create_slice(ctx, f"Capture {i}"))["id"] for i in range(3)]
+
+    filed = await update_slice(ctx, ids, area_id=area_id)
+    assert [r["area_id"] for r in filed] == [area_id] * 3
+
+    back = await update_slice(ctx, ids, area_id="")
+    assert [r["area_id"] for r in back] == [None] * 3
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["title", "spec", "constraints"])
+async def test_a_batch_refuses_to_write_body_text(field):
+    """The failure this forecloses: one body written across many slices, with
+    no way back. It is the shape that already destroyed a decision record once
+    (TP-238), so it is refused rather than partially applied."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    ids = [(await create_slice(ctx, f"S{i}", area_id=area_id, spec="original"))["id"]
+           for i in range(2)]
+
+    with pytest.raises(InvalidValue):
+        await update_slice(ctx, ids, **{field: "overwritten"})
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_a_refused_batch_leaves_every_slice_untouched():
+    """Refusing is only worth anything if it happens before the first write."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    ids = [(await create_slice(ctx, f"S{i}", area_id=area_id, spec="original"))["id"]
+           for i in range(2)]
+
+    with pytest.raises(InvalidValue):
+        await update_slice(ctx, ids, status="dropped", spec="overwritten")
+
+    for sid in ids:
+        md = await get_slice(ctx, sid)
+        assert "original" in md and "Status: open" in md
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_an_unknown_id_fails_the_whole_batch():
+    """Partial success would leave nobody able to say how many closed."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    good = [(await create_slice(ctx, f"S{i}", area_id=area_id))["id"] for i in range(3)]
+
+    with pytest.raises(NotFound):
+        await update_slice(ctx, good + [999_999], status="dropped")
+
+    for sid in good:
+        assert "Status: open" in await get_slice(ctx, sid)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_a_batch_is_bounded_and_rejects_duplicates_and_emptiness():
+    from tuckit.core.mcp.server import BATCH_LIMIT
+
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    one = (await create_slice(ctx, "S", area_id=area_id))["id"]
+
+    with pytest.raises(InvalidValue):
+        await update_slice(ctx, [], status="dropped")
+    with pytest.raises(InvalidValue):
+        await update_slice(ctx, [one, one], status="dropped")
+    with pytest.raises(InvalidValue):
+        await update_slice(ctx, list(range(BATCH_LIMIT + 1)), status="dropped")
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_every_slice_in_a_batch_keeps_its_own_activity_row():
+    """A batch collapsed into one event would erase, from each slice's own
+    history, the moment it was closed."""
+    _org, _other_org, raw, area_id = await _seed()
+    ctx = make_ctx(raw)
+    ids = [(await create_slice(ctx, f"S{i}", area_id=area_id))["id"] for i in range(3)]
+
+    await update_slice(ctx, ids, status="dropped")
+
+    for sid in ids:
+        assert "dropped" in await get_slice(ctx, sid, with_activity=True)

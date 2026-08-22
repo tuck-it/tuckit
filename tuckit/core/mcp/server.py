@@ -2,6 +2,8 @@ import os
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
 from mcp.server.transport_security import TransportSecuritySettings
@@ -130,7 +132,19 @@ async def get_project_state(ctx: Context, area_id: int | None = None) -> dict:
     `inbox` counts the slices that have no area yet — things someone decided
     mattered before deciding where they belong. They are real slices, not a
     separate kind of object: give one an area (update_slice) and it joins that
-    area's roadmap; clear the area and it comes back."""
+    area's roadmap; clear the area and it comes back. `oldest_idle_days` is how
+    long the oldest unfiled capture has sat untouched.
+
+    `totals` is the shape of the board rather than its contents: open / shipped
+    / dropped for the whole org, `drop_ratio` (the share of everything ever
+    captured that someone later decided was not work), and `by_source`
+    (human vs agent). Read `drop_ratio` before you file anything: it is the
+    denominator for "will anyone actually do this later?", and a board that
+    drops most of what it collects is telling you the honest answer is no.
+
+    Each area's `roadmap` is capped. `counts.open` is the real number and
+    `roadmap_omitted` is how many were left out — the list is a sample once
+    that is above zero, never the whole board."""
     org, user = await require_caller(ctx)
 
     def _run():
@@ -213,7 +227,12 @@ async def list_slices(
     state: needs_design (spec is empty — brainstorm and write the design doc into
     it), needs_steps (spec is written but it has no bites yet), executing,
     ready_to_ship, or shipped/dropped for finished work. Read progress from
-    `stage`; `status` only ever records a decision (open/shipped/dropped)."""
+    `stage`; `status` only ever records a decision (open/shipped/dropped).
+
+    Every row also carries `age_days` (since it was created) and `idle_days`
+    (since anything last changed on it). Read them before you add: an Inbox
+    whose oldest capture is forty days untouched is telling you that one more
+    capture is not what it needs."""
     org, user = await require_caller(ctx)
 
     def _run():
@@ -232,7 +251,12 @@ async def list_slices(
         # Merged here rather than inside slice_dict(): that serializer is shared
         # with create_slice/update_slice, which already know what they just
         # wrote.
-        return [{**slice_dict(s), "stage": stage_of(s)} for s in rows]
+        #
+        # One `now` for the whole page. Letting each row read the clock makes a
+        # single response measure its rows from different instants -- invisible
+        # in a test, wrong in a long list.
+        now = timezone.now()
+        return [{**slice_dict(s, now=now), "stage": stage_of(s)} for s in rows]
 
     return await sync_to_async(_run, thread_sensitive=True)()
 
@@ -349,10 +373,24 @@ async def create_slice(
     return await sync_to_async(_run, thread_sensitive=True)()
 
 
+# A batch may close at most this many slices in one call. The point of the
+# batch is that closing should not cost more than capturing did -- 109 slices
+# once took 109 calls -- but an unbounded list makes one mistaken argument able
+# to close an entire org, and that is too much to buy with a typo.
+BATCH_LIMIT = 200
+
+# Fields a batch may set. Both are reversible by design: `status` records a
+# decision that can be decided again, and clearing or setting an area is
+# explicitly two-way. Everything else a batch could touch destroys text that
+# was written once -- the same shape as the spec overwrite that permanently
+# erased a decision record (TP-238) -- so a batch is not allowed to carry it.
+BATCH_FIELDS = ("status", "area_id")
+
+
 @mcp.tool()
 async def update_slice(
     ctx: Context,
-    slice_id: int,
+    slice_id: int | list[int],
     title: str | None = None,
     spec: str | None = None,
     constraints: str | None = None,
@@ -377,11 +415,25 @@ async def update_slice(
     `status` records a DECISION (open / shipped / dropped) and nothing else;
     it folds in the old set_slice_status. Never read progress from it — read
     `stage` (list_slices/get_slice report it). after_id/before_id fold in
-    reorder. `assignee`: '' clears, 'me' = you, '<email>' = that member."""
-    org, user = await require_caller(ctx)
+    reorder. `assignee`: '' clears, 'me' = you, '<email>' = that member.
 
-    def _run():
-        s = _resolve_slice(org, slice_id)
+    `slice_id` also takes a LIST, to file or close many slices in one call —
+    tidying a board should not cost more per slice than filling it did. A batch
+    may set only `status` and `area_id`, the two reversible decisions; passing
+    `spec`, `constraints` or `title` with a list is refused rather than applied,
+    because one body text written across many slices cannot be undone. Unknown
+    ids fail the whole call, so "how many actually closed" is never a guess.
+    Returns a dict for a single id and a list for a batch."""
+    org, user = await require_caller(ctx)
+    batched = isinstance(slice_id, list)
+    if batched:
+        _reject_unbatchable(
+            slice_id, title=title, spec=spec, constraints=constraints,
+            after_id=after_id, before_id=before_id, tags=tags, assignee=assignee,
+        )
+
+    def _run_one(sid):
+        s = _resolve_slice(org, sid)
         moved, area = _area_arg(org, area_id)
         member = resolve_member(org, assignee, caller_user=user) if assignee is not None else None
         after = _resolve_slice(org, after_id) if after_id is not None else None
@@ -403,7 +455,39 @@ async def update_slice(
             s = _set_slice_area(s, area, source="agent", member=acting)
         return slice_dict(s)
 
+    def _run():
+        if not batched:
+            return _run_one(slice_id)
+        # One transaction: a half-closed batch cannot be retried safely and
+        # cannot be reported honestly. Each slice still goes through the same
+        # single-slice path, so every one of them gets its own activity row --
+        # collapsing a batch into one event would erase from each slice's own
+        # history the moment it was closed, and this product's whole claim is
+        # that the record survives.
+        with transaction.atomic():
+            return [_run_one(sid) for sid in slice_id]
+
     return await sync_to_async(_run, thread_sensitive=True)()
+
+
+def _reject_unbatchable(ids, **fields):
+    """Guard the batch path. Every branch here refuses rather than repairs: a
+    batch that silently drops an argument is how one mistaken call rewrites a
+    hundred slices and nobody finds out until the text is gone."""
+    if not ids:
+        raise InvalidValue("slice_id list is empty — nothing to update")
+    if len(ids) > BATCH_LIMIT:
+        raise InvalidValue(
+            f"a batch updates at most {BATCH_LIMIT} slices, got {len(ids)}"
+        )
+    if len(set(ids)) != len(ids):
+        raise InvalidValue("slice_id list contains the same id more than once")
+    named = sorted(k for k, v in fields.items() if v is not None)
+    if named:
+        raise InvalidValue(
+            f"a batch may only set {' and '.join(BATCH_FIELDS)}; "
+            f"got {', '.join(named)} — update those one slice at a time"
+        )
 
 
 def _public_origin(ctx) -> str:

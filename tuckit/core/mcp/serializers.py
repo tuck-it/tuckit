@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from tuckit.core.services.refs import slice_ref
 
 
@@ -5,7 +7,27 @@ def tag_names(slice_) -> list[str]:
     return [t.name for t in slice_.tags.all()]
 
 
-def slice_dict(slice_) -> dict:
+def slice_dict(slice_, *, now=None) -> dict:
+    """One slice, as an agent sees it.
+
+    `age_days` / `idle_days` are whole days, not ISO timestamps: a timestamp
+    makes the caller subtract today's date to get the only number it wanted,
+    and that is one more place to be wrong.
+
+    Without them the agent-facing board has no time axis at all — a slice
+    created five minutes ago and one abandoned forty days ago read identically,
+    so nothing ever looks stale to the side that is doing most of the adding.
+    The web UI has had this axis all along (services.state.STALE_DAYS, used as
+    your_turn()'s sort key); only MCP was blind.
+
+    They are DATA, never a filter. The rule in your_turn() still holds -- "a
+    'stale' section is a guilt list: it only grows, and it can never be
+    cleared" -- and this changes nothing about what any screen shows.
+
+    Pass `now` when serializing a list, so every row in one response is
+    measured from the same instant.
+    """
+    now = timezone.now() if now is None else now
     return {
         "id": slice_.id,
         "ref": slice_ref(slice_),
@@ -14,6 +36,8 @@ def slice_dict(slice_) -> dict:
         "tags": tag_names(slice_),
         "area_id": slice_.area_id,
         "assignee": (slice_.assignee.user.email if slice_.assignee_id else None),
+        "age_days": (now - slice_.created_at).days,
+        "idle_days": (now - slice_.updated_at).days,
     }
 
 
