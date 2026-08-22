@@ -539,6 +539,54 @@ NODE_KINDS = {"question", "option", "note"}
 _NODE_KEYS = ("id", "parent", "kind", "title", "summary", "body", "media", "recommended")
 
 
+def _assert_parent_accepts(existing_by_id, parent_id, kind, node_id):
+    """A node that comes after an answer belongs to the option that won it.
+
+    Not a convention -- causation. Those nodes exist BECAUSE of that choice,
+    and hanging them anywhere else is what lets a later re-answer silently
+    re-read them as the consequence of a decision that never produced them.
+
+    Rejecting rather than repairing is deliberate. A caller whose parent is
+    quietly fixed never finds out, so it sends the same wrong parent next
+    time; the error message is the only part of this that teaches.
+    """
+    parent = existing_by_id.get(parent_id)
+    if parent is None:
+        return
+    parent_kind = parent.get("kind") or "note"
+
+    if parent_kind == "question":
+        chosen = parent.get("chosen")
+        # More candidates on a settled question are fine. What is not fine is
+        # continuing the story from the question instead of from the answer.
+        if chosen and kind != "option":
+            raise InvalidValue(
+                f"{parent_id!r} is already answered with {chosen!r} -- a node "
+                f"that comes after the answer must be a child of the chosen "
+                f"option {chosen!r}, not of the question. Resend {node_id!r} "
+                f"with parent={chosen!r}."
+            )
+        return
+
+    if parent_kind == "option":
+        question = existing_by_id.get(parent.get("parent") or "")
+        if question is None or (question.get("kind") or "note") != "question":
+            return
+        chosen = question.get("chosen")
+        if not chosen:
+            raise InvalidValue(
+                f"{question['id']!r} has no answer yet -- send {node_id!r} "
+                f"once the question is answered, as a child of whichever "
+                f"option wins."
+            )
+        if chosen != parent_id:
+            raise InvalidValue(
+                f"{parent_id!r} is not the chosen option -- "
+                f"{question['id']!r} chose {chosen!r}. Resend {node_id!r} "
+                f"with parent={chosen!r}."
+            )
+
+
 def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[dict]:
     """Append nodes to a slice's decision record. Returns what was added.
 
@@ -556,6 +604,7 @@ def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[
 
     existing = list((slice_.decision_tree or {}).get("nodes", []))
     known = {n.get("id") for n in existing}
+    existing_by_id = {n.get("id"): n for n in existing}
     has_root = any(not n.get("parent") for n in existing)
     # One timestamp for the batch: these nodes were thought of together, and
     # the client's entrance stagger already orders them by position.
@@ -585,6 +634,11 @@ def propose_nodes(slice_, nodes, *, source: str = "agent", member=None) -> list[
                 f"parent {parent!r} is not on this canvas -- send it earlier in "
                 f"this same call, or in an earlier one"
             )
+        else:
+            # A parent created earlier in THIS batch is absent from
+            # existing_by_id, so the guard skips it -- correct, since a node
+            # born in this call cannot already have been answered.
+            _assert_parent_accepts(existing_by_id, parent, kind, node_id)
 
         clean = {k: node[k] for k in _NODE_KEYS if k in node}
         clean.update(id=node_id, parent=parent, kind=kind, at=arrived_at)
