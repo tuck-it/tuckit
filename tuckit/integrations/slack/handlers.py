@@ -207,6 +207,7 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
         )
         return
 
+    channel = event.get("channel", "")
     unfurls = {}
     expanded_refs = []
     cutoff = timezone.now() - UNFURL_COOLDOWN
@@ -217,7 +218,7 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
             continue
         ref = slice_ref(found)
         recent = SlackUnfurl.objects.filter(
-            install=install, ref=ref, last_unfurled_at__gte=cutoff,
+            install=install, channel=channel, ref=ref, last_unfurled_at__gte=cutoff,
         ).exists()
         if recent:
             continue
@@ -228,7 +229,7 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
         return
     try:
         SlackClient(install.bot_token).chat_unfurl(
-            channel=event.get("channel", ""), ts=message_ts, unfurls=unfurls,
+            channel=channel, ts=message_ts, unfurls=unfurls,
         )
     except SlackApiError:
         # Deliberately swallowed, not just uncaught: this is the one path in
@@ -245,4 +246,4 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
     # behind: it would suppress that ref for the next hour and the reader
     # would get silence for a card they never saw.
     for ref in expanded_refs:
-        SlackUnfurl.objects.update_or_create(install=install, ref=ref)
+        SlackUnfurl.objects.update_or_create(install=install, channel=channel, ref=ref)

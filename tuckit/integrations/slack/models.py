@@ -59,16 +59,25 @@ class SlackEvent(models.Model):
 
 
 class SlackUnfurl(models.Model):
-    """When a ref was last expanded, per install.
+    """When a ref was last expanded, per channel.
 
     A ref repeated in an active channel should not redraw a card every time;
     Linear uses a 60-minute window and it reads well.
+
+    `channel` is part of the key because the window belongs to a conversation,
+    not to the workspace. Without it, one person sharing a ref in #eng silences
+    it everywhere else for an hour: the next person pastes the same link in
+    another channel and gets nothing, with no way to find out why -- unfurling
+    is the one path forbidden to explain its own failures, in logs included.
     """
     install = models.ForeignKey(SlackInstall, on_delete=models.CASCADE, related_name="unfurls")
+    channel = models.CharField(max_length=32)
     ref = models.CharField(max_length=32)
     last_unfurled_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["install", "ref"], name="uniq_slack_unfurl_per_ref"),
+            models.UniqueConstraint(
+                fields=["install", "channel", "ref"], name="uniq_slack_unfurl_per_channel_ref",
+            ),
         ]
