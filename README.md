@@ -145,6 +145,11 @@ Open <http://localhost:8000/> and log in with the account you just made.
 
 </details>
 
+Slack integration is optional and off until you set `SLACK_CLIENT_ID`,
+`SLACK_CLIENT_SECRET` and `SLACK_SIGNING_SECRET`; `ANTHROPIC_API_KEY` is a
+separate, also-optional switch on top of that, needed only for @mention
+handling.
+
 Configuration beyond this, including the full environment variable list, is on
 [docs.tuckit.dev](https://docs.tuckit.dev).
 

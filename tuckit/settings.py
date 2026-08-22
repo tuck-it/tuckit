@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     "tuckit.web",
 ]
 
+INSTALLED_APPS = INSTALLED_APPS + ["tuckit.integrations.slack"]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -196,6 +198,32 @@ SOCIAL_PROVIDERS = {
     }.items()
     if cfg
 }
+
+# --- Slack integration ---
+# All three empty (the default) means the integration does not exist: no URLs
+# are mounted and no Settings entry renders. A self-host registers its own
+# Slack app and supplies these; there is no shared hosted app.
+SLACK_CLIENT_ID = env("SLACK_CLIENT_ID", default="")
+SLACK_CLIENT_SECRET = env("SLACK_CLIENT_SECRET", default="")
+SLACK_SIGNING_SECRET = env("SLACK_SIGNING_SECRET", default="")
+
+# Absolute origin the Slack integration builds links against (e.g. the
+# ephemeral connect button and the result card's board link). Built here
+# rather than from a request, because the app_mention handler runs as a
+# queued job with no request in scope.
+TUCKIT_BASE_URL = env("TUCKIT_BASE_URL", default="http://localhost:8000")
+
+# Queue backend for async job execution (e.g., processing Slack events).
+# Cloud deployments will set this to a Cloud Tasks backend; self-hosts use
+# the in-process default.
+TUCKIT_SLACK_QUEUE_BACKEND = env(
+    "TUCKIT_SLACK_QUEUE_BACKEND",
+    default="tuckit.integrations.slack.queue.in_process_backend",
+)
+
+# A separate switch: without it install and unfurling still work and only the
+# @mention handler is unavailable.
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
