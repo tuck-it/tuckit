@@ -6,6 +6,7 @@ from django.utils import timezone
 from tuckit.core.models import Area, Org, Slice, OrgStatSnapshot
 from tuckit.core.services.activity import slice_activity
 from tuckit.core.services.bites import list_bites
+from tuckit.core.services.canvas import spine_for
 from tuckit.core.services.slices import (
     PRIORITY_ORDER, annotate_stage_counts, filed_slices, inbox_slices, list_slices,
     priority_sort_key, stage_column, stage_of,
@@ -145,6 +146,54 @@ def _org_totals(org: Org) -> dict:
     }
 
 
+def _node_list(nodes):
+    return " \u00b7 ".join(
+        f"[{n['id']}] {n.get('title', '')}"
+        + (" (recommended)" if n.get("recommended") else "")
+        for n in nodes)
+
+
+def _render_decisions(slice_):
+    """The decision record, in reading order, with every node id spelled out.
+
+    The ids are why this exists. propose() rejects a node whose parent is not
+    the option that won, and a session that cannot see which option won can
+    only ever fail that check -- which is the likeliest reason the convention
+    drifted for as long as it did.
+
+    Bodies are deliberately left out. A 25-node canvas carries several
+    thousand words of reasoning, and swamping every get_slice with it would
+    buy nothing an agent needs: the ids and the states are what it acts on,
+    and the prose is what the human reads on the board.
+    """
+    nodes = (slice_.decision_tree or {}).get("nodes", [])
+    if not nodes:
+        return []
+
+    rows = ["## Decisions", ""]
+    for row in spine_for(nodes, closed=bool((slice_.spec or "").strip())):
+        node = row["node"]
+        title = node.get("title", "")
+        if row["row"] == "question":
+            line = f"- [{node['id']}] {title} -- {row['state']}"
+            if row["locked"]:
+                line += ", locked"
+            rows.append(line)
+            if row["rejected"]:          # passed over: nothing won
+                rows.append("  - not taken: " + _node_list(row["rejected"]))
+            if row["options"]:
+                rows.append("  - candidates: " + _node_list(row["options"]))
+        elif row["row"] == "chosen":
+            rows.append(f"  - chosen: [{node['id']}] {title}")
+            # The losers ride on the winner's row, so the answer is printed
+            # before the list of what it beat -- the same order as the screen.
+            if row["rejected"]:
+                rows.append("  - rejected: " + _node_list(row["rejected"]))
+        else:
+            rows.append(f"- [{node['id']}] {title} (note)")
+    return rows + [""]
+
+
 def render_slice_markdown(slice_: Slice, with_activity: bool = False, *,
                           bites=None, activity=None) -> str:
     tags = " ".join(f"#{t}" for t in _tag_names(slice_))
@@ -172,6 +221,10 @@ def render_slice_markdown(slice_: Slice, with_activity: bool = False, *,
     # it exists for.
     if slice_.constraints:
         lines += ["## Constraints", "", slice_.constraints, ""]
+    # The design canvas, readable back at last. Until this landed an agent
+    # could write the record but never read it, so it could not know which
+    # option won -- and therefore could not hang its next node off it.
+    lines += _render_decisions(slice_)
     # ONE flat checklist of every bite on the slice. The old renderer grouped
     # steps under Plan headings and then appended plan-less ones separately;
     # with the Plan layer gone that split has no meaning, and keeping the

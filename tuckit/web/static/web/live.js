@@ -130,9 +130,16 @@
      animates only those. Before it exists -- a slice nobody has designed yet,
      which is where every design conversation starts -- there is no stage and no
      brainstorm.js at all, so the first proposal has to install both. */
-  function mergeCanvas() {
-    fetch(location.pathname + location.search, {
-      headers: { "X-Requested-With": "live" }, credentials: "same-origin"
+  function mergeCanvas(url) {
+    /* An explicit url is the record's own address, handed over by spine.js
+       after an answer. It may carry ?modal=1, and slice_detail only honours
+       that WITH the htmx header -- without it the modal would be handed the
+       full page, splicing a Map toggle into a card that has no map behind it.
+       The poll path keeps exactly the headers it always had. */
+    var headers = { "X-Requested-With": "live" };
+    if (url) headers["HX-Request"] = "true";
+    return fetch(url || (location.pathname + location.search), {
+      headers: headers, credentials: "same-origin"
     })
       .then(function (r) { return r.ok ? r.text() : null; })
       .then(function (html) {
@@ -141,12 +148,77 @@
            network hiccup, so an exception thrown in here would show up as a
            visual glitch with a silent console. */
         try {
+          /* The SPINE first. It is the surface that carries the pick controls,
+             so a question proposed mid-session is unanswerable until this runs
+             -- which is the whole point of watching a canvas grow. The slice
+             page never opted into the #main-content swap, so nothing else
+             brings it up to date. */
+          mergeSpine(html);
           if (window.__canvas) { window.__canvas.sync(html); return; }
           installCanvas(html);
         } catch (e) { console.error("[canvas] sync failed", e); }
       })
       .catch(function () { /* transient: the next poll tries again */ });
   }
+
+  /* Replace the spine when the server's copy differs from what is on screen.
+
+     Comparing first is load-bearing, not an optimisation: the spine holds open
+     <details> folds, and replacing it every two seconds would snap shut the
+     rejected branch a reader was in the middle of. It is server-rendered from
+     spine_for(), so equal HTML means equal state.
+
+     A slice with nothing to draw renders no spine at all, so the first ever
+     proposal has to INSERT one -- and _spine.html carries the <script> tag
+     that loads spine.js, which is why the insert has to re-run it. spine.js
+     guards itself with a sentinel, so re-running is safe. */
+  var lastSpine = (document.querySelector("[data-spine]") || {}).innerHTML;
+
+  function mergeSpine(html) {
+    var incoming = document.createElement("div");
+    incoming.innerHTML = html;
+    var fresh = incoming.querySelector("[data-spine]");
+    if (!fresh) return;
+    var current = document.querySelector("[data-spine]");
+    if (current) {
+      /* Compare against the last SERVER html, never against the live DOM.
+         Opening a <details> writes the `open` attribute into the DOM, so a
+         DOM comparison differs on every poll from the moment a reader expands
+         a rejected branch -- and the replacement would then snap it shut every
+         two seconds, which is worse than not updating at all. */
+      if (fresh.innerHTML === lastSpine) return;
+      /* A replacement is real, so carry the reader's expanded folds across it.
+         Matching on the summary text rather than position keeps them attached
+         to the branch they belong to when new rows appear above. */
+      var open = {};
+      current.querySelectorAll("details[open] > summary").forEach(function (s) {
+        open[s.textContent.trim()] = true;
+      });
+      current.replaceWith(fresh);
+      /* Before the folds are reopened. Setting .open reflects into the
+         attribute, so a baseline captured afterwards holds an `open=""` no
+         server render ever produces -- and every later poll would then differ,
+         tearing the section down every two seconds for as long as one fold
+         stays expanded. */
+      lastSpine = fresh.innerHTML;
+      fresh.querySelectorAll("details > summary").forEach(function (s) {
+        if (open[s.textContent.trim()]) s.parentNode.open = true;
+      });
+    } else {
+      var slot = document.querySelector("[data-graph-slot]");
+      if (!slot) return;                       // not a slice page
+      slot.parentNode.insertBefore(fresh, slot);
+      lastSpine = fresh.innerHTML;
+    }
+    var script = document.createElement("script");
+    script.src = "/static/web/spine.js";
+    document.body.appendChild(script);
+  }
+
+  /* Answering is a fetch, so it never produces the htmx event live.js watches.
+     spine.js calls this to redraw from the server instead of reloading the
+     page, which would throw away scroll position mid-conversation. */
+  window.__liveRefreshSpine = function (url) { return mergeCanvas(url); };
 
   /* First nodes ever: move the rendered stage into the slot and load the script
      that drives it. brainstorm.js is an IIFE that returns immediately when it

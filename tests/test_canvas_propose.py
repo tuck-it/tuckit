@@ -102,3 +102,101 @@ def test_proposing_records_activity_so_the_poller_wakes(org, area):
     assert ev.target_id == s.id
     assert ev.source == "agent"
     assert ev.to_value == "2"
+
+
+def _answered(org, area):
+    """A slice whose q1 is answered with o1."""
+    s = create_slice(org, area=area, title="Canvas", spec="")
+    propose_nodes(s, [_n("q1", kind="question"),
+                      _n("o1", "q1", kind="option"),
+                      _n("o2", "q1", kind="option")])
+    nodes = s.decision_tree["nodes"]
+    next(n for n in nodes if n["id"] == "q1")["chosen"] = "o1"
+    s.decision_tree = {"nodes": nodes}
+    s.save(update_fields=["decision_tree"])
+    return s
+
+
+@pytest.mark.django_db
+def test_progress_may_not_hang_off_a_question_that_was_already_answered(org, area):
+    s = _answered(org, area)
+
+    with pytest.raises(InvalidValue) as e:
+        propose_nodes(s, [_n("d1", "q1")])
+
+    # The value of the guard is that it names the right parent. A test that
+    # only asserts "it raised" proves nothing an agent could act on.
+    assert "'o1'" in str(e.value)
+    assert "q1" in str(e.value)
+
+
+@pytest.mark.django_db
+def test_more_options_may_still_be_added_to_an_answered_question(org, area):
+    # The guard blocks PROGRESS, not candidates.
+    s = _answered(org, area)
+
+    propose_nodes(s, [_n("o3", "q1", kind="option")])
+
+    s.refresh_from_db()
+    assert any(n["id"] == "o3" for n in s.decision_tree["nodes"])
+
+
+@pytest.mark.django_db
+def test_progress_may_not_hang_off_an_option_that_did_not_win(org, area):
+    # The race: the human clicks o2, the agent starts working, the human
+    # corrects to o1 three seconds later. Guard 1 lets parent=o2 through --
+    # o2 IS an option -- so this second guard is what catches it.
+    s = _answered(org, area)
+
+    with pytest.raises(InvalidValue) as e:
+        propose_nodes(s, [_n("d1", "o2")])
+
+    assert "'o1'" in str(e.value)
+
+
+@pytest.mark.django_db
+def test_progress_may_not_hang_off_an_option_while_the_question_is_open(org, area):
+    s = create_slice(org, area=area, title="Canvas", spec="")
+    propose_nodes(s, [_n("q1", kind="question"), _n("o1", "q1", kind="option")])
+
+    with pytest.raises(InvalidValue) as e:
+        propose_nodes(s, [_n("d1", "o1")])
+
+    assert "no answer yet" in str(e.value)
+
+
+@pytest.mark.django_db
+def test_progress_under_the_winning_option_is_accepted(org, area):
+    s = _answered(org, area)
+
+    propose_nodes(s, [_n("d1", "o1")])
+
+    s.refresh_from_db()
+    assert any(n["id"] == "d1" for n in s.decision_tree["nodes"])
+
+
+@pytest.mark.django_db
+def test_a_rejected_batch_stores_none_of_itself(org, area):
+    s = _answered(org, area)
+
+    with pytest.raises(InvalidValue):
+        propose_nodes(s, [_n("ok", "o1"), _n("bad", "q1")])
+
+    s.refresh_from_db()
+    assert not any(n["id"] == "ok" for n in s.decision_tree["nodes"])
+
+
+@pytest.mark.django_db
+def test_a_new_option_in_this_batch_cannot_carry_progress_either(org, area):
+    # The hole the first two guards left: q1 is answered with o1, and one call
+    # adds a fresh option o3 plus a note under it. o3 exists only inside this
+    # batch, so a lookup built from stored nodes alone never sees it -- and a
+    # node lands under an option that did not win.
+    s = _answered(org, area)
+
+    with pytest.raises(InvalidValue) as e:
+        propose_nodes(s, [_n("o3", "q1", kind="option"), _n("d1", "o3")])
+
+    assert "'o1'" in str(e.value)
+    s.refresh_from_db()
+    assert not any(n["id"] == "o3" for n in s.decision_tree["nodes"])

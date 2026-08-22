@@ -1,9 +1,12 @@
+from collections import Counter
+
 import markdown as md
 import nh3
 
 from tuckit.core.services.activity import label_who, slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
-from tuckit.core.services.canvas import graph_for
+from tuckit.core.services.canvas import (
+    graph_for, question_state, reparented, spine_for)
 from tuckit.core.services.orgs import policy_line_for
 from tuckit.core.services.refs import slice_ref
 from tuckit.core.services.slices import delegation_prompt, stage_of
@@ -26,6 +29,59 @@ def render_markdown_html(text: str) -> str:
 
 # Back-compat alias (slice spec uses the same sanitizer).
 render_spec_html = render_markdown_html
+
+
+def _row_bodies(row: dict) -> dict:
+    """One spine row with every markdown body on it rendered.
+
+    Recurses into a rejected option's `descendants`, which are spine rows of
+    their own: an abandoned branch keeps its reasoning, and the map has no
+    bodies to fall back on.
+    """
+    def option(o):
+        return dict(_with_body(o),
+                    descendants=[_row_bodies(r) for r in o.get("descendants", [])])
+
+    return dict(
+        row,
+        node=_with_body(row["node"]),
+        options=[option(o) for o in row["options"]],
+        rejected=[option(o) for o in row["rejected"]],
+    )
+
+
+def _map_nodes(slice_) -> list[dict]:
+    """Nodes for the map, re-parented and counted.
+
+    The count is stamped here rather than worked out in the template, which
+    has no logic in it and should not gain any: it is how many children a card
+    would fold away, and the fold control only exists when there are some.
+    """
+    raw = graph_for(slice_)
+    closed = bool((slice_.spec or "").strip())
+    # Derive the state BEFORE re-parenting and carry it by id. question_state
+    # finds a later sibling by comparing parents, so asking it about a node
+    # whose parent this view rewrote compares a new parent against old ones and
+    # finds nothing -- the map would then paint "your turn" on exactly the
+    # legacy shape (a follow-up hung off an answered question) that this whole
+    # slice is about.
+    state = {
+        n["id"]: question_state(n, raw, closed=closed)
+        for n in raw if (n.get("kind") or "note") == "question"
+    }
+    nodes = reparented(raw)
+    counts = Counter(n.get("parent") for n in nodes if n.get("parent"))
+    return [
+        dict(n, child_count=counts.get(n["id"], 0), state=state.get(n["id"], ""))
+        for n in nodes
+    ]
+
+
+def _with_body(node: dict) -> dict:
+    """A canvas node with its markdown body rendered, leaving the stored one
+    alone -- the record is append-only and nothing on a read path may edit it.
+    """
+    return dict(node, body_html=render_markdown_html(node.get("body", "")))
 
 
 def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
@@ -70,9 +126,23 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
         # ever 400. Before TP-238 this state was unreachable because the record
         # was deleted at that point; keeping it is what made it possible.
         "canvas_closed": bool((slice_.spec or "").strip()),
-        "canvas_nodes": [
-            dict(node, body_html=render_markdown_html(node.get("body", "")))
-            for node in graph_for(slice_)
+        # The MAP's nodes, which differ from the stored ones in two ways, both
+        # display-only:
+        #   - re-parented, so an edge runs question -> winner -> what followed.
+        #     Callers write it that way now; every canvas older than that rule
+        #     hung the continuation off the question, and the record is
+        #     append-only, so here is the only place it can be corrected.
+        #   - no body. A card is a label. Prose on cards is what made one tree
+        #     3240x5537px, which is why Fit bottomed out at 25% and still did
+        #     not fit. The spine is where prose belongs.
+        "canvas_nodes": _map_nodes(slice_),
+        # The reading view. Bodies ARE rendered here, unlike on the map: a
+        # spine row is as wide as the page column, so prose costs nothing, and
+        # this is the surface that has to answer "why did that win".
+        "spine_rows": [
+            _row_bodies(row)
+            for row in spine_for(graph_for(slice_),
+                                 closed=bool((slice_.spec or "").strip()))
         ],
         "bites": list(list_bites(slice_)),
         "activity": label_who(slice_activity(slice_), viewer),

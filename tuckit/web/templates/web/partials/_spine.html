@@ -1,0 +1,112 @@
+{% load static web_extras %}
+{% comment %}
+The decision record as a document.
+
+Deliberately NOT a stage. The record is a chain of decisions, and a chain reads
+top to bottom -- so nothing here is measured, placed, zoomed or fitted, the
+column is as wide as the page gives it, and it fits inside the modal that the
+node graph never could.
+
+Order comes from spine_for(); this file only says what a row looks like. That
+split is what lets a canvas whose author hung the continuation off the question
+read identically to one that hung it off the winning option.
+{% endcomment %}
+<section class="spine" data-spine aria-label="Decision record"
+         data-choice-url="{% wurl 'web:slice_choice' slice.id %}"
+         {% comment %}Where to re-read this record from after an answer. The
+         modal is opened from Home/Inbox/Board, so location.pathname is that
+         board -- refreshing from it would fetch a page with no spine in it and
+         the click would land on the server and change nothing on screen. Both
+         addresses are server-rendered because these routes are org-scoped and
+         a path assembled in JS 404s in a way no endpoint test can see.
+         {% endcomment %}
+         data-refresh-url="{% wurl 'web:slice' slice.id %}{{ modal_qs }}">
+  <div class="spine-bar">
+    <div class="section-label">Decisions</div>
+    {% comment %}The map is a second opinion on the same record. It only
+    exists on the full page -- a stage needs room a centred modal has not
+    got -- and it starts closed, because reading is the common case.
+    {% endcomment %}
+    {% if not is_modal and canvas_nodes %}
+    <button type="button" class="spine-toggle" data-view-toggle aria-pressed="false">Map</button>
+    {% endif %}
+  </div>
+  {% for r in spine_rows %}
+    {% if r.row == "question" %}
+      {% if r.state == "passed" %}
+      {% comment %} Asked, never answered, and the conversation moved on. Folded rather
+         than dropped: rejecting a question and being asked a better one is
+         ordinary design, and the record should show it happened. {% endcomment %}
+      <details class="spine-fold">
+        <summary>Passed over without an answer &mdash; {{ r.node.title }}</summary>
+        {% for o in r.rejected %}
+        <div class="spine-alt"><b>{{ o.title }}</b>
+          {% if o.summary %}<p>{{ o.summary }}</p>{% endif %}
+          {% if o.body_html %}<div class="spine-body">{{ o.body_html|safe }}</div>{% endif %}
+          {% if o.descendants %}{% include "web/partials/_spine_branch.html" with branch=o.descendants %}{% endif %}
+        </div>
+        {% endfor %}
+      </details>
+      {% else %}
+      <div class="spine-row spine-row--q {% if r.state == 'waiting' %}is-waiting{% else %}is-answered{% endif %}">
+        <h3 class="spine-q">{{ r.node.title }}</h3>
+        <span class="spine-state">{% if r.state == "waiting" %}Awaiting your answer{% else %}Answered{% if r.locked %} &middot; locked{% endif %}{% endif %}</span>
+        {% if r.node.summary %}<p class="spine-sum">{{ r.node.summary }}</p>{% endif %}
+        {% if r.node.body_html %}<div class="spine-body">{{ r.node.body_html|safe }}</div>{% endif %}
+        {% if r.node.media %}{% include "web/partials/_spine_media.html" with media=r.node.media %}{% endif %}
+        {% for o in r.options %}
+        <div class="spine-opt">
+          <h4 class="spine-opt-t">{{ o.title }}{% if o.recommended %} <span class="spine-rec">recommended</span>{% endif %}</h4>
+          {% if o.summary %}<p class="spine-sum">{{ o.summary }}</p>{% endif %}
+          {% if o.body_html %}<div class="spine-body">{{ o.body_html|safe }}</div>{% endif %}
+          {% if o.media %}{% include "web/partials/_spine_media.html" with media=o.media %}{% endif %}
+          {% if o.descendants %}{% include "web/partials/_spine_branch.html" with branch=o.descendants %}{% endif %}
+          {% comment %} The control is its own button with its own label. The heading is
+             NOT the control: reading a title is the most natural click on a
+             page like this, and it used to record a choice nothing could
+             undo.
+
+             A locked question never reaches here at all -- it is answered, so
+             it has no `options` to loop over. `canvas_closed` covers the other
+             seal: once a spec is written choose_option refuses, so a button
+             here could only ever 400. {% endcomment %}
+          {% if not canvas_closed %}
+          <button type="button" class="spine-pick" data-pick data-id="{{ o.id }}">Choose this</button>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% elif r.row == "chosen" %}
+      <article class="spine-row spine-row--chosen">
+        <h3 class="spine-q"><span aria-hidden="true">&check;</span> {{ r.node.title }}</h3>
+        {% if r.node.summary %}<p class="spine-sum">{{ r.node.summary }}</p>{% endif %}
+        {% if r.node.body_html %}<div class="spine-body">{{ r.node.body_html|safe }}</div>{% endif %}
+        {% if r.node.media %}{% include "web/partials/_spine_media.html" with media=r.node.media %}{% endif %}
+      </article>
+    {% else %}
+      <article class="spine-row spine-row--note">
+        <h3 class="spine-q">{{ r.node.title }}</h3>
+        {% if r.node.summary %}<p class="spine-sum">{{ r.node.summary }}</p>{% endif %}
+        {% if r.node.body_html %}<div class="spine-body">{{ r.node.body_html|safe }}</div>{% endif %}
+        {% if r.node.media %}{% include "web/partials/_spine_media.html" with media=r.node.media %}{% endif %}
+      </article>
+    {% endif %}
+    {% if r.rejected and r.state != "passed" %}
+    {% comment %} Folded, never deleted. The losing branch keeps its reasoning IN the DOM
+       so "why did that lose" is genuinely one click away -- which is what the
+       old canvas claimed in a comment while display:none made it false. {% endcomment %}
+    <details class="spine-fold">
+      <summary>Rejected {{ r.rejected|length }}</summary>
+      {% for o in r.rejected %}
+      <div class="spine-alt"><b>{{ o.title }}</b>
+        {% if o.summary %}<p>{{ o.summary }}</p>{% endif %}
+        {% if o.body_html %}<div class="spine-body">{{ o.body_html|safe }}</div>{% endif %}
+        {% if o.descendants %}{% include "web/partials/_spine_branch.html" with branch=o.descendants %}{% endif %}
+      </div>
+      {% endfor %}
+    </details>
+    {% endif %}
+  {% endfor %}
+</section>
+<script src="{% static 'web/spine.js' %}" defer></script>
