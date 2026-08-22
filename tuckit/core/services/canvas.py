@@ -90,3 +90,121 @@ def graph_for(slice_):
     different questions and they do not share a picture.
     """
     return (slice_.decision_tree or {}).get("nodes", [])
+
+
+def _kind(node):
+    return node.get("kind") or "note"
+
+
+def question_state(question, nodes):
+    """answered | waiting | passed.
+
+    `passed` is a question nobody answered and the conversation moved past: a
+    later sibling question exists. That state has no field of its own on
+    purpose -- the record is append-only, so storing it would need a write
+    path for "the human said no", and "no" is just the next question.
+
+    A batch shares one `at` (propose_nodes stamps it once), so equal
+    timestamps mean parallel questions rather than a passed-over one. Legacy
+    nodes carry no `at` at all; reading those as 0 makes every comparison a
+    tie, which errs towards `waiting` -- the state that shows more, never less.
+    """
+    if question.get("chosen"):
+        return "answered"
+    at = question.get("at") or 0
+    parent = question.get("parent")
+    for other in nodes:
+        if other is question or _kind(other) != "question":
+            continue
+        if other.get("parent") == parent and (other.get("at") or 0) > at:
+            return "passed"
+    return "waiting"
+
+
+def is_locked(question, nodes):
+    """True once the chosen option has grown children.
+
+    That moment -- not the clock, not the spec -- is when re-answering would
+    start lying: everything under the chosen option exists BECAUSE of it, so
+    pointing `chosen` elsewhere would silently re-read all of it as the
+    consequence of a decision that never produced it.
+    """
+    chosen = question.get("chosen")
+    if not chosen:
+        return False
+    return any(n.get("parent") == chosen for n in nodes)
+
+
+def spine_for(nodes):
+    """The decision record in reading order: one flat list of rows.
+
+    Linear, so unlike the map this needs no re-parenting -- with the rows in
+    the right ORDER it does not matter which node the author hung the
+    continuation on. That is what makes every canvas written before this
+    rule existed readable rather than merely present.
+
+    A row is {node, row, state, locked, options, rejected}; `state`, `locked`,
+    `options` and `rejected` only carry meaning on a question row.
+    """
+    by_id = {n["id"]: n for n in nodes}
+    seq = {n["id"]: i for i, n in enumerate(nodes)}
+    kids = {}
+    for node in nodes:
+        kids.setdefault(node.get("parent"), []).append(node)
+
+    rows = []
+
+    def walk(node):
+        children = kids.get(node["id"], [])
+        after = [c for c in children if _kind(c) != "option"]
+
+        if _kind(node) == "question":
+            options = [c for c in children if _kind(c) == "option"]
+            state = question_state(node, nodes)
+            chosen = by_id.get(node.get("chosen") or "")
+            rows.append({
+                "node": node, "row": "question", "state": state,
+                "locked": is_locked(node, nodes),
+                "options": options if state == "waiting" else [],
+                "rejected": [] if state == "waiting"
+                            else [o for o in options if o is not chosen],
+            })
+            if chosen is not None:
+                rows.append({"node": chosen, "row": "chosen", "state": None,
+                             "locked": False, "options": [], "rejected": []})
+                # The continuation can hang off either one. Correct callers
+                # put it under the chosen option; every canvas older than that
+                # rule put it under the question, and both have to read.
+                after = [c for c in kids.get(chosen["id"], [])
+                         if _kind(c) != "option"] + after
+        else:
+            rows.append({"node": node, "row": "note", "state": None,
+                         "locked": False, "options": [], "rejected": []})
+
+        for child in sorted(after, key=lambda n: (n.get("at") or 0, seq[n["id"]])):
+            walk(child)
+
+    for node in nodes:
+        if not node.get("parent"):
+            walk(node)
+    return rows
+
+
+def reparented(nodes):
+    """The map's view of the same tree, with the continuation under the winner.
+
+    Display only -- the stored nodes are never touched, because the record is
+    append-only and the canvases needing this correction were written before
+    the rule existed. The map draws EDGES, so unlike the spine it cannot fix
+    this with ordering alone: an edge that skips the chosen card is exactly
+    the picture that makes a reader doubt what they chose.
+    """
+    answered = {n["id"]: n["chosen"] for n in nodes
+                if _kind(n) == "question" and n.get("chosen")}
+    out = []
+    for node in nodes:
+        winner = answered.get(node.get("parent"))
+        if winner and _kind(node) != "option" and node["id"] != winner:
+            node = dict(node, parent=winner)
+        out.append(node)
+    return out
