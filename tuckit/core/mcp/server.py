@@ -303,6 +303,10 @@ async def get_slice(ctx: Context, slice: int | str, with_activity: bool = False)
     must not get wrong: landmines, invariants, the real definition of done —
     treat it as binding, it was written for exactly this moment), and
     `## Steps` (the bite checklist, with `[x]` for what is already done).
+    `## Decisions` follows Constraints when the slice has a design canvas: the
+    record in reading order, with each node's id, each question's state
+    (answered / waiting / passed) and whether it is locked. Read it before
+    calling `propose` -- the ids are what a new node's `parent` has to name.
 
     The `Stage:` line says what to do next: needs_design (spec is empty —
     brainstorm and write the design doc into it), needs_steps (spec is written
@@ -590,9 +594,16 @@ async def propose(ctx: Context, slice_id: int, nodes: list[dict]) -> dict:
     is rejected while the slice has one. Settle it BEFORE you write, because
     correcting a stale `chosen` afterwards means clearing the spec first.
 
-    Note the record is not yet readable back over MCP -- `get_slice` does not
-    return it. Until it does, carry the decisions that a later session needs
-    into the spec as well; the canvas is the human's view of them.
+    Where a node hangs is not a style choice. A node that comes AFTER a
+    question was answered must be a child of the option that won it -- those
+    nodes exist because of that choice, and hanging them on the question
+    instead lets a later re-answer silently re-read them as the result of a
+    decision that never produced them. Sending the wrong parent is rejected,
+    and the error names the id to use. Extra options may still be added to an
+    answered question; what is refused is continuing the story from it.
+
+    Read the record back with `get_slice` (`## Decisions`) before continuing
+    someone else's canvas -- that is where the ids and the answers are.
 
     When the batch contained a question you also get `watch_url`: an
     unauthenticated URL, good for fifteen minutes, that answers

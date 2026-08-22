@@ -778,3 +778,73 @@ def test_shipped_slices_never_reach_your_turn(org, area):
     create_slice(area.org, area=area, title="이미 나감", spec="", status="shipped")
 
     assert [r for r in your_turn(area.org) if "slice" in r] == []
+
+
+# ---- the decision record over MCP ----------------------------------------
+
+def _with_record(org, area, nodes):
+    s = create_slice(org, area=area, title="Canvas", spec="designed")
+    s.decision_tree = {"nodes": nodes}
+    s.save(update_fields=["decision_tree"])
+    return s
+
+
+@pytest.mark.django_db
+def test_the_decision_record_reaches_an_agent_with_node_ids(org, area):
+    # The ids are the load-bearing part: without them a later session cannot
+    # send parent=<the winner>, and the propose guard can only ever reject it.
+    s = _with_record(org, area, [
+        {"id": "q1", "parent": None, "kind": "question",
+         "title": "Where do we notify?", "chosen": "o1", "at": 1},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "A note", "at": 1},
+        {"id": "o2", "parent": "q1", "kind": "option", "title": "Email", "at": 1},
+    ])
+
+    out = render_slice_markdown(s)
+
+    assert "## Decisions" in out
+    assert "[q1]" in out and "[o1]" in out and "[o2]" in out
+    assert "Where do we notify?" in out
+
+
+@pytest.mark.django_db
+def test_each_question_reports_which_state_it_is_in(org, area):
+    s = _with_record(org, area, [
+        {"id": "r", "parent": None, "kind": "note", "title": "Problem", "at": 1},
+        {"id": "q1", "parent": "r", "kind": "question", "title": "First", "at": 1},
+        {"id": "q2", "parent": "r", "kind": "question", "title": "Second", "at": 2},
+    ])
+
+    out = render_slice_markdown(s)
+
+    assert "First -- passed" in out
+    assert "Second -- waiting" in out
+
+
+@pytest.mark.django_db
+def test_a_locked_question_says_so_so_an_agent_does_not_offer_to_change_it(org, area):
+    s = _with_record(org, area, [
+        {"id": "q1", "parent": None, "kind": "question", "title": "Q",
+         "chosen": "o1", "at": 1},
+        {"id": "o1", "parent": "q1", "kind": "option", "title": "A", "at": 1},
+        {"id": "d1", "parent": "o1", "kind": "note", "title": "Because", "at": 2},
+    ])
+
+    assert "locked" in render_slice_markdown(s)
+
+
+@pytest.mark.django_db
+def test_bodies_are_left_out_so_a_big_canvas_does_not_swamp_the_response(org, area):
+    s = _with_record(org, area, [
+        {"id": "n1", "parent": None, "kind": "note", "title": "Head",
+         "body": "SHOULD-NOT-APPEAR " * 40, "at": 1},
+    ])
+
+    assert "SHOULD-NOT-APPEAR" not in render_slice_markdown(s)
+
+
+@pytest.mark.django_db
+def test_a_slice_with_no_record_grows_no_section(org, area):
+    s = create_slice(org, area=area, title="Plain", spec="designed")
+
+    assert "## Decisions" not in render_slice_markdown(s)
