@@ -62,12 +62,16 @@ def slack_events(request):
         with transaction.atomic():
             SlackEvent.objects.create(event_id=event_id)
             # transaction.on_commit, not a bare call: the SlackEvent row must
-            # be durable before the job exists, or a retry that arrives
-            # while this transaction is still open would not see the row
-            # yet, miss the IntegrityError below, and queue the job a
-            # second time. Django's test client commits synchronously, so
-            # this ordering cannot be exercised by the suite -- a test that
-            # replaced on_commit with a bare enqueue() would still pass here.
+            # be durable before the job exists, or a retry that arrives while
+            # this transaction is still open would not see the row yet, miss
+            # the IntegrityError below, and queue the job a second time. This
+            # ordering is pinned by
+            # tests/integrations/slack/test_events_endpoint.py::test_the_job_is_queued_only_after_the_row_commits,
+            # which wraps the request in an outer atomic block so on_commit
+            # hooks defer to the outermost commit -- a bare enqueue() fails
+            # that test. What remains untestable in a single process is the
+            # genuine concurrent race (two requests interleaved); the DB
+            # unique constraint on event_id is the defence there, not a test.
             transaction.on_commit(
                 lambda: enqueue(job_name, {"team_id": payload.get("team_id", ""), "event": event})
             )
