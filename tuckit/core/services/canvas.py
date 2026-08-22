@@ -4,7 +4,6 @@ Pure functions only: no models, no request, no template. The arithmetic lives
 here so it can be tested without a browser -- the animation layered on top of it
 cannot be, so everything that *can* be checked headlessly is.
 """
-import re
 
 COL_W = 372      # column pitch
 NODE_W = 264     # card width
@@ -82,50 +81,12 @@ def _push_apart_within_columns(placed, depth):
                 placed[current]["y"] = floor
 
 
-_HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
-
-
-def nodes_from_spec(spec, title):
-    """Derive a node tree from a markdown spec's heading structure.
-
-    The canvas is a view, never a second store: once a slice has a spec, the
-    spec's own shape is what it shows. Prose above the first heading becomes
-    the root's body so nothing on the page is silently dropped.
-    """
-    root = {"id": "s0", "parent": None, "kind": "note",
-            "title": title, "summary": "", "body": ""}
-    nodes = [root]
-    bodies = {"s0": []}
-    stack = [("s0", 0)]
-
-    for line in (spec or "").splitlines():
-        match = _HEADING.match(line)
-        if not match:
-            bodies[stack[-1][0]].append(line)
-            continue
-        level = len(match.group(1))
-        # Climb out of every heading at or below this level, so a "#" after a
-        # "###" lands back on the root rather than under its predecessor.
-        while len(stack) > 1 and stack[-1][1] >= level:
-            stack.pop()
-        node_id = f"s{len(nodes)}"
-        nodes.append({"id": node_id, "parent": stack[-1][0], "kind": "note",
-                      "title": match.group(2), "summary": "", "body": ""})
-        bodies[node_id] = []
-        stack.append((node_id, level))
-
-    for node in nodes:
-        node["body"] = "\n".join(bodies[node["id"]]).strip()
-    return nodes
-
-
 def graph_for(slice_):
-    """The canvas source for one slice.
+    """The canvas source for one slice: its decision record, and nothing else.
 
-    `decision_tree` while the design is still being made, the spec's own structure once
-    it has been written. The two are exclusive in storage, so this never has to
-    merge them -- and an untouched slice simply has nothing to draw.
+    The spec has its own surface on the slice page, so drawing it here too --
+    which this used to do, by parsing its headings into a tree -- put a table of
+    contents on screen in the shape of a decision record. The two answer
+    different questions and they do not share a picture.
     """
-    if (slice_.spec or "").strip():
-        return nodes_from_spec(slice_.spec, slice_.title)
     return (slice_.decision_tree or {}).get("nodes", [])

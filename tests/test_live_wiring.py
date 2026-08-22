@@ -118,7 +118,10 @@ def test_live_merges_the_canvas_instead_of_swapping_it():
 def test_the_slice_page_ships_the_poller_and_the_canvas(client, member):
     org, user = member
     a = create_area(org, "Backend")
-    s = create_slice(org, area=a, title="Payments", spec="## Goal\ntext")
+    s = create_slice(org, area=a, title="Payments", spec="")
+    s.decision_tree = {"nodes": [{"id": "n1", "parent": None, "kind": "question",
+                                  "title": "Which way?", "summary": "", "body": ""}]}
+    s.save(update_fields=["decision_tree"])
     client.force_login(user)
 
     html = client.get(f"/{org.slug}/slices/{s.id}/").content.decode()
