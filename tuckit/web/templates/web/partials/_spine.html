@@ -82,7 +82,7 @@ read identically to one that hung it off the winning option.
         {% if r.node.media %}{% include "web/partials/_spine_media.html" with media=r.node.media %}{% endif %}
       </article>
     {% endif %}
-    {% if r.row == "question" and r.rejected and r.state != "passed" %}
+    {% if r.rejected and r.state != "passed" %}
     {% comment %} Folded, never deleted. The losing branch keeps its reasoning IN the DOM
        so "why did that lose" is genuinely one click away -- which is what the
        old canvas claimed in a comment while display:none made it false. {% endcomment %}

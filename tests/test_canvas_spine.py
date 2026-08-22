@@ -51,8 +51,8 @@ def test_the_chosen_option_is_the_row_right_after_its_question():
     rows = spine_for(nodes)
     assert [(r["row"], r["node"]["id"]) for r in rows] == [
         ("question", "q1"), ("chosen", "o2")]
-    assert [o["id"] for o in rows[0]["rejected"]] == ["o1"]
     assert rows[0]["options"] == []
+    assert [o["id"] for o in rows[1]["rejected"]] == ["o1"]
 
 
 def test_an_unanswered_question_shows_its_options_inline():
@@ -114,3 +114,17 @@ def test_a_sealed_record_offers_no_options_to_pick_from():
     assert row["state"] == "passed"
     assert row["options"] == []
     assert [o["id"] for o in row["rejected"]] == ["o1"]
+
+
+def test_the_rejected_fold_comes_after_the_winner_never_before_it():
+    """Order is the whole argument of this view.
+
+    A fold of losing options printed above the option that won reads as if the
+    losers came first -- the exact ambiguity about "what did I actually pick"
+    that this redesign exists to remove.
+    """
+    nodes = [_q("q1", chosen="o2"), _o("o1", "q1"), _o("o2", "q1")]
+    rows = spine_for(nodes)
+
+    assert rows[0]["rejected"] == []                       # not on the question
+    assert [o["id"] for o in rows[1]["rejected"]] == ["o1"]  # on the winner

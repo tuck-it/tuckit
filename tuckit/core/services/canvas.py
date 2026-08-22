@@ -179,8 +179,14 @@ def spine_for(nodes, *, closed=False):
                             else [o for o in options if o is not chosen],
             })
             if chosen is not None:
+                # The losers hang off the WINNER's row, not the question's, so
+                # the fold prints below the option that won. Above it, a reader
+                # meets the rejected list before the answer -- which is the
+                # exact "wait, what did I pick?" this view exists to end.
                 rows.append({"node": chosen, "row": "chosen", "state": None,
-                             "locked": False, "options": [], "rejected": []})
+                             "locked": False, "options": [],
+                             "rejected": rows[-1]["rejected"]})
+                rows[-2]["rejected"] = []
                 # The continuation can hang off either one. Correct callers
                 # put it under the chosen option; every canvas older than that
                 # rule put it under the question, and both have to read.

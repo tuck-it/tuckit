@@ -146,6 +146,13 @@ def _org_totals(org: Org) -> dict:
     }
 
 
+def _node_list(nodes):
+    return " \u00b7 ".join(
+        f"[{n['id']}] {n.get('title', '')}"
+        + (" (recommended)" if n.get("recommended") else "")
+        for n in nodes)
+
+
 def _render_decisions(slice_):
     """The decision record, in reading order, with every node id spelled out.
 
@@ -172,16 +179,16 @@ def _render_decisions(slice_):
             if row["locked"]:
                 line += ", locked"
             rows.append(line)
-            pool = row["options"] or row["rejected"]
-            label = "candidates" if row["options"] else "rejected"
-            if pool:
-                inner = " \u00b7 ".join(
-                    f"[{o['id']}] {o.get('title', '')}"
-                    + (" (recommended)" if o.get("recommended") else "")
-                    for o in pool)
-                rows.append(f"  - {label}: {inner}")
+            if row["rejected"]:          # passed over: nothing won
+                rows.append("  - not taken: " + _node_list(row["rejected"]))
+            if row["options"]:
+                rows.append("  - candidates: " + _node_list(row["options"]))
         elif row["row"] == "chosen":
             rows.append(f"  - chosen: [{node['id']}] {title}")
+            # The losers ride on the winner's row, so the answer is printed
+            # before the list of what it beat -- the same order as the screen.
+            if row["rejected"]:
+                rows.append("  - rejected: " + _node_list(row["rejected"]))
         else:
             rows.append(f"- [{node['id']}] {title} (note)")
     return rows + [""]
