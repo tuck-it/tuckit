@@ -4,6 +4,7 @@ import nh3
 from tuckit.core.services.activity import label_who, slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
 from tuckit.core.services.canvas import graph_for
+from tuckit.core.services.orgs import policy_line_for
 from tuckit.core.services.refs import slice_ref
 from tuckit.core.services.slices import delegation_prompt, stage_of
 
@@ -45,6 +46,10 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
     return {
         "slice": slice_,
         "stage": stage,
+        # The one policy line that explains THIS slice's number. Not the whole
+        # policy: that would repeat the same paragraph on every screen and bury
+        # the line that applies.
+        "policy_line": policy_line_for(slice_.org, slice_.priority),
         # The text a human copies to hand this slice to an agent. None once
         # there is no next step (shipped/dropped), which is half of the
         # template's gate; the other half is slice.area, because an unfiled

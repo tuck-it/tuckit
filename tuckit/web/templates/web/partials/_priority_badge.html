@@ -1,0 +1,17 @@
+{% comment %}
+  The priority number, and nothing else.
+
+  Renders NOTHING when priority is unset -- that is a real state (nobody has
+  ranked this), and printing a number for it would be the board inventing a
+  decision no one made.
+
+  Deliberately no tier name. The NUMBERS are the vocabulary and
+  Org.priority_policy supplies their meaning, so shipping "Urgent"/"High" here
+  would put a second vocabulary on the same screen as whatever the person wrote
+  in their own policy -- and a classifying agent would have two to obey.
+
+  `policy_line` is the one line of the policy that explains this number. The
+  detail view renders it as visible text beside the badge; a title attribute
+  alone is invisible on touch and to most assistive tech.
+{% endcomment %}
+{% if slice.priority %}<span class="priority-badge"{% if policy_line %} title="{{ policy_line }}"{% endif %}>{{ slice.priority }}<span class="sr-only"> — priority {{ slice.priority }} of 5, 1 is most urgent</span></span>{% endif %}
