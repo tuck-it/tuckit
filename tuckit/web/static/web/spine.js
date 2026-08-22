@@ -48,7 +48,13 @@
            slice) -- swallowing that for a generic toast turns a rule being
            taught into a button that mysteriously fails. */
         return res.text().then(function (why) {
-          if (window.showToast) window.showToast(why.trim() || "Couldn't record that choice.", "err");
+          /* Only if the body is prose. A CSRF-expired or 500 response is an
+             HTML page, and toasting a document as text tells the reader
+             nothing -- base.html guards its htmx equivalent the same way. */
+          why = (why || "").trim();
+          var readable = why && why.length < 600 && why[0] !== "<";
+          if (window.showToast)
+            window.showToast(readable ? why : "Couldn't record that choice.", "err");
         });
       }
       /* Skip past our own write -- this is a fetch, so live.js never sees the
@@ -56,7 +62,11 @@
       if (window.__liveAdoptCursor) window.__liveAdoptCursor(res.headers.get("X-Live-Cursor"));
       /* Redraw from the server: one answer changes the question's state, its
          chosen row, its fold and whether it is locked, all at once. */
-      if (window.__liveRefreshSpine) window.__liveRefreshSpine();
+      /* From the record's own address, not from wherever the reader is: a
+         modal opened off the board would otherwise re-read the board, find no
+         spine, and leave a recorded answer invisible on screen. */
+      var refresh = host.dataset.refreshUrl;
+      if (window.__liveRefreshSpine) window.__liveRefreshSpine(refresh);
       else location.reload();
     }).catch(function () {
       pick.disabled = false;

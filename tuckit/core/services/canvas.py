@@ -198,13 +198,23 @@ def spine_for(nodes, *, closed=False):
         options = [c for c in children if _kind(c) == "option"]
         state = question_state(node, nodes, closed=closed)
         chosen = by_id.get(node.get("chosen") or "")
-        losers = [] if state == "waiting" else [o for o in options if o is not chosen]
-        losers = [dict(o, descendants=branch_under(o)) for o in losers]
+
+        # Every option carries whatever was built under it, answered or not.
+        # Walking only the winner's branch dropped those rows from the record
+        # entirely -- and the map has no bodies, so they became unreachable on
+        # every surface. An unanswered question can hold them too: that is the
+        # shape this repo's own fixtures used before the parent rule existed.
+        def with_branch(option):
+            return dict(option, descendants=branch_under(option))
+
+        inline = [with_branch(o) for o in options] if state == "waiting" else []
+        losers = [] if state == "waiting" else [
+            with_branch(o) for o in options if o is not chosen]
 
         question_row = {
             "node": node, "row": "question", "state": state,
             "locked": is_locked(node, nodes),
-            "options": options if state == "waiting" else [],
+            "options": inline,
             "rejected": [] if chosen is not None else losers,
         }
         rows.append(question_row)

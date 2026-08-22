@@ -191,3 +191,59 @@ def test_a_note_alongside_the_options_locks_the_first_answer_immediately():
              _n("context", "q1")]
 
     assert is_locked(nodes[0], nodes) is True
+
+
+# ---- the record this redesign was measured against ------------------------
+
+def test_slice_208_reads_as_a_chain_without_losing_a_node():
+    """The fixture the constraints name, exercised end to end.
+
+    Every legacy trait at once: the continuation hung off the question, an
+    answer that disagrees with the recommendation, and two questions the
+    design finished around.
+    """
+    from tests.canvas_fixtures import slice_208_nodes
+
+    nodes = slice_208_nodes()
+    rows = spine_for(nodes, closed=True)
+    ids = [r["node"]["id"] for r in rows]
+
+    # The chain reads in the order it happened, and the winner is a row of its
+    # own directly under its question -- not a leaf the story walks past.
+    assert ids == ["root", "q1", "o3", "d1", "q2", "d2", "q3", "d3", "n1",
+                   "q4", "s1", "d4"]
+
+    # Nothing is lost: 12 rows on the spine plus every option folded away.
+    folded = sum(len(r["rejected"]) for r in rows)
+    assert len(ids) + folded == len(nodes)
+
+    states = {r["node"]["id"]: r["state"] for r in rows if r["row"] == "question"}
+    assert states == {"q1": "answered", "q2": "passed",
+                      "q3": "passed", "q4": "answered"}
+
+    # Sealed, so nothing on it is anyone's turn.
+    assert all(r["state"] != "waiting" for r in rows if r["row"] == "question")
+
+
+def test_slice_208_draws_edges_through_the_winner_on_the_map():
+    from tests.canvas_fixtures import slice_208_nodes
+
+    nodes = slice_208_nodes()
+    parents = {n["id"]: n["parent"] for n in reparented(nodes)}
+
+    assert parents["d1"] == "o3"      # was "q1": the edge skipped the winner
+    assert parents["d4"] == "s1"
+    assert parents["o1"] == "q1"      # options stay where they were
+    assert parents["root"] is None
+
+
+def test_slice_208_locks_both_of_its_answered_questions():
+    # Both answers have work under them -- hung off the QUESTION, which is the
+    # shape a lock reading only the winner's children would call unlocked.
+    from tests.canvas_fixtures import slice_208_nodes
+
+    nodes = slice_208_nodes()
+    by_id = {n["id"]: n for n in nodes}
+
+    assert is_locked(by_id["q1"], nodes) is True
+    assert is_locked(by_id["q4"], nodes) is True

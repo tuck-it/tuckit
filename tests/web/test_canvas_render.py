@@ -257,3 +257,30 @@ def test_an_open_question_on_an_unsealed_record_does_alarm(client_local, org):
         f"/{org.slug}/slices/{s.id}/").content.decode().split("data-canvas", 1)[1]
 
     assert 'data-state="waiting"' in stage
+
+
+@pytest.mark.django_db
+def test_slice_208s_own_record_draws_its_edges_through_the_winner(client_local, org):
+    """The fixture the constraints name, on the rendered page.
+
+    STRAY above is a four-node simplification of this; this is the real thing,
+    with 25 nodes and every legacy trait at once.
+    """
+    from tests.canvas_fixtures import slice_208_nodes
+
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="208", spec="designed")
+    s.decision_tree = {"nodes": slice_208_nodes()}
+    s.save(update_fields=["decision_tree"])
+    stage = client_local.get(
+        f"/{org.slug}/slices/{s.id}/").content.decode().split("data-canvas", 1)[1]
+    parents = dict(re.findall(r'data-id="(\w+)"\s+data-parent="(\w*)"', stage))
+
+    assert parents["d1"] == "o3"        # the continuation moved under the winner
+    assert parents["d4"] == "s1"
+    assert parents["o1"] == "q1"        # ...and the options did not move
+    assert len(parents) == 25           # every node reached the stage
+    assert parents["root"] == ""        # ...and the root is still the root
+
+    # Sealed record: nothing on the map is demanding an answer.
+    assert 'data-state="waiting"' not in stage

@@ -12,7 +12,15 @@ split is what lets a canvas whose author hung the continuation off the question
 read identically to one that hung it off the winning option.
 {% endcomment %}
 <section class="spine" data-spine aria-label="Decision record"
-         data-choice-url="{% wurl 'web:slice_choice' slice.id %}">
+         data-choice-url="{% wurl 'web:slice_choice' slice.id %}"
+         {% comment %}Where to re-read this record from after an answer. The
+         modal is opened from Home/Inbox/Board, so location.pathname is that
+         board -- refreshing from it would fetch a page with no spine in it and
+         the click would land on the server and change nothing on screen. Both
+         addresses are server-rendered because these routes are org-scoped and
+         a path assembled in JS 404s in a way no endpoint test can see.
+         {% endcomment %}
+         data-refresh-url="{% wurl 'web:slice' slice.id %}{{ modal_qs }}">
   <div class="spine-bar">
     <div class="section-label">Decisions</div>
     {% comment %}The map is a second opinion on the same record. It only
@@ -35,15 +43,7 @@ read identically to one that hung it off the winning option.
         <div class="spine-alt"><b>{{ o.title }}</b>
           {% if o.summary %}<p>{{ o.summary }}</p>{% endif %}
           {% if o.body_html %}<div class="spine-body">{{ o.body_html|safe }}</div>{% endif %}
-          {% comment %}What was built under this option before it lost.
-          Older canvases carry these, and the map has no bodies -- folding
-          them here is the only place that reasoning survives.{% endcomment %}
-          {% for s in o.descendants %}
-          <div class="spine-alt spine-alt--sub"><b>{{ s.node.title }}</b>
-            {% if s.node.summary %}<p>{{ s.node.summary }}</p>{% endif %}
-            {% if s.node.body_html %}<div class="spine-body">{{ s.node.body_html|safe }}</div>{% endif %}
-          </div>
-          {% endfor %}
+          {% if o.descendants %}{% include "web/partials/_spine_branch.html" with branch=o.descendants %}{% endif %}
         </div>
         {% endfor %}
       </details>
@@ -60,6 +60,7 @@ read identically to one that hung it off the winning option.
           {% if o.summary %}<p class="spine-sum">{{ o.summary }}</p>{% endif %}
           {% if o.body_html %}<div class="spine-body">{{ o.body_html|safe }}</div>{% endif %}
           {% if o.media %}{% include "web/partials/_spine_media.html" with media=o.media %}{% endif %}
+          {% if o.descendants %}{% include "web/partials/_spine_branch.html" with branch=o.descendants %}{% endif %}
           {% comment %} The control is its own button with its own label. The heading is
              NOT the control: reading a title is the most natural click on a
              page like this, and it used to record a choice nothing could
@@ -101,15 +102,7 @@ read identically to one that hung it off the winning option.
       <div class="spine-alt"><b>{{ o.title }}</b>
         {% if o.summary %}<p>{{ o.summary }}</p>{% endif %}
         {% if o.body_html %}<div class="spine-body">{{ o.body_html|safe }}</div>{% endif %}
-        {% comment %}What was built under this option before it lost.
-        Older canvases carry these, and the map has no bodies -- folding
-        them here is the only place that reasoning survives.{% endcomment %}
-        {% for s in o.descendants %}
-        <div class="spine-alt spine-alt--sub"><b>{{ s.node.title }}</b>
-          {% if s.node.summary %}<p>{{ s.node.summary }}</p>{% endif %}
-          {% if s.node.body_html %}<div class="spine-body">{{ s.node.body_html|safe }}</div>{% endif %}
-        </div>
-        {% endfor %}
+        {% if o.descendants %}{% include "web/partials/_spine_branch.html" with branch=o.descendants %}{% endif %}
       </div>
       {% endfor %}
     </details>

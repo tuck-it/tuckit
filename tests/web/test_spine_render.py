@@ -1,7 +1,5 @@
 import pytest
 
-from django.conf import settings
-
 from tuckit.core.services.areas import create_area
 from tuckit.core.services.slices import create_slice
 
@@ -145,9 +143,7 @@ def test_the_full_page_offers_the_map_as_a_toggle_and_opens_on_the_spine(client_
     # Closed by default in CSS, not by a script that has to run first --
     # otherwise a slow load paints the map and runs a measure pass nobody
     # asked for.
-    assert "[data-graph-slot] { display: none; }" in (
-        (settings.BASE_DIR / "tuckit/web/static/web/app.css").read_text()
-        if hasattr(settings, "BASE_DIR") else _app_css())
+    assert "[data-graph-slot] { display: none; }" in _app_css()
 
 
 @pytest.mark.django_db

@@ -1,0 +1,17 @@
+{% comment %}Rows built under one option: what was explored there. Rendered
+wherever an option appears, because an option can carry a branch whether its
+question was answered, passed over, or is still open -- and the map has no
+bodies, so this is the only place that reasoning survives.
+
+A question in here keeps its own candidates listed: dropping them would make
+the branch look like it ended in a question nobody wrote answers for.
+{% endcomment %}
+{% for s in branch %}
+<div class="spine-alt spine-alt--sub"><b>{{ s.node.title }}</b>
+  {% if s.node.summary %}<p>{{ s.node.summary }}</p>{% endif %}
+  {% if s.node.body_html %}<div class="spine-body">{{ s.node.body_html|safe }}</div>{% endif %}
+  {% if s.options or s.rejected %}
+  <p class="spine-sum">{% for x in s.options %}{{ x.title }}{% if not forloop.last %} &middot; {% endif %}{% endfor %}{% for x in s.rejected %}{{ x.title }}{% if not forloop.last %} &middot; {% endif %}{% endfor %}</p>
+  {% endif %}
+</div>
+{% endfor %}

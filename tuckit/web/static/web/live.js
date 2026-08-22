@@ -130,8 +130,8 @@
      animates only those. Before it exists -- a slice nobody has designed yet,
      which is where every design conversation starts -- there is no stage and no
      brainstorm.js at all, so the first proposal has to install both. */
-  function mergeCanvas() {
-    return fetch(location.pathname + location.search, {
+  function mergeCanvas(url) {
+    return fetch(url || (location.pathname + location.search), {
       headers: { "X-Requested-With": "live" }, credentials: "same-origin"
     })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -188,10 +188,15 @@
         open[s.textContent.trim()] = true;
       });
       current.replaceWith(fresh);
+      /* Before the folds are reopened. Setting .open reflects into the
+         attribute, so a baseline captured afterwards holds an `open=""` no
+         server render ever produces -- and every later poll would then differ,
+         tearing the section down every two seconds for as long as one fold
+         stays expanded. */
+      lastSpine = fresh.innerHTML;
       fresh.querySelectorAll("details > summary").forEach(function (s) {
         if (open[s.textContent.trim()]) s.parentNode.open = true;
       });
-      lastSpine = fresh.innerHTML;
     } else {
       var slot = document.querySelector("[data-graph-slot]");
       if (!slot) return;                       // not a slice page
@@ -206,7 +211,7 @@
   /* Answering is a fetch, so it never produces the htmx event live.js watches.
      spine.js calls this to redraw from the server instead of reloading the
      page, which would throw away scroll position mid-conversation. */
-  window.__liveRefreshSpine = mergeCanvas;
+  window.__liveRefreshSpine = function (url) { return mergeCanvas(url); };
 
   /* First nodes ever: move the rendered stage into the slot and load the script
      that drives it. brainstorm.js is an IIFE that returns immediately when it

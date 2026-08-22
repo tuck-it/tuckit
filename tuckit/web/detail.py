@@ -38,15 +38,15 @@ def _row_bodies(row: dict) -> dict:
     their own: an abandoned branch keeps its reasoning, and the map has no
     bodies to fall back on.
     """
+    def option(o):
+        return dict(_with_body(o),
+                    descendants=[_row_bodies(r) for r in o.get("descendants", [])])
+
     return dict(
         row,
         node=_with_body(row["node"]),
-        options=[_with_body(o) for o in row["options"]],
-        rejected=[
-            dict(_with_body(o),
-                 descendants=[_row_bodies(r) for r in o.get("descendants", [])])
-            for o in row["rejected"]
-        ],
+        options=[option(o) for o in row["options"]],
+        rejected=[option(o) for o in row["rejected"]],
     )
 
 
@@ -59,16 +59,20 @@ def _map_nodes(slice_) -> list[dict]:
     """
     raw = graph_for(slice_)
     closed = bool((slice_.spec or "").strip())
+    # Derive the state BEFORE re-parenting and carry it by id. question_state
+    # finds a later sibling by comparing parents, so asking it about a node
+    # whose parent this view rewrote compares a new parent against old ones and
+    # finds nothing -- the map would then paint "your turn" on exactly the
+    # legacy shape (a follow-up hung off an answered question) that this whole
+    # slice is about.
+    state = {
+        n["id"]: question_state(n, raw, closed=closed)
+        for n in raw if (n.get("kind") or "note") == "question"
+    }
     nodes = reparented(raw)
     counts = Counter(n.get("parent") for n in nodes if n.get("parent"))
     return [
-        dict(n,
-             child_count=counts.get(n["id"], 0),
-             # Same derivation the spine uses. Without it the map paints every
-             # unanswered question as "your turn", including the ones the
-             # conversation walked past and the ones a written spec sealed.
-             state=(question_state(n, raw, closed=closed)
-                    if (n.get("kind") or "note") == "question" else ""))
+        dict(n, child_count=counts.get(n["id"], 0), state=state.get(n["id"], ""))
         for n in nodes
     ]
 
