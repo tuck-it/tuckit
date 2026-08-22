@@ -207,6 +207,14 @@ SLACK_CLIENT_ID = env("SLACK_CLIENT_ID", default="")
 SLACK_CLIENT_SECRET = env("SLACK_CLIENT_SECRET", default="")
 SLACK_SIGNING_SECRET = env("SLACK_SIGNING_SECRET", default="")
 
+# Queue backend for async job execution (e.g., processing Slack events).
+# Cloud deployments will set this to a Cloud Tasks backend; self-hosts use
+# the in-process default.
+TUCKIT_SLACK_QUEUE_BACKEND = env(
+    "TUCKIT_SLACK_QUEUE_BACKEND",
+    default="tuckit.integrations.slack.queue.InProcessQueueBackend",
+)
+
 # A separate switch: without it install and unfurling still work and only the
 # @mention handler is unavailable.
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
