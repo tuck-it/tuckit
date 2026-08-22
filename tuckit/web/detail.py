@@ -3,7 +3,7 @@ import nh3
 
 from tuckit.core.services.activity import label_who, slice_activity
 from tuckit.core.services.bites import bite_progress, list_bites
-from tuckit.core.services.canvas import graph_for, spine_for
+from tuckit.core.services.canvas import graph_for, reparented, spine_for
 from tuckit.core.services.orgs import policy_line_for
 from tuckit.core.services.refs import slice_ref
 from tuckit.core.services.slices import delegation_prompt, stage_of
@@ -77,10 +77,16 @@ def slice_detail_context(slice_, is_modal: bool = False, viewer=None) -> dict:
         # ever 400. Before TP-238 this state was unreachable because the record
         # was deleted at that point; keeping it is what made it possible.
         "canvas_closed": bool((slice_.spec or "").strip()),
-        "canvas_nodes": [
-            dict(node, body_html=render_markdown_html(node.get("body", "")))
-            for node in graph_for(slice_)
-        ],
+        # The MAP's nodes, which differ from the stored ones in two ways, both
+        # display-only:
+        #   - re-parented, so an edge runs question -> winner -> what followed.
+        #     Callers write it that way now; every canvas older than that rule
+        #     hung the continuation off the question, and the record is
+        #     append-only, so here is the only place it can be corrected.
+        #   - no body. A card is a label. Prose on cards is what made one tree
+        #     3240x5537px, which is why Fit bottomed out at 25% and still did
+        #     not fit. The spine is where prose belongs.
+        "canvas_nodes": reparented(graph_for(slice_)),
         # The reading view. Bodies ARE rendered here, unlike on the map: a
         # spine row is as wide as the page column, so prose costs nothing, and
         # this is the surface that has to answer "why did that win".

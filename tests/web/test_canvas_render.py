@@ -168,3 +168,51 @@ def test_an_open_record_still_offers_a_pick(client_local, org):
     body = client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
 
     assert "data-pick" in body
+
+
+# ---- the map is a map, not a document ------------------------------------
+
+STRAY = [
+    {"id": "q1", "parent": None, "kind": "question", "title": "Where?",
+     "chosen": "o1", "at": 1},
+    {"id": "o1", "parent": "q1", "kind": "option", "title": "A note",
+     "summary": "short", "body": "LONG-REASONING", "at": 1},
+    {"id": "o2", "parent": "q1", "kind": "option", "title": "Email",
+     "recommended": True, "at": 1},
+    {"id": "d1", "parent": "q1", "kind": "note", "title": "Because", "at": 2},
+]
+
+
+def _drawn(client_local, org, nodes):
+    a = create_area(org, "Backend")
+    s = create_slice(a.org, area=a, title="Canvas", spec="")
+    s.decision_tree = {"nodes": nodes}
+    s.save(update_fields=["decision_tree"])
+    return client_local.get(f"/{org.slug}/slices/{s.id}/").content.decode()
+
+
+@pytest.mark.django_db
+def test_the_edge_runs_through_the_winner_not_past_it(client_local, org):
+    # The complaint this slice exists for: the chosen card was a leaf and the
+    # story continued from a sibling note, so "drill down from what I picked"
+    # was structurally impossible. The record is append-only, so the fix is a
+    # display-time re-parent.
+    body = _drawn(client_local, org, STRAY)
+
+    assert 'data-id="d1"' in body and 'data-parent="o1"' in body
+    assert 'data-parent="q1"' in body          # the options still hang off q1
+
+
+@pytest.mark.django_db
+def test_a_map_card_carries_no_body(client_local, org):
+    # A card with prose in it is not a node; it is a document at 25% zoom.
+    stage = _drawn(client_local, org, STRAY).split("data-canvas", 1)[1]
+
+    assert "LONG-REASONING" not in stage
+    assert "cnode-b" not in stage
+
+
+@pytest.mark.django_db
+def test_the_reasoning_is_still_on_the_page_in_the_spine(client_local, org):
+    # Dropping it from the card must not drop it from the screen.
+    assert "LONG-REASONING" in _drawn(client_local, org, STRAY)

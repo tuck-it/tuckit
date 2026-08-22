@@ -2521,26 +2521,33 @@ body.canvas-maxed .ob-widget { display: none; }
 }
 .cnode-t { margin: 0; font-size: var(--text-base); font-weight: 620; letter-spacing: -.005em; }
 .cnode-s { margin: 3px 0 0; font-size: var(--text-sm); color: var(--ink-soft); }
-.cnode-b {
-  margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line);
-  font-size: var(--text-sm); color: var(--ink-soft);
-}
-.cnode-b > :first-child { margin-top: 0; }
-.cnode-b > :last-child { margin-bottom: 0; }
-.cnode-b img { max-width: 100%; height: auto; }
-.cnode-b table { display: block; overflow-x: auto; }
 .cnode--question { background: var(--paper-solid); border-style: dashed; }
 .cnode--note { background: var(--blue-soft); border-color: transparent; }
-.cnode.is-rec { border-color: var(--blue); }
+/* Blue is the human's decision. It used to ALSO mean "the agent likes this",
+   which is how one screen ended up with four blue-bordered cards -- one
+   chosen, three merely recommended -- and asked the reader to tell 1px from
+   2px at 55% opacity. The recommendation is a word now, and brainstorm.js
+   drops the class entirely once the question is answered: after the answer,
+   the agent's taste is noise. */
+.cnode.is-rec .cnode-t::after {
+  content: "recommended"; display: block; margin-top: 2px;
+  font-size: var(--text-xs); font-weight: 500; color: var(--ink-faint);
+}
+/* An unanswered question is the only thing on the map worth an alarm colour,
+   and it stops being one the moment it is settled. */
+.cnode--question { border-color: var(--warn); }
+.cnode--question.is-settled { border-color: var(--line); }
 
-/* A settled question keeps its rejected options visible but small: they stop
-   competing for space without disappearing, so "why did that lose" is still
-   one click away. */
+/* A settled question keeps its rejected options, quieter. Nothing is hidden:
+   the old rule blanked the summary with display:none while the comment above
+   it promised the reasoning was "one click away" -- and no such click existed,
+   so it was out of reach of a pointer AND of a screen reader alike. With
+   bodies off the cards there is nothing tall left to hide anyway, and the
+   spine is where that promise is now actually kept. */
 .cnode.is-chosen { border-color: var(--blue); border-width: 2px; padding: 10px var(--space-12); }
-.cnode.is-dim { opacity: .55; padding: 7px var(--space-12); }
-.cnode.is-dim .cnode-s, .cnode.is-dim .cnode-b { display: none; }
-.cnode.is-dim .cnode-t { font-weight: 500; font-size: var(--text-sm); color: var(--ink-soft); }
-.cnode.is-dim:hover { opacity: .85; }
+.cnode.is-dim { opacity: .5; }
+.cnode.is-dim .cnode-t { font-weight: 500; color: var(--ink-soft); }
+.cnode.is-dim:hover { opacity: 1; }
 
 /* Motion lives on the client: the server only says when a card arrived, and
    the stagger is computed here. That is what keeps a 2s poll from turning into
