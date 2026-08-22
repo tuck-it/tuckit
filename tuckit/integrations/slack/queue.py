@@ -1,144 +1,108 @@
 """Job queue seam for the Slack integration.
 
 Handlers enqueue work as (name: str, payload: dict) — never a callable.
-Cloud Tasks on the wire requires JSON-serializable data, so a backend that
-accepted closures would work in core and be unbuildable in cloud.
+Cloud Tasks must put the payload on the wire, so a backend accepting closures
+would work in core and be unbuildable in cloud. Validation happens at enqueue()
+time via json.dumps(): unserialisable payloads fail at the call site in core,
+not silently in cloud.
 
 The queue backend is pluggable: self-hosts run in-process by default, cloud
-uses Google Cloud Tasks. Backends are swapped via TUCKIT_SLACK_QUEUE_BACKEND
-(full import path to a callable that returns a QueueBackend instance).
+uses Google Cloud Tasks. Each backend is a plain callable (name, payload) -> None.
 """
-from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
+import json
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
-
-from django.utils.module_loading import import_string
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 # Module-level job registry: maps job_name -> callable(payload: dict)
-_JOB_REGISTRY: dict[str, Callable[[dict], None]] = {}
+JOBS: dict[str, Callable[[dict], None]] = {}
 
 
-def register_job(name: str) -> Callable:
+def job(name: str) -> Callable:
     """Decorator to register a job handler.
 
     Usage:
-        @register_job("some_job_name")
+        @job("some_job_name")
         def handle_some_job(payload: dict) -> None:
             pass
     """
     def decorator(func: Callable) -> Callable:
-        _JOB_REGISTRY[name] = func
+        JOBS[name] = func
         return func
     return decorator
 
 
-def get_job_handler(job_name: str) -> Callable:
-    """Retrieve a registered job handler by name.
+def run_job(job_name: str, payload: dict) -> None:
+    """Execute a registered job handler with the given payload.
 
-    Raises KeyError if the job is not registered.
+    This is called by backends (in-process, Cloud Tasks, etc.) to run the
+    actual job. The handler is looked up by name in the job registry.
+
+    Args:
+        job_name: The name of the registered job handler
+        payload: The JSON-serializable dict to pass to the handler
+
+    Raises:
+        KeyError: If job_name is not registered
     """
-    if job_name not in _JOB_REGISTRY:
+    if job_name not in JOBS:
         raise KeyError(f"No handler registered for job '{job_name}'")
-    return _JOB_REGISTRY[job_name]
+    handler = JOBS[job_name]
+    try:
+        handler(payload)
+    except Exception as e:
+        logger.exception("Job %s failed with exception", job_name, exc_info=e)
+        raise
 
 
-class QueueBackend(ABC):
-    """Abstract base class for queue backends.
+def in_process_backend(job_name: str, payload: dict) -> None:
+    """In-process queue backend — runs jobs on a thread pool.
 
-    A backend accepts a job name and a JSON-serializable payload,
-    and arranges for that job to be executed (either immediately,
-    deferred, or on a task queue). Implementations are free to:
-    - Run synchronously or asynchronously
-    - Run in-process or out-of-process
-    - Retry or fail silently
-
-    The contract is: the backend must call the job handler with the
-    payload, at some point. The handler function is looked up by name.
-    """
-
-    @abstractmethod
-    def enqueue(self, job_name: str, payload: dict) -> None:
-        """Enqueue a job for execution.
-
-        Args:
-            job_name: The name of the job (must be registered via @register_job)
-            payload: A JSON-serializable dict to pass to the job handler
-        """
-        pass
-
-
-class InProcessQueueBackend(QueueBackend):
-    """Runs jobs on a thread pool in the current process.
-
-    Jobs are executed asynchronously on background threads, so enqueue()
+    Jobs are executed asynchronously on background threads, so this function
     returns immediately. Useful for development and self-hosted deployments.
+
+    Args:
+        job_name: The name of the registered job handler
+        payload: The JSON-serializable dict to pass to the handler
     """
-
-    def __init__(self):
-        """Initialize the in-process backend with a thread pool."""
-        self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="slack_job_")
-
-    def enqueue(self, job_name: str, payload: dict) -> None:
-        """Enqueue a job to run on a background thread.
-
-        The job handler is looked up by name in the job registry and
-        submitted to the thread pool for execution.
-        """
-        try:
-            handler = get_job_handler(job_name)
-        except KeyError as e:
-            logger.error("Job enqueue failed: %s", e)
-            raise
-
-        def run_job() -> None:
-            try:
-                handler(payload)
-            except Exception as e:
-                logger.exception("Job %s failed with exception", job_name, exc_info=e)
-
-        self._executor.submit(run_job)
-
-
-def get_backend() -> QueueBackend:
-    """Load and instantiate the configured queue backend.
-
-    The backend class is specified by TUCKIT_SLACK_QUEUE_BACKEND setting
-    (a full import path). If not set, defaults to InProcessQueueBackend.
-
-    Returns:
-        An instance of the configured QueueBackend
-    """
-    backend_path = getattr(
-        settings,
-        "TUCKIT_SLACK_QUEUE_BACKEND",
-        "tuckit.integrations.slack.queue.InProcessQueueBackend",
-    )
-    backend_class = import_string(backend_path)
-    return backend_class()
-
-
-# Module-level backend instance (lazy-loaded on first use)
-_backend: QueueBackend | None = None
+    executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="slack_job_")
+    executor.submit(run_job, job_name, payload)
 
 
 def enqueue(job_name: str, payload: dict) -> None:
     """Enqueue a job for async execution.
 
-    This is the public API for queueing work. The job_name identifies
-    a registered handler, and payload is passed to it.
+    This is the public API for queueing work. The payload is validated as
+    JSON-serializable at this call site to ensure early failure in core,
+    not silent failure across the repo boundary in cloud.
 
     Args:
         job_name: Name of the registered job handler
         payload: JSON-serializable dict to pass to the handler
 
     Raises:
+        TypeError: If payload is not JSON-serializable
         KeyError: If job_name is not registered
     """
-    global _backend
-    if _backend is None:
-        _backend = get_backend()
-    _backend.enqueue(job_name, payload)
+    # Validate that the payload is JSON-serializable. This guard is critical:
+    # it ensures unserialisable payloads fail at the call site in core,
+    # not silently in cloud where the traceback no longer belongs to the caller.
+    try:
+        json.dumps(payload)
+    except TypeError as e:
+        raise TypeError(f"Payload for job '{job_name}' is not JSON-serializable") from e
+
+    # Load and use the configured backend (default: in-process)
+    from django.conf import settings
+    from django.utils.module_loading import import_string
+
+    backend_path = getattr(
+        settings,
+        "TUCKIT_SLACK_QUEUE_BACKEND",
+        "tuckit.integrations.slack.queue.in_process_backend",
+    )
+    backend = import_string(backend_path)
+    backend(job_name, payload)

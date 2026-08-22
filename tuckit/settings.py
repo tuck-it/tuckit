@@ -212,7 +212,7 @@ SLACK_SIGNING_SECRET = env("SLACK_SIGNING_SECRET", default="")
 # the in-process default.
 TUCKIT_SLACK_QUEUE_BACKEND = env(
     "TUCKIT_SLACK_QUEUE_BACKEND",
-    default="tuckit.integrations.slack.queue.InProcessQueueBackend",
+    default="tuckit.integrations.slack.queue.in_process_backend",
 )
 
 # A separate switch: without it install and unfurling still work and only the
