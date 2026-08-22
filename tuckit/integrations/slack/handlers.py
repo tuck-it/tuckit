@@ -186,6 +186,24 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
     if member is None:
         return
 
+    # Slack fires link_shared twice for one paste: once from the COMPOSER,
+    # while the message is still being typed and therefore has no ts yet, and
+    # once from conversations_history for the posted message. Answering the
+    # composer event with chat.unfurl(ts="") is accepted -- ok:true -- and
+    # draws nothing, and then the cooldown row written below suppresses the
+    # real event that arrives milliseconds later. One paste, one silent call,
+    # and the ref stays unexpandable for an hour. We do not want composer
+    # previews at all, so the event without a message to attach to is not our
+    # business. The log line names no ref, title or URL: the silence rule in
+    # this handler covers logs too.
+    message_ts = event.get("message_ts") or ""
+    if not message_ts:
+        logger.info(
+            "skipping a link_shared with no message_ts (source=%s, links=%d)",
+            event.get("source", "?"), len(event.get("links", [])),
+        )
+        return
+
     unfurls = {}
     expanded_refs = []
     cutoff = timezone.now() - UNFURL_COOLDOWN
@@ -207,7 +225,7 @@ def handle_link_shared(*, team_id: str, event: dict) -> None:
         return
     try:
         SlackClient(install.bot_token).chat_unfurl(
-            channel=event.get("channel", ""), ts=event.get("message_ts", ""), unfurls=unfurls,
+            channel=event.get("channel", ""), ts=message_ts, unfurls=unfurls,
         )
     except SlackApiError:
         # Deliberately swallowed, not just uncaught: this is the one path in
